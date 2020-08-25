@@ -76,11 +76,13 @@ for env in json.loads(client.execute(ENVS_QUERY))["data"]["envs"]:
 if not prod_env:
     raise ValueError("Cannot find production env")
 
+r = None
+
 for saas_file in json.loads(client.execute(SAAS_QUERY))["data"]["saas_files"]:
     if saas_file["app"]["name"] != target_app:
         continue
 
-    if saas_file["app"]["parentApp"]["name"] != "insights":
+    if saas_file["app"]["parentApp"] is None or saas_file["app"]["parentApp"]["name"] != "insights":
         raise ValueError("Specified app is not part of cloud.redhat.com")
     
     for r in saas_file["resourceTemplates"]:
@@ -109,3 +111,6 @@ for saas_file in json.loads(client.execute(SAAS_QUERY))["data"]["saas_files"]:
             proc = Popen("oc process --local -o json -f - %s" % param_str, shell=True, stdin=PIPE, stdout=PIPE)
             stdout, stderr = proc.communicate(template.encode("utf-8"))
             print(stdout.decode("utf-8"))
+
+if r is None:
+    print("App not found")
