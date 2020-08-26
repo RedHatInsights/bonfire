@@ -103,7 +103,7 @@ for saas_file in json.loads(client.execute(SAAS_QUERY))["data"]["saas_files"]:
                 p.update({"IMAGE_TAG": "latest" if t["ref"] == "master" else t["ref"][:7]})
 
             template = requests.get(template_url, verify=False).text
-            y = yaml.load(template)
+            y = yaml.safe_load(template)
 
             pnames = set(p["name"] for p in y["parameters"])
             param_str = " ".join("-p %s=%s" % (k, v) for k, v in p.items() if k in pnames)
