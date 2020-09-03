@@ -7,64 +7,19 @@ import sys
 import json
 import requests
 import yaml
+import logging
 from subprocess import PIPE
 from subprocess import Popen
 
-from graphqlclient import GraphQLClient
+from client import Client
+
+log = logging.getLogger('bonfire.main')
 
 RAW_GITHUB = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 RAW_GITLAB = "https://gitlab.cee.redhat.com/{org}/{repo}/-/raw/{ref}{path}"
 
-ENVS_QUERY = """
-{
-  envs: environments_v1 {
-    name
-    parameters
-    namespaces {
-      name
-    }
-  }
-}
-"""
 
-SAAS_QUERY = """
-{
-  saas_files: saas_files_v1 {
-    name
-    app {
-      name
-      parentApp {
-        name
-      }
-    }
-    parameters
-    resourceTemplates {
-      name
-      path
-      url
-      parameters
-      targets {
-        namespace {
-          name
-        }
-        ref
-        parameters
-      }
-    }
-  }
-}
-"""
-
-
-@click.command()
-@click.option("--target-app", "-a", required=True, type=str, help="Name of application")
-@click.option(
-    "--target-env",
-    "-e",
-    help="Name of environment (default: insights-production)",
-    type=str,
-    default="insights-production"
-)
+@click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option(
     "--url",
     "-u",
@@ -72,46 +27,88 @@ SAAS_QUERY = """
     type=str,
     default="http://localhost:4000/graphql"
 )
-def main(target_app, target_env, url):
-    client = GraphQLClient(url)
+@click.pass_context
+def main(ctx, url):
+    ctx.ensure_object(dict)
+    ctx.obj['url'] = url
 
-    if "GRAPHQL_CREDS" in os.environ:
-        client.inject_token(os.environ["GRAPHQL_CREDS"])
 
-    for env in json.loads(client.execute(ENVS_QUERY))["data"]["envs"]:
-        if env["name"] == target_env:
-            env = env
-            env["namespaces"] = set(n["name"] for n in env["namespaces"])
-            break
-    else:
-        raise ValueError("cannot find env '{target_env}'")
+@main.command('get-namespaces')
+@click.pass_context
+def get_namespaces(ctx):
+    """Get list of namespaces available for ephemeral deployments"""
+    client = Client(ctx.obj['url'])
+    namespaces = client.get_env("insights-ephemeral")["namespaces"]
+    namespaces.remove('ephemeral-base')
+    # TODO: figure out which of these are currently in use
+    click.echo("\n".join(namespaces))
 
-    found_templates = True
 
-    for saas_file in json.loads(client.execute(SAAS_QUERY))["data"]["saas_files"]:
-        if saas_file["app"]["name"] != target_app:
-            continue
+@main.command('get-config')
+@click.option("--app", "-a", required=True, type=str, help="Name of application")
+@click.option(
+    "--src-env",
+    "-e",
+    help="Name of environment to pull app config from (default: insights-ephemeral)",
+    type=str,
+    default="insights-ephemeral"
+)
+@click.option(
+    "--ref-env",
+    "-r",
+    help="Name of environment for deploy target 'ref'/'IMAGE_TAG' (default: insights-production)",
+    type=str,
+    default="insights-production"
+)
+@click.pass_context
+def get_config(ctx, app, src_env, ref_env):
+    """Get kubernetes config for an app"""
+    client = Client(ctx.obj['url'])
 
-        if saas_file["app"].get("parentApp", {}).get("name") != "insights":
-            raise ValueError(f"specified app '{target_app}' is not part of cloud.redhat.com")
+    src_env_data = client.get_env(src_env)
+    ref_env_data = client.get_env(ref_env)
 
-        for r in saas_file["resourceTemplates"]:
-            found_templates = True
+    for saas_file in client.get_saas_files(app):
+        src_resources = client.get_filtered_resource_templates(saas_file, src_env_data)
+        ref_resources = client.get_filtered_resource_templates(saas_file, ref_env_data)
+
+        for app_name, r in src_resources.items():
+            src_targets = r.get('targets', [])
+            ref_targets = ref_resources.get(app, {}).get('targets', [])
+            if not src_targets:
+                log.warning("app '%s' no targets found using src env '%s'", app_name, src_env)
+                continue
+            if not ref_targets:
+                log.warning("app '%s' no targets found using ref env '%s'", app_name, ref_env)
+                ref_targets = src_targets
+
+            if len(ref_targets) > 1:
+                # find a target with 0 replicas if possible
+                log.warning("app '%s' has multiple targets defined for ref env '%s'", app, ref_env)
+                for t in ref_targets:
+                    if t['parameters'].get("REPLICAS") != 0:
+                        ref_targets = [t]
+                        break
+
+            ref_target = ref_targets[0]
+
+            ref_git_ref = ref_target["ref"]
+            ref_image_tag = ref_target['parameters'].get("IMAGE_TAG")
 
             org, repo = r["url"].split("/")[-2:]
             path = r["path"]
-            for t in r["targets"]:
-                if t["namespace"]["name"] not in env["namespaces"]:
-                    continue
+            raw_template = RAW_GITHUB if "github" in r["url"] else RAW_GITLAB
+            template_url = raw_template.format(org=org, repo=repo, ref=ref_git_ref, path=path)
 
-                raw_template = RAW_GITHUB if "github" in r["url"] else RAW_GITLAB
-                template_url = raw_template.format(org=org, repo=repo, ref=t["ref"], path=path)
-
-                p = copy.deepcopy(json.loads(env["parameters"]))
-                p.update(json.loads(saas_file["parameters"] or "{}"))
-                p.update(json.loads(r["parameters"] or "{}"))
-                p.update(json.loads(t["parameters"] or "{}"))
-                if "IMAGE_TAG" not in p:
+            for t in src_targets:
+                p = copy.deepcopy(json.loads(src_env_data["parameters"]))
+                p.update(saas_file["parameters"])
+                p.update(r["parameters"])
+                p.update(r["parameters"])
+                # override the target's parameters for ref/IMAGE_TAG using the reference env
+                p["IMAGE_TAG"] = ref_image_tag
+                t["ref"] = ref_git_ref
+                if not p.get("IMAGE_TAG"):
                     p.update({"IMAGE_TAG": "latest" if t["ref"] == "master" else t["ref"][:7]})
 
                 template = requests.get(template_url, verify=False).text
@@ -127,12 +124,9 @@ def main(target_app, target_env, url):
                 stdout, stderr = proc.communicate(template.encode("utf-8"))
                 print(stdout.decode("utf-8"))
 
-    if not found_templates:
-        raise ValueError(f"templates for app '{target_app}' not found")
-
 
 if __name__ == "__main__":
-    main()
+    main(obj={})
 
 
 
