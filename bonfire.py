@@ -56,7 +56,7 @@ def get_namespaces(ctx):
 @click.option(
     "--ref-env",
     "-r",
-    help="Name of environment for deploy target 'ref'/'IMAGE_TAG' (default: insights-production)",
+    help="Name of environment to use for 'ref'/'IMAGE_TAG' (default: insights-production)",
     type=str,
     default="insights-production"
 )
@@ -98,16 +98,17 @@ def get_config(ctx, app, src_env, ref_env):
             org, repo = r["url"].split("/")[-2:]
             path = r["path"]
             raw_template = RAW_GITHUB if "github" in r["url"] else RAW_GITLAB
-            template_url = raw_template.format(org=org, repo=repo, ref=ref_git_ref, path=path)
+            # override the target's parameters for 'ref' using the reference env
+            t["ref"] = ref_git_ref
+            template_url = raw_template.format(org=org, repo=repo, ref=t["ref"], path=path)
 
             for t in src_targets:
                 p = copy.deepcopy(json.loads(src_env_data["parameters"]))
                 p.update(saas_file["parameters"])
                 p.update(r["parameters"])
                 p.update(r["parameters"])
-                # override the target's parameters for ref/IMAGE_TAG using the reference env
+                # override the target's IMAGE_TAG using the reference env
                 p["IMAGE_TAG"] = ref_image_tag
-                t["ref"] = ref_git_ref
                 if not p.get("IMAGE_TAG"):
                     p.update({"IMAGE_TAG": "latest" if t["ref"] == "master" else t["ref"][:7]})
 
