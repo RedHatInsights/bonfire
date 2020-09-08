@@ -8,6 +8,8 @@ from graphqlclient import GraphQLClient
 
 log = logging.getLogger('bonfire.client')
 
+APP_INTERFACE_BASE_URL = os.getenv('APP_INTERFACE_BASE_URL', "http://localhost:4000/graphql")
+APP_INTERFACE_TOKEN = os.getenv('APP_INTERFACE_TOKEN')
 
 ENVS_QUERY = """
 {
@@ -51,11 +53,12 @@ SAAS_QUERY = """
 
 
 class Client:
-    def __init__(self, url):
-        self.client = GraphQLClient(url)
+    def __init__(self):
+        log.info("using url: %s", APP_INTERFACE_BASE_URL)
+        self.client = GraphQLClient(APP_INTERFACE_BASE_URL)
 
-        if "GRAPHQL_CREDS" in os.environ:
-            self.client.inject_token(os.environ["GRAPHQL_CREDS"])
+        if APP_INTERFACE_TOKEN:
+            self.client.inject_token(APP_INTERFACE_TOKEN)
 
     def get_env(self, env):
         """Get insights env configuration."""

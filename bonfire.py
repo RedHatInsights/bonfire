@@ -20,24 +20,14 @@ RAW_GITLAB = "https://gitlab.cee.redhat.com/{org}/{repo}/-/raw/{ref}{path}"
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.option(
-    "--url",
-    "-u",
-    help="qontract-server API url (default: 'http://localhost:4000/graphql')",
-    type=str,
-    default="http://localhost:4000/graphql"
-)
-@click.pass_context
-def main(ctx, url):
-    ctx.ensure_object(dict)
-    ctx.obj['url'] = url
+def main():
+    pass
 
 
 @main.command('get-namespaces')
-@click.pass_context
-def get_namespaces(ctx):
+def get_namespaces():
     """Get list of namespaces available for ephemeral deployments"""
-    client = Client(ctx.obj['url'])
+    client = Client()
     namespaces = client.get_env("insights-ephemeral")["namespaces"]
     namespaces.remove('ephemeral-base')
     # TODO: figure out which of these are currently in use
@@ -63,7 +53,7 @@ def get_namespaces(ctx):
 @click.pass_context
 def get_config(ctx, app, src_env, ref_env):
     """Get kubernetes config for an app"""
-    client = Client(ctx.obj['url'])
+    client = Client()
 
     src_env_data = client.get_env(src_env)
     ref_env_data = client.get_env(ref_env)
@@ -127,7 +117,7 @@ def get_config(ctx, app, src_env, ref_env):
 
 
 if __name__ == "__main__":
-    main(obj={})
+    main()
 
 
 
