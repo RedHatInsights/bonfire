@@ -3,66 +3,84 @@ import copy
 import os
 import logging
 
-from graphqlclient import GraphQLClient
+from gql import gql
+from gql import Client as GQLClient
+from gql import RequestsHTTPTransport
+from requests.auth import HTTPBasicAuth
 
 
 log = logging.getLogger('bonfire.client')
 
 APP_INTERFACE_BASE_URL = os.getenv('APP_INTERFACE_BASE_URL', "http://localhost:4000/graphql")
+APP_INTERFACE_USERNAME = os.getenv('APP_INTERFACE_USERNAME')
+APP_INTERFACE_PASSWORD = os.getenv('APP_INTERFACE_PASSWORD')
 APP_INTERFACE_TOKEN = os.getenv('APP_INTERFACE_TOKEN')
 
-ENVS_QUERY = """
-{
-  envs: environments_v1 {
-    name
-    parameters
-    namespaces {
-      name
-    }
-  }
-}
-"""
-
-SAAS_QUERY = """
-{
-  saas_files: saas_files_v1 {
-    name
-    app {
-      name
-      parentApp {
+ENVS_QUERY = gql(
+    """
+    {
+      envs: environments_v1 {
         name
-      }
-    }
-    parameters
-    resourceTemplates {
-      name
-      path
-      url
-      parameters
-      targets {
-        namespace {
+        parameters
+        namespaces {
           name
         }
-        ref
-        parameters
       }
     }
-  }
-}
-"""
+    """
+)
+
+SAAS_QUERY = gql(
+    """
+    {
+      saas_files: saas_files_v1 {
+        name
+        app {
+          name
+          parentApp {
+            name
+          }
+        }
+        parameters
+        resourceTemplates {
+          name
+          path
+          url
+          parameters
+          targets {
+            namespace {
+              name
+            }
+            ref
+            parameters
+          }
+        }
+      }
+    }
+    """
+)
 
 
 class Client:
     def __init__(self):
         log.info("using url: %s", APP_INTERFACE_BASE_URL)
-        self.client = GraphQLClient(APP_INTERFACE_BASE_URL)
+
+        transport_kwargs = {'url': APP_INTERFACE_BASE_URL}
 
         if APP_INTERFACE_TOKEN:
-            self.client.inject_token(APP_INTERFACE_TOKEN)
+            log.info("using token authentication")
+            transport_kwargs['headers'] = {'Authorization': APP_INTERFACE_TOKEN}
+        elif APP_INTERFACE_USERNAME and APP_INTERFACE_PASSWORD:
+            log.info("using basic authentication")
+            transport_kwargs['auth'] = HTTPBasicAuth(APP_INTERFACE_USERNAME, APP_INTERFACE_PASSWORD)
+
+        transport = RequestsHTTPTransport(**transport_kwargs)
+        self.client = GQLClient(transport=transport, fetch_schema_from_transport=True)
 
     def get_env(self, env):
         """Get insights env configuration."""
-        for env_data in json.loads(self.client.execute(ENVS_QUERY))["data"]["envs"]:
+        print(self.client.execute(ENVS_QUERY))
+        for env_data in self.client.execute(ENVS_QUERY)["envs"]:
             if env_data["name"] == env:
                 env_data["namespaces"] = set(n["name"] for n in env_data["namespaces"])
                 break
@@ -75,7 +93,7 @@ class Client:
         """Get app's saas file data."""
         saas_files = []
 
-        for saas_file in json.loads(self.client.execute(SAAS_QUERY))["data"]["saas_files"]:
+        for saas_file in self.client.execute(SAAS_QUERY)["saas_files"]:
             if saas_file["app"]["name"] != app:
                 continue
 
