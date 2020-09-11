@@ -88,7 +88,7 @@ def get_config(ctx, app, src_env, ref_env):
                 ref_targets = src_targets
 
             if len(ref_targets) > 1:
-                # find a target with 0 replicas if possible
+                # find a target with >0 replicas if possible
                 log.warning("app '%s' has multiple targets defined for ref env '%s'", app, ref_env)
                 for t in ref_targets:
                     if t['parameters'].get("REPLICAS") != 0:
