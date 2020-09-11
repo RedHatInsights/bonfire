@@ -79,7 +79,6 @@ class Client:
 
     def get_env(self, env):
         """Get insights env configuration."""
-        print(self.client.execute(ENVS_QUERY))
         for env_data in self.client.execute(ENVS_QUERY)["envs"]:
             if env_data["name"] == env:
                 env_data["namespaces"] = set(n["name"] for n in env_data["namespaces"])

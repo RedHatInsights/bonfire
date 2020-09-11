@@ -20,8 +20,15 @@ RAW_GITLAB = "https://gitlab.cee.redhat.com/{org}/{repo}/-/raw/{ref}{path}"
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
-def main():
-    pass
+@click.option(
+    "--debug",
+    "-d",
+    help="Enable debug logging",
+    is_flag=True,
+    default=False
+)
+def main(debug):
+    logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
 
 
 @main.command('get-namespaces')
@@ -57,6 +64,14 @@ def get_config(ctx, app, src_env, ref_env):
 
     src_env_data = client.get_env(src_env)
     ref_env_data = client.get_env(ref_env)
+
+    # we will output one large that contains all resources
+    root_list = {
+        "kind": "List",
+        "apiVersion": "v1",
+        "metadata": {},
+        "items": [],
+    }
 
     for saas_file in client.get_saas_files(app):
         src_resources = client.get_filtered_resource_templates(saas_file, src_env_data)
@@ -113,7 +128,11 @@ def get_config(ctx, app, src_env, ref_env):
                     shell=True, stdin=PIPE, stdout=PIPE
                 )
                 stdout, stderr = proc.communicate(template.encode("utf-8"))
-                print(stdout.decode("utf-8"))
+                output = json.loads(stdout.decode("utf-8"))
+                if output.get('items'):
+                    root_list['items'].extend(output['items'])
+
+    print(json.dumps(root_list, indent=2))
 
 
 if __name__ == "__main__":
