@@ -9,7 +9,7 @@ from gql import RequestsHTTPTransport
 from requests.auth import HTTPBasicAuth
 
 
-log = logging.getLogger('bonfire.client')
+log = logging.getLogger(__name__)
 
 APP_INTERFACE_BASE_URL = os.getenv('APP_INTERFACE_BASE_URL', "http://localhost:4000/graphql")
 APP_INTERFACE_USERNAME = os.getenv('APP_INTERFACE_USERNAME')

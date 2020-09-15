@@ -11,9 +11,9 @@ import logging
 from subprocess import PIPE
 from subprocess import Popen
 
-from client import Client
+from bonfire.app_interface import Client
 
-log = logging.getLogger('bonfire.main')
+log = logging.getLogger(__name__)
 
 RAW_GITHUB = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 RAW_GITLAB = "https://gitlab.cee.redhat.com/{org}/{repo}/-/raw/{ref}{path}"
@@ -57,8 +57,7 @@ def get_namespaces():
     type=str,
     default="insights-production"
 )
-@click.pass_context
-def get_config(ctx, app, src_env, ref_env):
+def get_config(app, src_env, ref_env):
     """Get kubernetes config for an app"""
     client = Client()
 

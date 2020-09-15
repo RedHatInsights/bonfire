@@ -1,0 +1,2 @@
+[console_scripts]
+bonfire = bonfire.bonfire:main
