@@ -62,7 +62,7 @@ def get_config(app, src_env, ref_env):
     "--timeout", "-t", required=True, type=int, default=300, help="timeout in sec (default = 300)"
 )
 def wait(namespace, timeout):
-    """Wait for all deployment(config)/(stateful|daemon)set resources to be ready in namespace"""
+    """Wait for rolled out resources to be ready in namespace"""
     wait_for_all_resources(namespace, timeout)
 
 

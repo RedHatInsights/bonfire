@@ -135,10 +135,8 @@ class Client:
         return resource_templates
 
 
-client = Client()
-
-
 def get_app_config(app, src_env, ref_env):
+    client = Client()
     src_env_data = client.get_env(src_env)
     ref_env_data = client.get_env(ref_env)
 
@@ -213,6 +211,7 @@ def get_app_config(app, src_env, ref_env):
 
 
 def get_ephemeral_namespaces():
+    client = Client()
     namespaces = client.get_env("insights-ephemeral")["namespaces"]
     namespaces.remove('ephemeral-base')
     # TODO: figure out which of these are currently in use
