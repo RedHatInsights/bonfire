@@ -7,6 +7,8 @@ from gql import gql
 from gql import Client as GQLClient
 from gql import RequestsHTTPTransport
 from requests.auth import HTTPBasicAuth
+from subprocess import PIPE
+from subprocess import Popen
 
 
 log = logging.getLogger(__name__)
@@ -15,6 +17,9 @@ APP_INTERFACE_BASE_URL = os.getenv('APP_INTERFACE_BASE_URL', "http://localhost:4
 APP_INTERFACE_USERNAME = os.getenv('APP_INTERFACE_USERNAME')
 APP_INTERFACE_PASSWORD = os.getenv('APP_INTERFACE_PASSWORD')
 APP_INTERFACE_TOKEN = os.getenv('APP_INTERFACE_TOKEN')
+
+RAW_GITHUB = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
+RAW_GITLAB = "https://gitlab.cee.redhat.com/{org}/{repo}/-/raw/{ref}{path}"
 
 ENVS_QUERY = gql(
     """
@@ -128,3 +133,87 @@ class Client:
                 t['parameters'] = json.loads(t['parameters'] or '{}')
 
         return resource_templates
+
+
+client = Client()
+
+
+def get_app_config(app, src_env, ref_env):
+    src_env_data = client.get_env(src_env)
+    ref_env_data = client.get_env(ref_env)
+
+    # we will output one large that contains all resources
+    root_list = {
+        "kind": "List",
+        "apiVersion": "v1",
+        "metadata": {},
+        "items": [],
+    }
+
+    for saas_file in client.get_saas_files(app):
+        src_resources = client.get_filtered_resource_templates(saas_file, src_env_data)
+        ref_resources = client.get_filtered_resource_templates(saas_file, ref_env_data)
+
+        for app_name, r in src_resources.items():
+            src_targets = r.get('targets', [])
+            ref_targets = ref_resources.get(app, {}).get('targets', [])
+            if not src_targets:
+                log.warning("app '%s' no targets found using src env '%s'", app_name, src_env)
+                continue
+            if not ref_targets:
+                log.warning("app '%s' no targets found using ref env '%s'", app_name, ref_env)
+                ref_targets = src_targets
+
+            if len(ref_targets) > 1:
+                # find a target with >0 replicas if possible
+                log.warning("app '%s' has multiple targets defined for ref env '%s'", app, ref_env)
+                for t in ref_targets:
+                    if t['parameters'].get("REPLICAS") != 0:
+                        ref_targets = [t]
+                        break
+
+            ref_target = ref_targets[0]
+
+            ref_git_ref = ref_target["ref"]
+            ref_image_tag = ref_target['parameters'].get("IMAGE_TAG")
+
+            org, repo = r["url"].split("/")[-2:]
+            path = r["path"]
+            raw_template = RAW_GITHUB if "github" in r["url"] else RAW_GITLAB
+            # override the target's parameters for 'ref' using the reference env
+            t["ref"] = ref_git_ref
+            template_url = raw_template.format(org=org, repo=repo, ref=t["ref"], path=path)
+
+            for t in src_targets:
+                p = copy.deepcopy(json.loads(src_env_data["parameters"]))
+                p.update(saas_file["parameters"])
+                p.update(r["parameters"])
+                p.update(r["parameters"])
+                # override the target's IMAGE_TAG using the reference env
+                p["IMAGE_TAG"] = ref_image_tag
+                if not p.get("IMAGE_TAG"):
+                    p.update({"IMAGE_TAG": "latest" if t["ref"] == "master" else t["ref"][:7]})
+
+                template = requests.get(template_url, verify=False).text
+                y = yaml.safe_load(template)
+
+                pnames = set(p["name"] for p in y["parameters"])
+                param_str = " ".join(f"-p {k}={v}" for k, v in p.items() if k in pnames)
+
+                proc = Popen(
+                    f"oc process --local -o json -f - {param_str}",
+                    shell=True, stdin=PIPE, stdout=PIPE
+                )
+                stdout, stderr = proc.communicate(template.encode("utf-8"))
+                output = json.loads(stdout.decode("utf-8"))
+                if output.get('items'):
+                    root_list['items'].extend(output['items'])
+
+    return root_list
+
+
+def get_ephemeral_namespaces():
+    namespaces = client.get_env("insights-ephemeral")["namespaces"]
+    namespaces.remove('ephemeral-base')
+    # TODO: figure out which of these are currently in use
+    return namespaces

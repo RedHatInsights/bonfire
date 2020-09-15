@@ -1,4 +1,3 @@
 # Bonfire
 
-A script to fetch deployment templates from app-interface for the purpose of
-smoke tests.
+Used to deploy ephemeral environments for cloud.redhat.com applications
