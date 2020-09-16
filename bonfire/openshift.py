@@ -365,7 +365,7 @@ def wait_for_ready_threaded(namespace, restype_name_list, timeout=300):
     result_dict = dict()
     threads = [
         threading.Thread(
-            target=wait_for_ready, args=(namespace, restype, name, timeout, False, result_dict)
+            target=wait_for_ready, args=(namespace, restype, name, timeout, result_dict)
         )
         for restype, name in restype_name_list
     ]
