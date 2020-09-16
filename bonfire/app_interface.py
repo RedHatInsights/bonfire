@@ -191,7 +191,7 @@ def get_app_config(app, src_env, ref_env):
         for resource_name, r in src_resources.items():
             resource_name = r["name"]
             src_targets = r.get("targets", [])
-            ref_targets = ref_resources.get(app, {}).get("targets", [])
+            ref_targets = ref_resources.get(resource_name, {}).get("targets", [])
             if not src_targets:
                 log.warning(
                     "app '%s' resource '%s' no targets found using src env '%s'",
@@ -222,7 +222,7 @@ def get_app_config(app, src_env, ref_env):
                 for t in ref_targets:
                     if t["parameters"].get("REPLICAS") != 0:
                         log.info(
-                            "app '%s' resource '%s' selected target with >0 replicas (target namespace is '%s')",
+                            "app '%s' resource '%s' selected ref target with >0 replicas (target namespace is '%s')",
                             app,
                             resource_name,
                             _format_namespace(t["namespace"]),
