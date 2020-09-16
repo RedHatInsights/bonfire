@@ -92,8 +92,8 @@ def wait_on_resources(namespace, timeout):
 @click.option("--namespace", "-n", required=True, type=str, help="namespace")
 def copy_secrets(namespace):
     """Copy secrets from base namespace to specified namespace"""
-    secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE)
-    copy_namespace_secrets(conf.BASE_NAMESPACE, namespace, secret_names)
+    secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
+    copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
 
 
 if __name__ == "__main__":
