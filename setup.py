@@ -17,6 +17,8 @@ setup(
     setup_requires=["setuptools_scm"],
     include_package_data=True,
     install_requires=requirements,
-    classifiers=["Programming Language :: Python :: 3.6",],
+    classifiers=[
+        "Programming Language :: Python :: 3.6",
+    ],
     python_requires=">=3.6",
 )

@@ -291,7 +291,10 @@ def _wait_with_periodic_status_check(namespace, timeout, key, restype, name):
         return False
 
     wait_for(
-        _ready, timeout=timeout, delay=5, message="wait for '{}' to be ready".format(key),
+        _ready,
+        timeout=timeout,
+        delay=5,
+        message="wait for '{}' to be ready".format(key),
     )
 
 
@@ -390,3 +393,20 @@ def wait_for_all_resources(namespace, timeout=300):
             wait_for_list.append((restype, item["metadata"]["name"]))
 
     wait_for_ready_threaded(namespace, wait_for_list, timeout=timeout)
+
+
+def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
+    for secret_name in secret_names:
+        log.info(
+            "copying secret '%s' from namespace '%s' to namespace '%s'",
+            secret_name,
+            src_namespace,
+            dst_namespace,
+        )
+        oc(
+            oc("get", "--export", "secret", secret_name, o="json", n=src_namespace, _silent=True),
+            "apply",
+            f="-",
+            n=dst_namespace,
+            _silent=True,
+        )

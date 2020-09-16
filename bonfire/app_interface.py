@@ -1,6 +1,5 @@
 import json
 import copy
-import os
 import logging
 import yaml
 
@@ -12,16 +11,10 @@ from requests.auth import HTTPBasicAuth
 from subprocess import PIPE
 from subprocess import Popen
 
+import bonfire.config as conf
 
 log = logging.getLogger(__name__)
 
-APP_INTERFACE_BASE_URL = os.getenv("APP_INTERFACE_BASE_URL", "http://localhost:4000/graphql")
-APP_INTERFACE_USERNAME = os.getenv("APP_INTERFACE_USERNAME")
-APP_INTERFACE_PASSWORD = os.getenv("APP_INTERFACE_PASSWORD")
-APP_INTERFACE_TOKEN = os.getenv("APP_INTERFACE_TOKEN")
-
-RAW_GITHUB = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
-RAW_GITLAB = "https://gitlab.cee.redhat.com/{org}/{repo}/-/raw/{ref}{path}"
 
 ENVS_QUERY = gql(
     """
@@ -67,19 +60,37 @@ SAAS_QUERY = gql(
     """
 )
 
+NAMESPACE_QUERY = gql(
+    """
+    {
+      namespaces: namespaces_v1 {
+        name
+        vault_secrets: openshiftResources {
+          ... on NamespaceOpenshiftResourceVaultSecret_v1 {
+            name
+            path
+          }
+        }
+      }
+    }
+    """
+)
+
 
 class Client:
     def __init__(self):
-        log.info("using url: %s", APP_INTERFACE_BASE_URL)
+        log.info("using url: %s", conf.APP_INTERFACE_BASE_URL)
 
-        transport_kwargs = {"url": APP_INTERFACE_BASE_URL}
+        transport_kwargs = {"url": conf.APP_INTERFACE_BASE_URL}
 
-        if APP_INTERFACE_TOKEN:
+        if conf.APP_INTERFACE_TOKEN:
             log.info("using token authentication")
-            transport_kwargs["headers"] = {"Authorization": APP_INTERFACE_TOKEN}
-        elif APP_INTERFACE_USERNAME and APP_INTERFACE_PASSWORD:
+            transport_kwargs["headers"] = {"Authorization": conf.APP_INTERFACE_TOKEN}
+        elif conf.APP_INTERFACE_USERNAME and conf.APP_INTERFACE_PASSWORD:
             log.info("using basic authentication")
-            transport_kwargs["auth"] = HTTPBasicAuth(APP_INTERFACE_USERNAME, APP_INTERFACE_PASSWORD)
+            transport_kwargs["auth"] = HTTPBasicAuth(
+                conf.APP_INTERFACE_USERNAME, conf.APP_INTERFACE_PASSWORD
+            )
 
         transport = RequestsHTTPTransport(**transport_kwargs)
         self.client = GQLClient(transport=transport, fetch_schema_from_transport=True)
@@ -114,6 +125,11 @@ class Client:
         if not saas_files:
             raise ValueError(f"no saas files found for app '{app}'")
         return saas_files
+
+    def get_namespace(self, name):
+        for ns in self.client.execute(NAMESPACE_QUERY)["namespaces"]:
+            if ns["name"] == name:
+                return ns
 
     @staticmethod
     def get_filtered_resource_templates(saas_file_data, env_data):
@@ -179,7 +195,7 @@ def get_app_config(app, src_env, ref_env):
 
             org, repo = r["url"].split("/")[-2:]
             path = r["path"]
-            raw_template = RAW_GITHUB if "github" in r["url"] else RAW_GITLAB
+            raw_template = conf.RAW_GITHUB_URL if "github" in r["url"] else conf.RAW_GITLAB_URL
             # override the target's parameters for 'ref' using the reference env
             t["ref"] = ref_git_ref
             template_url = raw_template.format(org=org, repo=repo, ref=t["ref"], path=path)
@@ -214,9 +230,17 @@ def get_app_config(app, src_env, ref_env):
     return root_list
 
 
-def get_ephemeral_namespaces():
+def get_namespaces_for_env(environment_name):
     client = Client()
-    namespaces = client.get_env("insights-ephemeral")["namespaces"]
-    namespaces.remove("ephemeral-base")
-    # TODO: figure out which of these are currently in use
+    namespaces = client.get_env(environment_name)["namespaces"]
     return namespaces
+
+
+def get_secret_names_in_namespace(namespace_name):
+    client = Client()
+    secret_names = []
+    namespace = client.get_namespace(namespace_name)
+    for secret in namespace["vault_secrets"]:
+        name = secret["name"] or secret["path"].split("/")[-1]
+        secret_names.append(name)
+    return secret_names
