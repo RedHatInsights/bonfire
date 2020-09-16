@@ -50,6 +50,9 @@ SAAS_QUERY = gql(
           targets {
             namespace {
               name
+              cluster {
+                name
+              }
             }
             ref
             parameters
@@ -153,7 +156,22 @@ class Client:
         return resource_templates
 
 
+def _format_namespace(namespace):
+    return f"[cluster: {namespace['cluster']['name']}, ns: {namespace['name']}]"
+
+
 def get_app_config(app, src_env, ref_env):
+    """
+    Load application's config:
+    * Look up deploy config for any namespaces that are mapped to 'src_env'
+    * Look up deploy config for any namespaces that are mapped to 'ref_env'
+
+    A dict representing a k8s List resource for this app is returned. If any service has a target
+    set up that maps to 'src_env' it will be included in the list, but using the IMAGE_TAG and
+    template 'ref' defined in the deploy config for 'ref_env'
+    """
+    # TODO: break this function up
+
     client = Client()
     src_env_data = client.get_env(src_env)
     ref_env_data = client.get_env(ref_env)
@@ -170,21 +188,45 @@ def get_app_config(app, src_env, ref_env):
         src_resources = client.get_filtered_resource_templates(saas_file, src_env_data)
         ref_resources = client.get_filtered_resource_templates(saas_file, ref_env_data)
 
-        for app_name, r in src_resources.items():
+        for resource_name, r in src_resources.items():
+            resource_name = r["name"]
             src_targets = r.get("targets", [])
             ref_targets = ref_resources.get(app, {}).get("targets", [])
             if not src_targets:
-                log.warning("app '%s' no targets found using src env '%s'", app_name, src_env)
+                log.warning(
+                    "app '%s' resource '%s' no targets found using src env '%s'",
+                    app,
+                    resource_name,
+                    src_env,
+                )
                 continue
             if not ref_targets:
-                log.warning("app '%s' no targets found using ref env '%s'", app_name, ref_env)
+                log.warning(
+                    "app '%s' resource '%s' no targets found using ref env '%s'",
+                    app,
+                    resource_name,
+                    ref_env,
+                )
                 ref_targets = src_targets
 
             if len(ref_targets) > 1:
                 # find a target with >0 replicas if possible
-                log.warning("app '%s' has multiple targets defined for ref env '%s'", app, ref_env)
+                namespaces = [_format_namespace(t["namespace"]) for t in ref_targets]
+                log.warning(
+                    "app '%s' resource '%s' has multiple targets defined for ref env '%s' (target namespaces: %s)",
+                    app,
+                    resource_name,
+                    ref_env,
+                    ", ".join(namespaces),
+                )
                 for t in ref_targets:
                     if t["parameters"].get("REPLICAS") != 0:
+                        log.info(
+                            "app '%s' resource '%s' selected target with >0 replicas (target namespace is '%s')",
+                            app,
+                            resource_name,
+                            _format_namespace(t["namespace"]),
+                        )
                         ref_targets = [t]
                         break
 
@@ -204,7 +246,7 @@ def get_app_config(app, src_env, ref_env):
                 p = copy.deepcopy(json.loads(src_env_data["parameters"]))
                 p.update(saas_file["parameters"])
                 p.update(r["parameters"])
-                p.update(r["parameters"])
+                p.update(t["parameters"])
                 # override the target's IMAGE_TAG using the reference env
                 p["IMAGE_TAG"] = ref_image_tag
                 if not p.get("IMAGE_TAG"):
