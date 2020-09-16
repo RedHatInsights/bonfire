@@ -65,7 +65,7 @@ NAMESPACE_QUERY = gql(
     {
       namespaces: namespaces_v1 {
         name
-        vault_secrets: openshiftResources {
+        openshiftResources {
           ... on NamespaceOpenshiftResourceVaultSecret_v1 {
             name
             path
@@ -240,7 +240,10 @@ def get_secret_names_in_namespace(namespace_name):
     client = Client()
     secret_names = []
     namespace = client.get_namespace(namespace_name)
-    for secret in namespace["vault_secrets"]:
-        name = secret["name"] or secret["path"].split("/")[-1]
+    for resource in namespace["openshiftResources"]:
+        if not resource:
+            # query returns {} if resource is not 'NamespaceOpenshiftResourceVaultSecret_v1'
+            continue
+        name = resource["name"] or resource["path"].split("/")[-1]
         secret_names.append(name)
     return secret_names
