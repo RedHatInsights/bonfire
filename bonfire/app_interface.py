@@ -2,10 +2,12 @@ import json
 import copy
 import os
 import logging
+import yaml
 
 from gql import gql
 from gql import Client as GQLClient
 from gql import RequestsHTTPTransport
+import requests
 from requests.auth import HTTPBasicAuth
 from subprocess import PIPE
 from subprocess import Popen
@@ -13,10 +15,10 @@ from subprocess import Popen
 
 log = logging.getLogger(__name__)
 
-APP_INTERFACE_BASE_URL = os.getenv('APP_INTERFACE_BASE_URL', "http://localhost:4000/graphql")
-APP_INTERFACE_USERNAME = os.getenv('APP_INTERFACE_USERNAME')
-APP_INTERFACE_PASSWORD = os.getenv('APP_INTERFACE_PASSWORD')
-APP_INTERFACE_TOKEN = os.getenv('APP_INTERFACE_TOKEN')
+APP_INTERFACE_BASE_URL = os.getenv("APP_INTERFACE_BASE_URL", "http://localhost:4000/graphql")
+APP_INTERFACE_USERNAME = os.getenv("APP_INTERFACE_USERNAME")
+APP_INTERFACE_PASSWORD = os.getenv("APP_INTERFACE_PASSWORD")
+APP_INTERFACE_TOKEN = os.getenv("APP_INTERFACE_TOKEN")
 
 RAW_GITHUB = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 RAW_GITLAB = "https://gitlab.cee.redhat.com/{org}/{repo}/-/raw/{ref}{path}"
@@ -70,14 +72,14 @@ class Client:
     def __init__(self):
         log.info("using url: %s", APP_INTERFACE_BASE_URL)
 
-        transport_kwargs = {'url': APP_INTERFACE_BASE_URL}
+        transport_kwargs = {"url": APP_INTERFACE_BASE_URL}
 
         if APP_INTERFACE_TOKEN:
             log.info("using token authentication")
-            transport_kwargs['headers'] = {'Authorization': APP_INTERFACE_TOKEN}
+            transport_kwargs["headers"] = {"Authorization": APP_INTERFACE_TOKEN}
         elif APP_INTERFACE_USERNAME and APP_INTERFACE_PASSWORD:
             log.info("using basic authentication")
-            transport_kwargs['auth'] = HTTPBasicAuth(APP_INTERFACE_USERNAME, APP_INTERFACE_PASSWORD)
+            transport_kwargs["auth"] = HTTPBasicAuth(APP_INTERFACE_USERNAME, APP_INTERFACE_PASSWORD)
 
         transport = RequestsHTTPTransport(**transport_kwargs)
         self.client = GQLClient(transport=transport, fetch_schema_from_transport=True)
@@ -106,7 +108,7 @@ class Client:
                 continue
 
             # load the parameters as a dict to save us some trouble later on...
-            saas_file['parameters'] = json.loads(saas_file['parameters'] or '{}')
+            saas_file["parameters"] = json.loads(saas_file["parameters"] or "{}")
             saas_files.append(saas_file)
 
         if not saas_files:
@@ -126,11 +128,11 @@ class Client:
                     targets.append(t)
 
             resource_templates[name] = copy.deepcopy(r)
-            resource_templates[name]['targets'] = targets
+            resource_templates[name]["targets"] = targets
             # load the parameters as a dict to save us some trouble later on...
-            resource_templates[name]['parameters'] = json.loads(r['parameters'] or '{}')
-            for t in resource_templates[name]['targets']:
-                t['parameters'] = json.loads(t['parameters'] or '{}')
+            resource_templates[name]["parameters"] = json.loads(r["parameters"] or "{}")
+            for t in resource_templates[name]["targets"]:
+                t["parameters"] = json.loads(t["parameters"] or "{}")
 
         return resource_templates
 
@@ -153,8 +155,8 @@ def get_app_config(app, src_env, ref_env):
         ref_resources = client.get_filtered_resource_templates(saas_file, ref_env_data)
 
         for app_name, r in src_resources.items():
-            src_targets = r.get('targets', [])
-            ref_targets = ref_resources.get(app, {}).get('targets', [])
+            src_targets = r.get("targets", [])
+            ref_targets = ref_resources.get(app, {}).get("targets", [])
             if not src_targets:
                 log.warning("app '%s' no targets found using src env '%s'", app_name, src_env)
                 continue
@@ -166,14 +168,14 @@ def get_app_config(app, src_env, ref_env):
                 # find a target with >0 replicas if possible
                 log.warning("app '%s' has multiple targets defined for ref env '%s'", app, ref_env)
                 for t in ref_targets:
-                    if t['parameters'].get("REPLICAS") != 0:
+                    if t["parameters"].get("REPLICAS") != 0:
                         ref_targets = [t]
                         break
 
             ref_target = ref_targets[0]
 
             ref_git_ref = ref_target["ref"]
-            ref_image_tag = ref_target['parameters'].get("IMAGE_TAG")
+            ref_image_tag = ref_target["parameters"].get("IMAGE_TAG")
 
             org, repo = r["url"].split("/")[-2:]
             path = r["path"]
@@ -200,12 +202,14 @@ def get_app_config(app, src_env, ref_env):
 
                 proc = Popen(
                     f"oc process --local -o json -f - {param_str}",
-                    shell=True, stdin=PIPE, stdout=PIPE
+                    shell=True,
+                    stdin=PIPE,
+                    stdout=PIPE,
                 )
                 stdout, stderr = proc.communicate(template.encode("utf-8"))
                 output = json.loads(stdout.decode("utf-8"))
-                if output.get('items'):
-                    root_list['items'].extend(output['items'])
+                if output.get("items"):
+                    root_list["items"].extend(output["items"])
 
     return root_list
 
@@ -213,6 +217,6 @@ def get_app_config(app, src_env, ref_env):
 def get_ephemeral_namespaces():
     client = Client()
     namespaces = client.get_env("insights-ephemeral")["namespaces"]
-    namespaces.remove('ephemeral-base')
+    namespaces.remove("ephemeral-base")
     # TODO: figure out which of these are currently in use
     return namespaces

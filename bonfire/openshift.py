@@ -1,13 +1,7 @@
-import glob
 import json
 import logging
-import sys
 import threading
 import time
-import os
-import yaml
-import re
-from functools import reduce
 
 import sh
 from sh import ErrorReturnCode, TimeoutException
@@ -179,7 +173,7 @@ def oc(*args, **kwargs):
 def apply_config(namespace, list_resource):
     """
     Apply a k8s List of items to a namespace
-    """ 
+    """
     oc("apply", "-f", "-", "-n", namespace, _in=json.dumps(list_resource))
 
 
@@ -249,11 +243,6 @@ def _check_status_for_restype(restype, json_data):
         status = json_data["status"]
     except KeyError:
         status = None
-
-    try:
-        name = json_data["metadata"]["name"]
-    except KeyError:
-        name = "unknown"
 
     if not status:
         return False
@@ -395,9 +384,9 @@ def wait_for_ready_threaded(namespace, restype_name_list, timeout=300):
 def wait_for_all_resources(namespace, timeout=300):
     all_resources = get_json(namespace, "all")
     wait_for_list = []
-    for item in all_resources['items']:
-        restype = parse_restype(item['metadata']['kind'])
+    for item in all_resources["items"]:
+        restype = parse_restype(item["metadata"]["kind"])
         if restype in _CHECKABLE_RESOURCES:
-            wait_for_list.append((restype, item['metadata']['name']))
+            wait_for_list.append((restype, item["metadata"]["name"]))
 
     wait_for_ready_threaded(namespace, wait_for_list, timeout=timeout)

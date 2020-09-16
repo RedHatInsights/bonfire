@@ -29,8 +29,16 @@ def _error(msg):
 @click.argument("search_regex", required=True, type=str)
 @click.argument("replace_regex", required=True, type=str)
 @click.argument("file_path", required=True, type=str)
-@click.option("--in-place", "-i", is_flag=True, default=False, help="Overwrite file once replace is completed")
-@click.option("--lines", "-l", is_flag=True, default=False, help="Find re match on each line, not the entire file at once")
+@click.option(
+    "--in-place", "-i", is_flag=True, default=False, help="Overwrite file once replace is completed"
+)
+@click.option(
+    "--lines",
+    "-l",
+    is_flag=True,
+    default=False,
+    help="Find re match on each line, not the entire file at once",
+)
 def main(search_regex, replace_regex, file_path, in_place, lines):
     if not os.path.exists(file_path):
         _error(f"file does not exist: {file_path}")
