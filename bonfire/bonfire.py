@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
 def main(debug):
+    logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
 
 
