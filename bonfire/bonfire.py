@@ -30,7 +30,7 @@ def _get_namespaces():
 @main.command("list-namespaces")
 def list_namespaces():
     """Get list of namespaces available for ephemeral deployments"""
-    click.echo("\n".join(_get_namespaces))
+    click.echo("\n".join(_get_namespaces()))
 
 
 @main.command("checkout-namespace")
@@ -44,6 +44,7 @@ def list_namespaces():
 def checkout_namespace(namespace):
     """Reserve an available ephemeral namespace"""
     # TODO: figure out how to determine which namespaces are in use and reserve it
+    log.warning("not yet implemented")
     namespace = namespace or _get_namespaces()[0]
     click.echo(namespace)
 
@@ -53,7 +54,7 @@ def checkout_namespace(namespace):
 def checkin_namespace(namespace):
     """Remove reservation from an ephemeral namespace"""
     # TODO: implement this
-    pass
+    log.warning("not yet implemented")
 
 
 @main.command("get-config")

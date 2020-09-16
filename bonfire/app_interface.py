@@ -233,7 +233,7 @@ def get_app_config(app, src_env, ref_env):
 def get_namespaces_for_env(environment_name):
     client = Client()
     namespaces = client.get_env(environment_name)["namespaces"]
-    return namespaces
+    return list(namespaces)
 
 
 def get_secret_names_in_namespace(namespace_name):
