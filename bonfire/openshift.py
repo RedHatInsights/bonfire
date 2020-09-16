@@ -385,11 +385,11 @@ def wait_for_ready_threaded(namespace, restype_name_list, timeout=300):
 
 
 def wait_for_all_resources(namespace, timeout=300):
-    all_resources = get_json(namespace, "all")
     wait_for_list = []
-    for item in all_resources["items"]:
-        restype = parse_restype(item["metadata"]["kind"])
-        if restype in _CHECKABLE_RESOURCES:
+
+    for restype in _CHECKABLE_RESOURCES:
+        resources = get_json(namespace, restype)
+        for item in resources["items"]:
             wait_for_list.append((restype, item["metadata"]["name"]))
 
     wait_for_ready_threaded(namespace, wait_for_list, timeout=timeout)
