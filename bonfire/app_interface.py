@@ -8,10 +8,9 @@ from gql import Client as GQLClient
 from gql import RequestsHTTPTransport
 import requests
 from requests.auth import HTTPBasicAuth
-from subprocess import PIPE
-from subprocess import Popen
 
 import bonfire.config as conf
+from bonfire.openshift import process_template
 
 log = logging.getLogger(__name__)
 
@@ -134,30 +133,130 @@ class Client:
             if ns["name"] == name:
                 return ns
 
-    @staticmethod
-    def get_filtered_resource_templates(saas_file_data, env_data):
-        """Return resourceTemplates with targets filtered only to those mapped to 'env_name'."""
-        resource_templates = {}
-
-        for r in saas_file_data["resourceTemplates"]:
-            name = r["name"]
-            targets = []
-            for t in r["targets"]:
-                if t["namespace"]["name"] in env_data["namespaces"]:
-                    targets.append(t)
-
-            resource_templates[name] = copy.deepcopy(r)
-            resource_templates[name]["targets"] = targets
-            # load the parameters as a dict to save us some trouble later on...
-            resource_templates[name]["parameters"] = json.loads(r["parameters"] or "{}")
-            for t in resource_templates[name]["targets"]:
-                t["parameters"] = json.loads(t["parameters"] or "{}")
-
-        return resource_templates
-
 
 def _format_namespace(namespace):
     return f"[cluster: {namespace['cluster']['name']}, ns: {namespace['name']}]"
+
+
+def _format_app_resource(app, resource_name):
+    return f"app '{app}' resource '{resource_name}'"
+
+
+def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_env):
+    if not src_targets:
+        log.warning(
+            "%s: no targets found using src env '%s'",
+            _format_app_resource(app, resource_name),
+            src_env,
+        )
+        src_targets = [None]
+
+    if not ref_targets:
+        log.warning(
+            "%s: no targets found using ref env '%s'",
+            _format_app_resource(app, resource_name),
+            ref_env,
+        )
+        ref_targets = src_targets
+
+    if len(ref_targets) > 1:
+        # find a target with >0 replicas if possible
+        namespaces = [_format_namespace(t["namespace"]) for t in ref_targets]
+        log.warning(
+            "%s: multiple targets defined for ref env '%s' (target namespaces: %s)",
+            _format_app_resource(app, resource_name),
+            ref_env,
+            ", ".join(namespaces),
+        )
+        for t in ref_targets:
+            if t["parameters"].get("REPLICAS") != 0:
+                log.info(
+                    "%s: selected ref target with >0 replicas (target namespace is '%s')",
+                    _format_app_resource(app, resource_name),
+                    _format_namespace(t["namespace"]),
+                )
+                ref_targets = [t]
+                break
+
+    src_target = src_targets[0]  # TODO: handle cases where more than 1 src target was found?
+    ref_target = ref_targets[0]
+
+    return src_target, ref_target
+
+
+def _download_raw_template(resource, ref):
+    org, repo = resource["url"].split("/")[-2:]
+    path = resource["path"]
+    raw_template = conf.RAW_GITHUB_URL if "github" in resource["url"] else conf.RAW_GITLAB_URL
+    template_url = raw_template.format(org=org, repo=repo, ref=ref, path=path)
+
+    template = requests.get(template_url, verify=False).text
+    template_yaml = yaml.safe_load(template)
+
+    return template_yaml
+
+
+def _get_resources_for_env(saas_file_data, env_data):
+    """Return resourceTemplates with targets filtered only to those mapped to 'env_name'."""
+    resources = {}
+
+    for resource in saas_file_data["resourceTemplates"]:
+        name = resource["name"]
+        targets = []
+        for t in resource["targets"]:
+            if t["namespace"]["name"] in env_data["namespaces"]:
+                targets.append(t)
+
+        resources[name] = copy.deepcopy(resource)
+        resources[name]["targets"] = targets
+        # load the parameters as a dict to save us some trouble later on...
+        resources[name]["parameters"] = json.loads(resource["parameters"] or "{}")
+        for target in resources[name]["targets"]:
+            target["parameters"] = json.loads(target["parameters"] or "{}")
+
+    return resources
+
+
+def _get_processed_config_items(client, app, saas_file, src_env, ref_env):
+    src_env_data = client.get_env(src_env)
+    ref_env_data = client.get_env(ref_env)
+
+    src_resources = _get_resources_for_env(saas_file, src_env_data)
+    ref_resources = _get_resources_for_env(saas_file, ref_env_data)
+
+    items = []
+
+    for resource_name, resource in src_resources.items():
+        src_targets = resource.get("targets", [])
+        ref_targets = ref_resources.get(resource_name, {}).get("targets", [])
+        src_target, ref_target = _parse_targets(
+            src_targets, ref_targets, app, resource_name, src_env, ref_env
+        )
+        if not src_target:
+            # no target configuration exists for this resource in the desired source env
+            continue
+
+        template_ref = ref_target["ref"]
+        # set the template ref/IMAGE_TAG to be the reference env's ref/IMAGE_TAG
+        src_target["ref"] = template_ref
+        ref_image_tag = ref_target["parameters"].get("IMAGE_TAG")
+
+        raw_template = _download_raw_template(resource, template_ref)
+
+        # merge the various layers of parameters to pass into the template
+        p = copy.deepcopy(json.loads(src_env_data["parameters"]))
+        p.update(saas_file["parameters"])
+        p.update(resource["parameters"])
+        p.update(src_target["parameters"])
+        # override the target's IMAGE_TAG using the reference env
+        p["IMAGE_TAG"] = ref_image_tag
+        if not p.get("IMAGE_TAG"):
+            p.update({"IMAGE_TAG": "latest" if template_ref == "master" else template_ref[:7]})
+
+        processed_template = process_template(raw_template, p)
+        items.extend(processed_template.get("items", []))
+
+    return items
 
 
 def get_app_config(app, src_env, ref_env):
@@ -170,12 +269,6 @@ def get_app_config(app, src_env, ref_env):
     set up that maps to 'src_env' it will be included in the list, but using the IMAGE_TAG and
     template 'ref' defined in the deploy config for 'ref_env'
     """
-    # TODO: break this function up
-
-    client = Client()
-    src_env_data = client.get_env(src_env)
-    ref_env_data = client.get_env(ref_env)
-
     # we will output one large that contains all resources
     root_list = {
         "kind": "List",
@@ -184,90 +277,12 @@ def get_app_config(app, src_env, ref_env):
         "items": [],
     }
 
+    client = Client()
+
     for saas_file in client.get_saas_files(app):
-        src_resources = client.get_filtered_resource_templates(saas_file, src_env_data)
-        ref_resources = client.get_filtered_resource_templates(saas_file, ref_env_data)
-
-        for resource_name, r in src_resources.items():
-            resource_name = r["name"]
-            src_targets = r.get("targets", [])
-            ref_targets = ref_resources.get(resource_name, {}).get("targets", [])
-            if not src_targets:
-                log.warning(
-                    "app '%s' resource '%s' no targets found using src env '%s'",
-                    app,
-                    resource_name,
-                    src_env,
-                )
-                continue
-            if not ref_targets:
-                log.warning(
-                    "app '%s' resource '%s' no targets found using ref env '%s'",
-                    app,
-                    resource_name,
-                    ref_env,
-                )
-                ref_targets = src_targets
-
-            if len(ref_targets) > 1:
-                # find a target with >0 replicas if possible
-                namespaces = [_format_namespace(t["namespace"]) for t in ref_targets]
-                log.warning(
-                    "app '%s' resource '%s' has multiple targets defined for ref env '%s' (target namespaces: %s)",
-                    app,
-                    resource_name,
-                    ref_env,
-                    ", ".join(namespaces),
-                )
-                for t in ref_targets:
-                    if t["parameters"].get("REPLICAS") != 0:
-                        log.info(
-                            "app '%s' resource '%s' selected ref target with >0 replicas (target namespace is '%s')",
-                            app,
-                            resource_name,
-                            _format_namespace(t["namespace"]),
-                        )
-                        ref_targets = [t]
-                        break
-
-            ref_target = ref_targets[0]
-
-            ref_git_ref = ref_target["ref"]
-            ref_image_tag = ref_target["parameters"].get("IMAGE_TAG")
-
-            org, repo = r["url"].split("/")[-2:]
-            path = r["path"]
-            raw_template = conf.RAW_GITHUB_URL if "github" in r["url"] else conf.RAW_GITLAB_URL
-            # override the target's parameters for 'ref' using the reference env
-            t["ref"] = ref_git_ref
-            template_url = raw_template.format(org=org, repo=repo, ref=t["ref"], path=path)
-
-            for t in src_targets:
-                p = copy.deepcopy(json.loads(src_env_data["parameters"]))
-                p.update(saas_file["parameters"])
-                p.update(r["parameters"])
-                p.update(t["parameters"])
-                # override the target's IMAGE_TAG using the reference env
-                p["IMAGE_TAG"] = ref_image_tag
-                if not p.get("IMAGE_TAG"):
-                    p.update({"IMAGE_TAG": "latest" if t["ref"] == "master" else t["ref"][:7]})
-
-                template = requests.get(template_url, verify=False).text
-                y = yaml.safe_load(template)
-
-                pnames = set(p["name"] for p in y["parameters"])
-                param_str = " ".join(f"-p {k}={v}" for k, v in p.items() if k in pnames)
-
-                proc = Popen(
-                    f"oc process --local -o json -f - {param_str}",
-                    shell=True,
-                    stdin=PIPE,
-                    stdout=PIPE,
-                )
-                stdout, stderr = proc.communicate(template.encode("utf-8"))
-                output = json.loads(stdout.decode("utf-8"))
-                if output.get("items"):
-                    root_list["items"].extend(output["items"])
+        root_list["items"].extend(
+            _get_processed_config_items(client, app, saas_file, src_env, ref_env)
+        )
 
     return root_list
 

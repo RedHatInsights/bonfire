@@ -5,6 +5,8 @@ import time
 
 import sh
 from sh import ErrorReturnCode, TimeoutException
+from subprocess import PIPE
+from subprocess import Popen
 from wait_for import wait_for, TimedOutError
 
 log = logging.getLogger(__name__)
@@ -410,3 +412,17 @@ def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
             n=dst_namespace,
             _silent=True,
         )
+
+
+def process_template(template_data, params):
+    valid_pnames = set(p["name"] for p in template_data["parameters"])
+    param_str = " ".join(f"-p {k}={v}" for k, v in params.items() if k in valid_pnames)
+
+    proc = Popen(
+        f"oc process --local -o json -f - {param_str}",
+        shell=True,
+        stdin=PIPE,
+        stdout=PIPE,
+    )
+    stdout, stderr = proc.communicate(json.dumps(template_data).encode("utf-8"))
+    return json.loads(stdout.decode("utf-8"))
