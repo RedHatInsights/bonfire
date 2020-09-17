@@ -1,3 +1,5 @@
 # Bonfire
 
-Used to deploy ephemeral environments for cloud.redhat.com applications
+A work-in-progress
+
+Used to deploy ephemeral environments for testing cloud.redhat.com applications
