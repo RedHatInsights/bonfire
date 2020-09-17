@@ -5,7 +5,7 @@ import json
 import logging
 
 import bonfire.config as conf
-from bonfire.app_interface import (
+from bonfire.qontract import (
     get_namespaces_for_env,
     get_app_config,
     get_secret_names_in_namespace,

@@ -81,17 +81,17 @@ NAMESPACE_QUERY = gql(
 
 class Client:
     def __init__(self):
-        log.info("using url: %s", conf.APP_INTERFACE_BASE_URL)
+        log.info("using url: %s", conf.QONTRACT_BASE_URL)
 
-        transport_kwargs = {"url": conf.APP_INTERFACE_BASE_URL}
+        transport_kwargs = {"url": conf.QONTRACT_BASE_URL}
 
-        if conf.APP_INTERFACE_TOKEN:
+        if conf.QONTRACT_TOKEN:
             log.info("using token authentication")
-            transport_kwargs["headers"] = {"Authorization": conf.APP_INTERFACE_TOKEN}
-        elif conf.APP_INTERFACE_USERNAME and conf.APP_INTERFACE_PASSWORD:
+            transport_kwargs["headers"] = {"Authorization": conf.QONTRACT_TOKEN}
+        elif conf.QONTRACT_USERNAME and conf.QONTRACT_PASSWORD:
             log.info("using basic authentication")
             transport_kwargs["auth"] = HTTPBasicAuth(
-                conf.APP_INTERFACE_USERNAME, conf.APP_INTERFACE_PASSWORD
+                conf.QONTRACT_USERNAME, conf.QONTRACT_PASSWORD
             )
 
         transport = RequestsHTTPTransport(**transport_kwargs)
