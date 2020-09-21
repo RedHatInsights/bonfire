@@ -225,7 +225,7 @@ class StatusError(Exception):
     pass
 
 
-_CHECKABLE_RESOURCES = ["deploymentconfig", "deployment", "statefulset", "daemonset", "pod"]
+_CHECKABLE_RESOURCES = ["deploymentconfig", "deployment", "statefulset", "daemonset"]
 
 
 def _check_status_for_restype(restype, json_data):
@@ -238,7 +238,7 @@ def _check_status_for_restype(restype, json_data):
     """
     restype = parse_restype(restype)
 
-    if restype not in _CHECKABLE_RESOURCES:
+    if restype not "pod" and restype not in _CHECKABLE_RESOURCES:
         raise ValueError(f"Checking status for resource type {restype} currently not supported")
 
     try:
@@ -386,14 +386,18 @@ def wait_for_ready_threaded(namespace, restype_name_list, timeout=300):
     return True
 
 
-def _wait_for_resources(namespace, timeout):
+def _wait_for_resources(namespace, timeout, skip=None):
+    skip = skip or []
     wait_for_list = []
     for restype in _CHECKABLE_RESOURCES:
         resources = get_json(namespace, restype)
         for item in resources["items"]:
-            wait_for_list.append((restype, item["metadata"]["name"]))
+            entry = (restype, item["metadata"]["name"])
+            if entry not in skip:
+                wait_for_list.append((restype, item["metadata"]["name"]))
 
     wait_for_ready_threaded(namespace, wait_for_list, timeout=timeout)
+    return wait_for_list
 
 
 def _operator_resource_present(namespace, owner_kind):
@@ -414,7 +418,7 @@ def _operator_resources(namespace, timeout):
         timeout=timeout,
     )
     # now wait for everything in ns to be 'ready'
-    _wait_for_resources(namespace, timeout)
+    already_waited_on = _wait_for_resources(namespace, timeout)
 
     log.info("Waiting for resources owned by 'InsightsApp' to appear")
     wait_for(
@@ -423,8 +427,8 @@ def _operator_resources(namespace, timeout):
         message="wait for InsightsApp-owned resources to appear",
         timeout=timeout,
     )
-    # now that InsightsApp resources showed up, again, wait for everything in ns to be 'ready'
-    _wait_for_resources(namespace, timeout)
+    # now that InsightsApp resources showed up, again, wait for everything new in ns to be 'ready'
+    _wait_for_resources(namespace, timeout, already_waited_on)
 
 
 def wait_for_all_resources(namespace, timeout=300):
