@@ -90,9 +90,7 @@ class Client:
             transport_kwargs["headers"] = {"Authorization": conf.QONTRACT_TOKEN}
         elif conf.QONTRACT_USERNAME and conf.QONTRACT_PASSWORD:
             log.info("using basic authentication")
-            transport_kwargs["auth"] = HTTPBasicAuth(
-                conf.QONTRACT_USERNAME, conf.QONTRACT_PASSWORD
-            )
+            transport_kwargs["auth"] = HTTPBasicAuth(conf.QONTRACT_USERNAME, conf.QONTRACT_PASSWORD)
 
         transport = RequestsHTTPTransport(**transport_kwargs)
         self.client = GQLClient(transport=transport, fetch_schema_from_transport=True)

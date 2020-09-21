@@ -386,15 +386,54 @@ def wait_for_ready_threaded(namespace, restype_name_list, timeout=300):
     return True
 
 
-def wait_for_all_resources(namespace, timeout=300):
+def _wait_for_resources(namespace, timeout):
     wait_for_list = []
-
     for restype in _CHECKABLE_RESOURCES:
         resources = get_json(namespace, restype)
         for item in resources["items"]:
             wait_for_list.append((restype, item["metadata"]["name"]))
 
     wait_for_ready_threaded(namespace, wait_for_list, timeout=timeout)
+
+
+def _operator_resource_present(namespace, owner_kind):
+    response = get_json(namespace, "deployment")
+    for item in response.get("items", []):
+        if item.get("metadata", {}).get("ownerReferences"):
+            if item["metadata"]["ownerReferences"][0]["kind"] == owner_kind:
+                return True
+
+
+def _operator_resources(namespace, timeout):
+    log.info("Waiting for resources owned by 'InsightsBase' to appear")
+    wait_for(
+        _operator_resource_present,
+        func_args=(namespace, "InsightsBase"),
+        message="wait for InsightsBase-owned resources to appear",
+        timeout=timeout,
+    )
+    # now wait for everything in ns to be 'ready'
+    _wait_for_resources(namespace, timeout)
+
+    log.info("Waiting for resources owned by 'InsightsApp' to appear")
+    wait_for(
+        _operator_resource_present,
+        func_args=(namespace, "InsightsApp"),
+        message="wait for InsightsApp-owned resources to appear",
+        timeout=timeout,
+    )
+    # now that InsightsApp resources showed up, again, wait for everything in ns to be 'ready'
+    _wait_for_resources(namespace, timeout)
+
+
+def wait_for_all_resources(namespace, timeout=300):
+    # wrap the other wait_fors in 1 wait_for so overall timeout is honored
+    wait_for(
+        _operator_resources,
+        func_args=(namespace, timeout),
+        message="wait for all deployed resources to be ready",
+        timeout=timeout,
+    )
 
 
 def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
