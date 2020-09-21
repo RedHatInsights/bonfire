@@ -238,7 +238,7 @@ def _check_status_for_restype(restype, json_data):
     """
     restype = parse_restype(restype)
 
-    if restype not "pod" and restype not in _CHECKABLE_RESOURCES:
+    if restype != "pod" and restype not in _CHECKABLE_RESOURCES:
         raise ValueError(f"Checking status for resource type {restype} currently not supported")
 
     try:
