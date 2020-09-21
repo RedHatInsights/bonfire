@@ -402,6 +402,7 @@ def _operator_resource_present(namespace, owner_kind):
         if item.get("metadata", {}).get("ownerReferences"):
             if item["metadata"]["ownerReferences"][0]["kind"] == owner_kind:
                 return True
+    return False
 
 
 def _operator_resources(namespace, timeout):
