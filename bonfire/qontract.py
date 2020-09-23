@@ -2,6 +2,7 @@ import json
 import copy
 import logging
 import yaml
+import re
 
 from gql import gql
 from gql import Client as GQLClient
@@ -188,7 +189,15 @@ def _download_raw_template(resource, ref):
     raw_template = conf.RAW_GITHUB_URL if "github" in resource["url"] else conf.RAW_GITLAB_URL
     template_url = raw_template.format(org=org, repo=repo, ref=ref, path=path)
 
-    template = requests.get(template_url, verify=False).text
+    log.info("downloading template: '%s'", template_url)
+    response = requests.get(template_url, verify=False)
+    response.raise_for_status()
+    template = response.text
+
+    # just in case response.raise_for_status() doesn't take care of it ...
+    if "Page Not Found" in template or "404: Not Found" in template:
+        raise Exception(f"invalid template URL: {template_url}")
+
     template_yaml = yaml.safe_load(template)
 
     return template_yaml
@@ -215,7 +224,7 @@ def _get_resources_for_env(saas_file_data, env_data):
     return resources
 
 
-def _get_processed_config_items(client, app, saas_file, src_env, ref_env):
+def _get_processed_config_items(client, app, saas_file, src_env, ref_env, template_ref_overrides):
     src_env_data = client.get_env(src_env)
     ref_env_data = client.get_env(ref_env)
 
@@ -234,10 +243,13 @@ def _get_processed_config_items(client, app, saas_file, src_env, ref_env):
             # no target configuration exists for this resource in the desired source env
             continue
 
-        template_ref = ref_target["ref"]
-        # set the template ref/IMAGE_TAG to be the reference env's ref/IMAGE_TAG
-        src_target["ref"] = template_ref
-        ref_image_tag = ref_target["parameters"].get("IMAGE_TAG")
+        if resource_name in template_ref_overrides:
+            # if template ref has explicitly been overridden, use the override
+            log.info("overriding template ref for resource '%s'", resource_name)
+            template_ref = template_ref_overrides[resource_name]
+        else:
+            # otherwise use template ref configured in the "reference deploy target"
+            template_ref = ref_target["ref"]
 
         raw_template = _download_raw_template(resource, template_ref)
 
@@ -246,10 +258,15 @@ def _get_processed_config_items(client, app, saas_file, src_env, ref_env):
         p.update(saas_file["parameters"])
         p.update(resource["parameters"])
         p.update(src_target["parameters"])
-        # override the target's IMAGE_TAG using the reference env
-        p["IMAGE_TAG"] = ref_image_tag
+        # set IMAGE_TAG to be the reference env's IMAGE_TAG
+        p["IMAGE_TAG"] = ref_target["parameters"].get("IMAGE_TAG")
         if not p.get("IMAGE_TAG"):
             p.update({"IMAGE_TAG": "latest" if template_ref == "master" else template_ref[:7]})
+            log.warning(
+                "IMAGE_TAG not defined in reference target for resource '%s', using tag '%s'",
+                resource_name,
+                p["IMAGE_TAG"],
+            )
 
         processed_template = process_template(raw_template, p)
         items.extend(processed_template.get("items", []))
@@ -257,7 +274,7 @@ def _get_processed_config_items(client, app, saas_file, src_env, ref_env):
     return items
 
 
-def get_app_config(app, src_env, ref_env):
+def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_overrides):
     """
     Load application's config:
     * Look up deploy config for any namespaces that are mapped to 'src_env'
@@ -279,8 +296,19 @@ def get_app_config(app, src_env, ref_env):
 
     for saas_file in client.get_saas_files(app):
         root_list["items"].extend(
-            _get_processed_config_items(client, app, saas_file, src_env, ref_env)
+            _get_processed_config_items(
+                client, app, saas_file, src_env, ref_env, template_ref_overrides
+            )
         )
+
+    # override any explicitly provided image tags, easier to just re.sub on a whole string
+    if image_tag_overrides:
+        content = json.dumps(root_list)
+        for image, image_tag in image_tag_overrides.items():
+            content, subs = re.subn(rf"{image}:\w+", rf"{image}:{image_tag}", content)
+            if subs:
+                log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
+        root_list = json.loads(content)
 
     return root_list
 

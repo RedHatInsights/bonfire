@@ -3,6 +3,8 @@
 import click
 import json
 import logging
+import re
+import sys
 
 import bonfire.config as conf
 from bonfire.qontract import (
@@ -13,6 +15,12 @@ from bonfire.qontract import (
 from bonfire.openshift import wait_for_all_resources, copy_namespace_secrets
 
 log = logging.getLogger(__name__)
+EQUALS_REGEX = re.compile(r"^\S+=\S+$")
+
+
+def _error(msg):
+    click.echo(f"ERROR: {msg}")
+    sys.exit(1)
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -58,6 +66,22 @@ def checkin_namespace(namespace):
     log.warning("not yet implemented")
 
 
+def _split_equals(list_of_str):
+    if not list_of_str:
+        return {}
+
+    output = {}
+
+    for item in list_of_str:
+        item = str(item)
+        if not EQUALS_REGEX.match(item):
+            _error(f"invalid format for value '{item}', must match: r'{EQUALS_REGEX.pattern}'")
+        key, val = item.split("=")
+        output[key] = val
+
+    return output
+
+
 @main.command("get-config")
 @click.option("--app", "-a", required=True, type=str, help="name of application")
 @click.option(
@@ -74,9 +98,24 @@ def checkin_namespace(namespace):
     type=str,
     default=conf.PROD_ENV_NAME,
 )
-def get_config(app, src_env, ref_env):
+@click.option(
+    "--set-template-ref",
+    "-t",
+    help=f"Name of environment to use for 'ref'/'IMAGE_TAG' (default: {conf.PROD_ENV_NAME})",
+    multiple=True,
+)
+@click.option(
+    "--set-image-tag",
+    "-i",
+    help=f"Name of environment to use for 'ref'/'IMAGE_TAG' (default: {conf.PROD_ENV_NAME})",
+    multiple=True,
+)
+def get_config(app, src_env, ref_env, set_template_ref, set_image_tag):
     """Get kubernetes config for an app"""
-    print(json.dumps(get_app_config(app, src_env, ref_env), indent=2))
+    template_ref_overrides = _split_equals(set_template_ref)
+    image_tag_overrides = _split_equals(set_image_tag)
+    app_config = get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_overrides)
+    print(json.dumps(app_config, indent=2))
 
 
 @main.command("wait-on-resources")
