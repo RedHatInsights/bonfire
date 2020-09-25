@@ -82,7 +82,7 @@ NAMESPACE_QUERY = gql(
 
 class Client:
     def __init__(self):
-        log.info("using url: %s", conf.QONTRACT_BASE_URL)
+        log.debug("using url: %s", conf.QONTRACT_BASE_URL)
 
         transport_kwargs = {"url": conf.QONTRACT_BASE_URL}
 
@@ -274,6 +274,17 @@ def _get_processed_config_items(client, app, saas_file, src_env, ref_env, templa
     return items
 
 
+_client = None
+
+
+def get_client():
+    global _client
+    if not _client:
+        _client = Client()
+
+    return _client
+
+
 def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_overrides):
     """
     Load application's config:
@@ -285,14 +296,14 @@ def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_over
     template 'ref' defined in the deploy config for 'ref_env'
     """
     # we will output one large that contains all resources
+    client = get_client()
+
     root_list = {
         "kind": "List",
         "apiVersion": "v1",
         "metadata": {},
         "items": [],
     }
-
-    client = Client()
 
     for saas_file in client.get_saas_files(app):
         root_list["items"].extend(
@@ -314,13 +325,15 @@ def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_over
 
 
 def get_namespaces_for_env(environment_name):
-    client = Client()
+    client = get_client()
+
     namespaces = client.get_env(environment_name)["namespaces"]
     return list(namespaces)
 
 
 def get_secret_names_in_namespace(namespace_name):
-    client = Client()
+    client = get_client()
+
     secret_names = []
     namespace = client.get_namespace(namespace_name)
     for resource in namespace["openshiftResources"]:
