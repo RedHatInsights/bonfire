@@ -107,7 +107,7 @@ def _split_equals(list_of_str):
 
 
 @namespace.command("wait-on-resources")
-@click.option("--namespace", "-n", required=True, type=str, help="namespace")
+@click.argument("namespace", required=True, type=str)
 @click.option(
     "--timeout", "-t", required=True, type=int, default=300, help="timeout in sec (default = 300)"
 )
@@ -117,7 +117,7 @@ def wait_on_resources(namespace, timeout):
 
 
 @namespace.command("copy-base-resources")
-@click.option("--namespace", "-n", required=True, type=str, help="namespace")
+@click.argument("namespace", required=True, type=str)
 def _copy_base_resources(namespace):
     """Copy resources from base namespace to specified namespace"""
     copy_base_resources(namespace)
