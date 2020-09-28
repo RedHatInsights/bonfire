@@ -214,5 +214,5 @@ def reconcile():
             ns.expires = _utcnow() + datetime.timedelta(minutes=ns.duration)
             update_needed = True
 
-        if updated_needed:
+        if update_needed:
             ns.update()

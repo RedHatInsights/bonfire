@@ -119,11 +119,18 @@ def _exec_oc(*args, **kwargs):
         except ErrorReturnCode as err:
             # Sometimes stdout/stderr is empty in the exception even though we appended
             # data in the callback. Perhaps buffers are not being flushed ... so just
-            # set the out lines/err lines we captured on the Exception before re-raising it
-            err.stdout = "\n".join(out_lines)
-            err.stderr = "\n".join(err_lines)
-            last_err = err
+            # set the out lines/err lines we captured on the Exception before re-raising it by
+            # re-init'ing the err and causing it to rebuild its message template.
+            #
+            # see https://github.com/amoffat/sh/blob/master/sh.py#L381
+            err.__init__(
+                full_cmd=err.full_cmd,
+                stdout="\n".join(out_lines).encode(),
+                stderr="\n".join(err_lines).encode(),
+                truncate=err.truncate,
+            )
 
+            last_err = err
             # Ignore warnings that are printed to stderr in our error analysis
             err_lines = [line for line in err_lines if not line.lstrip().startswith("Warning:")]
 
