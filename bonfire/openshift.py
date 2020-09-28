@@ -203,6 +203,7 @@ def get_json(restype, name=None, label=None, namespace=None):
     except ErrorReturnCode as err:
         if "NotFound" in err.stderr:
             return {}
+        raise
 
     try:
         parsed_json = json.loads(str(output))
