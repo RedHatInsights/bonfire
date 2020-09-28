@@ -25,6 +25,7 @@ SHORTCUTS = {
     "imagestreamimage": "isimage",
     "job": None,
     "limitrange": "limits",
+    "namespace": "ns",
     "node": "no",
     "pod": "po",
     "resourcequota": "quota",
@@ -83,6 +84,7 @@ def _get_logging_args(args, kwargs):
 
 def _exec_oc(*args, **kwargs):
     _silent = kwargs.pop("_silent", False)
+    _hide_output = kwargs.pop("_hide_output", False)
     _ignore_immutable = kwargs.pop("_ignore_immutable", True)
     _retry_conflicts = kwargs.pop("_retry_conflicts", True)
     _stdout_log_prefix = kwargs.pop("_stdout_log_prefix", " |stdout| ")
@@ -101,7 +103,7 @@ def _exec_oc(*args, **kwargs):
 
     def _out_line_handler(line, _, process):
         threading.current_thread().name = f"pid-{process.pid}"
-        if not _silent:
+        if not _silent and not _hide_output:
             log.info("%s%s", _stdout_log_prefix, line.rstrip())
         out_lines.append(line)
 
@@ -179,7 +181,7 @@ def apply_config(namespace, list_resource):
     oc("apply", "-f", "-", "-n", namespace, _in=json.dumps(list_resource))
 
 
-def get_json(namespace, restype, name=None, label=None):
+def get_json(restype, name=None, label=None, namespace=None):
     """
     Run 'oc get' for a given resource type/name/label and return the json output.
 
@@ -194,8 +196,10 @@ def get_json(namespace, restype, name=None, label=None):
         args.append(name)
     if label:
         args.extend(["-l", label])
+    if namespace:
+        args.extend(["-n", namespace])
     try:
-        output = oc(*args, n=namespace, o="json", _silent=True)
+        output = oc(*args, o="json", _silent=True)
     except ErrorReturnCode as err:
         if "NotFound" in err.stderr:
             return {}
@@ -214,7 +218,7 @@ def get_routes(namespace):
 
     Return dict with key of service name, value of http route
     """
-    data = get_json(namespace, "route")
+    data = get_json("route", namespace=namespace)
     ret = {}
     for route in data.get("items", []):
         ret[route["metadata"]["name"]] = route["spec"]["host"]
@@ -281,7 +285,7 @@ def _wait_with_periodic_status_check(namespace, timeout, key, restype, name):
     def _ready():
         nonlocal time_last_logged, time_remaining
 
-        j = get_json(namespace, restype, name)
+        j = get_json(restype, name, namespace=namespace)
         if _check_status_for_restype(restype, j):
             return True
 
@@ -390,7 +394,7 @@ def _wait_for_resources(namespace, timeout, skip=None):
     skip = skip or []
     wait_for_list = []
     for restype in _CHECKABLE_RESOURCES:
-        resources = get_json(namespace, restype)
+        resources = get_json(restype, namespace=namespace)
         for item in resources["items"]:
             entry = (restype, item["metadata"]["name"])
             if entry not in skip:
@@ -401,7 +405,7 @@ def _wait_for_resources(namespace, timeout, skip=None):
 
 
 def _operator_resource_present(namespace, owner_kind):
-    response = get_json(namespace, "deployment")
+    response = get_json("deployment", namespace=namespace)
     for item in response.get("items", []):
         if item.get("metadata", {}).get("ownerReferences"):
             if item["metadata"]["ownerReferences"][0]["kind"] == owner_kind:

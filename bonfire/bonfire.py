@@ -7,12 +7,15 @@ import re
 import sys
 
 import bonfire.config as conf
-from bonfire.qontract import (
-    get_namespaces_for_env,
-    get_app_config,
-    get_secret_names_in_namespace,
+from bonfire.qontract import get_app_config
+from bonfire.openshift import wait_for_all_resources
+from bonfire.namespaces import (
+    get_namespaces,
+    reserve_namespace,
+    release_namespace,
+    copy_base_resources,
+    reconcile,
 )
-from bonfire.openshift import wait_for_all_resources, copy_namespace_secrets
 
 log = logging.getLogger(__name__)
 EQUALS_REGEX = re.compile(r"^\S+=\S+$")
@@ -30,40 +33,61 @@ def main(debug):
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
 
 
-def _get_namespaces():
-    namespaces = get_namespaces_for_env(conf.EPHEMERAL_ENV_NAME)
-    namespaces.remove(conf.BASE_NAMESPACE_NAME)
-    return namespaces
+@main.group()
+def namespace():
+    """perform operations on OpenShift namespaces"""
+    pass
 
 
-@main.command("list-namespaces")
-def list_namespaces():
-    """Get list of namespaces available for ephemeral deployments"""
-    click.echo("\n".join(_get_namespaces()))
+@main.group()
+def config():
+    """perform operations related to app configurations"""
+    pass
 
 
-@main.command("checkout-namespace")
+@namespace.command("list")
 @click.option(
-    "--namespace",
-    "-n",
-    required=False,
-    type=str,
-    help="namespace name (if not specified, one is picked for you)",
+    "--available", "-a", is_flag=True, default=False, help="show only un-reserved/ready namespaces"
 )
-def checkout_namespace(namespace):
+def _list_namespaces(available):
+    """Get list of namespaces available for ephemeral deployments"""
+    namespace_names = sorted([ns.name for ns in get_namespaces(available_only=available)])
+    if not namespace_names:
+        click.echo("no namespaces found")
+    else:
+        click.echo("\n".join(namespace_names))
+
+
+@namespace.command("reserve")
+@click.option(
+    "--duration",
+    "-d",
+    required=False,
+    type=int,
+    default=60,
+    help="duration of reservation in minutes (default: 60)",
+)
+@click.option(
+    "--retries",
+    "-r",
+    required=False,
+    type=int,
+    default=0,
+    help="how many times to retry before giving up (default: infinite)",
+)
+def _reserve_namespace(duration, retries):
     """Reserve an available ephemeral namespace"""
-    # TODO: figure out how to determine which namespaces are in use and reserve it
-    log.warning("not yet implemented")
-    namespace = namespace or _get_namespaces()[0]
-    click.echo(namespace)
+    ns = reserve_namespace(duration, retries)
+    if not ns:
+        _error("unable to reserve namespace")
+    click.echo(ns.name)
 
 
-@main.command("checkin-namespace")
-@click.option("--namespace", "-n", required=True, type=str, help="namespace name")
-def checkin_namespace(namespace):
+@namespace.command("release")
+@click.argument("namespace", required=True, type=str)
+def _release_namespace(namespace):
     """Remove reservation from an ephemeral namespace"""
-    # TODO: implement this
-    log.warning("not yet implemented")
+    release_namespace(namespace)
 
 
 def _split_equals(list_of_str):
@@ -82,7 +106,30 @@ def _split_equals(list_of_str):
     return output
 
 
-@main.command("get-config")
+@namespace.command("wait-on-resources")
+@click.option("--namespace", "-n", required=True, type=str, help="namespace")
+@click.option(
+    "--timeout", "-t", required=True, type=int, default=300, help="timeout in sec (default = 300)"
+)
+def wait_on_resources(namespace, timeout):
+    """Wait for rolled out resources to be ready in namespace"""
+    wait_for_all_resources(namespace, timeout)
+
+
+@namespace.command("copy-base-resources")
+@click.option("--namespace", "-n", required=True, type=str, help="namespace")
+def _copy_base_resources(namespace):
+    """Copy resources from base namespace to specified namespace"""
+    copy_base_resources(namespace)
+
+
+@namespace.command("reconcile")
+def _reconcile():
+    """Run reconciler for namespace reservations"""
+    reconcile()
+
+
+@config.command("get")
 @click.option("--app", "-a", required=True, type=str, help="name of application")
 @click.option(
     "--src-env",
@@ -116,24 +163,6 @@ def get_config(app, src_env, ref_env, set_template_ref, set_image_tag):
     image_tag_overrides = _split_equals(set_image_tag)
     app_config = get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_overrides)
     print(json.dumps(app_config, indent=2))
-
-
-@main.command("wait-on-resources")
-@click.option("--namespace", "-n", required=True, type=str, help="namespace")
-@click.option(
-    "--timeout", "-t", required=True, type=int, default=300, help="timeout in sec (default = 300)"
-)
-def wait_on_resources(namespace, timeout):
-    """Wait for rolled out resources to be ready in namespace"""
-    wait_for_all_resources(namespace, timeout)
-
-
-@main.command("copy-secrets")
-@click.option("--namespace", "-n", required=True, type=str, help="namespace")
-def copy_secrets(namespace):
-    """Copy secrets from base namespace to specified namespace"""
-    secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
-    copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
 
 
 if __name__ == "__main__":
