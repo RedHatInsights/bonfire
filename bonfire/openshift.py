@@ -139,7 +139,7 @@ def _exec_oc(*args, **kwargs):
                 continue
 
             # Bail if not
-            raise
+            raise last_err
     else:
         log.error("Retried %d times, giving up", retries)
         raise last_err
