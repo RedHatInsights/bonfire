@@ -98,7 +98,8 @@ class Namespace:
 def get_namespaces(available_only=False):
     ephemeral_namespace_names = get_namespaces_for_env(conf.EPHEMERAL_ENV_NAME)
     ephemeral_namespace_names.remove(conf.BASE_NAMESPACE_NAME)
-    all_namespaces = get_json("namespace")["items"]
+    # Use 'oc get project' since we cannot list all 'namespace' resources in a cluster
+    all_namespaces = get_json("project")["items"]
     ephemeral_namespaces = []
     for ns in all_namespaces:
         if ns["metadata"]["name"] not in ephemeral_namespace_names:
