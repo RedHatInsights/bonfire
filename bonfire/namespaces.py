@@ -158,6 +158,11 @@ def release_namespace(namespace):
     oc("label", "--overwrite", "namespace", namespace, f"{NS_RESERVED}=false")
 
 
+def reset_namespace(namespace):
+    release_namespace(namespace)
+    oc("label", "--overwrite", "namespace", namespace, f"{NS_READY}=false")
+
+
 def _delete_resources(namespace):
     oc("delete", "all", "--all", n=namespace)
     oc("delete", "pvc", "--all", n=namespace)

@@ -13,6 +13,7 @@ from bonfire.namespaces import (
     get_namespaces,
     reserve_namespace,
     release_namespace,
+    reset_namespace,
     copy_base_resources,
     reconcile,
 )
@@ -127,6 +128,13 @@ def _copy_base_resources(namespace):
 def _reconcile():
     """Run reconciler for namespace reservations"""
     reconcile()
+
+
+@namespace.command("reset")
+@click.argument("namespace", required=True, type=str)
+def _reset(namespace):
+    """Set namespace to not released/not ready"""
+    reset_namespace(namespace)
 
 
 @config.command("get")
