@@ -161,8 +161,8 @@ def release_namespace(namespace):
 def _delete_resources(namespace):
     oc("delete", "all", "--all", n=namespace)
     oc("delete", "pvc", "--all", n=namespace)
-    oc("delete", "insightsbase", "--all", n=namespace)
-    oc("delete", "insightsapp", "--all", n=namespace)
+    oc("delete", "clowdenvironment", "--all", n=namespace)
+    oc("delete", "clowdapp", "--all", n=namespace)
 
 
 def copy_base_resources(namespace):
@@ -174,7 +174,7 @@ def copy_base_resources(namespace):
         n=namespace,
         _in=oc(
             "get",
-            "insightsbase",
+            "clowdenvironment",
             "ephemeral",
             "--export",
             n=conf.BASE_NAMESPACE_NAME,
