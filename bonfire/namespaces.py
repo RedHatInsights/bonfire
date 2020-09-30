@@ -205,6 +205,7 @@ def reconcile():
         if not ns.reserved and not ns.ready:
             # check if any released namespaces need to be prepped
             log.info("namespace '%s' - released but needs prep, prepping", ns.name)
+            _delete_resources(ns.name)
             copy_base_resources(ns.name)
             ns.ready = True
             update_needed = True
