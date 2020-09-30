@@ -28,6 +28,7 @@ SHORTCUTS = {
     "namespace": "ns",
     "node": "no",
     "pod": "po",
+    "project": "project",
     "resourcequota": "quota",
     "replicationcontroller": "rc",
     "secrets": "secret",
