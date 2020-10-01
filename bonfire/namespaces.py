@@ -181,7 +181,7 @@ def add_base_resources(namespace):
     with open(ENV_TEMPLATE) as fp:
         template_data = yaml.safe_load(fp)
     processed_template = process_template(template_data, params={"NAMESPACE": namespace})
-    oc("apply", f="-", _in=processed_template)
+    oc("apply", f="-", _in=json.dumps(processed_template))
 
 
 def reconcile():
