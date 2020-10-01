@@ -354,6 +354,7 @@ def wait_for_ready(namespace, restype, name, timeout=300, _result_dict=None):
                 "rollout",
                 "status",
                 key,
+                namespace=namespace,
                 _timeout=timeout,
                 _stdout_log_prefix=f"[{key}] ",
                 _stderr_log_prefix=f"[{key}]  ",
