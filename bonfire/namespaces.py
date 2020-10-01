@@ -220,6 +220,9 @@ def reconcile():
             _delete_resources(ns.name)
             add_base_resources(ns.name)
             ns.ready = True
+            ns.duration = None
+            ns.expires = None
+            ns.requester = None
             update_needed = True
 
         if ns.reserved and ns.duration and not ns.expires:
