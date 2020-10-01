@@ -179,7 +179,7 @@ def add_base_resources(namespace):
     copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
     with open(ENV_TEMPLATE) as fp:
         template_data = yaml.safe_load(fp)
-    processed_template = process_template(template_data, params={'NAMESPACE': namespace})
+    processed_template = process_template(template_data, params={"NAMESPACE": namespace})
     oc("apply", f="-", _in=processed_template)
 
 

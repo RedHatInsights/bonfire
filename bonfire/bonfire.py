@@ -14,7 +14,7 @@ from bonfire.namespaces import (
     reserve_namespace,
     release_namespace,
     reset_namespace,
-    copy_base_resources,
+    add_base_resources,
     reconcile,
 )
 
@@ -117,11 +117,11 @@ def wait_on_resources(namespace, timeout):
     wait_for_all_resources(namespace, timeout)
 
 
-@namespace.command("copy-base-resources")
+@namespace.command("prepare")
 @click.argument("namespace", required=True, type=str)
-def _copy_base_resources(namespace):
-    """Copy resources from base namespace to specified namespace"""
-    copy_base_resources(namespace)
+def _prepare(namespace):
+    """Copy base resources into specified namespace"""
+    add_base_resources(namespace)
 
 
 @namespace.command("reconcile")
