@@ -170,7 +170,8 @@ def reset_namespace(namespace):
 def _delete_resources(namespace):
     oc("delete", "all", "--all", n=namespace)
     oc("delete", "pvc", "--all", n=namespace)
-    oc("delete", "clowdenvironment", f"env-{namespace}")
+    if get_json("clowdenvironment", f"env-{namespace}"):
+        oc("delete", "clowdenvironment", f"env-{namespace}")
     oc("delete", "clowdapp", "--all", n=namespace)
 
 

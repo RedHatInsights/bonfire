@@ -40,6 +40,8 @@ SHORTCUTS = {
     "configmap": "cm",
     "replicaset": "rs",
     "route": None,
+    "clowdenvironment": None,
+    "clowdapp": None,
 }
 
 
@@ -130,6 +132,10 @@ def _exec_oc(*args, **kwargs):
                 stderr="\n".join(err_lines).encode(),
                 truncate=err.truncate,
             )
+
+            # Make these plain strings for easier exception handling
+            err.stdout = "\n".join(out_lines)
+            err.stderr = "\n".join(err_lines)
 
             last_err = err
             # Ignore warnings that are printed to stderr in our error analysis
