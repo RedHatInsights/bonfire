@@ -7,7 +7,7 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdEnvironment
   metadata:
-    name: ephemeral-${NAMESPACE}
+    name: env-${NAMESPACE}
   spec:
     namespace: ${NAMESPACE}
     web:
