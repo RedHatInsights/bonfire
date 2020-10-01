@@ -429,21 +429,21 @@ def _operator_resource_present(namespace, owner_kind):
 
 
 def _operator_resources(namespace, timeout):
-    log.info("Waiting for resources owned by 'InsightsBase' to appear")
+    log.info("Waiting for resources owned by 'ClowdEnvironment' to appear")
     wait_for(
         _operator_resource_present,
-        func_args=(namespace, "InsightsBase"),
-        message="wait for InsightsBase-owned resources to appear",
+        func_args=(namespace, "ClowdEnvironment"),
+        message="wait for ClowdEnvironment-owned resources to appear",
         timeout=timeout,
     )
     # now wait for everything in ns to be 'ready'
     already_waited_on = _wait_for_resources(namespace, timeout)
 
-    log.info("Waiting for resources owned by 'InsightsApp' to appear")
+    log.info("Waiting for resources owned by 'ClowdApp' to appear")
     wait_for(
         _operator_resource_present,
-        func_args=(namespace, "InsightsApp"),
-        message="wait for InsightsApp-owned resources to appear",
+        func_args=(namespace, "ClowdApp"),
+        message="wait for ClowdApp-owned resources to appear",
         timeout=timeout,
     )
     # now that InsightsApp resources showed up, again, wait for everything new in ns to be 'ready'
