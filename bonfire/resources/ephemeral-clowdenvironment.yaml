@@ -20,7 +20,7 @@ objects:
     kafka:
       namespace: default
       clusterName: my-cluster
-      provider: operator
+      provider: local
     db:
       image: "registry.redhat.io/rhel8/postgresql-12:1-36"
       provider: local
