@@ -5,10 +5,12 @@ import json
 import random
 import time
 import uuid
+import yaml
+from pkg_resources import resource_filename
 
 import bonfire.config as conf
 from bonfire.qontract import get_namespaces_for_env, get_secret_names_in_namespace
-from bonfire.openshift import oc, get_json, copy_namespace_secrets
+from bonfire.openshift import oc, get_json, copy_namespace_secrets, process_template
 
 
 NS_RESERVED = "ephemeral-ns-reserved"
@@ -18,6 +20,8 @@ NS_DURATION = "ephemeral-ns-duration"
 NS_EXPIRES = "ephemeral-ns-expires"
 
 RESERVATION_DELAY_SEC = 5
+
+ENV_TEMPLATE = resource_filename("bonfire", "resources/ephemeral-clowdenvironment.yaml")
 
 log = logging.getLogger(__name__)
 
@@ -166,27 +170,17 @@ def reset_namespace(namespace):
 def _delete_resources(namespace):
     oc("delete", "all", "--all", n=namespace)
     oc("delete", "pvc", "--all", n=namespace)
-    oc("delete", "clowdenvironment", "--all", n=namespace)
+    oc("delete", f"clowdenvironment-{namespace}")
     oc("delete", "clowdapp", "--all", n=namespace)
 
 
-def copy_base_resources(namespace):
+def add_base_resources(namespace):
     secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
     copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
-    oc(
-        "apply",
-        f="-",
-        n=namespace,
-        _in=oc(
-            "get",
-            "clowdenvironment",
-            "ephemeral",
-            "--export",
-            n=conf.BASE_NAMESPACE_NAME,
-            o="json",
-            _hide_output=True,
-        ),
-    )
+    with open(ENV_TEMPLATE) as fp:
+        template_data = yaml.safe_load(fp)
+    processed_template = process_template(template_data, params={'NAMESPACE': namespace})
+    oc("apply", f="-", _in=processed_template)
 
 
 def reconcile():
@@ -211,7 +205,7 @@ def reconcile():
             # check if any released namespaces need to be prepped
             log.info("namespace '%s' - released but needs prep, prepping", ns.name)
             _delete_resources(ns.name)
-            copy_base_resources(ns.name)
+            add_base_resources(ns.name)
             ns.ready = True
             update_needed = True
 
