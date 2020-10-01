@@ -224,7 +224,9 @@ def _get_resources_for_env(saas_file_data, env_data):
     return resources
 
 
-def _get_processed_config_items(client, app, saas_file, src_env, ref_env, template_ref_overrides):
+def _get_processed_config_items(
+    client, app, saas_file, src_env, ref_env, template_ref_overrides, namespace
+):
     src_env_data = client.get_env(src_env)
     ref_env_data = client.get_env(ref_env)
 
@@ -268,6 +270,9 @@ def _get_processed_config_items(client, app, saas_file, src_env, ref_env, templa
                 p["IMAGE_TAG"],
             )
 
+        # set the env name based on the namespace you intend to deploy to
+        p["ENV_NAME"] = conf.ENV_NAME_FORMAT.format(namespace=namespace)
+
         processed_template = process_template(raw_template, p)
         items.extend(processed_template.get("items", []))
 
@@ -285,7 +290,7 @@ def get_client():
     return _client
 
 
-def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_overrides):
+def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_overrides, namespace):
     """
     Load application's config:
     * Look up deploy config for any namespaces that are mapped to 'src_env'
@@ -308,7 +313,7 @@ def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_over
     for saas_file in client.get_saas_files(app):
         root_list["items"].extend(
             _get_processed_config_items(
-                client, app, saas_file, src_env, ref_env, template_ref_overrides
+                client, app, saas_file, src_env, ref_env, template_ref_overrides, namespace
             )
         )
 

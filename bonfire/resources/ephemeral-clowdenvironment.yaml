@@ -7,7 +7,7 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdEnvironment
   metadata:
-    name: env-${NAMESPACE}
+    name: ${ENV_NAME}
   spec:
     namespace: ${NAMESPACE}
     web:
@@ -34,4 +34,7 @@ objects:
 parameters:
 - name: NAMESPACE
   description: Namespace that ClowdEnvironment components will be deployed to
+  required: true
+- name: ENV_NAME
+  description: Name of the ClowdEnvironment
   required: true

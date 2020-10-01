@@ -156,20 +156,27 @@ def _reset(namespace):
 @click.option(
     "--set-template-ref",
     "-t",
-    help=f"Name of environment to use for 'ref'/'IMAGE_TAG' (default: {conf.PROD_ENV_NAME})",
+    help="Override template ref for a component using format '<component name>=<ref>'",
     multiple=True,
 )
 @click.option(
     "--set-image-tag",
     "-i",
-    help=f"Name of environment to use for 'ref'/'IMAGE_TAG' (default: {conf.PROD_ENV_NAME})",
+    help="Override image tag for an image using format '<image name>=<tag>'",
     multiple=True,
 )
-def get_config(app, src_env, ref_env, set_template_ref, set_image_tag):
+@click.option(
+    "--namespace",
+    "-n",
+    help="Namespace you intend to deploy these components into",
+)
+def get_config(app, src_env, ref_env, set_template_ref, set_image_tag, namespace):
     """Get kubernetes config for an app"""
     template_ref_overrides = _split_equals(set_template_ref)
     image_tag_overrides = _split_equals(set_image_tag)
-    app_config = get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_overrides)
+    app_config = get_app_config(
+        app, src_env, ref_env, template_ref_overrides, image_tag_overrides, namespace
+    )
     print(json.dumps(app_config, indent=2))
 
 

@@ -170,17 +170,26 @@ def reset_namespace(namespace):
 def _delete_resources(namespace):
     oc("delete", "all", "--all", n=namespace)
     oc("delete", "pvc", "--all", n=namespace)
-    if get_json("clowdenvironment", f"env-{namespace}"):
-        oc("delete", "clowdenvironment", f"env-{namespace}")
+    if get_json("clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace)):
+        oc("delete", "clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace))
     oc("delete", "clowdapp", "--all", n=namespace)
 
 
 def add_base_resources(namespace):
     secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
     copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
+
     with open(ENV_TEMPLATE) as fp:
         template_data = yaml.safe_load(fp)
-    processed_template = process_template(template_data, params={"NAMESPACE": namespace})
+
+    processed_template = process_template(
+        template_data,
+        params={
+            "ENV_NAME": conf.ENV_NAME_FORMAT.format(namespace=namespace),
+            "NAMESPACE": namespace,
+        },
+    )
+
     oc("apply", f="-", _in=json.dumps(processed_template))
 
 
