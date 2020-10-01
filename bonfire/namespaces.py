@@ -201,7 +201,9 @@ def reconcile():
 
         if ns.reserved and ns.expires:
             # check if the reservation has expired
-            if _utcnow() > ns.expires:
+            utcnow = _utcnow()
+            log.info("namespace '%s' - expires: %s, utcnow: %s", ns.name, ns.expires, utcnow)
+            if utcnow > ns.expires:
                 log.info("namespace '%s' - reservation expired, releasing", ns.name)
                 ns.reserved = False
                 ns.ready = False
@@ -210,6 +212,7 @@ def reconcile():
                 ns.requester = None
                 _delete_resources(ns.name)
                 update_needed = True
+            log.info("namespace '%s' - not expired", ns.name)
 
         if not ns.reserved and not ns.ready:
             # check if any released namespaces need to be prepped
