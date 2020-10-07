@@ -290,6 +290,31 @@ def get_client():
     return _client
 
 
+def _sub_image_tags(items, image_tag_overrides):
+    if image_tag_overrides:
+        content = json.dumps(items)
+        for image, image_tag in image_tag_overrides.items():
+            # easier to just re.sub on a whole string
+            content, subs = re.subn(rf"{image}:\w+", rf"{image}:{image_tag}", content)
+            if subs:
+                log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
+        return json.loads(content)
+    return items
+
+
+def _add_dependencies_to_config(app, new_items, processed_apps, config, static_args):
+    clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
+    dependencies = {d for item in clowdapp_items for d in item["spec"].get("dependencies", [])}
+    if dependencies:
+        log.info("found dependencies for app '%s': %s", app, list(dependencies))
+    for dependency in dependencies:
+        if dependency not in processed_apps:
+            # recursively get config for any dependencies, they will be stored in the
+            # already-created 'config' dict
+            log.info("app '%s' dependency '%s' not previously processed", app, dependency)
+            get_app_config(dependency, *static_args, config, processed_apps)
+
+
 def get_app_config(
     app,
     src_env,
@@ -334,47 +359,23 @@ def get_app_config(
             )
         )
 
-    # override any explicitly provided image tags, easier to just re.sub on a whole string
-    if image_tag_overrides:
-        content = json.dumps(new_items)
-        for image, image_tag in image_tag_overrides.items():
-            content, subs = re.subn(rf"{image}:\w+", rf"{image}:{image_tag}", content)
-            if subs:
-                log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
-        new_items = json.loads(content)
+    # override any explicitly provided image tags
+    new_items = _sub_image_tags(new_items, image_tag_overrides)
 
     config["items"].extend(new_items)
     processed_apps.add(app)
 
     if get_dependencies:
-        clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
-        for item in clowdapp_items:
-            for dependency in item["spec"].get("dependencies", []):
-                if dependency in processed_apps:
-                    log.info(
-                        "found dependency: '%s' depends on '%s', already processed...",
-                        app,
-                        dependency,
-                    )
-                else:
-                    # recursively get config for any dependencies, they will be stored in the
-                    # already-created 'config' dict
-                    log.info(
-                        "found dependency: '%s' depends on '%s', need to process...",
-                        app,
-                        dependency,
-                    )
-                    get_app_config(
-                        dependency,
-                        src_env,
-                        ref_env,
-                        template_ref_overrides,
-                        image_tag_overrides,
-                        get_dependencies,
-                        namespace,
-                        config,
-                        processed_apps,
-                    )
+        # these args don't change when get_app_config is called recursively
+        static_args = (
+            src_env,
+            ref_env,
+            template_ref_overrides,
+            image_tag_overrides,
+            get_dependencies,
+            namespace,
+        )
+        _add_dependencies_to_config(app, new_items, processed_apps, config, static_args)
 
     return config
 
