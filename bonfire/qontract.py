@@ -290,7 +290,17 @@ def get_client():
     return _client
 
 
-def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_overrides, namespace):
+def get_app_config(
+    app,
+    src_env,
+    ref_env,
+    template_ref_overrides,
+    image_tag_overrides,
+    get_dependencies,
+    namespace,
+    config=None,
+    processed_apps=None,
+):
     """
     Load application's config:
     * Look up deploy config for any namespaces that are mapped to 'src_env'
@@ -303,15 +313,22 @@ def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_over
     # we will output one large that contains all resources
     client = get_client()
 
-    root_list = {
-        "kind": "List",
-        "apiVersion": "v1",
-        "metadata": {},
-        "items": [],
-    }
+    log.info("Getting configuration for app '%s'", app)
 
+    if not config:
+        config = {
+            "kind": "List",
+            "apiVersion": "v1",
+            "metadata": {},
+            "items": [],
+        }
+
+    if not processed_apps:
+        processed_apps = set()
+
+    new_items = []
     for saas_file in client.get_saas_files(app):
-        root_list["items"].extend(
+        new_items.extend(
             _get_processed_config_items(
                 client, app, saas_file, src_env, ref_env, template_ref_overrides, namespace
             )
@@ -319,14 +336,47 @@ def get_app_config(app, src_env, ref_env, template_ref_overrides, image_tag_over
 
     # override any explicitly provided image tags, easier to just re.sub on a whole string
     if image_tag_overrides:
-        content = json.dumps(root_list)
+        content = json.dumps(new_items)
         for image, image_tag in image_tag_overrides.items():
             content, subs = re.subn(rf"{image}:\w+", rf"{image}:{image_tag}", content)
             if subs:
                 log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
-        root_list = json.loads(content)
+        new_items = json.loads(content)
 
-    return root_list
+    config["items"].extend(new_items)
+    processed_apps.add(app)
+
+    if get_dependencies:
+        clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
+        for item in clowdapp_items:
+            for dependency in item["spec"].get("dependencies", []):
+                if dependency in processed_apps:
+                    log.info(
+                        "found dependency: '%s' depends on '%s', already processed...",
+                        app,
+                        dependency,
+                    )
+                else:
+                    # recursively get config for any dependencies, they will be stored in the
+                    # already-created 'config' dict
+                    log.info(
+                        "found dependency: '%s' depends on '%s', need to process...",
+                        app,
+                        dependency,
+                    )
+                    get_app_config(
+                        dependency,
+                        src_env,
+                        ref_env,
+                        template_ref_overrides,
+                        image_tag_overrides,
+                        get_dependencies,
+                        namespace,
+                        config,
+                        processed_apps,
+                    )
+
+    return config
 
 
 def get_namespaces_for_env(environment_name):

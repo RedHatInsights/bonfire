@@ -479,7 +479,7 @@ def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
 
 
 def process_template(template_data, params):
-    valid_pnames = set(p["name"] for p in template_data["parameters"])
+    valid_pnames = set(p["name"] for p in template_data.get("parameters", []))
     param_str = " ".join(f"-p {k}={v}" for k, v in params.items() if k in valid_pnames)
 
     proc = Popen(
