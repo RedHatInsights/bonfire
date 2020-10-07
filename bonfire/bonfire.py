@@ -114,7 +114,10 @@ def _split_equals(list_of_str):
 )
 def wait_on_resources(namespace, timeout):
     """Wait for rolled out resources to be ready in namespace"""
-    wait_for_all_resources(namespace, timeout)
+    ready = wait_for_all_resources(namespace, timeout):
+    if not ready:
+        click.echo("Waiting for resources exeeded timeout")
+        sys.exit(1)
 
 
 @namespace.command("prepare")
