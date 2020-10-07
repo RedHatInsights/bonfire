@@ -453,13 +453,13 @@ def _operator_resources(namespace, timeout):
 
 def wait_for_all_resources(namespace, timeout=300):
     # wrap the other wait_fors in 1 wait_for so overall timeout is honored
-    resources_ready = wait_for(
+    rc, to = wait_for(
         _operator_resources,
         func_args=(namespace, timeout),
         message="wait for all deployed resources to be ready",
         timeout=timeout,
     )
-    return resources_ready
+    return rc
 
 
 def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
