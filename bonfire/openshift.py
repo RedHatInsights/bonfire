@@ -453,6 +453,7 @@ def _operator_resources(namespace, timeout):
 
 def wait_for_all_resources(namespace, timeout=300):
     # wrap the other wait_fors in 1 wait_for so overall timeout is honored
+    # wait_for returns a tuple of the return code and the time taken 
     rc, to = wait_for(
         _operator_resources,
         func_args=(namespace, timeout),

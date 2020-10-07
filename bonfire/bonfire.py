@@ -116,7 +116,7 @@ def wait_on_resources(namespace, timeout):
     """Wait for rolled out resources to be ready in namespace"""
     ready = wait_for_all_resources(namespace, timeout)
     if not ready:
-        _error("Timed out waiting for resources")
+        _error("Timed out waiting for resources; exiting")
 
 
 @namespace.command("prepare")
