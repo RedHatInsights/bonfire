@@ -166,16 +166,29 @@ def _reset(namespace):
     multiple=True,
 )
 @click.option(
+    "--get-dependencies",
+    "-d",
+    help="Get config for any listed 'dependencies' in this app's ClowdApps",
+    is_flag=True,
+    default=False,
+)
+@click.option(
     "--namespace",
     "-n",
     help="Namespace you intend to deploy these components into",
 )
-def get_config(app, src_env, ref_env, set_template_ref, set_image_tag, namespace):
+def get_config(app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace):
     """Get kubernetes config for an app"""
     template_ref_overrides = _split_equals(set_template_ref)
     image_tag_overrides = _split_equals(set_image_tag)
     app_config = get_app_config(
-        app, src_env, ref_env, template_ref_overrides, image_tag_overrides, namespace
+        app,
+        src_env,
+        ref_env,
+        template_ref_overrides,
+        image_tag_overrides,
+        get_dependencies,
+        namespace,
     )
     print(json.dumps(app_config, indent=2))
 
