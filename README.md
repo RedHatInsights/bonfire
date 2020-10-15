@@ -85,7 +85,7 @@ LOAD_METHOD=fs DATAFILES_FILE=bundle/bundle.json yarn run server
 
 The list of ephemeral namespaces is stored in `app-interface`.
 
-The service account that bonfire logs in to the cluster has a custom role bound to it which allows it to edit namespace labels:
+The service account that bonfire logs in to the cluster with has a custom role bound to it which allows it to edit namespace labels:
 
 ```
 ---
@@ -108,7 +108,7 @@ rules:
 
 This role is bound to the service account in each ephemeral namespace.
 
-Bonfire uses labels to keep track of which namespaces are reserved AND ready. A "ready" namespace is one which has had a fresh set of base test configurations copied into it.
+Bonfire uses labels to keep track of which namespaces are reserved AND ready. A "ready" namespace is one which has been "wiped clean" and then had a fresh set of base test configurations copied into it.
 
 When a tester is logged in using the proper account, namespace commands can be used such as:
 
