@@ -33,7 +33,7 @@ You can then use the `bonfire config get` command to obtain the kubernetes confi
 
 `bonfire config get` relies on a few key pieces of info to process an app's config:
 1. The application name. This is the name of the `app` in `app-interface`
-2. a 'src env' -- the name of the `app-interface` environment that it should pull application configs for. *An app's config will only be processed if it has a deploy target set up for this environment* (default: "ephemeral")
+2. a 'src env' -- the name of the `app-interface` environment that it should pull application configs for. **An app's config will only be processed if it has a deploy target set up for this environment** (default: "ephemeral")
 3. a 'ref env' -- the name of the `app-interface` environment that we want the application's IMAGE_TAG and deploy template to come from. We will use the IMAGE_TAG/template defined on the app's deploy target that matches this environment name.
 4. Any template refs you wish to override -- in other words, if you want to download a different git hash of an application component's template.
 5. Any image tags you wish to override
