@@ -131,11 +131,11 @@ A separate cron job runs the `bonfire namespace reconcile` command every 2 minut
 
 ## Interactions with Clowder
 
-For every namespace that `bonfire` prepares, it creates a Clowder `ClowdEnvironment` resource following [this template](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/resources/ephemeral-clowdenvironment.yaml). The name of the environment matches [this format](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/config.py#L16). So, if bonfire prepared a namespace called `ephemeral-01`, then the name of the `ClowdEnvironment` would be `env-ephemeral-01`.
+* For every namespace that `bonfire` prepares, it creates a Clowder `ClowdEnvironment` resource following [this template](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/resources/ephemeral-clowdenvironment.yaml). The name of the environment matches [this format](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/config.py#L16). So, if bonfire prepared a namespace called `ephemeral-01`, then the name of the `ClowdEnvironment` would be `env-ephemeral-01`.
 
-When `bonfire get config` is executed for a certain namespace, it will dynamically populate an `ENV_NAME` parameter and pass this to all templates it processes. Therefore, all templates that define a `ClowdApp` resource should set the `environment` mapping in their spec using an `${ENV_NAME}` parameter.
+* When `bonfire get config` is executed for a certain namespace, it will dynamically populate an `ENV_NAME` parameter and pass this to all templates it processes. Therefore, all templates that define a `ClowdApp` resource should set the `environment` mapping in their spec using an `${ENV_NAME}` parameter.
 
-When `bonfire namespace wait-on-resources` is executed, it follows [this logic](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/openshift.py#L432-L451):
+* When `bonfire namespace wait-on-resources` is executed, it follows [this logic](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/openshift.py#L432-L451):
 1. Wait for all resources owned by a 'ClowdEnvironment' to appear in the namespace
 2. Wait for all the deployments in the namespace to reach 'active' state.
 3. Wait for resources owned by a 'ClowdApp' to appear in the namespace
