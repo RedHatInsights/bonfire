@@ -123,6 +123,20 @@ Use `bonfire namespace -h` to see a list of all available namespace commands.
 
 A separate cron job runs the `bonfire namespace reconcile` command every 2 minutes. This command does the following:
 
-* Checks for any namespaces that are released, but not ready, and "prepares" them by wiping them and copying base test resources into them. After being prepared, the namespace is marked "ready".
+* Checks for any namespaces that are released, but not ready, and "prepares" them by wiping them and copying base test resources into them. After being prepared, the namespace is marked "ready". A namespace is prepared by:
+    1. creating an ephemeral `ClowdEnvironment` resource for it, and
+    2. copying any secrets defined in the `ephemeral-base` namespace into it
 * Checks for any namespaces that are reserved, but do not have an "expires" time set on them yet. This would be a newly-reserved namespace. The reconciler is responsible for applying the "expires time"
 * Checks the "expires time" on all reserved namespaces. If any have expired, bonfire will release them and re-prepare them.
+
+## Interactions with Clowder
+
+For every namespace that `bonfire` prepares, it creates a Clowder `ClowdEnvironment` resource following [this template](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/resources/ephemeral-clowdenvironment.yaml). The name of the environment matches [this format](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/config.py#L16). So, if bonfire prepared a namespace called `ephemeral-01`, then the name of the `ClowdEnvironment` would be `env-ephemeral-01`.
+
+When `bonfire get config` is executed, it will dynamically populate an `ENV_NAME` parameter and pass this to all templates it processes. Therefore, all templates that define a `ClowdApp` resource should set the `environment` mapping in their spec using an `${ENV_NAME}` parameter.
+
+When `bonfire namespace wait-on-resources` is executed, it follows [this logic](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/openshift.py#L432-L451):
+1. Wait for all resources owned by a 'ClowdEnvironment' to appear in the namespace
+2. Wait for all the deployments in the namespace to reach 'active' state.
+3. Wait for resources owned by a 'ClowdApp' to appear in the namespace
+4. Wait for all the deployments in the namespace to reach 'active' state (deployments we already waited on in step 2 are not waited on again)
