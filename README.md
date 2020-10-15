@@ -38,7 +38,6 @@ You can then use the `bonfire config get` command to obtain the kubernetes confi
 4. Any template refs you wish to override -- in other words, if you want to download a different git hash of an application component's template.
 5. Any image tags you wish to override
 6. Whether or not you want to dynamically load dependencies that all components of `app` relies on. This requires the `app` to be using the [Clowder](https://github.com/RedHatInsights/clowder) operator.
-1. setting the IMAGE_TAG and git
 
 
 For example, let's say that we are running a PR check against the `insights-puptoo` service. This service:
