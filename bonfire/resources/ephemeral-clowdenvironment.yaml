@@ -29,8 +29,14 @@ objects:
     objectStore:
       provider: minio
     inMemoryDb:
-      provider: app-interface
-
+      provider: redis
+    resourceDefaults:
+      limits:
+        cpu: 300m
+        memory: 256Mi
+      requests:
+        cpu: 30m
+        memory: 128Mi
 parameters:
 - name: NAMESPACE
   description: Namespace that ClowdEnvironment components will be deployed to
