@@ -175,9 +175,7 @@ def _reset(namespace):
     default=False,
 )
 @click.option(
-    "--namespace",
-    "-n",
-    help="Namespace you intend to deploy these components into",
+    "--namespace", "-n", help="Namespace you intend to deploy these components into",
 )
 def get_config(app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace):
     """Get kubernetes config for an app"""
