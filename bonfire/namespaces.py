@@ -249,6 +249,9 @@ def _reconcile_ns(ns):
     if update_needed:
         ns.update()
 
+    log.info("namespace '%s' - done", ns.name)
+
+
 
 def reconcile():
     namespaces = get_namespaces()
