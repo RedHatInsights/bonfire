@@ -201,7 +201,7 @@ def add_base_resources(namespace):
     oc("apply", f="-", _in=json.dumps(processed_template))
 
     # wait for any deployed base resources to become 'ready'
-    wait_for_all_resources(namespace, timeout=60, wait_on_app=False)
+    wait_for_all_resources(namespace, timeout=conf.RECONCILE_TIMEOUT, wait_on_app=False)
 
 
 def _reconcile_ns(ns):
@@ -250,7 +250,6 @@ def _reconcile_ns(ns):
         ns.update()
 
     log.info("namespace '%s' - done", ns.name)
-
 
 
 def reconcile():
