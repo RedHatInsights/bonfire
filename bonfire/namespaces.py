@@ -6,11 +6,19 @@ import random
 import time
 import uuid
 import yaml
+import threading
 from pkg_resources import resource_filename
+from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.qontract import get_namespaces_for_env, get_secret_names_in_namespace
-from bonfire.openshift import oc, get_json, copy_namespace_secrets, process_template
+from bonfire.openshift import (
+    oc,
+    get_json,
+    copy_namespace_secrets,
+    process_template,
+    wait_for_all_resources,
+)
 
 
 NS_RESERVED = "ephemeral-ns-reserved"
@@ -192,44 +200,64 @@ def add_base_resources(namespace):
 
     oc("apply", f="-", _in=json.dumps(processed_template))
 
+    # wait for any deployed base resources to become 'ready'
+    wait_for_all_resources(namespace, timeout=conf.RECONCILE_TIMEOUT, wait_on_app=False)
 
-def reconcile():
-    namespaces = get_namespaces()
-    for ns in namespaces:
-        log.info("namespace '%s' - checking", ns.name)
-        update_needed = False
 
-        if ns.reserved and ns.expires:
-            # check if the reservation has expired
-            utcnow = _utcnow()
-            log.info("namespace '%s' - expires: %s, utcnow: %s", ns.name, ns.expires, utcnow)
-            if utcnow > ns.expires:
-                log.info("namespace '%s' - reservation expired, releasing", ns.name)
-                ns.reserved = False
-                ns.ready = False
-                ns.duration = None
-                ns.expires = None
-                ns.requester = None
-                _delete_resources(ns.name)
-                update_needed = True
-            log.info("namespace '%s' - not expired", ns.name)
+def _reconcile_ns(ns):
+    log.info("namespace '%s' - checking", ns.name)
+    update_needed = False
 
-        if not ns.reserved and not ns.ready:
-            # check if any released namespaces need to be prepped
-            log.info("namespace '%s' - released but needs prep, prepping", ns.name)
+    if ns.reserved and ns.expires:
+        # check if the reservation has expired
+        utcnow = _utcnow()
+        log.info("namespace '%s' - expires: %s, utcnow: %s", ns.name, ns.expires, utcnow)
+        if utcnow > ns.expires:
+            log.info("namespace '%s' - reservation expired, releasing", ns.name)
+            ns.reserved = False
+            ns.ready = False
+            ns.duration = None
+            ns.expires = None
+            ns.requester = None
             _delete_resources(ns.name)
+            update_needed = True
+        log.info("namespace '%s' - not expired", ns.name)
+
+    if not ns.reserved and not ns.ready:
+        # check if any released namespaces need to be prepped
+        log.info("namespace '%s' - released but needs prep, prepping", ns.name)
+        _delete_resources(ns.name)
+        try:
             add_base_resources(ns.name)
+        except TimedOutError:
+            # base resources failed to come up, don't mark it ready and try again next time...
+            log.error("namespace '%s' - timed out waiting for resources after prep", ns.name)
+            pass
+        else:
             ns.ready = True
             ns.duration = None
             ns.expires = None
             ns.requester = None
             update_needed = True
 
-        if ns.reserved and ns.duration and not ns.expires:
-            # this is a newly reserved namespace, set the expires time
-            log.info("namespace '%s' - setting expiration time", ns.name)
-            ns.expires = _utcnow() + datetime.timedelta(minutes=ns.duration)
-            update_needed = True
+    if ns.reserved and ns.duration and not ns.expires:
+        # this is a newly reserved namespace, set the expires time
+        log.info("namespace '%s' - setting expiration time", ns.name)
+        ns.expires = _utcnow() + datetime.timedelta(minutes=ns.duration)
+        update_needed = True
 
-        if update_needed:
-            ns.update()
+    if update_needed:
+        ns.update()
+
+    log.info("namespace '%s' - done", ns.name)
+
+
+def reconcile():
+    namespaces = get_namespaces()
+    threads = []
+    for ns in namespaces:
+        t = threading.Thread(target=_reconcile_ns, args=(ns,))
+        threads.append(t)
+        t.start()
+    for t in threads:
+        t.join()

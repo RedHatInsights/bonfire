@@ -312,10 +312,7 @@ def _wait_with_periodic_status_check(namespace, timeout, key, restype, name):
         return False
 
     wait_for(
-        _ready,
-        timeout=timeout,
-        delay=5,
-        message="wait for '{}' to be ready".format(key),
+        _ready, timeout=timeout, delay=5, message="wait for '{}' to be ready".format(key),
     )
 
 
@@ -429,7 +426,7 @@ def _operator_resource_present(namespace, owner_kind):
     return False
 
 
-def _operator_resources(namespace, timeout):
+def _operator_resources(namespace, timeout, wait_on_app=True):
     log.info("Waiting for resources owned by 'ClowdEnvironment' to appear")
     wait_for(
         _operator_resource_present,
@@ -440,23 +437,24 @@ def _operator_resources(namespace, timeout):
     # now wait for everything in ns to be 'ready'
     already_waited_on = _wait_for_resources(namespace, timeout)
 
-    log.info("Waiting for resources owned by 'ClowdApp' to appear")
-    wait_for(
-        _operator_resource_present,
-        func_args=(namespace, "ClowdApp"),
-        message="wait for ClowdApp-owned resources to appear",
-        timeout=timeout,
-    )
-    # now that InsightsApp resources showed up, again, wait for everything new in ns to be 'ready'
-    _wait_for_resources(namespace, timeout, already_waited_on)
+    if wait_on_app:
+        log.info("Waiting for resources owned by 'ClowdApp' to appear")
+        wait_for(
+            _operator_resource_present,
+            func_args=(namespace, "ClowdApp"),
+            message="wait for ClowdApp-owned resources to appear",
+            timeout=timeout,
+        )
+        # now that InsightsApp resources showed up, again, wait for everything new in ns to be 'ready'
+        _wait_for_resources(namespace, timeout, already_waited_on)
 
 
-def wait_for_all_resources(namespace, timeout=300):
+def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):
     # wrap the other wait_fors in 1 wait_for so overall timeout is honored
-    # wait_for returns a tuple of the return code and the time taken 
+    # wait_for returns a tuple of the return code and the time taken
     return_val, time_taken = wait_for(
         _operator_resources,
-        func_args=(namespace, timeout),
+        func_args=(namespace, timeout, wait_on_app),
         message="wait for all deployed resources to be ready",
         timeout=timeout,
     )
@@ -485,10 +483,7 @@ def process_template(template_data, params):
     param_str = " ".join(f"-p {k}={v}" for k, v in params.items() if k in valid_pnames)
 
     proc = Popen(
-        f"oc process --local -o json -f - {param_str}",
-        shell=True,
-        stdin=PIPE,
-        stdout=PIPE,
+        f"oc process --local -o json -f - {param_str}", shell=True, stdin=PIPE, stdout=PIPE,
     )
     stdout, stderr = proc.communicate(json.dumps(template_data).encode("utf-8"))
     return json.loads(stdout.decode("utf-8"))
