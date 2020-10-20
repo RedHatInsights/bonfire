@@ -9,27 +9,7 @@ objects:
   metadata:
     name: ${ENV_NAME}
   spec:
-    namespace: ${NAMESPACE}
-    web:
-      port: 8000
-      provider: operator
-    metrics:
-      port: 9000
-      provider: operator
-      path: "/metrics"
-    kafka:
-      namespace: default
-      clusterName: my-cluster
-      provider: local
-    db:
-      image: "registry.redhat.io/rhel8/postgresql-12:1-36"
-      provider: local
-    logging:
-      provider: none
-    objectStore:
-      provider: minio
-    inMemoryDb:
-      provider: redis
+    targetNamespace: ${NAMESPACE}
     resourceDefaults:
       limits:
         cpu: 300m
@@ -37,6 +17,27 @@ objects:
       requests:
         cpu: 30m
         memory: 128Mi
+    providers:
+      web:
+        port: 8000
+        mode: operator
+      metrics:
+        port: 9000
+        mode: operator
+        path: "/metrics"
+      kafka:
+        namespace: default
+        clusterName: my-cluster
+        mode: local
+      db:
+        image: "registry.redhat.io/rhel8/postgresql-12:1-36"
+        mode: local
+      logging:
+        mode: none
+      objectStore:
+        mode: minio
+      inMemoryDb:
+        mode: redis
 parameters:
 - name: NAMESPACE
   description: Namespace that ClowdEnvironment components will be deployed to
