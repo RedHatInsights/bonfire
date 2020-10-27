@@ -276,16 +276,18 @@ def _cmd_config_deploy(
         config = _get_app_config(
             app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, ns
         )
+        log.debug("app configs:\n%s", json.dumps(config, indent=2))
         log.info("applying app configs...")
-        apply_config(config)
+        apply_config(ns, config)
         log.info("waiting on resources...")
         _wait_on_namespace_resources(ns, timeout)
     except (Exception, KeyboardInterrupt):
         log.exception("hit unexpected error! releasing namespace")
         release_namespace(ns)
-
-    log.info("successfully deployed to %s", ns)
-    print(ns)
+        log.error("deploy failed")
+    else:
+        log.info("successfully deployed to %s", ns)
+        print(ns)
 
 
 if __name__ == "__main__":
