@@ -9,6 +9,8 @@ from subprocess import PIPE
 from subprocess import Popen
 from wait_for import wait_for, TimedOutError
 
+import bonfire.config as conf
+
 log = logging.getLogger(__name__)
 
 # Resource types and their cli shortcuts
@@ -186,6 +188,12 @@ def oc(*args, **kwargs):
         else:
             if not kwargs.get("_silent"):
                 log.warning("Non-zero return code ignored")
+
+
+def oc_login():
+    if not conf.OC_LOGIN_TOKEN or not conf.OC_LOGIN_SERVER:
+        raise Exception("OC_LOGIN_TOKEN and/or OC_LOGIN_SERVER environment variables not defined")
+    oc("login", token=conf.OC_LOGIN_TOKEN, server=conf.OC_LOGIN_SERVER)
 
 
 def apply_config(namespace, list_resource):
@@ -445,7 +453,7 @@ def _operator_resources(namespace, timeout, wait_on_app=True):
             message="wait for ClowdApp-owned resources to appear",
             timeout=timeout,
         )
-        # now that InsightsApp resources showed up, again, wait for everything new in ns to be 'ready'
+        # now that ClowdApp resources showed up, again wait for everything new in ns to be 'ready'
         _wait_for_resources(namespace, timeout, already_waited_on)
 
 

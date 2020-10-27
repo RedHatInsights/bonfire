@@ -16,3 +16,6 @@ PROD_ENV_NAME = os.getenv("PROD_ENV_NAME", "insights-production")
 ENV_NAME_FORMAT = "env-{namespace}"
 
 RECONCILE_TIMEOUT = os.getenv("RECONCILE_TIMEOUT", 120)
+
+OC_LOGIN_TOKEN = os.getenv("OC_LOGIN_TOKEN")
+OC_LOGIN_SERVER = os.getenv("OC_LOGIN_SERVER")
