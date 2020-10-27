@@ -283,8 +283,10 @@ def _cmd_config_deploy(
         _wait_on_namespace_resources(ns, timeout)
     except (Exception, KeyboardInterrupt):
         log.exception("hit unexpected error! releasing namespace")
-        release_namespace(ns)
-        log.error("deploy failed")
+        try:
+            release_namespace(ns)
+        finally:
+            _error("deploy failed")
     else:
         log.info("successfully deployed to %s", ns)
         print(ns)
