@@ -193,7 +193,8 @@ def oc(*args, **kwargs):
 def oc_login():
     if not conf.OC_LOGIN_TOKEN or not conf.OC_LOGIN_SERVER:
         raise Exception("OC_LOGIN_TOKEN and/or OC_LOGIN_SERVER environment variables not defined")
-    oc("login", token=conf.OC_LOGIN_TOKEN, server=conf.OC_LOGIN_SERVER)
+    # use _silent so token is not logged
+    oc("login", token=conf.OC_LOGIN_TOKEN, server=conf.OC_LOGIN_SERVER, _silent=True)
 
 
 def apply_config(namespace, list_resource):

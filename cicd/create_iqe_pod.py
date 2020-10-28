@@ -39,6 +39,7 @@ def main(namespace, pod_name):
     logging.getLogger("sh").setLevel(logging.CRITICAL)
     oc("create", f="-", n=namespace, _in=pod_yaml.format(pod_name=pod_name))
     wait_for_ready(namespace, "pod", pod_name)
+    print(pod_name)
 
 
 if __name__ == "__main__":
