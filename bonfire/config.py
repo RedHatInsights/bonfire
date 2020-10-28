@@ -1,9 +1,19 @@
 import os
 
 
-QONTRACT_BASE_URL = os.getenv("QONTRACT_BASE_URL", "http://localhost:4000/graphql")
-QONTRACT_USERNAME = os.getenv("QONTRACT_USERNAME")
-QONTRACT_PASSWORD = os.getenv("QONTRACT_PASSWORD")
+# for compatibility with app-sre team env vars
+APP_INTERFACE_BASE_URL = os.getenv("APP_INTERFACE_BASE_URL")
+APP_INTERFACE_USERNAME = os.getenv("APP_INTERFACE_USERNAME")
+APP_INTERFACE_PASSWORD = os.getenv("APP_INTERFACE_PASSWORD")
+
+LOCAL_GRAPHQL_URL = "http://localhost:4000/graphql"
+
+QONTRACT_BASE_URL = os.getenv(
+    "QONTRACT_BASE_URL",
+    f"https://{APP_INTERFACE_BASE_URL}/graphql" if APP_INTERFACE_BASE_URL else LOCAL_GRAPHQL_URL,
+)
+QONTRACT_USERNAME = os.getenv("QONTRACT_USERNAME", APP_INTERFACE_USERNAME or None)
+QONTRACT_PASSWORD = os.getenv("QONTRACT_PASSWORD", APP_INTERFACE_PASSWORD or None)
 QONTRACT_TOKEN = os.getenv("QONTRACT_TOKEN")
 
 RAW_GITHUB_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
