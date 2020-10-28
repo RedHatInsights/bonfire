@@ -1,11 +1,10 @@
 # Spin up iqe pod and execute IQE tests in it
 
-# Env vars required for this script:
-
-#IQE_PLUGINS=("plugin1" "plugin2")
-#IQE_MARKER_EXPRESSION="mymarker"
-#IQE_FILTER_EXPRESSION="something AND something_else"
-#NAMESPACE="mynamespace"
+# Env vars defined by caller:
+#IQE_PLUGINS=("plugin1" "plugin2") -- pytest plugins to run
+#IQE_MARKER_EXPRESSION="mymarker" -- pytest marker expression
+#IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
+#NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, can be set by 'deploy_ephemeral_env.sh'
 
 IQE_POD_NAME=$(python create_iqe_pod.py $NAMESPACE)
 
@@ -18,4 +17,5 @@ oc exec $IQE_POD_NAME -- \
 
 oc cp $IQE_POD_NAME:artifacts/ .
 
+# TODO: actually do something with these...
 ls -l artifacts
