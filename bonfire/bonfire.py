@@ -147,7 +147,6 @@ _config_get_options = [
         is_flag=True,
         default=False,
     ),
-    click.option("--namespace", "-n", help="Namespace you intend to deploy these components into",),
 ]
 
 
@@ -236,6 +235,7 @@ def _get_app_config(
 
 @config.command("get")
 @common_options(_config_get_options)
+@click.option("--namespace", "-n", help="Namespace you intend to deploy these components into")
 def _cmd_config_get(
     app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
 ):
@@ -252,6 +252,12 @@ def _cmd_config_get(
 
 @config.command("deploy")
 @common_options(_config_get_options)
+@click.option(
+    "--namespace",
+    "-n",
+    help="Namespace to deploy to (default: none, bonfire will try to reserve one)"
+    default=None,
+)
 @common_options(_ns_reserve_options)
 @common_options(_ns_wait_options)
 def _cmd_config_deploy(
@@ -267,10 +273,15 @@ def _cmd_config_deploy(
     timeout,
 ):
     """Reserve a namespace, get kubernetes config for an app, and deploy it to OpenShift"""
+    requested_ns = namespace
+
     log.info("logging into OpenShift...")
     oc_login()
-    log.info("reserving ephemeral namespace...")
-    ns = _reserve_namespace(duration, retries)
+    if not requested_ns:
+        log.info("reserving ephemeral namespace...")
+        ns = _reserve_namespace(duration, retries)
+    else:
+        ns = requested_ns
     try:
         log.info("getting app configs from qontract-server...")
         config = _get_app_config(
@@ -282,9 +293,11 @@ def _cmd_config_deploy(
         log.info("waiting on resources...")
         _wait_on_namespace_resources(ns, timeout)
     except (Exception, KeyboardInterrupt):
-        log.exception("hit unexpected error! releasing namespace")
+        log.exception("hit unexpected error!")
         try:
-            release_namespace(ns)
+            if not requested_ns:
+                log.info("releasing namespace '%s'", ns)
+                release_namespace(ns)
         finally:
             _error("deploy failed")
     else:
