@@ -255,7 +255,7 @@ def _cmd_config_get(
 @click.option(
     "--namespace",
     "-n",
-    help="Namespace to deploy to (default: none, bonfire will try to reserve one)"
+    help="Namespace to deploy to (default: none, bonfire will try to reserve one)",
     default=None,
 )
 @common_options(_ns_reserve_options)
