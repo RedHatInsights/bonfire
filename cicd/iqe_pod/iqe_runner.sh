@@ -45,3 +45,5 @@ for plugin in $PLUGIN_ARRAY; do
         -k "${IQE_FILTER_EXPRESSION}" \
         --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-sequential.log 2>&1
 done
+
+ls -l ${ARTIFACTS_DIR}/
