@@ -13,7 +13,7 @@ spec:
   containers:
   - command:
     - /bin/cat
-    image: quay.io/cloudservices/iqe-tests:latest
+    image: quay.io/cloudservices/iqe-core:latest
     imagePullPolicy: Always
     name: iqe-tests
     resources:
