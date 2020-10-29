@@ -4,7 +4,7 @@
 
 # Env vars required for this script:
 
-#IQE_PLUGINS=("plugin1" "plugin2")
+#IQE_PLUGINS="plugin1,plugin2"
 #IQE_MARKER_EXPRESSION="mymarker"
 #IQE_FILTER_EXPRESSION="something AND something_else"
 
@@ -21,8 +21,9 @@ done
 # TODO: add vault env vars
 export ENV_FOR_DYNACONF=smoke
 
+PLUGIN_ARRAY=${IQE_PLUGINS//,/ }
 
-for plugin in $IQE_PLUGINS; do
+for plugin in $PLUGIN_ARRAY; do
     # run tests marked for 'parallel'
     marker="parallel AND (${IQE_MARKER_EXPRESSION})"
     iqe tests plugin ${plugin} \

@@ -9,6 +9,7 @@ import sys
 import bonfire.config as conf
 from bonfire.qontract import get_app_config
 from bonfire.openshift import apply_config, oc_login, wait_for_all_resources
+from bonfire.utils import split_equals
 from bonfire.namespaces import (
     get_namespaces,
     reserve_namespace,
@@ -19,7 +20,6 @@ from bonfire.namespaces import (
 )
 
 log = logging.getLogger(__name__)
-EQUALS_REGEX = re.compile(r"^\S+=\S+$")
 
 
 def _error(msg):
@@ -44,25 +44,6 @@ def namespace():
 def config():
     """perform operations related to app configurations"""
     pass
-
-
-def _split_equals(list_of_str):
-    """
-    parse multiple key=val string arguments into a single dictionary
-    """
-    if not list_of_str:
-        return {}
-
-    output = {}
-
-    for item in list_of_str:
-        item = str(item)
-        if not EQUALS_REGEX.match(item):
-            _error(f"invalid format for value '{item}', must match: r'{EQUALS_REGEX.pattern}'")
-        key, val = item.split("=")
-        output[key] = val
-
-    return output
 
 
 def _reserve_namespace(duration, retries):
@@ -219,8 +200,11 @@ def _cmd_namespace_reset(namespace):
 def _get_app_config(
     app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
 ):
-    template_ref_overrides = _split_equals(set_template_ref)
-    image_tag_overrides = _split_equals(set_image_tag)
+    try:
+        template_ref_overrides = split_equals(set_template_ref)
+        image_tag_overrides = split_equals(set_image_tag)
+    except ValueError as err:
+        _error(str(err))
     app_config = get_app_config(
         app,
         src_env,
