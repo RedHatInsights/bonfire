@@ -32,8 +32,8 @@ for plugin in $PLUGIN_ARRAY; do
     marker="parallel AND (${IQE_MARKER_EXPRESSION})"
     iqe tests plugin ${plugin} \
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-parallel.xml \
-        -m \"${marker}\" \
-        -k \"${IQE_FILTER_EXPRESSION}\" \
+        -m "${marker}" \
+        -k "${IQE_FILTER_EXPRESSION}" \
         -n 2
         --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-parallel.log 2>&1
 
@@ -41,7 +41,7 @@ for plugin in $PLUGIN_ARRAY; do
     marker="not parallel AND (${IQE_MARKER_EXPRESSION})"
     iqe tests plugin ${plugin} \
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-sequential.xml \
-        -m \"${marker}\" \
-        -k \"${IQE_FILTER_EXPRESSION}\" \
+        -m "${marker}" \
+        -k "${IQE_FILTER_EXPRESSION}" \
         --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-sequential.log 2>&1
 done
