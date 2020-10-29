@@ -24,6 +24,9 @@ export ENV_FOR_DYNACONF=smoke
 
 PLUGIN_ARRAY=${IQE_PLUGINS//,/ }
 
+
+set +e  # test pass/fail should be determined by analyzing the junit xml artifacts left in the pod
+
 for plugin in $PLUGIN_ARRAY; do
     # run tests marked for 'parallel'
     marker="parallel AND (${IQE_MARKER_EXPRESSION})"
