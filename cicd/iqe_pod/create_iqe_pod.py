@@ -46,11 +46,12 @@ def main(namespace, pod_name, env):
     pod = _get_base_pod_cfg()
 
     pod["metadata"]["name"] = pod_name
-    env_vars = split_equals(env)
+    env_vars = split_equals(env, allow_null=True)
     if env_vars:
         pod["containers"][0]["env"] = pod_env_vars = []
         for key, val in env_vars.items():
-            pod_env_vars.append({"name": key, "value": val})
+            if val:
+                pod_env_vars.append({"name": key, "value": val})
 
     oc("create", f="-", n=namespace, _in=json.dumps(pod))
     if not wait_for_ready(namespace, "pod", pod_name):
