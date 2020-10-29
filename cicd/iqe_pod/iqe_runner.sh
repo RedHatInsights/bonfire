@@ -29,7 +29,7 @@ set +e  # test pass/fail should be determined by analyzing the junit xml artifac
 
 for plugin in $PLUGIN_ARRAY; do
     # run tests marked for 'parallel'
-    marker="parallel AND (${IQE_MARKER_EXPRESSION})"
+    marker="parallel and (${IQE_MARKER_EXPRESSION})"
     iqe tests plugin ${plugin} \
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-parallel.xml \
         -m "${marker}" \
@@ -38,7 +38,7 @@ for plugin in $PLUGIN_ARRAY; do
         --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-parallel.log 2>&1
 
     # run non-parallel tests in sequence
-    marker="not parallel AND (${IQE_MARKER_EXPRESSION})"
+    marker="not parallel and (${IQE_MARKER_EXPRESSION})"
     iqe tests plugin ${plugin} \
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-sequential.xml \
         -m "${marker}" \
