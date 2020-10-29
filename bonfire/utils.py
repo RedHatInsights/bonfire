@@ -9,7 +9,7 @@ def split_equals(list_of_str, allow_null=False):
         return {}
 
     if allow_null:
-        equals_regex = re.compile(r"^\S+=(\S+|^(?![\s\S]))$")
+        equals_regex = re.compile(r"^(\S+=\S+|\S+=)$")
     else:
         equals_regex = re.compile(r"^\S+=\S+$")
 
