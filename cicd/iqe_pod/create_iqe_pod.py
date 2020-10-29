@@ -16,7 +16,7 @@ def _get_base_pod_cfg():
             "containers": [
                 {
                     "command": ["/bin/cat"],
-                    "image": "quay.io/cloudservices/iqe-core:latest",
+                    "image": "quay.io/cloudservices/iqe-tests:latest",
                     "imagePullPolicy": "Always",
                     "name": "iqe-tests",
                     "resources": {

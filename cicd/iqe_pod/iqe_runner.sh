@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script is intended to be run in an iqe-core/iqe-tests pod
+# This script is intended to be run in an iqe-tests pod
 
 # Env vars required for this script:
 
@@ -14,9 +14,10 @@ ARTIFACTS_DIR="artifacts"
 
 mkdir -p $ARTIFACTS_DIR
 
-for plugin in $IQE_PLUGINS; do
-    iqe install $plugin
-done
+# The plugin *should* be pre-installed in the container
+#for plugin in $IQE_PLUGINS; do
+#    iqe plugin install $plugin
+#done
 
 # TODO: add vault env vars
 export ENV_FOR_DYNACONF=smoke
