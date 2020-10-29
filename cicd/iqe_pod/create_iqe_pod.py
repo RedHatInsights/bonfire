@@ -48,7 +48,7 @@ def main(namespace, pod_name, env):
     pod["metadata"]["name"] = pod_name
     env_vars = split_equals(env, allow_null=True)
     if env_vars:
-        pod["containers"][0]["env"] = pod_env_vars = []
+        pod["spec"]["containers"][0]["env"] = pod_env_vars = []
         for key, val in env_vars.items():
             if val:
                 pod_env_vars.append({"name": key, "value": val})
