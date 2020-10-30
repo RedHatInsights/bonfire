@@ -1,9 +1,7 @@
 #!/bin/bash
 
 # Env vars caller defines:
-# IMAGE="quay.io/myorg/myapp" -- docker image URI
-# IMAGE_TAG="abcd123" -- image tag to push to,  set by bootstrap.sh
-# APP_ROOT  * set by bootstrap.sh
+#IMAGE="quay.io/myorg/myapp" -- docker image URI to push to
 
 # Env vars set by bootstrap.sh:
 #IMAGE_TAG="abcd123" -- image tag to push to
