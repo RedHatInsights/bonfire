@@ -379,7 +379,9 @@ def get_app_config(
             kind = item.get("kind", "kindUnknown")
             item_names.append(f"{kind}/{name}".lower())
         log.info(
-            "new resource(s) obtained via saas file '%s': %s",
+            "app: %s env: %s saas file: %s -- resource(s) marked for deploy: %s",
+            app,
+            src_env,
             saas_file["name"],
             ", ".join(item_names) if item_names else "none",
         )
