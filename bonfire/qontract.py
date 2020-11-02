@@ -137,23 +137,23 @@ def _format_namespace(namespace):
     return f"[cluster: {namespace['cluster']['name']}, ns: {namespace['name']}]"
 
 
-def _format_app_resource(app, resource_name):
-    return f"app '{app}' resource '{resource_name}'"
+def _format_app_resource(app, resource_name, saas_file):
+    return f"app: '{app}' resource: '{resource_name}' saas file: '{saas_file['name']}'"
 
 
-def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_env):
+def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_env, saas_file):
     if not src_targets:
-        log.warning(
-            "%s: no targets found using src env '%s'",
-            _format_app_resource(app, resource_name),
+        log.debug(
+            "%s -- no targets found using src env '%s'",
+            _format_app_resource(app, resource_name, saas_file),
             src_env,
         )
         src_targets = [None]
 
     if not ref_targets:
-        log.warning(
-            "%s: no targets found using ref env '%s'",
-            _format_app_resource(app, resource_name),
+        log.debug(
+            "%s -- no targets found using ref env '%s'",
+            _format_app_resource(app, resource_name, saas_file),
             ref_env,
         )
         ref_targets = src_targets
@@ -161,17 +161,17 @@ def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_en
     if len(ref_targets) > 1:
         # find a target with >0 replicas if possible
         namespaces = [_format_namespace(t["namespace"]) for t in ref_targets]
-        log.warning(
-            "%s: multiple targets defined for ref env '%s' (target namespaces: %s)",
-            _format_app_resource(app, resource_name),
+        log.debug(
+            "%s -- multiple targets defined for ref env '%s' (target namespaces: %s)",
+            _format_app_resource(app, resource_name, saas_file),
             ref_env,
             ", ".join(namespaces),
         )
         for t in ref_targets:
             if t["parameters"].get("REPLICAS") != 0:
-                log.info(
-                    "%s: selected ref target with >0 replicas (target namespace is '%s')",
-                    _format_app_resource(app, resource_name),
+                log.debug(
+                    "%s -- selected ref target with >0 replicas (target namespace is '%s')",
+                    _format_app_resource(app, resource_name, saas_file),
                     _format_namespace(t["namespace"]),
                 )
                 ref_targets = [t]
@@ -231,15 +231,28 @@ def _get_processed_config_items(
     ref_env_data = client.get_env(ref_env)
 
     src_resources = _get_resources_for_env(saas_file, src_env_data)
+    log.debug(
+        "found resources for %s in saas file '%s': %s",
+        src_env,
+        saas_file["name"],
+        json.dumps(src_resources, indent=2),
+    )
     ref_resources = _get_resources_for_env(saas_file, ref_env_data)
+    log.debug(
+        "found resources for %s in saas file '%s': %s",
+        ref_env,
+        saas_file["name"],
+        json.dumps(ref_resources, indent=2),
+    )
 
     items = []
 
     for resource_name, resource in src_resources.items():
         src_targets = resource.get("targets", [])
         ref_targets = ref_resources.get(resource_name, {}).get("targets", [])
+        log.debug("%s -- parsing targets", _format_app_resource(app, resource_name, saas_file))
         src_target, ref_target = _parse_targets(
-            src_targets, ref_targets, app, resource_name, src_env, ref_env
+            src_targets, ref_targets, app, resource_name, src_env, ref_env, saas_file
         )
         if not src_target:
             # no target configuration exists for this resource in the desired source env
@@ -247,7 +260,9 @@ def _get_processed_config_items(
 
         if resource_name in template_ref_overrides:
             # if template ref has explicitly been overridden, use the override
-            log.info("overriding template ref for resource '%s'", resource_name)
+            log.debug(
+                "%s -- overriding template ref", _format_app_resource(app, resource_name, saas_file)
+            )
             template_ref = template_ref_overrides[resource_name]
         else:
             # otherwise use template ref configured in the "reference deploy target"
@@ -264,9 +279,9 @@ def _get_processed_config_items(
         p["IMAGE_TAG"] = ref_target["parameters"].get("IMAGE_TAG")
         if not p.get("IMAGE_TAG"):
             p.update({"IMAGE_TAG": "latest" if template_ref == "master" else template_ref[:7]})
-            log.warning(
-                "IMAGE_TAG not defined in reference target for resource '%s', using tag '%s'",
-                resource_name,
+            log.debug(
+                "%s -- no IMAGE_TAG set, using tag '%s'",
+                _format_app_resource(app, resource_name, saas_file),
                 p["IMAGE_TAG"],
             )
 
@@ -352,12 +367,25 @@ def get_app_config(
         processed_apps = set()
 
     new_items = []
-    for saas_file in client.get_saas_files(app):
-        new_items.extend(
-            _get_processed_config_items(
-                client, app, saas_file, src_env, ref_env, template_ref_overrides, namespace
-            )
+    saas_files = client.get_saas_files(app)
+    log.debug("found %d saas files for app '%s'", len(saas_files), app)
+    for saas_file in saas_files:
+        found_items = _get_processed_config_items(
+            client, app, saas_file, src_env, ref_env, template_ref_overrides, namespace
         )
+        item_names = []
+        for item in found_items:
+            name = item.get("metadata", {}).get("name", "nameUnknown")
+            kind = item.get("kind", "kindUnknown")
+            item_names.append(f"{kind}/{name}".lower())
+        log.info(
+            "app: %s env: %s saas file: %s -- resource(s) marked for deploy: %s",
+            app,
+            src_env,
+            saas_file["name"],
+            ", ".join(item_names) if item_names else "none",
+        )
+        new_items.extend(found_items)
 
     # override any explicitly provided image tags
     new_items = _sub_image_tags(new_items, image_tag_overrides)
