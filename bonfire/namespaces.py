@@ -176,11 +176,32 @@ def reset_namespace(namespace):
 
 
 def _delete_resources(namespace):
-    oc("delete", "all", "--all", n=namespace)
-    oc("delete", "pvc", "--all", n=namespace)
+    # installation of certain operators on the cluster may break 'oc delete all'
+    # oc("delete", "all", "--all", n=namespace)
+
+    # delete the ClowdEnvironment for this namespace
     if get_json("clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace)):
         oc("delete", "clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace))
-    oc("delete", "clowdapp", "--all", n=namespace)
+
+    # delete specific resource types from the namespace
+    resources_to_delete = [
+        "clowdapp",
+        "secret",
+        "configmap",
+        "pvc",
+        "pod",
+        "deployment",
+        "deploymentconfig",
+        "statefulset",
+        "daemonset",
+        "replicaset",
+        "cronjob",
+        "job",
+        "service",
+        "route",
+    ]
+    for resource in resources_to_delete:
+        oc("delete", resource, "--all", n=namespace)
 
 
 def add_base_resources(namespace):

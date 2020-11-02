@@ -3,7 +3,6 @@
 import click
 import json
 import logging
-import re
 import sys
 
 import bonfire.config as conf
