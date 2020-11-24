@@ -422,8 +422,8 @@ def _wait_for_resources(namespace, timeout, skip=None):
             if entry not in skip:
                 wait_for_list.append((restype, item["metadata"]["name"]))
 
-    wait_for_ready_threaded(namespace, wait_for_list, timeout=timeout)
-    return wait_for_list
+    result = wait_for_ready_threaded(namespace, wait_for_list, timeout=timeout)
+    return result, wait_for_list
 
 
 def _operator_resource_present(namespace, owner_kind):
@@ -444,7 +444,11 @@ def _operator_resources(namespace, timeout, wait_on_app=True):
         timeout=timeout,
     )
     # now wait for everything in ns to be 'ready'
-    already_waited_on = _wait_for_resources(namespace, timeout)
+    result, already_waited_on = _wait_for_resources(namespace, timeout)
+
+    # the first wait failed, so just return 'False' now
+    if not result:
+        return result
 
     if wait_on_app:
         log.info("Waiting for resources owned by 'ClowdApp' to appear")
@@ -455,7 +459,9 @@ def _operator_resources(namespace, timeout, wait_on_app=True):
             timeout=timeout,
         )
         # now that ClowdApp resources showed up, again wait for everything new in ns to be 'ready'
-        _wait_for_resources(namespace, timeout, already_waited_on)
+        result, _ = _wait_for_resources(namespace, timeout, already_waited_on)
+
+    return result
 
 
 def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):

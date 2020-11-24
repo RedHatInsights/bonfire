@@ -253,7 +253,6 @@ def _reconcile_ns(ns):
         except TimedOutError:
             # base resources failed to come up, don't mark it ready and try again next time...
             log.error("namespace '%s' - timed out waiting for resources after prep", ns.name)
-            pass
         else:
             ns.ready = True
             ns.duration = None
