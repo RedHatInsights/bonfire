@@ -58,8 +58,11 @@ class Namespace:
         self.data = copy.deepcopy(namespace_data)
         self.name = self.data["metadata"]["name"]
 
+        self._initialize_labels = False
         if "labels" not in self.data["metadata"]:
             self.data["metadata"]["labels"] = {}
+            self._initialize_labels = True
+
         self.labels = self.data["metadata"]["labels"]
 
         self.reserved = self.labels.get(NS_RESERVED, "false") == "true"
@@ -75,34 +78,42 @@ class Namespace:
         self.__init__(get_json("namespace", self.name))
 
     def update(self):
-        patch = [
-            {
-                "op": "replace",
-                "path": f"/metadata/labels/{NS_RESERVED}",
-                "value": str(self.reserved).lower(),
-            },
-            {
-                "op": "replace",
-                "path": f"/metadata/labels/{NS_READY}",
-                "value": str(self.ready).lower(),
-            },
-            {
-                "op": "replace",
-                "path": f"/metadata/labels/{NS_REQUESTER}",
-                "value": str(self.requester) if self.requester else None,
-            },
-            {
-                "op": "replace",
-                "path": f"/metadata/labels/{NS_DURATION}",
-                "value": str(self.duration) if self.duration else None,
-            },
-            {
-                "op": "replace",
-                "path": f"/metadata/labels/{NS_EXPIRES}",
-                # convert time format to one that can be used in a label
-                "value": _fmt_time(self.expires),
-            },
-        ]
+        patch = []
+
+        if self._initialize_labels:
+            # prevent 'The  "" is invalid' error due to missing 'labels' path
+            patch.append({"op": "add", "path": "/metadata/labels", "value": {}})
+
+        patch.extend(
+            [
+                {
+                    "op": "replace",
+                    "path": f"/metadata/labels/{NS_RESERVED}",
+                    "value": str(self.reserved).lower(),
+                },
+                {
+                    "op": "replace",
+                    "path": f"/metadata/labels/{NS_READY}",
+                    "value": str(self.ready).lower(),
+                },
+                {
+                    "op": "replace",
+                    "path": f"/metadata/labels/{NS_REQUESTER}",
+                    "value": str(self.requester) if self.requester else None,
+                },
+                {
+                    "op": "replace",
+                    "path": f"/metadata/labels/{NS_DURATION}",
+                    "value": str(self.duration) if self.duration else None,
+                },
+                {
+                    "op": "replace",
+                    "path": f"/metadata/labels/{NS_EXPIRES}",
+                    # convert time format to one that can be used in a label
+                    "value": _fmt_time(self.expires),
+                },
+            ]
+        )
 
         oc("patch", "namespace", self.name, type="json", p=json.dumps(patch))
 
