@@ -34,7 +34,7 @@ for plugin in $PLUGIN_ARRAY; do
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-parallel.xml \
         -m "${marker}" \
         -k "${IQE_FILTER_EXPRESSION}" \
-        -n 2
+        -n 2 \
         --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-parallel.log 2>&1
 
     # run non-parallel tests in sequence
