@@ -24,7 +24,7 @@ function get_oc_events {
             sort_by(.t)[] |
             [.t, .metadata.namespace, .type, .reason, .involvedObject.kind + "/" + .involvedObject.name, .source.component + "," + (.source.host//"-"), .message] |
             @tsv'
-    } | column -s $'\t' -t > $K8S_ARTIFACTS_DIR/events.txt
+    } | column -s $'\t' -t > $K8S_ARTIFACTS_DIR/oc_events.txt
 }
 
 function get_pod_logs {
