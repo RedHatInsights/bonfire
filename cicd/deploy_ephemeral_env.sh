@@ -30,14 +30,14 @@ function get_oc_events {
 function get_pod_logs {
     LOGS_DIR="$K8S_ARTIFACTS_DIR/logs"
     mkdir -p $LOGS_DIR
-    PODS=( $(oc get pods -o jsonpath='{range .items[*]}{.metadata.name}{" "}' || echo "") )
+    PODS=( $(oc get pods -n $NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{" "}' || echo "") )
     for pod in $PODS; do
         CONTAINERS=( $(oc get pod $pod -n $NAMESPACE -o jsonpath='{range .spec.containers[*]}{.name}{" "}' || echo "") )
         if [ -z "$CONTAINERS" ]; then
             echo "get logs: pod $pod not found"
         fi;
         for container in $CONTAINERS; do
-            oc logs $pod -c $container > $LOGS_DIR/${pod}_${container}.log || echo "get logs: ${pod}_${container} failed."
+            oc logs -n $NAMESPACE $pod -c $container > $LOGS_DIR/${pod}_${container}.log || echo "get logs: ${pod}_${container} failed."
             echo "Saved logs for $pod container $container"
         done
     done
@@ -47,8 +47,8 @@ function collect_k8s_artifacts {
     mkdir -p $K8S_ARTIFACTS_DIR
     get_pod_logs
     get_oc_events
-    oc get all -o yaml > $K8S_ARTIFACTS_DIR/oc_get_all.yaml
-    oc get clowdapp -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdapp.yaml
+    oc get all -n $NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_all.yaml
+    oc get clowdapp -n $NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdapp.yaml
     oc get clowdenvironment env-$NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdenvironment.yaml
 }
 
