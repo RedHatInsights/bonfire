@@ -36,7 +36,7 @@ function get_pod_logs {
 	# https://stackoverflow.com/a/4444841
 	POD=${pc%%:*}
 	CONTAINER=${pc#*:}
-        oc logs $POD -c $CONTAINER -n $NAMESPACE > $LOGS_DIR/${POD}_${CONTAINER}.log
+        oc logs $POD -c $CONTAINER -n $NAMESPACE > $LOGS_DIR/${POD}_${CONTAINER}.log || continue
     done
 }
 
