@@ -190,13 +190,15 @@ def _delete_resources(namespace):
     # installation of certain operators on the cluster may break 'oc delete all'
     # oc("delete", "all", "--all", n=namespace)
 
+    # delete the ClowdApps in this namespace
+    oc("delete", "clowdapp", "--all", n=namespace)
+
     # delete the ClowdEnvironment for this namespace
     if get_json("clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace)):
         oc("delete", "clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace))
 
-    # delete specific resource types from the namespace
+    # delete other specific resource types from the namespace
     resources_to_delete = [
-        "clowdapp",
         "secret",
         "configmap",
         "pvc",
