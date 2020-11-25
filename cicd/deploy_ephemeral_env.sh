@@ -31,7 +31,7 @@ function get_pod_logs {
     LOGS_DIR="$K8S_ARTIFACTS_DIR/logs"
     mkdir -p $LOGS_DIR
     # get array of pod_name:container for all containers in all pods
-    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n ephemeral-02 -o 'jsonpath={range .items[*]}{.metadata.name}{range .spec.containers[*]}{":"}{.name}{" "}'))
+    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $NAMESPACE -o 'jsonpath={range .items[*]}{.metadata.name}{range .spec.containers[*]}{":"}{.name}{" "}'))
     for pc in $PODS_CONTAINERS; do
 	# https://stackoverflow.com/a/4444841
 	POD=${pc%%:*}
