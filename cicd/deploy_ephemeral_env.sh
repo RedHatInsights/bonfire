@@ -30,15 +30,14 @@ function get_oc_events {
 function get_pod_logs {
     LOGS_DIR="$K8S_ARTIFACTS_DIR/logs"
     mkdir -p $LOGS_DIR
-    PODS=( $(oc get pods -n $NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{" "}' || echo "") )
+    PODS=($(oc get pods --ignore-not-found=true -n $NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{" "}'))
     for pod in $PODS; do
-        CONTAINERS=( $(oc get pod $pod -n $NAMESPACE -o jsonpath='{range .spec.containers[*]}{.name}{" "}' || echo "") )
+	CONTAINERS=($(oc get pod $pod --ignore-not-found=true -n $NAMESPACE -o jsonpath='{range .spec.containers[*]}{.name}{" "}'))
         if [ -z "$CONTAINERS" ]; then
             echo "get logs: pod $pod not found"
         fi;
         for container in $CONTAINERS; do
-            oc logs -n $NAMESPACE $pod -c $container > $LOGS_DIR/${pod}_${container}.log || echo "get logs: ${pod}_${container} failed."
-            echo "Saved logs for $pod container $container"
+            oc logs $pod -c $container -n $NAMESPACE > $LOGS_DIR/${pod}_${container}.log
         done
     done
 }
