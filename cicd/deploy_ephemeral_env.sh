@@ -9,7 +9,7 @@
 
 set -ex
 
-K8S_ARTIFACTS_DIR="artifacts/k8s_artifacts/"
+K8S_ARTIFACTS_DIR="$WORKSPACE/artifacts/k8s_artifacts/"
 START_TIME=$(date +%s)
 
 # adapted from https://stackoverflow.com/a/62475429
@@ -48,8 +48,8 @@ function collect_k8s_artifacts {
     get_pod_logs
     get_oc_events
     oc get all -o yaml > $K8S_ARTIFACTS_DIR/oc_get_all.yaml
-    oc get clowdapp --all -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdapp.yaml
-    oc get clowdenv env-$NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdenvironment.yaml
+    oc get clowdapp -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdapp.yaml
+    oc get clowdenvironment env-$NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdenvironment.yaml
 }
 
 function teardown {
