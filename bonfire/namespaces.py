@@ -215,8 +215,7 @@ def _delete_resources(namespace):
         oc("delete", resource, "--all", n=namespace)
 
 
-def add_base_resources(namespace):
-    secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
+def add_base_resources(namespace, secret_names):
     copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
 
     with open(ENV_TEMPLATE) as fp:
@@ -236,7 +235,7 @@ def add_base_resources(namespace):
     wait_for_all_resources(namespace, timeout=conf.RECONCILE_TIMEOUT, wait_on_app=False)
 
 
-def _reconcile_ns(ns):
+def _reconcile_ns(ns, base_secret_names):
     log.info("namespace '%s' - checking", ns.name)
     update_needed = False
 
@@ -260,7 +259,7 @@ def _reconcile_ns(ns):
         log.info("namespace '%s' - released but needs prep, prepping", ns.name)
         _delete_resources(ns.name)
         try:
-            add_base_resources(ns.name)
+            add_base_resources(ns.name, base_secret_names)
         except TimedOutError:
             # base resources failed to come up, don't mark it ready and try again next time...
             log.error("namespace '%s' - timed out waiting for resources after prep", ns.name)
@@ -284,10 +283,13 @@ def _reconcile_ns(ns):
 
 
 def reconcile():
+    # run graphql queries outside of the threads since the client isn't natively thread-safe
     namespaces = get_namespaces()
+    base_secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
+
     threads = []
     for ns in namespaces:
-        t = threading.Thread(target=_reconcile_ns, args=(ns,))
+        t = threading.Thread(target=_reconcile_ns, args=(ns, base_secret_names))
         threads.append(t)
         t.start()
     for t in threads:
