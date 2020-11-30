@@ -26,6 +26,7 @@ NS_READY = "ephemeral-ns-ready"
 NS_REQUESTER = "ephemeral-ns-requester"
 NS_DURATION = "ephemeral-ns-duration"
 NS_EXPIRES = "ephemeral-ns-expires"
+NS_REQUESTER_NAME = "ephemeral-ns-requester-name"
 
 RESERVATION_DELAY_SEC = 5
 
@@ -53,6 +54,22 @@ def _utcnow():
     return _utc_tz(datetime.datetime.utcnow())
 
 
+def _pretty_time_delta(seconds):
+    # https://gist.github.com/thatalextaylor/7408395
+    seconds = int(seconds)
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    if days > 0:
+        return "%dd%dh%dm%ds" % (days, hours, minutes, seconds)
+    elif hours > 0:
+        return "%dh%dm%ds" % (hours, minutes, seconds)
+    elif minutes > 0:
+        return "%dm%ds" % (minutes, seconds)
+    else:
+        return "%ds" % (seconds,)
+
+
 class Namespace:
     def __init__(self, namespace_data):
         self.data = copy.deepcopy(namespace_data)
@@ -73,6 +90,20 @@ class Namespace:
         self.duration = int(duration) if duration else None
         # convert time format to one that can be used in a label
         self.expires = _parse_time(self.labels.get(NS_EXPIRES))
+        requester_name = self.labels.get(NS_REQUESTER_NAME)
+        self.requester_name = str(requester_name) if requester_name else None
+
+    @property
+    def expires_in(self):
+        if not self.expires:
+            if self.reserved and self.duration:
+                # reconciler just needs to set the time ...
+                return "TBD"
+            else:
+                return ""
+        utcnow = _utcnow()
+        delta = self.expires - utcnow
+        return _pretty_time_delta(delta.total_seconds())
 
     def refresh(self):
         self.__init__(get_json("namespace", self.name))
@@ -112,6 +143,11 @@ class Namespace:
                     # convert time format to one that can be used in a label
                     "value": _fmt_time(self.expires),
                 },
+                {
+                    "op": "replace",
+                    "path": f"/metadata/labels/{NS_REQUESTER_NAME}",
+                    "value": str(self.requester_name) if self.requester_name else None,
+                },
             ]
         )
 
@@ -134,15 +170,19 @@ def get_namespaces(available_only=False):
     return ephemeral_namespaces
 
 
-def reserve_namespace(duration, retries, attempt=0):
+def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
     attempt = attempt + 1
 
-    log.info("attempt [%d] to reserve a namespace", attempt)
+    ns_name = specific_namespace if specific_namespace else ""
+    log.info("attempt [%d] to reserve namespace %s", attempt, ns_name)
 
     available_namespaces = get_namespaces(available_only=True)
 
+    if specific_namespace:
+        available_namespaces = [ns for ns in available_namespaces if ns.name == specific_namespace]
+
     if not available_namespaces:
-        log.info("no namespaces currently available")
+        log.info("all namespaces currently unavailable")
 
         if retries and attempt > retries:
             log.error("maximum retries reached")
@@ -150,7 +190,7 @@ def reserve_namespace(duration, retries, attempt=0):
 
         log.info("waiting 60sec before retrying")
         time.sleep(60)
-        return reserve_namespace(duration, retries, attempt=attempt)
+        return reserve_namespace(duration, retries, specific_namespace, attempt=attempt)
 
     namespace = random.choice(available_namespaces)
     requester_id = uuid.uuid4()
@@ -158,6 +198,7 @@ def reserve_namespace(duration, retries, attempt=0):
     namespace.ready = False
     namespace.requester = requester_id
     namespace.duration = duration
+    namespace.requester_name = oc("whoami").strip()
     namespace.update()
 
     # to avoid race conditions, wait and verify we still own this namespace
@@ -170,7 +211,7 @@ def reserve_namespace(duration, retries, attempt=0):
             log.error("maximum retries reached")
             return None
 
-        return reserve_namespace(duration, retries, attempt=attempt)
+        return reserve_namespace(duration, retries, specific_namespace, attempt=attempt)
 
     return namespace
 
@@ -252,6 +293,7 @@ def _reconcile_ns(ns, base_secret_names):
             ns.duration = None
             ns.expires = None
             ns.requester = None
+            ns.requester_name = None
             _delete_resources(ns.name)
             update_needed = True
         log.info("namespace '%s' - not expired", ns.name)
@@ -270,6 +312,7 @@ def _reconcile_ns(ns, base_secret_names):
             ns.duration = None
             ns.expires = None
             ns.requester = None
+            ns.requester_name = None
             update_needed = True
 
     if ns.reserved and ns.duration and not ns.expires:

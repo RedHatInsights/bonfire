@@ -5,6 +5,8 @@ import json
 import logging
 import sys
 
+from tabulate import tabulate
+
 import bonfire.config as conf
 from bonfire.qontract import get_app_config
 from bonfire.openshift import apply_config, oc_login, wait_for_all_resources
@@ -45,8 +47,8 @@ def config():
     pass
 
 
-def _reserve_namespace(duration, retries):
-    ns = reserve_namespace(duration, retries)
+def _reserve_namespace(duration, retries, namespace=None):
+    ns = reserve_namespace(duration, retries, namespace)
     if not ns:
         _error("unable to reserve namespace")
     return ns.name
@@ -147,18 +149,27 @@ def common_options(options_list):
 )
 def _list_namespaces(available):
     """Get list of namespaces available for ephemeral deployments"""
-    namespace_names = sorted([ns.name for ns in get_namespaces(available_only=available)])
-    if not namespace_names:
+    namespaces = get_namespaces(available_only=available)
+    if not namespaces:
         click.echo("no namespaces found")
     else:
-        click.echo("\n".join(namespace_names))
+        data = {
+            "NAME": [ns.name for ns in namespaces],
+            "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
+            "READY": [str(ns.ready).lower() for ns in namespaces],
+            "REQUESTER": [ns.requester_name for ns in namespaces],
+            "EXPIRES IN": [ns.expires_in for ns in namespaces],
+        }
+        tabulated = tabulate(data, headers="keys")
+        click.echo(tabulated)
 
 
 @namespace.command("reserve")
 @common_options(_ns_reserve_options)
-def _cmd_namespace_reserve(duration, retries):
-    """Reserve an available ephemeral namespace"""
-    click.echo(_reserve_namespace(duration, retries))
+@click.argument("namespace", required=False, type=str)
+def _cmd_namespace_reserve(duration, retries, namespace):
+    """Reserve an ephemeral namespace, if specific name not given then a random one is chosen"""
+    click.echo(_reserve_namespace(duration, retries, namespace))
 
 
 @namespace.command("release")
