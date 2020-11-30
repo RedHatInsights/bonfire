@@ -70,6 +70,12 @@ def _pretty_time_delta(seconds):
         return "%ds" % (seconds,)
 
 
+def _sanitize_label(txt):
+    # a valid label must be an empty string or consist of alphanumeric characters,
+    # '-', '_' or '.', and must start and end with an alphanumeric character
+    return txt.replace("@", "_at_").replace(":", "_")
+
+
 class Namespace:
     def __init__(self, namespace_data):
         self.data = copy.deepcopy(namespace_data)
@@ -198,7 +204,7 @@ def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
     namespace.ready = False
     namespace.requester = requester_id
     namespace.duration = duration
-    namespace.requester_name = oc("whoami").strip()
+    namespace.requester_name = _sanitize_label(oc("whoami").strip())
     namespace.update()
 
     # to avoid race conditions, wait and verify we still own this namespace
