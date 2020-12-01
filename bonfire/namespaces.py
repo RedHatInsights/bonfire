@@ -18,6 +18,7 @@ from bonfire.openshift import (
     copy_namespace_secrets,
     process_template,
     wait_for_all_resources,
+    whoami,
 )
 
 
@@ -70,14 +71,20 @@ def _pretty_time_delta(seconds):
         return "%ds" % (seconds,)
 
 
-def _sanitize_label(txt):
-    # a valid label must be an empty string or consist of alphanumeric characters,
-    # '-', '_' or '.', and must start and end with an alphanumeric character
-    return txt.replace("@", "_at_").replace(":", "_")
-
-
 class Namespace:
-    def __init__(self, namespace_data):
+    def refresh(self):
+        self.__init__(namespace_data=get_json("namespace", self.name))
+        return self
+
+    def __init__(self, name=None, namespace_data=None):
+        if not namespace_data:
+            # we don't yet have the data for this namespace... load it
+            if not name:
+                raise ValueError('Namespace needs one of: "name", "namespace_data"')
+            self.name = name
+            self.refresh()
+            return
+
         self.data = copy.deepcopy(namespace_data)
         self.name = self.data["metadata"]["name"]
 
@@ -102,17 +109,19 @@ class Namespace:
     @property
     def expires_in(self):
         if not self.expires:
-            if self.reserved and self.duration:
-                # reconciler just needs to set the time ...
-                return "TBD"
-            else:
-                return ""
+            # reconciler needs to set the time ...
+            return "TBD"
         utcnow = _utcnow()
         delta = self.expires - utcnow
         return _pretty_time_delta(delta.total_seconds())
 
-    def refresh(self):
-        self.__init__(get_json("namespace", self.name))
+    @property
+    def owned_by_me(self):
+        return self.requester_name == whoami()
+
+    @property
+    def available(self):
+        return self.owned_by_me or (not self.reserved and self.ready)
 
     def update(self):
         patch = []
@@ -169,8 +178,11 @@ def get_namespaces(available_only=False):
     for ns in all_namespaces:
         if ns["metadata"]["name"] not in ephemeral_namespace_names:
             continue
-        ns = Namespace(ns)
-        if not available_only or (not ns.reserved and ns.ready):
+        if not conf.RESERVABLE_NAMESPACE_REGEX.match(ns["metadata"]["name"]):
+            continue
+        ns = Namespace(namespace_data=ns)
+        # we can reserve a namespace
+        if not available_only or ns.available:
             ephemeral_namespaces.append(ns)
 
     return ephemeral_namespaces
@@ -204,7 +216,8 @@ def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
     namespace.ready = False
     namespace.requester = requester_id
     namespace.duration = duration
-    namespace.requester_name = _sanitize_label(oc("whoami").strip())
+    namespace.expires = None  # let the reconciler tell us when it expires
+    namespace.requester_name = whoami()
     namespace.update()
 
     # to avoid race conditions, wait and verify we still own this namespace
@@ -223,8 +236,6 @@ def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
 
 
 def release_namespace(namespace):
-    # TODO: currently there's nothing stopping you from checking in a namespace you did not check
-    # out yourself
     oc("label", "--overwrite", "namespace", namespace, f"{NS_RESERVED}=false")
 
 

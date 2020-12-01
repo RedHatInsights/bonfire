@@ -1,4 +1,5 @@
 import os
+import re
 
 
 # for compatibility with app-sre team env vars
@@ -20,6 +21,7 @@ RAW_GITHUB_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 RAW_GITLAB_URL = "https://gitlab.cee.redhat.com/{org}/{repo}/-/raw/{ref}{path}"
 
 BASE_NAMESPACE_NAME = os.getenv("BASE_NAMESPACE_NAME", "ephemeral-base")
+RESERVABLE_NAMESPACE_REGEX = re.compile(r"ephemeral-\d+")
 EPHEMERAL_ENV_NAME = os.getenv("EPHEMERAL_ENV_NAME", "insights-ephemeral")
 PROD_ENV_NAME = os.getenv("PROD_ENV_NAME", "insights-production")
 

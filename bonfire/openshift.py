@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 import threading
@@ -195,6 +196,16 @@ def oc_login():
         raise Exception("OC_LOGIN_TOKEN and/or OC_LOGIN_SERVER environment variables not defined")
     # use _silent so token is not logged
     oc("login", token=conf.OC_LOGIN_TOKEN, server=conf.OC_LOGIN_SERVER, _silent=True)
+
+
+# we will assume that 'oc whoami' will not change during execution of a single 'bonfire' command
+@functools.lru_cache(maxsize=None, typed=False)
+def whoami():
+    name = oc("whoami", _silent=True).strip()
+    # a valid label must be an empty string or consist of alphanumeric characters,
+    # '-', '_' or '.', and must start and end with an alphanumeric character, so let's just sanitize
+    # the name at this point
+    return name.replace("@", "_at_").replace(":", "_")
 
 
 def apply_config(namespace, list_resource):

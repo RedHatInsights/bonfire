@@ -12,6 +12,7 @@ from bonfire.qontract import get_app_config
 from bonfire.openshift import apply_config, oc_login, wait_for_all_resources
 from bonfire.utils import split_equals
 from bonfire.namespaces import (
+    Namespace,
     get_namespaces,
     reserve_namespace,
     release_namespace,
@@ -62,6 +63,14 @@ def _wait_on_namespace_resources(namespace, timeout):
 
 def _prepare_namespace(namespace):
     add_base_resources(namespace)
+
+
+def _warn_if_not_owner(namespace):
+    ns = Namespace(name=namespace)
+    if not ns.owned_by_me:
+        if not click.confirm("Namespace not currently reserved in your name.  Continue anyway?"):
+            click.echo("Aborting")
+            sys.exit(0)
 
 
 _ns_reserve_options = [
@@ -148,7 +157,7 @@ def common_options(options_list):
     "--available", "-a", is_flag=True, default=False, help="show only un-reserved/ready namespaces"
 )
 def _list_namespaces(available):
-    """Get list of namespaces available for ephemeral deployments"""
+    """Get list of ephemeral namespaces"""
     namespaces = get_namespaces(available_only=available)
     if not namespaces:
         click.echo("no namespaces found")
@@ -168,7 +177,7 @@ def _list_namespaces(available):
 @common_options(_ns_reserve_options)
 @click.argument("namespace", required=False, type=str)
 def _cmd_namespace_reserve(duration, retries, namespace):
-    """Reserve an ephemeral namespace, if specific name not given then a random one is chosen"""
+    """Reserve an ephemeral namespace (specific or random)"""
     click.echo(_reserve_namespace(duration, retries, namespace))
 
 
@@ -176,6 +185,7 @@ def _cmd_namespace_reserve(duration, retries, namespace):
 @click.argument("namespace", required=True, type=str)
 def _cmd_namespace_release(namespace):
     """Remove reservation from an ephemeral namespace"""
+    _warn_if_not_owner(namespace)
     release_namespace(namespace)
 
 
@@ -187,23 +197,23 @@ def _cmd_namespace_wait_on_resources(namespace, timeout):
     _wait_on_namespace_resources(namespace, timeout)
 
 
-@namespace.command("prepare")
+@namespace.command("prepare", hidden=True)
 @click.argument("namespace", required=True, type=str)
 def _cmd_namespace_prepare(namespace):
-    """Copy base resources into specified namespace"""
+    """Copy base resources into specified namespace (for admin use only)"""
     _prepare_namespace(namespace)
 
 
-@namespace.command("reconcile")
+@namespace.command("reconcile", hidden=True)
 def _cmd_namespace_reconcile():
-    """Run reconciler for namespace reservations"""
+    """Run reconciler for namespace reservations (for admin use only)"""
     reconcile()
 
 
-@namespace.command("reset")
+@namespace.command("reset", hidden=True)
 @click.argument("namespace", required=True, type=str)
 def _cmd_namespace_reset(namespace):
-    """Set namespace to not released/not ready"""
+    """Set namespace to not released/not ready (for admin use only)"""
     reset_namespace(namespace)
 
 
@@ -266,7 +276,7 @@ def _cmd_config_deploy(
     retries,
     timeout,
 ):
-    """Reserve a namespace, get kubernetes config for an app, and deploy it to OpenShift"""
+    """Reserve a namespace, get app configs, and deploy to OpenShift"""
     requested_ns = namespace
 
     log.info("logging into OpenShift...")
