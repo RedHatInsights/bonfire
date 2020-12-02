@@ -70,7 +70,9 @@ def _prepare_namespace(namespace):
 def _warn_if_not_owner(namespace):
     ns = Namespace(name=namespace)
     if not ns.owned_by_me:
-        if not click.confirm("Namespace not currently reserved in your name.  Continue anyway?"):
+        if not click.confirm(
+            f"Namespace currently reserved by someone else ({ns.requester_name}).  Continue anyway?"
+        ):
             click.echo("Aborting")
             sys.exit(0)
 
