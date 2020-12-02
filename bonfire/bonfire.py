@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 
 def _error(msg):
-    click.echo(f"ERROR: {msg}")
+    click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
 
 
