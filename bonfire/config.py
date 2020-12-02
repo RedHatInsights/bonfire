@@ -1,6 +1,11 @@
 import os
 import re
+import logging
 
+from dotenv import load_dotenv, find_dotenv
+
+FOUND_DOTENV = find_dotenv()
+load_dotenv(FOUND_DOTENV)
 
 # for compatibility with app-sre team env vars
 APP_INTERFACE_BASE_URL = os.getenv("APP_INTERFACE_BASE_URL")

@@ -87,10 +87,10 @@ class Client:
         transport_kwargs = {"url": conf.QONTRACT_BASE_URL}
 
         if conf.QONTRACT_TOKEN:
-            log.info("using token authentication")
+            log.debug("using token authentication")
             transport_kwargs["headers"] = {"Authorization": conf.QONTRACT_TOKEN}
         elif conf.QONTRACT_USERNAME and conf.QONTRACT_PASSWORD:
-            log.info("using basic authentication")
+            log.debug("using basic authentication")
             transport_kwargs["auth"] = HTTPBasicAuth(conf.QONTRACT_USERNAME, conf.QONTRACT_PASSWORD)
 
         transport = RequestsHTTPTransport(**transport_kwargs)

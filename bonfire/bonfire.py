@@ -34,6 +34,8 @@ def _error(msg):
 def main(debug):
     logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
     logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
+    if conf.FOUND_DOTENV:
+        log.debug("using .env: %s", conf.FOUND_DOTENV)
 
 
 @main.group()
