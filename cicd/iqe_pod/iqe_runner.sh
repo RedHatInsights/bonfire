@@ -20,7 +20,10 @@ mkdir -p $ARTIFACTS_DIR
 #done
 
 # TODO: add vault env vars
-export ENV_FOR_DYNACONF=smoke
+#export ENV_FOR_DYNACONF=smoke
+
+# TODO: deprecate clowder_smoke env in iqe configs once everything is migrated
+export ENV_FOR_DYNACONF=clowder_smoke
 
 PLUGIN_ARRAY=${IQE_PLUGINS//,/ }
 
