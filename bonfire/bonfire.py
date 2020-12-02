@@ -160,9 +160,12 @@ def common_options(options_list):
 @click.option(
     "--available", "-a", is_flag=True, default=False, help="show only un-reserved/ready namespaces"
 )
-def _list_namespaces(available):
+@click.option(
+    "--mine", "-m", is_flag=True, default=False, help="show only namespaces reserved in your name"
+)
+def _list_namespaces(available, mine):
     """Get list of ephemeral namespaces"""
-    namespaces = get_namespaces(available_only=available)
+    namespaces = get_namespaces(available_only=available, mine=mine)
     if not namespaces:
         click.echo("no namespaces found")
     else:

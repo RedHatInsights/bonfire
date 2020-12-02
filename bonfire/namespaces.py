@@ -169,7 +169,7 @@ class Namespace:
         oc("patch", "namespace", self.name, type="json", p=json.dumps(patch))
 
 
-def get_namespaces(available_only=False):
+def get_namespaces(available_only=False, mine=False):
     ephemeral_namespace_names = get_namespaces_for_env(conf.EPHEMERAL_ENV_NAME)
     ephemeral_namespace_names.remove(conf.BASE_NAMESPACE_NAME)
     # Use 'oc get project' since we cannot list all 'namespace' resources in a cluster
@@ -181,8 +181,10 @@ def get_namespaces(available_only=False):
         if not conf.RESERVABLE_NAMESPACE_REGEX.match(ns["metadata"]["name"]):
             continue
         ns = Namespace(namespace_data=ns)
-        # we can reserve a namespace
-        if not available_only or ns.available:
+        if mine:
+            if ns.owned_by_me:
+                ephemeral_namespaces.append(ns)
+        elif not available_only or ns.available:
             ephemeral_namespaces.append(ns)
 
     return ephemeral_namespaces
