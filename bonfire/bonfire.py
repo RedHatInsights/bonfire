@@ -49,6 +49,8 @@ def config():
 
 
 def _reserve_namespace(duration, retries, namespace=None):
+    if namespace:
+        _warn_if_not_owner(namespace)
     ns = reserve_namespace(duration, retries, namespace)
     if not ns:
         _error("unable to reserve namespace")
@@ -281,11 +283,9 @@ def _cmd_config_deploy(
 
     log.info("logging into OpenShift...")
     oc_login()
-    if not requested_ns:
-        log.info("reserving ephemeral namespace...")
-        ns = _reserve_namespace(duration, retries)
-    else:
-        ns = requested_ns
+    log.info("reserving ephemeral namespace%s...", f" '{requested_ns}'" if requested_ns else "")
+    ns = _reserve_namespace(duration, retries, requested_ns)
+
     try:
         log.info("getting app configs from qontract-server...")
         config = _get_app_config(
