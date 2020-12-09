@@ -160,10 +160,10 @@ def common_options(options_list):
 
 @namespace.command("list")
 @click.option(
-    "--available", "-a", is_flag=True, default=False, help="show only un-reserved/ready namespaces"
+    "--available", "-a", is_flag=True, default=False, help="show only un-reserved/ready namespaces",
 )
 @click.option(
-    "--mine", "-m", is_flag=True, default=False, help="show only namespaces reserved in your name"
+    "--mine", "-m", is_flag=True, default=False, help="show only namespaces reserved in your name",
 )
 def _list_namespaces(available, mine):
     """Get list of ephemeral namespaces"""
@@ -256,7 +256,7 @@ def _cmd_config_get(
     print(
         json.dumps(
             _get_app_config(
-                app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
+                app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace,
             ),
             indent=2,
         )
@@ -290,7 +290,9 @@ def _cmd_config_deploy(
 
     log.info("logging into OpenShift...")
     oc_login()
-    log.info("reserving ephemeral namespace%s...", f" '{requested_ns}'" if requested_ns else "")
+    log.info(
+        "reserving ephemeral namespace%s...", f" '{requested_ns}'" if requested_ns else "",
+    )
     ns = _reserve_namespace(duration, retries, requested_ns)
 
     try:

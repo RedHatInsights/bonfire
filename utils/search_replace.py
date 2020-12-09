@@ -30,7 +30,11 @@ def _error(msg):
 @click.argument("replace_regex", required=True, type=str)
 @click.argument("file_path", required=True, type=str)
 @click.option(
-    "--in-place", "-i", is_flag=True, default=False, help="Overwrite file once replace is completed"
+    "--in-place",
+    "-i",
+    is_flag=True,
+    default=False,
+    help="Overwrite file once replace is completed",
 )
 @click.option(
     "--lines",

@@ -156,7 +156,15 @@ def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_en
             _format_app_resource(app, resource_name, saas_file),
             ref_env,
         )
-        ref_targets = src_targets
+        ref_targets = [None]
+
+    if src_targets and not ref_targets:
+        log.warn(
+            "%s -- src target found but not ref target, both must be present, skipping resource!",
+            _format_app_resource(app, resource_name, saas_file),
+            src_env,
+            ref_env,
+        )
 
     if len(ref_targets) > 1:
         # find a target with >0 replicas if possible
@@ -254,14 +262,15 @@ def _get_processed_config_items(
         src_target, ref_target = _parse_targets(
             src_targets, ref_targets, app, resource_name, src_env, ref_env, saas_file
         )
-        if not src_target:
-            # no target configuration exists for this resource in the desired source env
+        if not src_target or not ref_target:
+            # missing proper target configuration for this resource in this saas file
             continue
 
         if resource_name in template_ref_overrides:
             # if template ref has explicitly been overridden, use the override
             log.debug(
-                "%s -- overriding template ref", _format_app_resource(app, resource_name, saas_file)
+                "%s -- overriding template ref",
+                _format_app_resource(app, resource_name, saas_file),
             )
             template_ref = template_ref_overrides[resource_name]
         else:
