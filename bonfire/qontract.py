@@ -160,8 +160,6 @@ def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_en
         log.warn(
             "%s -- src target found but not ref target, both must be present, skipping resource!",
             _format_app_resource(app, resource_name, saas_file),
-            src_env,
-            ref_env,
         )
 
     src_targets = src_targets or [None]
