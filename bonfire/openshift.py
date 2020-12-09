@@ -192,10 +192,11 @@ def oc(*args, **kwargs):
 
 
 def oc_login():
-    if not conf.OC_LOGIN_TOKEN or not conf.OC_LOGIN_SERVER:
-        raise Exception("OC_LOGIN_TOKEN and/or OC_LOGIN_SERVER environment variables not defined")
-    # use _silent so token is not logged
-    oc("login", token=conf.OC_LOGIN_TOKEN, server=conf.OC_LOGIN_SERVER, _silent=True)
+    if conf.OC_LOGIN_TOKEN and conf.OC_LOGIN_SERVER:
+        # use _silent so token is not logged
+        oc("login", token=conf.OC_LOGIN_TOKEN, server=conf.OC_LOGIN_SERVER, _silent=True)
+    # run 'oc project' so we see what server we're logged into
+    oc("project")
 
 
 # we will assume that 'oc whoami' will not change during execution of a single 'bonfire' command
