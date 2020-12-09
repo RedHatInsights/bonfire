@@ -148,7 +148,6 @@ def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_en
             _format_app_resource(app, resource_name, saas_file),
             src_env,
         )
-        src_targets = [None]
 
     if not ref_targets:
         log.debug(
@@ -156,7 +155,6 @@ def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_en
             _format_app_resource(app, resource_name, saas_file),
             ref_env,
         )
-        ref_targets = [None]
 
     if src_targets and not ref_targets:
         log.warn(
@@ -165,6 +163,9 @@ def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_en
             src_env,
             ref_env,
         )
+
+    src_targets = src_targets or [None]
+    ref_targets = ref_targets or [None]
 
     if len(ref_targets) > 1:
         # find a target with >0 replicas if possible
