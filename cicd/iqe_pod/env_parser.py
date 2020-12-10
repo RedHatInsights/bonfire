@@ -3,12 +3,9 @@ Read configurations and status objects from a clowder-managed namespace to get a
 """
 import base64
 import json
-import os
-import tempfile
-import time
 
 from bonfire.config import ENV_NAME_FORMAT
-from bonfire.openshift import oc, get_json
+from bonfire.openshift import get_json
 from app_common_python.types import AppConfig
 
 
@@ -83,7 +80,7 @@ class EnvParser:
             f"no topic config found on app '{app_name}' with requestedName '{topic_name}'"
         )
 
-    def get_database_config(self, app_name):
+    def get_db_config(self, app_name):
         """
         Return app_common_python.types.DatabaseConfig if it exists for the app
         """
