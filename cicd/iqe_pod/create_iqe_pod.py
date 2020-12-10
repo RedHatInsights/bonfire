@@ -48,76 +48,81 @@ def _get_base_pod_cfg():
 
 
 def _build_test_conf(env_parser):
-    data = {
-        "clowder_smoke": {
-            "INGRESS": {
-                "service_objects": {
-                    "api_v1": {
-                        "config": {
-                            "hostname": env_parser.get_hostname("ingress", "ingress-service"),
-                            "port": env_parser.get_port("ingress", "ingress-service"),
-                            "scheme": "http",
-                        }
-                    }
+    conf = {}
+    env_name = "clowder_smoke"
+    env_conf = conf[env_name] = {}
+
+    env_conf["MQ"] = {
+        "service_objects": {
+            "kafka": {
+                "config": {
+                    "hostname": env_parser.get_kafka_hostname("host-inventory"),
+                    "port": env_parser.get_kafka_port("host-inventory"),
                 }
-            },
-            "MQ": {
-                "service_objects": {
-                    "kafka": {
-                        "config": {
-                            "hostname": env_parser.get_kafka_hostname("host-inventory"),
-                            "port": env_parser.get_kafka_port("host-inventory"),
-                        }
-                    }
-                }
-            },
-            "HOST_INVENTORY": {
-                # todo: potentially look these deployment names up dynamically?
-                # but we know their name at the moment is "app name" + "deployment name"
-                "inventory_mq_dc_name": "host-inventory-inventory-mq-p1",
-                "inventory_api_dc_name": "host-inventory-service",
-                "kafka": {
-                    "ingress_topic": env_parser.get_kafka_topic(
-                        "host-inventory", "platform.inventory.host-ingress"
-                    ),
-                    "events_topic": env_parser.get_kafka_topic(
-                        "host-inventory", "platform.inventory.events"
-                    ),
-                    "egress_timeout": 30,
-                },
-                "service_objects": {
-                    "api": {
-                        "config": {
-                            "hostname": env_parser.get_hostname(
-                                "host-inventory", "host-inventory-service"
-                            ),
-                            "port": env_parser.get_port("host-inventory", "host-inventory-service"),
-                            "scheme": "http",
-                        }
-                    }
-                },
-                "db": {
-                    "hostname": env_parser.get_db_config("host-inventory").hostname,
-                    "database": env_parser.get_db_config("host-inventory").name,
-                    "username": env_parser.get_db_config("host-inventory").username,
-                    "password": env_parser.get_db_config("host-inventory").password,
-                    "port": env_parser.get_db_config("host-inventory").port,
-                },
-            },
+            }
         }
     }
 
-    return data
+    if env_parser.app_present("ingress"):
+        env_conf["INGRESS"] = {
+            "service_objects": {
+                "api_v1": {
+                    "config": {
+                        "hostname": env_parser.get_hostname("ingress", "ingress-service"),
+                        "port": env_parser.get_port("ingress", "ingress-service"),
+                        "scheme": "http",
+                    }
+                }
+            }
+        }
+
+    if env_parser.app_present("host-inventory"):
+        env_conf["HOST_INVENTORY"] = {
+            # todo: potentially look these deployment names up dynamically?
+            # but we know their name at the moment is "app name" + "deployment name"
+            "inventory_mq_dc_name": "host-inventory-inventory-mq-p1",
+            "inventory_api_dc_name": "host-inventory-service",
+            "kafka": {
+                "ingress_topic": env_parser.get_kafka_topic(
+                    "host-inventory", "platform.inventory.host-ingress"
+                ),
+                "events_topic": env_parser.get_kafka_topic(
+                    "host-inventory", "platform.inventory.events"
+                ),
+                "egress_timeout": 30,
+            },
+            "service_objects": {
+                "api": {
+                    "config": {
+                        "hostname": env_parser.get_hostname(
+                            "host-inventory", "host-inventory-service"
+                        ),
+                        "port": env_parser.get_port("host-inventory", "host-inventory-service"),
+                        "scheme": "http",
+                    }
+                }
+            },
+            "db": {
+                "hostname": env_parser.get_db_config("host-inventory").hostname,
+                "database": env_parser.get_db_config("host-inventory").name,
+                "username": env_parser.get_db_config("host-inventory").username,
+                "password": env_parser.get_db_config("host-inventory").password,
+                "port": env_parser.get_db_config("host-inventory").port,
+            },
+        }
+
+    return conf
 
 
 def _create_conf_secret(namespace):
     env_parser = EnvParser(namespace)
     conf_data = _build_test_conf(env_parser)
+    encoded_conf = base64.b64encode(yaml.dump(conf_data).encode()).decode()
     secret = {
         "apiVersion": "v1",
         "kind": "Secret",
         "metadata": {"name": SECRET_NAME},
-        "data": {"settings.local.yaml": base64.b64encode(yaml.dumps(conf_data))}
+        "data": {"settings.local.yaml": encoded_conf,},
     }
     oc("create", f="-", n=namespace, _in=json.dumps(secret))
 

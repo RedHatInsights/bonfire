@@ -26,6 +26,13 @@ class EnvParser:
                 raise ValueError(f"app '{app_name}' not found in status")
         return self._status_for[app_name]
 
+    def app_present(self, app_name):
+        try:
+            self.get_clowdenv_status(app_name)
+            return True
+        except ValueError:
+            return False
+
     def get_deployment_status(self, app_name, component_name):
         status = self.get_clowdenv_status(app_name)
         for deployment in status.get("deployments", []):
