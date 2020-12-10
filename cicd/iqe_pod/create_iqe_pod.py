@@ -35,15 +35,9 @@ def _get_base_pod_cfg():
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.argument("namespace", type=str, required=True)
+@click.option("--pod-name", type=str, default="iqe-tests", help="name of pod (default: iqe-tests)")
 @click.option(
-    "--pod-name", type=str, default="iqe-tests", help="name of pod (default: iqe-tests)"
-)
-@click.option(
-    "--env",
-    "-e",
-    type=str,
-    multiple=True,
-    help="Env var to set on container using format KEY=VAL",
+    "--env", "-e", type=str, multiple=True, help="Env var to set on container using format KEY=VAL",
 )
 def main(namespace, pod_name, env):
     logging.basicConfig(level=logging.INFO)
