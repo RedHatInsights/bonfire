@@ -31,7 +31,7 @@ def _get_base_pod_cfg():
                     },
                     "stdin": True,
                     "tty": True,
-                    "env": [{"name": "IQE_SETTINGS_LOCAL_CONF_PATH", "value": "/iqe_settings"}],
+                    "env": [{"name": "IQE_TESTS_LOCAL_CONF_PATH", "value": "/iqe_settings"}],
                     "volumeMounts": [{"mountPath": "/iqe_settings", "name": "iqe-settings-volume"}],
                 }
             ],
