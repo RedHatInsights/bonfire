@@ -328,6 +328,12 @@ def _sub_image_tags(items, image_tag_overrides):
 def _add_dependencies_to_config(app, new_items, processed_apps, config, static_args):
     clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
     dependencies = {d for item in clowdapp_items for d in item["spec"].get("dependencies", [])}
+
+    # also include optionalDependencies since we're interested in them for testing
+    for item in clowdapp_items:
+        for od in item["spec"].get("optionalDependencies", []):
+            dependencies.add(od)
+
     if dependencies:
         log.info("found dependencies for app '%s': %s", app, list(dependencies))
     for dependency in dependencies:
