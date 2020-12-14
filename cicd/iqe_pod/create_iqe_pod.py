@@ -52,16 +52,17 @@ def _build_test_conf(env_parser):
     env_name = "clowder_smoke"
     env_conf = conf[env_name] = {}
 
-    env_conf["MQ"] = {
-        "service_objects": {
-            "kafka": {
-                "config": {
-                    "hostname": env_parser.get_kafka_hostname("host-inventory"),
-                    "port": env_parser.get_kafka_port("host-inventory"),
+    if env_parser.app_present("host-inventory"):
+        env_conf["MQ"] = {
+            "service_objects": {
+                "kafka": {
+                    "config": {
+                        "hostname": env_parser.get_kafka_hostname("host-inventory"),
+                        "port": env_parser.get_kafka_port("host-inventory"),
+                    }
                 }
             }
         }
-    }
 
     if env_parser.app_present("ingress"):
         env_conf["INGRESS"] = {
