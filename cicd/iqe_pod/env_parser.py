@@ -95,3 +95,25 @@ class EnvParser:
         if not db_config:
             raise ValueError(f"no database config present for app '{app_name}'")
         return db_config
+
+    def get_storage_config(self, app_name):
+        """
+        Return app_common_python.types.ObjectStoreConfig if it exists for the app
+        """
+        config = self.get_cdapp_config(app_name).objectStore
+        if not config:
+            raise ValueError(f"no object storage config present for app '{app_name}'")
+        return config
+
+    def get_bucket_config(self, app_name, bucket_name):
+        """
+        Return app_common_python.types.ObjectStoreBucket for bucket with matching 'requestedName'
+        """
+        buckets = self.get_storage_config(app_name).buckets
+        for b in buckets:
+            if b.requestedName == bucket_name:
+                return b
+
+        raise ValueError(
+            f"no bucket config found on app '{app_name}' with requestedName '{bucket_name}'"
+        )
