@@ -158,12 +158,12 @@ def _parse_targets(src_targets, ref_targets, app, resource_name, src_env, ref_en
 
     if src_targets and not ref_targets:
         log.warn(
-            "%s -- src target found but not ref target, both must be present, skipping resource!",
+            "%s -- src target found but not ref target",
             _format_app_resource(app, resource_name, saas_file),
         )
 
-    src_targets = src_targets or [None]
-    ref_targets = ref_targets or [None]
+    src_targets = src_targets or [{}]
+    ref_targets = ref_targets or [{}]
 
     if len(ref_targets) > 1:
         # find a target with >0 replicas if possible
@@ -261,8 +261,13 @@ def _get_processed_config_items(
         src_target, ref_target = _parse_targets(
             src_targets, ref_targets, app, resource_name, src_env, ref_env, saas_file
         )
-        if not src_target or not ref_target:
-            # missing proper target configuration for this resource in this saas file
+
+        if not src_target:
+            # this resource was not marked for deployment
+            log.warn(
+                "%s -- not marked for deploy in src env, skipping resource!",
+                _format_app_resource(app, resource_name, saas_file),
+            )
             continue
 
         if resource_name in template_ref_overrides:
@@ -272,6 +277,14 @@ def _get_processed_config_items(
                 _format_app_resource(app, resource_name, saas_file),
             )
             template_ref = template_ref_overrides[resource_name]
+        elif not ref_target:
+            # if template ref not overridden, and there's no ref target, we don't know what git ref
+            # to use for template download
+            log.warn(
+                "%s -- no ref target found and no template ref override given, skipping resource!",
+                _format_app_resource(app, resource_name, saas_file),
+            )
+            continue
         else:
             # otherwise use template ref configured in the "reference deploy target"
             template_ref = ref_target["ref"]
@@ -284,11 +297,11 @@ def _get_processed_config_items(
         p.update(resource["parameters"])
         p.update(src_target["parameters"])
         # set IMAGE_TAG to be the reference env's IMAGE_TAG
-        p["IMAGE_TAG"] = ref_target["parameters"].get("IMAGE_TAG")
+        p["IMAGE_TAG"] = ref_target.get("parameters", {}).get("IMAGE_TAG")
         if not p.get("IMAGE_TAG"):
             p.update({"IMAGE_TAG": "latest" if template_ref == "master" else template_ref[:7]})
             log.debug(
-                "%s -- no IMAGE_TAG set, using tag '%s'",
+                "%s -- no IMAGE_TAG found on ref target, assuming tag '%s' from template ref",
                 _format_app_resource(app, resource_name, saas_file),
                 p["IMAGE_TAG"],
             )
