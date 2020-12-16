@@ -121,6 +121,15 @@ def _build_test_conf(env_parser):
             "aws_s3_endpoint": f"{mp_storage_cfg.hostname}:{mp_storage_cfg.port}",
             "aws_s3_bucket": bucket.name,
             "aws_s3_secure": "false",
+            "service_objects": {
+                "api_v1": {
+                    "config": {
+                        "hostname": env_parser.get_hostname("ingress", "ingress-service"),
+                        "port": env_parser.get_port("ingress", "ingress-service"),
+                        "scheme": "http",
+                    }
+                }
+            }
         }
 
     return conf
