@@ -120,6 +120,7 @@ def _build_test_conf(env_parser):
             "aws_secret_access_key": bucket.secretKey,
             "aws_s3_endpoint": f"{mp_storage_cfg.hostname}:{mp_storage_cfg.port}",
             "aws_s3_bucket": bucket.name,
+            "aws_s3_secure": "false",
         }
 
     return conf
