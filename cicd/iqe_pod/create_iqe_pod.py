@@ -129,8 +129,53 @@ def _build_test_conf(env_parser):
                         "scheme": "http",
                     }
                 }
-            }
+            },
         }
+
+    if env_parser.app_present("advisor"):
+        env_conf["ADVISOR"] = {
+            "kafka_dc_name": env_parser.get_kafka_hostname("advisor").split(".")[0],
+            "db_dc_name": "advisor-db",
+            "service_dc_name": "advisor-service",
+            "api_dc_name": "advisor-api",
+            "upload_dc_name": "ingress-service",
+            "pup_dc_name": "puptoo-processor",
+            "kafka_dc_port": env_parser.get_kafka_port("advisor"),
+            "engine_results_topic": env_parser.get_kafka_topic(
+                "advisor", "platform.engine.results"
+            ),
+            "inventory_events_topic": env_parser.get_kafka_topic(
+                "advisor", "platform.legacy-bridge.events"
+            ),
+            "payload_tracker_topic": env_parser.get_kafka_topic(
+                "advisor", "platform.payload-status"
+            ),
+            "kafka_hooks_topic": env_parser.get_kafka_topic("advisor", "hooks.outbox"),
+            "db_hostname": env_parser.get_db_config("advisor").hostname,
+            "db_database": env_parser.get_db_config("advisor").name,
+            "db_username": env_parser.get_db_config("advisor").username,
+            "db_password": env_parser.get_db_config("advisor").password,
+            "db_port": env_parser.get_db_config("advisor").port,
+            "service_objects": {
+                "api": {
+                    "config": {
+                        "hostname": env_parser.get_hostname("advisor", "api"),
+                        "port": env_parser.get_port("advisor", "api"),
+                        "scheme": "http",
+                    }
+                }
+            },
+        }
+        if env_parser.app_present("rbac"):
+            hostname = env_parser.get_hostname("rbac", "service")
+            port = env_parser.get_port("rbac", "service")
+            env_conf["ADVISOR"][
+                "rbac_url"
+            ] = f"http://{hostname}:{port}/api/rbac/v1/access/?application=advisor"
+        if env_parser.app_present("host-inventory"):
+            env_conf["ADVISOR"]["egress_topic"] = (
+                env_parser.get_kafka_topic("host-inventory", "platform.inventory.host-egress"),
+            )
 
     return conf
 
@@ -143,7 +188,7 @@ def _create_conf_secret(namespace):
         "apiVersion": "v1",
         "kind": "Secret",
         "metadata": {"name": SECRET_NAME},
-        "data": {"settings.local.yaml": encoded_conf,},
+        "data": {"settings.local.yaml": encoded_conf},
     }
     oc("create", f="-", n=namespace, _in=json.dumps(secret))
 
