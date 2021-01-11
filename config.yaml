@@ -1,0 +1,18 @@
+envName: test
+apps:
+- name: engine
+  host: gitlab
+  repo: insights-platform/insights-engine
+  path: deploy/clowdapp.yaml
+- name: ingress
+  host: github
+  repo: RedHatInsights/insights-ingress-go
+  path: deploy/clowdapp.yaml
+- name: puptoo
+  host: github
+  repo: RedHatInsights/insights-puptoo
+  path: deployment.yaml
+- name: storage-broker
+  host: github
+  repo: RedHatInsights/insights-storage-broker
+  path: deploy/clowdapp.yml

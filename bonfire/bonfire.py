@@ -11,6 +11,7 @@ import bonfire.config as conf
 from bonfire.qontract import get_app_config
 from bonfire.openshift import apply_config, oc_login, wait_for_all_resources
 from bonfire.utils import split_equals
+from bonfire.local_config import get_app_local_config
 from bonfire.namespaces import (
     Namespace,
     get_namespaces,
@@ -144,6 +145,13 @@ _config_get_options = [
         is_flag=True,
         default=False,
     ),
+    click.option(
+        "--local-config",
+        "-l",
+        help="Pull template config from local config file rather than app-interface",
+        is_flag=True,
+        default=False,
+    ),
 ]
 
 
@@ -250,17 +258,16 @@ def _get_app_config(
 @common_options(_config_get_options)
 @click.option("--namespace", "-n", help="Namespace you intend to deploy these components into")
 def _cmd_config_get(
-    app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
+    app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace, local_config
 ):
     """Get kubernetes config for an app and print the JSON"""
-    print(
-        json.dumps(
-            _get_app_config(
-                app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace,
-            ),
-            indent=2,
+    if local_config:
+        config = get_app_local_config(app, get_dependencies)
+    else:
+        config = _get_app_config(
+            app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
         )
-    )
+    print(json.dumps(config, indent=2))
 
 
 @config.command("deploy")
@@ -281,6 +288,7 @@ def _cmd_config_deploy(
     set_image_tag,
     get_dependencies,
     namespace,
+    local_config,
     duration,
     retries,
     timeout,
@@ -296,10 +304,14 @@ def _cmd_config_deploy(
     ns = _reserve_namespace(duration, retries, requested_ns)
 
     try:
-        log.info("getting app configs from qontract-server...")
-        config = _get_app_config(
-            app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, ns
-        )
+        if local_config:
+            get_app_local_config(app, get_dependencies)
+        else:
+            log.info("getting app configs from qontract-server...")
+            config = _get_app_config(
+                app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, ns
+            )
+
         log.debug("app configs:\n%s", json.dumps(config, indent=2))
         if not config["items"]:
             log.warning("no configurations found to apply!")
