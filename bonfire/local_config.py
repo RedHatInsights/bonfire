@@ -51,7 +51,9 @@ def process_gitlab(app):
         fp.write(GL_CA_CERT.encode("ascii"))
 
     group, project = app["repo"].split("/")
-    projects = requests.get(GL_PROJECTS % group, verify=cert_fname).json()
+    response = requests.get(GL_PROJECTS % group, verify=cert_fname)
+    response.raise_for_status()
+    projects = response.json()
     project_id = 0
 
     for p in projects:
@@ -59,9 +61,12 @@ def process_gitlab(app):
             project_id = p["id"]
 
     if not project_id:
-        raise ValueError("Project ID not found for %s" % app["repo"])
+        raise ValueError("project ID not found for %s" % app["repo"])
 
-    commit = requests.get(GL_MASTER_REF % project_id, verify=cert_fname).json()["commit"]["id"]
+    response = requests.get(GL_MASTER_REF % project_id, verify=cert_fname)
+    response.raise_for_status()
+    commit = response.json()["commit"]["id"]
+
     url = GL_CONTENT % (app["repo"], commit, app["path"])
     response = requests.get(url, verify=cert_fname)
     if response.status_code != 200:
@@ -74,7 +79,9 @@ def process_gitlab(app):
 
 
 def process_github(app):
-    commit = requests.get(GH_MASTER_REF % app["repo"]).json()["object"]["sha"]
+    response = requests.get(GH_MASTER_REF % app["repo"])
+    response.raise_for_status()
+    commit = response.json()["object"]["sha"]
     url = GH_CONTENT % (app["repo"], commit, app["path"])
     response = requests.get(url)
     if response.status_code != 200:
