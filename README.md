@@ -15,7 +15,27 @@ pip install -r requirements.txt
 pip install .
 ```
 
-## Loading an app's ephemeral config
+## Deploying applications
+
+The `bonfire config get` command can be used to print processed app configs to stdout.
+
+The `bonfire config deploy` command can be used to deploy app configs into a namespace.
+
+### Using a local config
+
+To get up and running without needing to contact app-interface's `qontract-server`, you can utilize
+a local config file.
+
+See the (example config)[example_config.yaml] which specifies each app you wish to deploy along with
+the location for that app's template.
+
+For example, to use this approach to get the config for the `ingress` app along with all of its
+dependencies, you can create your own `config.yaml` and run:
+```
+bonfire config get --app ingress --local-config --get-dependencies
+```
+
+### Loading an app's ephemeral config from app-interface
 
 You'll first need to set proper env variables to interface with your instance of `qontract-server`:
 
@@ -67,7 +87,10 @@ bonfire config get \
 oc apply -f k8s_resources.json -n $NAMESPACE
 ```
 
-## Running a local qontract-server
+### Running a local qontract-server
+
+For testing/debug purposes, instead of committing changes directly to app-interface, you can run
+your own local copy of the app-interface API server.
 
 1. Clone https://github.com/app-sre/qontract-server
 2. Clone the internal `app-interface` repo
