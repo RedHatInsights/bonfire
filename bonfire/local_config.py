@@ -136,40 +136,39 @@ def process_local_config(namespace, config, app_name, get_dependencies, processe
 
     apps = {a["name"]: a for a in config["apps"]}
 
-    for app_name in apps:
-        log.info("processing app '%s'", app_name)
-        if app_name not in apps:
-            raise ValueError("app %s not found in local config" % app_name)
+    if app_name not in apps:
+        raise ValueError("app %s not found in local config" % app_name)
+    log.info("processing app '%s'", app_name)
 
-        app = apps[app_name]
+    app = apps[app_name]
 
-        if app["host"] == "gitlab":
-            commit, template_content = process_gitlab(app)
-        elif app["host"] == "github":
-            commit, template_content = process_github(app)
-        else:
-            raise ValueError("invalid host %s for app %s" % (app["host"], app["name"]))
+    if app["host"] == "gitlab":
+        commit, template_content = process_gitlab(app)
+    elif app["host"] == "github":
+        commit, template_content = process_github(app)
+    else:
+        raise ValueError("invalid host %s for app %s" % (app["host"], app["name"]))
 
-        template = yaml.safe_load(template_content)
+    template = yaml.safe_load(template_content)
 
-        params = {
-            "IMAGE_TAG": commit[:7],
-            "ENV_NAME": config.get("envName") or conf.ENV_NAME_FORMAT.format(namespace=namespace),
-            "CLOWDER_ENABLED": "true",
-            "MIN_REPLICAS": "1",
-            "REPLICAS": "1",
-        }
+    params = {
+        "IMAGE_TAG": commit[:7],
+        "ENV_NAME": config.get("envName") or conf.ENV_NAME_FORMAT.format(namespace=namespace),
+        "CLOWDER_ENABLED": "true",
+        "MIN_REPLICAS": "1",
+        "REPLICAS": "1",
+    }
 
-        params.update(app.get("parameters", {}))
+    params.update(app.get("parameters", {}))
 
-        new_items = process_template(template, params)["items"]
-        _remove_resource_config(new_items)
+    new_items = process_template(template, params)["items"]
+    _remove_resource_config(new_items)
 
-        config_list["items"].extend(new_items)
+    config_list["items"].extend(new_items)
 
-        processed_apps.add(app_name)
+    processed_apps.add(app_name)
 
-        if get_dependencies:
-            _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, config)
+    if get_dependencies:
+        _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, config)
 
     return config_list
