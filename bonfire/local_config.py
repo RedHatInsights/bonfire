@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 
 GH_MASTER_REF = "https://api.github.com/repos/%s/git/refs/heads/master"
 GH_CONTENT = "https://raw.githubusercontent.com/%s/%s/%s"
-GL_PROJECTS = "https://gitlab.cee.redhat.com/api/v4/groups/%s/projects/?per_page=100"
+GL_PROJECTS = "https://gitlab.cee.redhat.com/api/v4/%s/%s/projects/?per_page=100"
 GL_MASTER_REF = "https://gitlab.cee.redhat.com/api/v4/projects/%s/repository/branches/master"
 GL_CONTENT = "https://gitlab.cee.redhat.com/%s/-/raw/%s/%s"
 GL_CA_CERT = """
@@ -51,7 +51,11 @@ def process_gitlab(app):
         fp.write(GL_CA_CERT.encode("ascii"))
 
     group, project = app["repo"].split("/")
-    response = requests.get(GL_PROJECTS % group, verify=cert_fname)
+    response = requests.get(GL_PROJECTS % ("groups", group), verify=cert_fname)
+    if response.status_code == 404:
+        # Weird quirk in gitlab API. If it's a user instead of a group, need to
+        # use a different path
+        response = requests.get(GL_PROJECTS % ("users", group), verify=cert_fname)
     response.raise_for_status()
     projects = response.json()
     project_id = 0
@@ -101,12 +105,17 @@ def _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, 
 
     if dependencies:
         log.info("found dependencies for app '%s': %s", app_name, list(dependencies))
+
+    dep_items = []
     for dependency in dependencies:
         if dependency not in processed_apps:
             # recursively get config for any dependencies, they will be stored in the
             # already-created 'config' dict
             log.info("app '%s' dependency '%s' not previously processed", app_name, dependency)
-            process_local_config(namespace, config, dependency, True, processed_apps)
+            items = process_local_config(namespace, config, dependency, True, processed_apps)["items"]
+            dep_items.extend(items)
+
+    return dep_items
 
 
 def _remove_resource_config(items):
@@ -169,6 +178,7 @@ def process_local_config(namespace, config, app_name, get_dependencies, processe
     processed_apps.add(app_name)
 
     if get_dependencies:
-        _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, config)
+        items = _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, config)
+        config_list["items"].extend(items)
 
     return config_list
