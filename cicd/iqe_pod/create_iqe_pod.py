@@ -177,7 +177,7 @@ def _build_test_conf(env_parser):
                 env_parser.get_kafka_topic("host-inventory", "platform.inventory.host-egress"),
             )
 
-         if env_parser.app_present("automation-analytics"):
+        if env_parser.app_present("automation-analytics"):
             env_conf["automation-analytics"] = {
                 "service_objects": {
                     "api_v1": {
