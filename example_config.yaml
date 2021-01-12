@@ -1,0 +1,25 @@
+# Local configuration that can be used to deploy apps instead of pulling config from app-interface
+
+# You can optionally define the value to use for ENV_NAME on your ClowdApps below, otherwise,
+# bonfire will use the name of your ephemeral namespace to determine an ENV_NAME
+#envName: test
+
+apps:
+- name: engine
+  host: gitlab
+  repo: insights-platform/insights-engine
+  path: deploy/clowdapp.yaml
+  parameters:
+    REPLICAS: 2
+- name: ingress
+  host: github
+  repo: RedHatInsights/insights-ingress-go
+  path: deploy/clowdapp.yaml
+- name: puptoo
+  host: github
+  repo: RedHatInsights/insights-puptoo
+  path: deployment.yaml
+- name: storage-broker
+  host: github
+  repo: RedHatInsights/insights-storage-broker
+  path: deploy/clowdapp.yml

@@ -512,7 +512,10 @@ def process_template(template_data, params):
     param_str = " ".join(f"-p {k}={v}" for k, v in params.items() if k in valid_pnames)
 
     proc = Popen(
-        f"oc process --local -o json -f - {param_str}", shell=True, stdin=PIPE, stdout=PIPE,
+        f"oc process --local --ignore-unknown-parameters -o json -f - {param_str}",
+        shell=True,
+        stdin=PIPE,
+        stdout=PIPE,
     )
     stdout, stderr = proc.communicate(json.dumps(template_data).encode("utf-8"))
     return json.loads(stdout.decode("utf-8"))
