@@ -21,6 +21,8 @@ objects:
       web:
         port: 8000
         mode: operator
+      featureFlags:
+        mode: none
       metrics:
         port: 9000
         mode: operator
