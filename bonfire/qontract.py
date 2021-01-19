@@ -232,11 +232,16 @@ def _get_resources_for_env(saas_file_data, env_data):
 
 
 def _get_processed_items(
-    client, app, saas_file, src_env, ref_env, template_ref_overrides, namespace
+    client,
+    app,
+    saas_file,
+    src_env,
+    ref_env,
+    src_env_data,
+    ref_env_data,
+    template_ref_overrides,
+    namespace,
 ):
-    src_env_data = client.get_env(src_env)
-    ref_env_data = client.get_env(ref_env)
-
     src_resources = _get_resources_for_env(saas_file, src_env_data)
     log.debug(
         "found resources for %s in saas file '%s': %s",
@@ -281,10 +286,10 @@ def _get_processed_items(
             # if template ref not overridden, and there's no ref target, we don't know what git ref
             # to use for template download
             log.warn(
-                "%s -- no ref target found and no template ref override given, skipping resource!",
+                "%s -- no ref target found nor template ref override given, defaulting to 'master'",
                 _format_app_resource(app, resource_name, saas_file),
             )
-            continue
+            template_ref = "master"
         else:
             # otherwise use template ref configured in the "reference deploy target"
             template_ref = ref_target["ref"]
@@ -301,7 +306,7 @@ def _get_processed_items(
         if not p.get("IMAGE_TAG"):
             p.update({"IMAGE_TAG": "latest" if template_ref == "master" else template_ref[:7]})
             log.debug(
-                "%s -- no IMAGE_TAG found on ref target, assuming tag '%s' from template ref",
+                "%s -- no IMAGE_TAG found on ref target, assuming tag '%s' based on template ref",
                 _format_app_resource(app, resource_name, saas_file),
                 p["IMAGE_TAG"],
             )
@@ -363,6 +368,8 @@ def _process_app(
     app_name,
     src_env,
     ref_env,
+    src_env_data,
+    ref_env_data,
     template_ref_overrides,
     image_tag_overrides,
     get_dependencies,
@@ -375,7 +382,15 @@ def _process_app(
     log.debug("found %d saas files for app '%s'", len(saas_files), app_name)
     for saas_file in saas_files:
         found_items = _get_processed_items(
-            client, app_name, saas_file, src_env, ref_env, template_ref_overrides, namespace
+            client,
+            app_name,
+            saas_file,
+            src_env,
+            ref_env,
+            src_env_data,
+            ref_env_data,
+            template_ref_overrides,
+            namespace,
         )
         item_names = []
         for item in found_items:
@@ -406,6 +421,8 @@ def _process_app(
             image_tag_overrides,
             get_dependencies,
             namespace,
+            src_env_data,
+            ref_env_data,
         )
         _add_dependencies_to_config(app_name, new_items, processed_apps, k8s_list, static_args)
 
@@ -418,6 +435,8 @@ def get_apps_config(
     image_tag_overrides,
     get_dependencies,
     namespace,
+    src_env_data=None,
+    ref_env_data=None,
     k8s_list=None,
     processed_apps=None,
 ):
@@ -444,6 +463,9 @@ def get_apps_config(
     if not processed_apps:
         processed_apps = set()
 
+    src_env_data = src_env_data or client.get_env(src_env)
+    ref_env_data = ref_env_data or client.get_env(ref_env)
+
     for app_name in app_names:
         log.info("Getting configuration for app '%s'", app_name)
         _process_app(
@@ -451,6 +473,8 @@ def get_apps_config(
             app_name,
             src_env,
             ref_env,
+            src_env_data,
+            ref_env_data,
             template_ref_overrides,
             image_tag_overrides,
             get_dependencies,
