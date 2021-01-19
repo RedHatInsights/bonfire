@@ -9,7 +9,7 @@ import yaml
 from tabulate import tabulate
 
 import bonfire.config as conf
-from bonfire.qontract import get_app_config
+from bonfire.qontract import get_apps_config
 from bonfire.openshift import apply_config, oc_login, wait_for_all_resources
 from bonfire.utils import split_equals
 from bonfire.local_config import process_local_config
@@ -117,7 +117,14 @@ _ns_wait_options = [
 ]
 
 _config_get_options = [
-    click.option("--app", "-a", required=True, type=str, help="name of application"),
+    click.option(
+        "--app",
+        "-a",
+        "apps",
+        required=True,
+        multiple=True,
+        help="comma,separated,list of application names",
+    ),
     click.option(
         "--src-env",
         "-e",
@@ -246,15 +253,15 @@ def _cmd_namespace_reset(namespace):
 
 
 def _get_app_config(
-    app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
+    apps, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
 ):
     try:
         template_ref_overrides = split_equals(set_template_ref)
         image_tag_overrides = split_equals(set_image_tag)
     except ValueError as err:
         _error(str(err))
-    app_config = get_app_config(
-        app,
+    apps_config = get_apps_config(
+        apps,
         src_env,
         ref_env,
         template_ref_overrides,
@@ -262,14 +269,14 @@ def _get_app_config(
         get_dependencies,
         namespace,
     )
-    return app_config
+    return apps_config
 
 
 @config.command("get")
 @common_options(_config_get_options)
 @click.option("--namespace", "-n", help="Namespace you intend to deploy these components into")
 def _cmd_config_get(
-    app,
+    apps,
     src_env,
     ref_env,
     set_template_ref,
@@ -279,14 +286,14 @@ def _cmd_config_get(
     local_config,
     local_config_path,
 ):
-    """Get kubernetes config for an app and print the JSON"""
+    """Get kubernetes config for app(s) and print the JSON"""
     if local_config:
         config = process_local_config(
-            namespace, _load_file(local_config_path), app, get_dependencies
+            namespace, _load_file(local_config_path), apps, get_dependencies
         )
     else:
         config = _get_app_config(
-            app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
+            apps, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
         )
     print(json.dumps(config, indent=2))
 
@@ -302,7 +309,7 @@ def _cmd_config_get(
 @common_options(_ns_reserve_options)
 @common_options(_ns_wait_options)
 def _cmd_config_deploy(
-    app,
+    apps,
     src_env,
     ref_env,
     set_template_ref,
@@ -315,7 +322,7 @@ def _cmd_config_deploy(
     retries,
     timeout,
 ):
-    """Reserve a namespace, get app configs, and deploy to OpenShift"""
+    """Reserve a namespace, get config for app(s), and deploy to OpenShift"""
     if local_config:
         local_config_data = _load_file(local_config_path)
 
@@ -330,11 +337,11 @@ def _cmd_config_deploy(
 
     try:
         if local_config:
-            config = process_local_config(ns, local_config_data, app, get_dependencies)
+            config = process_local_config(ns, local_config_data, apps, get_dependencies)
         else:
             log.info("getting app configs from qontract-server...")
             config = _get_app_config(
-                app, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, ns
+                apps, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, ns
             )
 
         log.debug("app configs:\n%s", json.dumps(config, indent=2))

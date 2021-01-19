@@ -231,7 +231,7 @@ def _get_resources_for_env(saas_file_data, env_data):
     return resources
 
 
-def _get_processed_config_items(
+def _get_processed_items(
     client, app, saas_file, src_env, ref_env, template_ref_overrides, namespace
 ):
     src_env_data = client.get_env(src_env)
@@ -338,7 +338,7 @@ def _sub_image_tags(items, image_tag_overrides):
     return items
 
 
-def _add_dependencies_to_config(app, new_items, processed_apps, config, static_args):
+def _add_dependencies_to_config(app_name, new_items, processed_apps, k8s_list, static_args):
     clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
     dependencies = {d for item in clowdapp_items for d in item["spec"].get("dependencies", [])}
 
@@ -348,24 +348,77 @@ def _add_dependencies_to_config(app, new_items, processed_apps, config, static_a
             dependencies.add(od)
 
     if dependencies:
-        log.info("found dependencies for app '%s': %s", app, list(dependencies))
-    for dependency in dependencies:
-        if dependency not in processed_apps:
-            # recursively get config for any dependencies, they will be stored in the
-            # already-created 'config' dict
-            log.info("app '%s' dependency '%s' not previously processed", app, dependency)
-            get_app_config(dependency, *static_args, config, processed_apps)
+        log.debug("found dependencies for app '%s': %s", app_name, list(dependencies))
+
+    dependencies = [d for d in dependencies if d not in processed_apps]
+    if dependencies:
+        # recursively get config for any dependencies, they will be stored in the
+        # already-created 'k8s_list' dict
+        log.info("app '%s' dependencies %s not previously processed", app_name, dependencies)
+        get_apps_config(dependencies, *static_args, k8s_list, processed_apps)
 
 
-def get_app_config(
-    app,
+def _process_app(
+    client,
+    app_name,
     src_env,
     ref_env,
     template_ref_overrides,
     image_tag_overrides,
     get_dependencies,
     namespace,
-    config=None,
+    k8s_list,
+    processed_apps,
+):
+    new_items = []
+    saas_files = client.get_saas_files(app_name)
+    log.debug("found %d saas files for app '%s'", len(saas_files), app_name)
+    for saas_file in saas_files:
+        found_items = _get_processed_items(
+            client, app_name, saas_file, src_env, ref_env, template_ref_overrides, namespace
+        )
+        item_names = []
+        for item in found_items:
+            name = item.get("metadata", {}).get("name", "nameUnknown")
+            kind = item.get("kind", "kindUnknown")
+            item_names.append(f"{kind}/{name}".lower())
+        log.info(
+            "app: %s env: %s saas file: %s -- resource(s) marked for deploy: %s",
+            app_name,
+            src_env,
+            saas_file["name"],
+            ", ".join(item_names) if item_names else "none",
+        )
+        new_items.extend(found_items)
+
+    # override any explicitly provided image tags
+    new_items = _sub_image_tags(new_items, image_tag_overrides)
+
+    k8s_list["items"].extend(new_items)
+    processed_apps.add(app_name)
+
+    if get_dependencies:
+        # these args don't change when get_apps_config is called recursively
+        static_args = (
+            src_env,
+            ref_env,
+            template_ref_overrides,
+            image_tag_overrides,
+            get_dependencies,
+            namespace,
+        )
+        _add_dependencies_to_config(app_name, new_items, processed_apps, k8s_list, static_args)
+
+
+def get_apps_config(
+    app_names,
+    src_env,
+    ref_env,
+    template_ref_overrides,
+    image_tag_overrides,
+    get_dependencies,
+    namespace,
+    k8s_list=None,
     processed_apps=None,
 ):
     """
@@ -380,10 +433,8 @@ def get_app_config(
     # we will output one large that contains all resources
     client = get_client()
 
-    log.info("Getting configuration for app '%s'", app)
-
-    if not config:
-        config = {
+    if not k8s_list:
+        k8s_list = {
             "kind": "List",
             "apiVersion": "v1",
             "metadata": {},
@@ -393,46 +444,22 @@ def get_app_config(
     if not processed_apps:
         processed_apps = set()
 
-    new_items = []
-    saas_files = client.get_saas_files(app)
-    log.debug("found %d saas files for app '%s'", len(saas_files), app)
-    for saas_file in saas_files:
-        found_items = _get_processed_config_items(
-            client, app, saas_file, src_env, ref_env, template_ref_overrides, namespace
-        )
-        item_names = []
-        for item in found_items:
-            name = item.get("metadata", {}).get("name", "nameUnknown")
-            kind = item.get("kind", "kindUnknown")
-            item_names.append(f"{kind}/{name}".lower())
-        log.info(
-            "app: %s env: %s saas file: %s -- resource(s) marked for deploy: %s",
-            app,
-            src_env,
-            saas_file["name"],
-            ", ".join(item_names) if item_names else "none",
-        )
-        new_items.extend(found_items)
-
-    # override any explicitly provided image tags
-    new_items = _sub_image_tags(new_items, image_tag_overrides)
-
-    config["items"].extend(new_items)
-    processed_apps.add(app)
-
-    if get_dependencies:
-        # these args don't change when get_app_config is called recursively
-        static_args = (
+    for app_name in app_names:
+        log.info("Getting configuration for app '%s'", app_name)
+        _process_app(
+            client,
+            app_name,
             src_env,
             ref_env,
             template_ref_overrides,
             image_tag_overrides,
             get_dependencies,
             namespace,
+            k8s_list,
+            processed_apps,
         )
-        _add_dependencies_to_config(app, new_items, processed_apps, config, static_args)
 
-    return config
+    return k8s_list
 
 
 def get_namespaces_for_env(environment_name):
