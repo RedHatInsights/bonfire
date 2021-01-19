@@ -104,16 +104,16 @@ def _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, 
             dependencies.add(od)
 
     if dependencies:
-        log.info("found dependencies for app '%s': %s", app_name, list(dependencies))
+        log.debug("found dependencies for app '%s': %s", app_name, list(dependencies))
 
     dep_items = []
-    for dependency in dependencies:
-        if dependency not in processed_apps:
-            # recursively get config for any dependencies, they will be stored in the
-            # already-created 'config' dict
-            log.info("app '%s' dependency '%s' not previously processed", app_name, dependency)
-            items = process_local_config(namespace, config, dependency, True, processed_apps)["items"]
-            dep_items.extend(items)
+    dependencies = [d for d in dependencies if d not in processed_apps]
+    if dependencies:
+        # recursively get config for any dependencies, they will be stored in the
+        # already-created 'config' dict
+        log.info("app '%s' dependencies %s not previously processed", app_name, dependencies)
+        items = process_local_config(namespace, config, dependencies, True, processed_apps)["items"]
+        dep_items.extend(items)
 
     return dep_items
 
@@ -132,31 +132,14 @@ def _remove_resource_config(items):
                 del p["resources"]
 
 
-def process_local_config(namespace, config, app_name, get_dependencies, processed_apps=None):
-    config_list = {
-        "kind": "List",
-        "apiVersion": "v1",
-        "metadata": {},
-        "items": [],
-    }
-
-    if not processed_apps:
-        processed_apps = set()
-
-    apps = {a["name"]: a for a in config["apps"]}
-
-    if app_name not in apps:
-        raise ValueError("app %s not found in local config" % app_name)
-    log.info("processing app '%s'", app_name)
-
-    app = apps[app_name]
-
-    if app["host"] == "gitlab":
-        commit, template_content = process_gitlab(app)
-    elif app["host"] == "github":
-        commit, template_content = process_github(app)
+def _process_app(namespace, app_name, apps_cfg, config, k8s_list, get_dependencies, processed_apps):
+    app_cfg = apps_cfg[app_name]
+    if app_cfg["host"] == "gitlab":
+        commit, template_content = process_gitlab(app_cfg)
+    elif app_cfg["host"] == "github":
+        commit, template_content = process_github(app_cfg)
     else:
-        raise ValueError("invalid host %s for app %s" % (app["host"], app["name"]))
+        raise ValueError("invalid host %s for app %s" % (app_cfg["host"], app_cfg["name"]))
 
     template = yaml.safe_load(template_content)
 
@@ -168,17 +151,39 @@ def process_local_config(namespace, config, app_name, get_dependencies, processe
         "REPLICAS": "1",
     }
 
-    params.update(app.get("parameters", {}))
+    params.update(app_cfg.get("parameters", {}))
 
     new_items = process_template(template, params)["items"]
     _remove_resource_config(new_items)
 
-    config_list["items"].extend(new_items)
+    k8s_list["items"].extend(new_items)
 
     processed_apps.add(app_name)
 
     if get_dependencies:
         items = _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, config)
-        config_list["items"].extend(items)
+        k8s_list["items"].extend(items)
 
-    return config_list
+
+def process_local_config(namespace, config, app_names, get_dependencies, processed_apps=None):
+    k8s_list = {
+        "kind": "List",
+        "apiVersion": "v1",
+        "metadata": {},
+        "items": [],
+    }
+
+    if not processed_apps:
+        processed_apps = set()
+
+    apps_cfg = {a["name"]: a for a in config["apps"]}
+
+    for app_name in set(app_names):
+        if app_name not in apps_cfg:
+            raise ValueError("app %s not found in local config" % app_name)
+        log.info("processing app '%s'", app_name)
+        _process_app(
+            namespace, app_name, apps_cfg, config, k8s_list, get_dependencies, processed_apps
+        )
+
+    return k8s_list
