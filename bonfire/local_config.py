@@ -1,8 +1,11 @@
 import logging
 import os
+import os.path
 import requests
 import tempfile
 import yaml
+import subprocess
+import shlex
 
 
 import bonfire.config as conf
@@ -94,6 +97,14 @@ def process_github(app):
     return commit, response.content
 
 
+def process_local(app):
+    cmd = "git -C %s rev-parse HEAD" % app["repo"]
+    commit = subprocess.check_output(shlex.split(cmd)).decode("ascii")
+    template_path = os.path.join(app["repo"], app["path"])
+    with open(template_path) as fp:
+        return commit, fp.read()
+
+
 def _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, config):
     clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
     dependencies = {d for item in clowdapp_items for d in item["spec"].get("dependencies", [])}
@@ -138,6 +149,8 @@ def _process_app(namespace, app_name, apps_cfg, config, k8s_list, get_dependenci
         commit, template_content = process_gitlab(app_cfg)
     elif app_cfg["host"] == "github":
         commit, template_content = process_github(app_cfg)
+    elif app_cfg["host"] == "local":
+        commit, template_content = process_local(app_cfg)
     else:
         raise ValueError("invalid host %s for app %s" % (app_cfg["host"], app_cfg["name"]))
 
