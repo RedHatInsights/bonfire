@@ -481,6 +481,10 @@ def _operator_resources(namespace, timeout, wait_on_app=True):
 def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):
     # wrap the other wait_fors in 1 wait_for so overall timeout is honored
     # wait_for returns a tuple of the return code and the time taken
+    if len(get_json("clowdapp", namespace=namespace).get("items", [])) == 0:
+        # only wait on ClowdApp if one was deployed
+        wait_on_app = False
+
     return_val, time_taken = wait_for(
         _operator_resources,
         func_args=(namespace, timeout, wait_on_app),

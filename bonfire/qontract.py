@@ -281,10 +281,10 @@ def _get_processed_items(
             # if template ref not overridden, and there's no ref target, we don't know what git ref
             # to use for template download
             log.warn(
-                "%s -- no ref target found and no template ref override given, skipping resource!",
+                "%s -- no ref target found nor template ref override given, defaulting to 'master'",
                 _format_app_resource(app, resource_name, saas_file),
             )
-            continue
+            template_ref = "master"
         else:
             # otherwise use template ref configured in the "reference deploy target"
             template_ref = ref_target["ref"]

@@ -118,11 +118,7 @@ _ns_wait_options = [
 
 _config_get_options = [
     click.option(
-        "--app",
-        "-a",
-        "apps",
-        required=True,
-        help="comma,separated,list of application names",
+        "--app", "-a", "apps", required=True, help="comma,separated,list of application names",
     ),
     click.option(
         "--src-env",
@@ -260,7 +256,7 @@ def _get_app_config(
     except ValueError as err:
         _error(str(err))
     apps_config = get_apps_config(
-        apps.split(','),
+        apps.split(","),
         src_env,
         ref_env,
         template_ref_overrides,
@@ -288,7 +284,7 @@ def _cmd_config_get(
     """Get kubernetes config for app(s) and print the JSON"""
     if local_config:
         config = process_local_config(
-            namespace, _load_file(local_config_path), apps.split(','), get_dependencies
+            namespace, _load_file(local_config_path), apps.split(","), get_dependencies
         )
     else:
         config = _get_app_config(
@@ -336,7 +332,7 @@ def _cmd_config_deploy(
 
     try:
         if local_config:
-            config = process_local_config(ns, local_config_data, apps.split(','), get_dependencies)
+            config = process_local_config(ns, local_config_data, apps.split(","), get_dependencies)
         else:
             log.info("getting app configs from qontract-server...")
             config = _get_app_config(
