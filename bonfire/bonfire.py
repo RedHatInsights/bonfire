@@ -59,7 +59,11 @@ def config():
 
 def _reserve_namespace(duration, retries, namespace=None):
     if namespace:
-        _warn_if_not_available(namespace)
+        ns = Namespace(name=namespace)
+        _warn_if_not_available(ns)
+        if ns.owned_by_me:
+            log.info(f'Namespace {ns.name} already reserved by me previously')
+            return ns.name
     ns = reserve_namespace(duration, retries, namespace)
     if not ns:
         _error("unable to reserve namespace")
@@ -77,8 +81,7 @@ def _prepare_namespace(namespace):
 
 
 def _warn_if_not_available(namespace):
-    ns = Namespace(name=namespace)
-    if not ns.available:
+    if not namespace.available:
         if not click.confirm(
             "Namespace currently not ready or reserved by someone else.  Continue anyway?"
         ):
@@ -215,7 +218,7 @@ def _cmd_namespace_reserve(duration, retries, namespace):
 @click.argument("namespace", required=True, type=str)
 def _cmd_namespace_release(namespace):
     """Remove reservation from an ephemeral namespace"""
-    _warn_if_not_available(namespace)
+    _warn_if_not_available(Namespace(namespace))
     release_namespace(namespace)
 
 
