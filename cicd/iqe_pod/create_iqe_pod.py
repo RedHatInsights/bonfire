@@ -177,18 +177,18 @@ def _build_test_conf(env_parser):
                 env_parser.get_kafka_topic("host-inventory", "platform.inventory.host-egress"),
             )
 
-        if env_parser.app_present("automation-analytics"):
-            env_conf["automation-analytics"] = {
-                "service_objects": {
-                    "api_v1": {
-                        "config": {
-                            "hostname": env_parser.get_hostname("automation-analytics", "api"),
-                            "port": env_parser.get_port("automation-analytics", "api"),
-                            "scheme": "http",
-                        }
+    if env_parser.app_present("automation-analytics"):
+        env_conf["automation-analytics"] = {
+            "service_objects": {
+                "api_v1": {
+                    "config": {
+                        "hostname": env_parser.get_hostname("automation-analytics", "automation-analytics-api"),
+                        "port": env_parser.get_port("automation-analytics", "automation-analytics-api"),
+                        "scheme": "http",
                     }
                 }
             }
+        }
 
     return conf
 
