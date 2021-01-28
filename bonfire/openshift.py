@@ -8,6 +8,8 @@ import sh
 from sh import ErrorReturnCode, TimeoutException
 from subprocess import PIPE
 from subprocess import Popen
+
+from ocviapy import export
 from wait_for import wait_for, TimedOutError
 
 import bonfire.config as conf
@@ -150,7 +152,9 @@ def _exec_oc(*args, **kwargs):
                 break
             elif _retry_conflicts and _conflicts_found(err_lines):
                 log.warning(
-                    "Hit resource conflict, retrying in 1 sec (attempt %d/%d)", count, retries,
+                    "Hit resource conflict, retrying in 1 sec (attempt %d/%d)",
+                    count,
+                    retries,
                 )
                 time.sleep(1)
                 continue
@@ -195,7 +199,10 @@ def oc_login():
     if conf.OC_LOGIN_TOKEN and conf.OC_LOGIN_SERVER:
         # use _silent so token is not logged
         oc(
-            "login", token=conf.OC_LOGIN_TOKEN, server=conf.OC_LOGIN_SERVER, _silent=True,
+            "login",
+            token=conf.OC_LOGIN_TOKEN,
+            server=conf.OC_LOGIN_SERVER,
+            _silent=True,
         )
     # run 'oc project' so we see what server we're logged into
     oc("project")
@@ -335,7 +342,10 @@ def _wait_with_periodic_status_check(namespace, timeout, key, restype, name):
         return False
 
     wait_for(
-        _ready, timeout=timeout, delay=5, message="wait for '{}' to be ready".format(key),
+        _ready,
+        timeout=timeout,
+        delay=5,
+        message="wait for '{}' to be ready".format(key),
     )
 
 
@@ -502,11 +512,12 @@ def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
             src_namespace,
             dst_namespace,
         )
+        secret_data = export("secret", secret_name, namespace=src_namespace)
         oc(
-            oc("get", "--export", "secret", secret_name, o="json", n=src_namespace, _silent=True,),
             "apply",
             f="-",
             n=dst_namespace,
+            _in=secret_data,
             _silent=True,
         )
 

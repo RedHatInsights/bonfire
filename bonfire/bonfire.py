@@ -118,7 +118,11 @@ _ns_wait_options = [
 
 _config_get_options = [
     click.option(
-        "--app", "-a", "apps", required=True, help="comma,separated,list of application names",
+        "--app",
+        "-a",
+        "apps",
+        required=True,
+        help="comma,separated,list of application names",
     ),
     click.option(
         "--src-env",
@@ -181,10 +185,18 @@ def common_options(options_list):
 
 @namespace.command("list")
 @click.option(
-    "--available", "-a", is_flag=True, default=False, help="show only un-reserved/ready namespaces",
+    "--available",
+    "-a",
+    is_flag=True,
+    default=False,
+    help="show only un-reserved/ready namespaces",
 )
 @click.option(
-    "--mine", "-m", is_flag=True, default=False, help="show only namespaces reserved in your name",
+    "--mine",
+    "-m",
+    is_flag=True,
+    default=False,
+    help="show only namespaces reserved in your name",
 )
 def _list_namespaces(available, mine):
     """Get list of ephemeral namespaces"""
@@ -326,7 +338,8 @@ def _cmd_config_deploy(
     log.info("logging into OpenShift...")
     oc_login()
     log.info(
-        "reserving ephemeral namespace%s...", f" '{requested_ns}'" if requested_ns else "",
+        "reserving ephemeral namespace%s...",
+        f" '{requested_ns}'" if requested_ns else "",
     )
     ns = _reserve_namespace(duration, retries, requested_ns)
 

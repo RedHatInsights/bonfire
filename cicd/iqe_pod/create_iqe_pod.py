@@ -182,8 +182,12 @@ def _build_test_conf(env_parser):
             "service_objects": {
                 "api_v1": {
                     "config": {
-                        "hostname": env_parser.get_hostname("automation-analytics", "automation-analytics-api"),
-                        "port": env_parser.get_port("automation-analytics", "automation-analytics-api"),
+                        "hostname": env_parser.get_hostname(
+                            "automation-analytics", "automation-analytics-api"
+                        ),
+                        "port": env_parser.get_port(
+                            "automation-analytics", "automation-analytics-api"
+                        ),
                         "scheme": "http",
                     }
                 }
@@ -224,7 +228,11 @@ def _create_pod(namespace, pod_name, env):
 @click.argument("namespace", type=str, required=True)
 @click.option("--pod-name", type=str, default="iqe-tests", help="name of pod (default: iqe-tests)")
 @click.option(
-    "--env", "-e", type=str, multiple=True, help="Env var to set on container using format KEY=VAL",
+    "--env",
+    "-e",
+    type=str,
+    multiple=True,
+    help="Env var to set on container using format KEY=VAL",
 )
 def main(namespace, pod_name, env):
     logging.basicConfig(level=logging.INFO)

@@ -22,4 +22,5 @@ websockets==8.1
 yarl==1.5.1
 tabulate==0.8.7
 python-dotenv==0.15.0
+ocviapy==0.3.2
 app-common-python

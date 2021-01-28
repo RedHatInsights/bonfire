@@ -256,7 +256,9 @@ def _delete_resources(namespace):
     # delete the ClowdEnvironment for this namespace
     if get_json("clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace)):
         oc(
-            "delete", "clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace),
+            "delete",
+            "clowdenvironment",
+            conf.ENV_NAME_FORMAT.format(namespace=namespace),
         )
 
     # delete other specific resource types from the namespace
