@@ -358,6 +358,7 @@ def reconcile():
     threads = []
     for ns in namespaces:
         t = threading.Thread(target=_reconcile_ns, args=(ns, base_secret_names))
+        t.name = ns
         threads.append(t)
         t.start()
     for t in threads:

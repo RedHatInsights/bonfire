@@ -40,7 +40,11 @@ def _load_file(path):
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
 def main(debug):
     logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
-    logging.basicConfig(level=logging.DEBUG if debug else logging.INFO)
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)8s] [%(threadName)20s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.DEBUG if debug else logging.INFO
+    )
     if conf.FOUND_DOTENV:
         log.debug("using .env: %s", conf.FOUND_DOTENV)
 
