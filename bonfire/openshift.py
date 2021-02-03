@@ -517,7 +517,7 @@ def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
             "apply",
             f="-",
             n=dst_namespace,
-            _in=secret_data,
+            _in=json.dumps(secret_data),
             _silent=True,
         )
 
