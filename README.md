@@ -135,7 +135,7 @@ Bonfire uses labels to keep track of which namespaces are reserved AND ready. A 
 
 When a tester is logged in using the proper account, namespace commands can be used such as:
 
-`bonfire namespace reserve` -- find an available namespace and reserve it. By default the TTL is 60min.
+`bonfire namespace reserve` -- find an available namespace and reserve it. By default the TTL is 1 hr.
 
 `bonfire namespace release <namespace>` -- release a namespace reservation
 

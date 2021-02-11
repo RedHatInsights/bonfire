@@ -43,7 +43,7 @@ def main(debug):
     logging.basicConfig(
         format="%(asctime)s [%(levelname)8s] [%(threadName)20s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        level=logging.DEBUG if debug else logging.INFO
+        level=logging.DEBUG if debug else logging.INFO,
     )
     if conf.FOUND_DOTENV:
         log.debug("using .env: %s", conf.FOUND_DOTENV)
@@ -96,8 +96,8 @@ _ns_reserve_options = [
         "-d",
         required=False,
         type=int,
-        default=60,
-        help="duration of reservation in minutes (default: 60)",
+        default=1,
+        help="duration of reservation in hrs (default: 1)",
     ),
     click.option(
         "--retries",

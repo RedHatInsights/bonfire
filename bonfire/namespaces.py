@@ -190,6 +190,41 @@ def get_namespaces(available_only=False, mine=False):
     return ephemeral_namespaces
 
 
+def _reserve_ns_for_duration(namespace, duration):
+    requester_id = uuid.uuid4()
+    namespace.reserved = True
+    namespace.ready = False
+    namespace.requester = requester_id
+    namespace.duration = duration
+    namespace.expires = None  # let the reconciler tell us when it expires
+    namespace.requester_name = whoami()
+    namespace.update()
+    return requester_id
+
+
+def _should_renew_ns(namespace, duration):
+    # if the ns is already reserved by us, don't re-reserve it if the requested duration is less
+    # than the expires_in time (in other words, if you have reserved an ns already that expires in
+    # 2 days you would not want to reset it to expire in 60 minutes)
+    if namespace.owned_by_me:
+        if not namespace.expires:
+            # we're not sure when this expires yet, let's not re-reserve it
+            log.warning("namespace owned by you but expires time unknown, not renewing")
+            return False
+
+        expires_in_delta = namespace.expires - _utcnow()
+        expires_in_hrs = expires_in_delta.total_seconds() / 3600
+        if duration <= expires_in_hrs:
+            log.warning(
+                "namespace owned by you, expires in '%s' >= duration '%dh', not renewing",
+                _pretty_time_delta(expires_in_delta.total_seconds()),
+                duration,
+            )
+            return False
+
+    return True
+
+
 def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
     attempt = attempt + 1
 
@@ -213,14 +248,11 @@ def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
         return reserve_namespace(duration, retries, specific_namespace, attempt=attempt)
 
     namespace = random.choice(available_namespaces)
-    requester_id = uuid.uuid4()
-    namespace.reserved = True
-    namespace.ready = False
-    namespace.requester = requester_id
-    namespace.duration = duration
-    namespace.expires = None  # let the reconciler tell us when it expires
-    namespace.requester_name = whoami()
-    namespace.update()
+
+    if not _should_renew_ns(namespace, duration):
+        return namespace
+
+    requester_id = _reserve_ns_for_duration(namespace, duration)
 
     # to avoid race conditions, wait and verify we still own this namespace
     time.sleep(RESERVATION_DELAY_SEC)
@@ -341,7 +373,7 @@ def _reconcile_ns(ns, base_secret_names):
     if ns.reserved and ns.duration and not ns.expires:
         # this is a newly reserved namespace, set the expires time
         log.info("namespace '%s' - setting expiration time", ns.name)
-        ns.expires = _utcnow() + datetime.timedelta(minutes=ns.duration)
+        ns.expires = _utcnow() + datetime.timedelta(hours=ns.duration)
         update_needed = True
 
     if update_needed:
