@@ -63,7 +63,7 @@ def config():
 
 @main.group()
 def local():
-    """perform operations related to local development"""
+    """perform operations using a local config file"""
     pass
 
 
