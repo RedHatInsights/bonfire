@@ -1,9 +1,9 @@
 name: 🕵️ Test suite
 
 on:
-  push:
   pull_request:
-    types: ["opened", "synchronize", "reopened"]
+    branches:
+      - master
 
 jobs:
   flake8:
