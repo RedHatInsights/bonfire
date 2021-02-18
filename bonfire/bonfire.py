@@ -3,6 +3,8 @@
 import click
 import json
 import logging
+from pathlib import Path
+import shutil
 import sys
 import yaml
 
@@ -12,7 +14,7 @@ import bonfire.config as conf
 from bonfire.qontract import get_apps_config
 from bonfire.openshift import apply_config, oc_login, wait_for_all_resources
 from bonfire.utils import split_equals
-from bonfire.local_config import process_local_config
+from bonfire.local_config import process_local_config, process_clowd_env, validate_local_config
 from bonfire.namespaces import (
     Namespace,
     get_namespaces,
@@ -32,7 +34,7 @@ def _error(msg):
 
 
 def _load_file(path):
-    with open(path) as fp:
+    with path.open() as fp:
         return yaml.safe_load(fp)
 
 
@@ -45,8 +47,8 @@ def main(debug):
         datefmt="%Y-%m-%d %H:%M:%S",
         level=logging.DEBUG if debug else logging.INFO,
     )
-    if conf.FOUND_DOTENV:
-        log.debug("using .env: %s", conf.FOUND_DOTENV)
+    if conf.ENV_FILE:
+        log.debug("using env file: %s", conf.ENV_FILE)
 
 
 @main.group()
@@ -57,13 +59,13 @@ def namespace():
 
 @main.group()
 def config():
-    """perform operations related to app configurations"""
+    """perform operations using qontract-server as config source"""
     pass
 
 
 @main.group()
 def local():
-    """perform operations using a local config file"""
+    """perform operations using a local config file as config source"""
     pass
 
 
@@ -356,31 +358,74 @@ def _cmd_config_deploy(
         print(ns)
 
 
+def _write_default_config():
+    outpath = conf.DEFAULT_CONFIG_PATH
+    outpath.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    inpath = Path(conf.DEFAULT_LOCAL_CONFIG)
+    shutil.copy(inpath, outpath)
+    outpath.chmod(0o600)
+    log.info("saved config to: %s", outpath.absolute())
+
+
 @local.command("get")
 @common_options(_get_options)
 @click.option(
     "--set-image-tag",
     "-i",
-    help="Override image tag for an image using format '<app name>=<tag>'",
+    help="Override IMAGE_TAG set on a component using format '<component name>=<tag>'",
     multiple=True,
+)
+@click.option(
+    "--get-clowd-env",
+    "-e",
+    help="Include ClowdEnvironment configuration according to options set in local config",
+    is_flag=True,
 )
 @click.option(
     "--local-config-path",
     "-c",
-    help="File to use for local config (default: config.yaml)",
-    default="config.yaml",
+    help=(
+        "File to use for local config (default: first try ./config.yaml, then "
+        "$XDG_CONFIG_HOME/bonfire/config.yaml)"
+    ),
+    default=None,
 )
-def _cmd_local_get(apps, get_dependencies, set_image_tag, local_config_path):
-    local_config_data = _load_file(local_config_path)
+def _cmd_local_get(apps, get_dependencies, set_image_tag, local_config_path, get_clowd_env):
+    """Get kubernetes config for app(s) and print the JSON"""
+    config_path = None
+    if local_config_path:
+        # user gave a specified config path
+        config_path = Path(local_config_path)
+        if not config_path.exists():
+            _error(f"Config file path '{str(config_path)}' does not exist")
+    else:
+        # no user-provided path, check default locations
+        config_path = Path("config.yaml")
+        if not config_path.exists():
+            config_path = conf.DEFAULT_CONFIG_PATH
+        if not config_path.exists():
+            log.info("no local config file found, creating a default one for you")
+            _write_default_config()
 
-    if "envName" not in local_config_data:
-        log.error("envName must be set in local config")
-        return
+    log.debug("using local config file: %s", str(config_path.absolute()))
+    local_config_data = _load_file(config_path)
+
+    validate_local_config(local_config_data)
 
     config = process_local_config(
         local_config_data, apps.split(","), get_dependencies, set_image_tag
     )
+
+    if get_clowd_env:
+        config["items"].append(process_clowd_env(local_config_data))
+
     print(json.dumps(config, indent=2))
+
+
+@local.command("write-default-config")
+def _cmd_write_default_config():
+    """Write/overwrite the default configuration file to $XDG_CONFIG_HOME/bonfire/config.yaml"""
+    _write_default_config()
 
 
 if __name__ == "__main__":

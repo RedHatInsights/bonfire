@@ -1,0 +1,74 @@
+# Local configuration that can be used to deploy apps instead of pulling config from app-interface
+
+# Define the name of the ClowdEnvironment you wish to associate your deployed ClowdApps with.
+envName: test
+
+# Define the ClowdEnvironment's target namespace (only applies when using '--get-clowd-env')
+targetNamespace: test
+# Optional, define ClowdEnvironment OpenShift template .yaml file to use (only applies when using '--get-clowd-env')
+#envTemplate: /path/to/template.yaml
+
+
+apps:
+- name: ingress
+  components:
+  - name: ingress
+    host: github
+    repo: RedHatInsights/insights-ingress-go
+    path: deploy/clowdapp.yaml
+  - name: puptoo
+    host: github
+    repo: RedHatInsights/insights-puptoo
+    path: deployment.yaml
+  - name: storage-broker
+    host: github
+    repo: RedHatInsights/insights-storage-broker
+    path: deploy/clowdapp.yml
+
+- name: engine
+  components:
+  - name: engine
+    host: gitlab
+    repo: insights-platform/insights-engine
+    path: deploy/clowdapp.yaml
+
+- name: rbac
+  components:
+  - name: rbac
+    host: github
+    repo: RedHatInsights/insights-rbac
+    path: deploy/rbac-clowdapp.yml
+    parameters:
+      HABERDASHER_LABELS: {"app": "rbac"}
+      HABERDASHER_TAGS: ["rbac"]
+      DISABLE_MIGRATE: "True"
+      EPH_ENV: "True"
+      CLOWDER_ENABLED: "true"
+      PERMISSION_SEEDING_ENABLED: 'False'
+      ROLE_SEEDING_ENABLED: 'False'
+      GROUP_SEEDING_ENABLED: 'False'
+
+- name: insights-ephemeral
+  components:
+  - name: front-end-aggregator
+    host: gitlab
+    repo: insights-platform/front-end-aggregator
+    path: deploy/template.yaml
+  - name: mocks
+    host: github
+    repo: RedHatInsights/mocks
+    path: deploy/template.yaml
+
+- name: gateway
+  components:
+  - name: gateway
+    host: gitlab
+    repo: insights-platform/saas-templates
+    path: templates/gateway/gateway.yaml
+    parameters:
+      REPLICAS: 1
+      USE_ENTITLEMENTS_MOCK: 'false'
+      INSTANCE_ENVIRONMENT: dev
+      IMAGE_TAG: insights-dev
+      SERVICES_LIST: 2555417824448,2555417824655,2555417824813,2555417824814,2555417824815,2555417824816,2555417824817,2555417824818,2555417824819,2555417824820,2555417824821,2555417824822,2555417824823,2555417824824,2555417824825,2555417824826,2555417824827,2555417824828,2555417824829,2555417824830,2555417824831,2555417824832,2555417824833,2555417824834,2555417824835,2555417824836,2555417824837,2555417824838,2555417824839,2555417824840,2555417825386,2555417889027
+      LOG_LEVEL: 'debug'

@@ -1,10 +1,36 @@
+import logging
 import os
+from pathlib import Path
+from pkg_resources import resource_filename
 import re
 
 from dotenv import load_dotenv, find_dotenv
 
-FOUND_DOTENV = find_dotenv()
-load_dotenv(FOUND_DOTENV)
+
+log = logging.getLogger(__name__)
+
+
+def _get_config_path():
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config_home:
+        config_home = Path(xdg_config_home)
+    else:
+        config_home = Path.home().joinpath(".config")
+
+    return config_home.joinpath("bonfire")
+
+
+DEFAULT_CONFIG_PATH = _get_config_path().joinpath("config.yaml")
+DEFAULT_ENV_PATH = _get_config_path().joinpath("env")
+DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
+    "bonfire", "resources/ephemeral-clowdenvironment.yaml"
+)
+DEFAULT_LOCAL_CONFIG = resource_filename("bonfire", "resources/default_local_config.yaml")
+
+ENV_FILE = find_dotenv()
+if not ENV_FILE:
+    ENV_FILE = str(DEFAULT_ENV_PATH.absolute()) if DEFAULT_ENV_PATH.exists() else ""
+load_dotenv(ENV_FILE)
 
 # for compatibility with app-sre team env vars
 APP_INTERFACE_BASE_URL = os.getenv("APP_INTERFACE_BASE_URL")

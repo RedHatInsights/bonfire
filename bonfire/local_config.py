@@ -1,12 +1,14 @@
 import logging
 import os
 import os.path
+from pathlib import Path
 import requests
 import tempfile
 import yaml
 import subprocess
 import shlex
 
+import bonfire.config as conf
 from bonfire.openshift import process_template
 from bonfire.utils import split_equals
 
@@ -46,13 +48,12 @@ RxNEp7yHoXcwn+fXna+t5JWh1gxUZty3
 """
 
 
-def process_gitlab(app):
-
+def process_gitlab(component):
     with tempfile.NamedTemporaryFile(delete=False) as fp:
         cert_fname = fp.name
         fp.write(GL_CA_CERT.encode("ascii"))
 
-    group, project = app["repo"].split("/")
+    group, project = component["repo"].split("/")
     response = requests.get(GL_PROJECTS % ("groups", group), verify=cert_fname)
     if response.status_code == 404:
         # Weird quirk in gitlab API. If it's a user instead of a group, need to
@@ -67,39 +68,39 @@ def process_gitlab(app):
             project_id = p["id"]
 
     if not project_id:
-        raise ValueError("project ID not found for %s" % app["repo"])
+        raise ValueError("project ID not found for %s" % component["repo"])
 
     response = requests.get(GL_MASTER_REF % project_id, verify=cert_fname)
     response.raise_for_status()
     commit = response.json()["commit"]["id"]
 
-    url = GL_CONTENT % (app["repo"], commit, app["path"])
+    url = GL_CONTENT % (component["repo"], commit, component["path"])
     response = requests.get(url, verify=cert_fname)
     if response.status_code != 200:
         msg = "Invalid response code %s fetching template for %s: %s"
-        raise ValueError(msg % (response.status_code, app["name"], url))
+        raise ValueError(msg % (response.status_code, component["name"], url))
 
     os.unlink(cert_fname)
 
     return commit, response.content
 
 
-def process_github(app):
-    response = requests.get(GH_MASTER_REF % app["repo"])
+def process_github(component):
+    response = requests.get(GH_MASTER_REF % component["repo"])
     response.raise_for_status()
     commit = response.json()["object"]["sha"]
-    url = GH_CONTENT % (app["repo"], commit, app["path"])
+    url = GH_CONTENT % (component["repo"], commit, component["path"])
     response = requests.get(url)
     if response.status_code != 200:
         msg = "Invalid response code %s fetching template for %s: %s"
-        raise ValueError(msg % (response.status_code, app["name"], url))
+        raise ValueError(msg % (response.status_code, component["name"], url))
     return commit, response.content
 
 
-def process_local(app):
-    cmd = "git -C %s rev-parse HEAD" % app["repo"]
+def process_local(component):
+    cmd = "git -C %s rev-parse HEAD" % component["repo"]
     commit = subprocess.check_output(shlex.split(cmd)).decode("ascii")
-    template_path = os.path.join(app["repo"], app["path"])
+    template_path = os.path.join(component["repo"], component["path"])
     with open(template_path) as fp:
         return commit, fp.read()
 
@@ -142,18 +143,25 @@ def _remove_resource_config(items):
                 del p["resources"]
 
 
-def _process_app(
-    app_name, apps_cfg, config, k8s_list, get_dependencies, image_tag_overrides, processed_apps
-):
-    app_cfg = apps_cfg[app_name]
-    if app_cfg["host"] == "gitlab":
-        commit, template_content = process_gitlab(app_cfg)
-    elif app_cfg["host"] == "github":
-        commit, template_content = process_github(app_cfg)
-    elif app_cfg["host"] == "local":
-        commit, template_content = process_local(app_cfg)
+def _process_component(image_tag_overrides, config, component):
+    required_keys = ["name", "host", "repo", "path"]
+    missing_keys = [k for k in required_keys if k not in component]
+    if missing_keys:
+        raise ValueError("component is missing required keys: %s", ", ".join(missing_keys))
+
+    component_name = component["name"]
+    log.info("processing component %s", component_name)
+
+    if component["host"] == "gitlab":
+        commit, template_content = process_gitlab(component)
+    elif component["host"] == "github":
+        commit, template_content = process_github(component)
+    elif component["host"] == "local":
+        commit, template_content = process_local(component)
     else:
-        raise ValueError("invalid host %s for app %s" % (app_cfg["host"], app_cfg["name"]))
+        raise ValueError(
+            "invalid host %s for component %s" % (component["host"], component["name"])
+        )
 
     template = yaml.safe_load(template_content)
 
@@ -165,21 +173,39 @@ def _process_app(
         "REPLICAS": "1",
     }
 
-    params.update(app_cfg.get("parameters", {}))
+    params.update(component.get("parameters", {}))
 
-    if app_name in image_tag_overrides:
-        params["IMAGE_TAG"] = image_tag_overrides[app_name]
+    if component_name in image_tag_overrides:
+        params["IMAGE_TAG"] = image_tag_overrides[component_name]
 
     new_items = process_template(template, params)["items"]
     _remove_resource_config(new_items)
 
-    k8s_list["items"].extend(new_items)
+    return new_items
+
+
+def _process_app(app_cfg, config, k8s_list, get_dependencies, image_tag_overrides, processed_apps):
+    required_keys = ["name", "components"]
+    missing_keys = [k for k in required_keys if k not in app_cfg]
+    if missing_keys:
+        raise ValueError("app is missing required keys: %s", ", ".join(missing_keys))
+
+    app_name = app_cfg["name"]
+
+    for component in app_cfg["components"]:
+        new_items = _process_component(image_tag_overrides, config, component)
+        k8s_list["items"].extend(new_items)
 
     processed_apps.add(app_name)
 
     if get_dependencies:
         items = _add_dependencies_to_config(app_name, new_items, processed_apps, config)
         k8s_list["items"].extend(items)
+
+
+def validate_local_config(config):
+    if "envName" not in config:
+        raise ValueError("Name of ClowdEnvironment must be set in local config using 'envName'")
 
 
 def process_local_config(config, app_names, get_dependencies, set_image_tag, processed_apps=None):
@@ -202,8 +228,7 @@ def process_local_config(config, app_names, get_dependencies, set_image_tag, pro
             raise ValueError("app %s not found in local config" % app_name)
         log.info("processing app '%s'", app_name)
         _process_app(
-            app_name,
-            apps_cfg,
+            apps_cfg[app_name],
             config,
             k8s_list,
             get_dependencies,
@@ -212,3 +237,34 @@ def process_local_config(config, app_names, get_dependencies, set_image_tag, pro
         )
 
     return k8s_list
+
+
+def process_clowd_env(config):
+    target_ns = config.get("targetNamespace")
+    if not target_ns:
+        raise ValueError(
+            "ClowdEnvironment target namespace must be set in local config using 'targetNamespace'"
+        )
+
+    env_template_path = Path(
+        config["envTemplate"] if "envTemplate" in config else conf.DEFAULT_CLOWDENV_TEMPLATE
+    )
+
+    if not env_template_path.exists():
+        raise ValueError("ClowdEnvironment template file does not exist: %s", env_template_path)
+
+    with env_template_path.open() as fp:
+        template_data = yaml.safe_load(fp)
+
+    processed_template = process_template(
+        template_data,
+        params={
+            "ENV_NAME": config["envName"],
+            "NAMESPACE": target_ns,
+        },
+    )
+
+    if not processed_template.get("items"):
+        raise ValueError("Processed ClowdEnvironment template has no items")
+
+    return processed_template["items"]

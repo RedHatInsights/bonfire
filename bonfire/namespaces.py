@@ -7,7 +7,6 @@ import time
 import uuid
 import yaml
 import threading
-from pkg_resources import resource_filename
 from wait_for import TimedOutError
 
 import bonfire.config as conf
@@ -30,8 +29,6 @@ NS_EXPIRES = "ephemeral-ns-expires"
 NS_REQUESTER_NAME = "ephemeral-ns-requester-name"
 
 RESERVATION_DELAY_SEC = 5
-
-ENV_TEMPLATE = resource_filename("bonfire", "resources/ephemeral-clowdenvironment.yaml")
 
 log = logging.getLogger(__name__)
 
@@ -316,7 +313,7 @@ def _delete_resources(namespace):
 def add_base_resources(namespace, secret_names):
     copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
 
-    with open(ENV_TEMPLATE) as fp:
+    with open(conf.DEFAULT_CLOWDENV_TEMPLATE) as fp:
         template_data = yaml.safe_load(fp)
 
     processed_template = process_template(
