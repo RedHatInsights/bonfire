@@ -156,7 +156,7 @@ def _process_app(app_name, apps_cfg, config, k8s_list, get_dependencies, image_t
     template = yaml.safe_load(template_content)
 
     params = {
-        "IMAGE_TAG": image_tag_overrides[app_name] if app_name in image_tag_overrides else commit[:7],
+        "IMAGE_TAG": commit[:7],
         "ENV_NAME": config["envName"],
         "CLOWDER_ENABLED": "true",
         "MIN_REPLICAS": "1",
@@ -164,6 +164,9 @@ def _process_app(app_name, apps_cfg, config, k8s_list, get_dependencies, image_t
     }
 
     params.update(app_cfg.get("parameters", {}))
+
+    if app_name in image_tag_overrides:
+        params["IMAGE_TAG"] = image_tag_overrides[app_name]
 
     new_items = process_template(template, params)["items"]
     _remove_resource_config(new_items)
