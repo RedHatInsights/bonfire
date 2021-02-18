@@ -7,9 +7,8 @@ import yaml
 import subprocess
 import shlex
 
-
-import bonfire.config as conf
 from bonfire.openshift import process_template
+from bonfire.utils import split_equals
 
 log = logging.getLogger(__name__)
 
@@ -105,7 +104,7 @@ def process_local(app):
         return commit, fp.read()
 
 
-def _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, config):
+def _add_dependencies_to_config(app_name, new_items, processed_apps, config):
     clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
     dependencies = {d for item in clowdapp_items for d in item["spec"].get("dependencies", [])}
 
@@ -123,7 +122,7 @@ def _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, 
         # recursively get config for any dependencies, they will be stored in the
         # already-created 'config' dict
         log.info("app '%s' dependencies %s not previously processed", app_name, dependencies)
-        items = process_local_config(namespace, config, dependencies, True, processed_apps)["items"]
+        items = process_local_config(config, dependencies, True, processed_apps)["items"]
         dep_items.extend(items)
 
     return dep_items
@@ -143,7 +142,7 @@ def _remove_resource_config(items):
                 del p["resources"]
 
 
-def _process_app(namespace, app_name, apps_cfg, config, k8s_list, get_dependencies, processed_apps):
+def _process_app(app_name, apps_cfg, config, k8s_list, get_dependencies, image_tag_overrides, processed_apps):
     app_cfg = apps_cfg[app_name]
     if app_cfg["host"] == "gitlab":
         commit, template_content = process_gitlab(app_cfg)
@@ -158,13 +157,16 @@ def _process_app(namespace, app_name, apps_cfg, config, k8s_list, get_dependenci
 
     params = {
         "IMAGE_TAG": commit[:7],
-        "ENV_NAME": config.get("envName") or conf.ENV_NAME_FORMAT.format(namespace=namespace),
+        "ENV_NAME": config["envName"],
         "CLOWDER_ENABLED": "true",
         "MIN_REPLICAS": "1",
         "REPLICAS": "1",
     }
 
     params.update(app_cfg.get("parameters", {}))
+
+    if app_name in image_tag_overrides:
+        params["IMAGE_TAG"] = image_tag_overrides[app_name]
 
     new_items = process_template(template, params)["items"]
     _remove_resource_config(new_items)
@@ -174,11 +176,11 @@ def _process_app(namespace, app_name, apps_cfg, config, k8s_list, get_dependenci
     processed_apps.add(app_name)
 
     if get_dependencies:
-        items = _add_dependencies_to_config(namespace, app_name, new_items, processed_apps, config)
+        items = _add_dependencies_to_config(app_name, new_items, processed_apps, config)
         k8s_list["items"].extend(items)
 
 
-def process_local_config(namespace, config, app_names, get_dependencies, processed_apps=None):
+def process_local_config(config, app_names, get_dependencies, set_image_tag, processed_apps=None):
     k8s_list = {
         "kind": "List",
         "apiVersion": "v1",
@@ -191,12 +193,15 @@ def process_local_config(namespace, config, app_names, get_dependencies, process
 
     apps_cfg = {a["name"]: a for a in config["apps"]}
 
+
+    image_tag_overrides = split_equals(set_image_tag)
+
     for app_name in set(app_names):
         if app_name not in apps_cfg:
             raise ValueError("app %s not found in local config" % app_name)
         log.info("processing app '%s'", app_name)
         _process_app(
-            namespace, app_name, apps_cfg, config, k8s_list, get_dependencies, processed_apps
+            app_name, apps_cfg, config, k8s_list, get_dependencies, image_tag_overrides, processed_apps
         )
 
     return k8s_list
