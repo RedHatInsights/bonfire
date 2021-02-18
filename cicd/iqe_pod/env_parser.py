@@ -4,8 +4,7 @@ Read configurations and status objects from a clowder-managed namespace to get a
 import base64
 import json
 
-from bonfire.config import ENV_NAME_FORMAT
-from bonfire.openshift import get_json
+from bonfire.openshift import get_json, find_clowd_env_for_ns
 from app_common_python.types import AppConfig
 
 
@@ -17,9 +16,12 @@ class EnvParser:
 
     def get_clowdenv_status(self, app_name):
         if app_name not in self._status_for:
-            status = get_json("clowdenvironment", ENV_NAME_FORMAT.format(namespace=self.namespace))[
-                "status"
-            ]
+            clowd_env = find_clowd_env_for_ns(self.namespace)
+            if not clowd_env:
+                raise ValueError(
+                    f"unable to locate ClowdEnvironment associated with ns '{self.namespace}'"
+                )
+            status = clowd_env["status"]
             for app in status.get("apps", []):
                 self._status_for[app["name"]] = app
             if app_name not in self._status_for:
