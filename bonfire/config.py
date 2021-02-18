@@ -4,7 +4,7 @@ from pathlib import Path
 from pkg_resources import resource_filename
 import re
 
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
 
 
 log = logging.getLogger(__name__)
@@ -27,9 +27,7 @@ DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
 )
 DEFAULT_LOCAL_CONFIG = resource_filename("bonfire", "resources/default_local_config.yaml")
 
-ENV_FILE = find_dotenv()
-if not ENV_FILE:
-    ENV_FILE = str(DEFAULT_ENV_PATH.absolute()) if DEFAULT_ENV_PATH.exists() else ""
+ENV_FILE = str(DEFAULT_ENV_PATH.absolute()) if DEFAULT_ENV_PATH.exists() else ""
 load_dotenv(ENV_FILE)
 
 # for compatibility with app-sre team env vars
