@@ -135,12 +135,6 @@ _get_options = [
         help="comma,separated,list of application names",
     ),
     click.option(
-        "--set-image-tag",
-        "-i",
-        help="Override image tag for an image using format '<image name>=<tag>'",
-        multiple=True,
-    ),
-    click.option(
         "--get-dependencies",
         "-d",
         help="Get config for any listed 'dependencies' in this app's ClowdApps",
@@ -150,6 +144,12 @@ _get_options = [
 ]
 
 _config_get_options = [
+    click.option(
+        "--set-image-tag",
+        "-i",
+        help="Override image tag for an image using format '<image name>=<tag>'",
+        multiple=True,
+    ),
     click.option(
         "--src-env",
         "-e",
@@ -286,8 +286,8 @@ def _get_app_config(
 @click.option("--namespace", "-n", help="Namespace you intend to deploy these components into")
 def _cmd_config_get(
     apps,
-    set_image_tag,
     get_dependencies,
+    set_image_tag,
     src_env,
     ref_env,
     set_template_ref,
@@ -313,8 +313,8 @@ def _cmd_config_get(
 @common_options(_ns_wait_options)
 def _cmd_config_deploy(
     apps,
-    set_image_tag,
     get_dependencies,
+    set_image_tag,
     src_env,
     ref_env,
     set_template_ref,
@@ -365,12 +365,18 @@ def _cmd_config_deploy(
 @local.command("get")
 @common_options(_get_options)
 @click.option(
+    "--set-image-tag",
+    "-i",
+    help="Override image tag for an image using format '<app name>=<tag>'",
+    multiple=True,
+)
+@click.option(
     "--local-config-path",
     "-c",
     help="File to use for local config (default: config.yaml)",
     default="config.yaml",
 )
-def _cmd_local_get(apps, set_image_tag, get_dependencies, local_config_path):
+def _cmd_local_get(apps, get_dependencies, set_image_tag, local_config_path):
     local_config_data = _load_file(local_config_path)
 
     if "envName" not in local_config_data:
