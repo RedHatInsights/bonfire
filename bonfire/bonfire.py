@@ -61,6 +61,12 @@ def config():
     pass
 
 
+@main.group()
+def local():
+    """perform operations related to local development"""
+    pass
+
+
 def _reserve_namespace(duration, retries, namespace=None):
     if namespace:
         _warn_if_not_available(namespace)
@@ -120,7 +126,7 @@ _ns_wait_options = [
     )
 ]
 
-_config_get_options = [
+_get_options = [
     click.option(
         "--app",
         "-a",
@@ -128,6 +134,22 @@ _config_get_options = [
         required=True,
         help="comma,separated,list of application names",
     ),
+    click.option(
+        "--set-image-tag",
+        "-i",
+        help="Override image tag for an image using format '<image name>=<tag>'",
+        multiple=True,
+    ),
+    click.option(
+        "--get-dependencies",
+        "-d",
+        help="Get config for any listed 'dependencies' in this app's ClowdApps",
+        is_flag=True,
+        default=False,
+    ),
+]
+
+_config_get_options = [
     click.option(
         "--src-env",
         "-e",
@@ -147,31 +169,6 @@ _config_get_options = [
         "-t",
         help="Override template ref for a component using format '<component name>=<ref>'",
         multiple=True,
-    ),
-    click.option(
-        "--set-image-tag",
-        "-i",
-        help="Override image tag for an image using format '<image name>=<tag>'",
-        multiple=True,
-    ),
-    click.option(
-        "--get-dependencies",
-        "-d",
-        help="Get config for any listed 'dependencies' in this app's ClowdApps",
-        is_flag=True,
-        default=False,
-    ),
-    click.option(
-        "--local-config",
-        "-l",
-        help="Pull template config from local config file rather than app-interface",
-        is_flag=True,
-    ),
-    click.option(
-        "--local-config-path",
-        "-c",
-        help="File to use for local config (default: config.yaml)",
-        default="config.yaml",
     ),
 ]
 
@@ -284,32 +281,27 @@ def _get_app_config(
 
 
 @config.command("get")
+@common_options(_get_options)
 @common_options(_config_get_options)
 @click.option("--namespace", "-n", help="Namespace you intend to deploy these components into")
 def _cmd_config_get(
     apps,
+    set_image_tag,
+    get_dependencies,
     src_env,
     ref_env,
     set_template_ref,
-    set_image_tag,
-    get_dependencies,
-    namespace,
-    local_config,
-    local_config_path,
+    namespace
 ):
     """Get kubernetes config for app(s) and print the JSON"""
-    if local_config:
-        config = process_local_config(
-            namespace, _load_file(local_config_path), apps.split(","), get_dependencies, set_image_tag
-        )
-    else:
-        config = _get_app_config(
-            apps, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
-        )
+    config = _get_app_config(
+        apps, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, namespace
+    )
     print(json.dumps(config, indent=2))
 
 
 @config.command("deploy")
+@common_options(_get_options)
 @common_options(_config_get_options)
 @click.option(
     "--namespace",
@@ -321,21 +313,17 @@ def _cmd_config_get(
 @common_options(_ns_wait_options)
 def _cmd_config_deploy(
     apps,
+    set_image_tag,
+    get_dependencies,
     src_env,
     ref_env,
     set_template_ref,
-    set_image_tag,
-    get_dependencies,
     namespace,
-    local_config,
-    local_config_path,
     duration,
     retries,
     timeout,
 ):
     """Reserve a namespace, get config for app(s), and deploy to OpenShift"""
-    if local_config:
-        local_config_data = _load_file(local_config_path)
 
     requested_ns = namespace
 
@@ -348,13 +336,10 @@ def _cmd_config_deploy(
     ns = _reserve_namespace(duration, retries, requested_ns)
 
     try:
-        if local_config:
-            config = process_local_config(ns, local_config_data, apps.split(","), get_dependencies, set_image_tag)
-        else:
-            log.info("getting app configs from qontract-server...")
-            config = _get_app_config(
-                apps, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, ns
-            )
+        log.info("getting app configs from qontract-server...")
+        config = _get_app_config(
+            apps, src_env, ref_env, set_template_ref, set_image_tag, get_dependencies, ns
+        )
 
         log.debug("app configs:\n%s", json.dumps(config, indent=2))
         if not config["items"]:
@@ -375,6 +360,25 @@ def _cmd_config_deploy(
     else:
         log.info("successfully deployed to %s", ns)
         print(ns)
+
+
+@local.command("get")
+@common_options(_get_options)
+@click.option(
+    "--local-config-path",
+    "-c",
+    help="File to use for local config (default: config.yaml)",
+    default="config.yaml",
+)
+def _cmd_local_get(apps, set_image_tag, get_dependencies, local_config_path):
+    local_config_data = _load_file(local_config_path)
+
+    if "envName" not in local_config_data:
+        log.error("envName must be set in local config")
+        return
+
+    config = process_local_config(local_config_data, apps.split(","), get_dependencies, set_image_tag)
+    print(json.dumps(config, indent=2))
 
 
 if __name__ == "__main__":
