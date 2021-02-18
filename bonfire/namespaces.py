@@ -7,13 +7,13 @@ import time
 import uuid
 import yaml
 import threading
-from pkg_resources import resource_filename
 from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.qontract import get_namespaces_for_env, get_secret_names_in_namespace
 from bonfire.openshift import (
     oc,
+    get_all_namespaces,
     get_json,
     copy_namespace_secrets,
     process_template,
@@ -28,10 +28,17 @@ NS_REQUESTER = "ephemeral-ns-requester"
 NS_DURATION = "ephemeral-ns-duration"
 NS_EXPIRES = "ephemeral-ns-expires"
 NS_REQUESTER_NAME = "ephemeral-ns-requester-name"
+NS_REQUIRED_LABELS = [
+    NS_DURATION,
+    NS_EXPIRES,
+    NS_READY,
+    NS_REQUESTER,
+    NS_REQUESTER_NAME,
+    NS_RESERVED,
+]
+
 
 RESERVATION_DELAY_SEC = 5
-
-ENV_TEMPLATE = resource_filename("bonfire", "resources/ephemeral-clowdenvironment.yaml")
 
 log = logging.getLogger(__name__)
 
@@ -107,6 +114,15 @@ class Namespace:
         self.requester_name = str(requester_name) if requester_name else None
 
     @property
+    def is_reservable(self):
+        """
+        Check whether a namespace has the required labels set on it.
+        """
+        if all([label in self.labels for label in NS_REQUIRED_LABELS]):
+            return True
+        return False
+
+    @property
     def expires_in(self):
         if not self.expires:
             # reconciler needs to set the time ...
@@ -170,17 +186,13 @@ class Namespace:
 
 
 def get_namespaces(available_only=False, mine=False):
-    ephemeral_namespace_names = get_namespaces_for_env(conf.EPHEMERAL_ENV_NAME)
-    ephemeral_namespace_names.remove(conf.BASE_NAMESPACE_NAME)
-    # Use 'oc get project' since we cannot list all 'namespace' resources in a cluster
-    all_namespaces = get_json("project")["items"]
+    all_namespaces = get_all_namespaces()
+
     ephemeral_namespaces = []
     for ns in all_namespaces:
-        if ns["metadata"]["name"] not in ephemeral_namespace_names:
-            continue
-        if not conf.RESERVABLE_NAMESPACE_REGEX.match(ns["metadata"]["name"]):
-            continue
         ns = Namespace(namespace_data=ns)
+        if not ns.is_reservable:
+            continue
         if mine:
             if ns.owned_by_me:
                 ephemeral_namespaces.append(ns)
@@ -329,7 +341,7 @@ def _delete_resources(namespace):
 def add_base_resources(namespace, secret_names):
     copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
 
-    with open(ENV_TEMPLATE) as fp:
+    with open(conf.DEFAULT_CLOWDENV_TEMPLATE) as fp:
         template_data = yaml.safe_load(fp)
 
     processed_template = process_template(
@@ -395,9 +407,27 @@ def _reconcile_ns(ns, base_secret_names):
     log.info("namespace '%s' - done", ns.name)
 
 
+def get_namespaces_for_reconciler():
+    """
+    Query app-interface to get list of namespaces the reconciler operates on.
+    """
+    ephemeral_namespace_names = get_namespaces_for_env(conf.EPHEMERAL_ENV_NAME)
+    ephemeral_namespace_names.remove(conf.BASE_NAMESPACE_NAME)
+    all_namespaces = get_json("project")["items"]
+    ephemeral_namespaces = []
+    for ns in all_namespaces:
+        if ns["metadata"]["name"] not in ephemeral_namespace_names:
+            continue
+        if not conf.RESERVABLE_NAMESPACE_REGEX.match(ns["metadata"]["name"]):
+            continue
+        ns = Namespace(namespace_data=ns)
+
+    return ephemeral_namespaces
+
+
 def reconcile():
     # run graphql queries outside of the threads since the client isn't natively thread-safe
-    namespaces = get_namespaces()
+    namespaces = get_namespaces_for_reconciler()
     base_secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
 
     threads = []
