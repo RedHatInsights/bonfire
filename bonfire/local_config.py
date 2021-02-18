@@ -142,7 +142,9 @@ def _remove_resource_config(items):
                 del p["resources"]
 
 
-def _process_app(app_name, apps_cfg, config, k8s_list, get_dependencies, image_tag_overrides, processed_apps):
+def _process_app(
+    app_name, apps_cfg, config, k8s_list, get_dependencies, image_tag_overrides, processed_apps
+):
     app_cfg = apps_cfg[app_name]
     if app_cfg["host"] == "gitlab":
         commit, template_content = process_gitlab(app_cfg)
@@ -193,7 +195,6 @@ def process_local_config(config, app_names, get_dependencies, set_image_tag, pro
 
     apps_cfg = {a["name"]: a for a in config["apps"]}
 
-
     image_tag_overrides = split_equals(set_image_tag)
 
     for app_name in set(app_names):
@@ -201,7 +202,13 @@ def process_local_config(config, app_names, get_dependencies, set_image_tag, pro
             raise ValueError("app %s not found in local config" % app_name)
         log.info("processing app '%s'", app_name)
         _process_app(
-            app_name, apps_cfg, config, k8s_list, get_dependencies, image_tag_overrides, processed_apps
+            app_name,
+            apps_cfg,
+            config,
+            k8s_list,
+            get_dependencies,
+            image_tag_overrides,
+            processed_apps,
         )
 
     return k8s_list

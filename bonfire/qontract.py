@@ -6,7 +6,7 @@ import re
 
 from gql import gql
 from gql import Client as GQLClient
-from gql import RequestsHTTPTransport
+from gql.transport.requests import RequestsHTTPTransport
 import requests
 from requests.auth import HTTPBasicAuth
 
