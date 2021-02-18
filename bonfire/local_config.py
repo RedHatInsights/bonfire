@@ -240,6 +240,7 @@ def process_local_config(config, app_names, get_dependencies, set_image_tag, pro
 
 
 def process_clowd_env(config):
+    log.info("processing ClowdEnvironment")
     target_ns = config.get("targetNamespace")
     if not target_ns:
         raise ValueError(

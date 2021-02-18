@@ -376,7 +376,7 @@ def _write_default_config():
     multiple=True,
 )
 @click.option(
-    "--get-clowd-env",
+    "--clowd-env",
     "-e",
     help="Include ClowdEnvironment configuration according to options set in local config",
     is_flag=True,
@@ -390,7 +390,7 @@ def _write_default_config():
     ),
     default=None,
 )
-def _cmd_local_get(apps, get_dependencies, set_image_tag, local_config_path, get_clowd_env):
+def _cmd_local_get(apps, get_dependencies, set_image_tag, local_config_path, clowd_env):
     """Get kubernetes config for app(s) and print the JSON"""
     config_path = None
     if local_config_path:
@@ -416,8 +416,8 @@ def _cmd_local_get(apps, get_dependencies, set_image_tag, local_config_path, get
         local_config_data, apps.split(","), get_dependencies, set_image_tag
     )
 
-    if get_clowd_env:
-        config["items"].append(process_clowd_env(local_config_data))
+    if clowd_env:
+        config["items"] = process_clowd_env(local_config_data) + config["items"]
 
     print(json.dumps(config, indent=2))
 
