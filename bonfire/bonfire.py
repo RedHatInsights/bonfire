@@ -285,13 +285,7 @@ def _get_app_config(
 @common_options(_config_get_options)
 @click.option("--namespace", "-n", help="Namespace you intend to deploy these components into")
 def _cmd_config_get(
-    apps,
-    get_dependencies,
-    set_image_tag,
-    src_env,
-    ref_env,
-    set_template_ref,
-    namespace
+    apps, get_dependencies, set_image_tag, src_env, ref_env, set_template_ref, namespace
 ):
     """Get kubernetes config for app(s) and print the JSON"""
     config = _get_app_config(
@@ -383,7 +377,9 @@ def _cmd_local_get(apps, get_dependencies, set_image_tag, local_config_path):
         log.error("envName must be set in local config")
         return
 
-    config = process_local_config(local_config_data, apps.split(","), get_dependencies, set_image_tag)
+    config = process_local_config(
+        local_config_data, apps.split(","), get_dependencies, set_image_tag
+    )
     print(json.dumps(config, indent=2))
 
 
