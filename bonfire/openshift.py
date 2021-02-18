@@ -92,7 +92,6 @@ def _get_logging_args(args, kwargs):
 
 def _exec_oc(*args, **kwargs):
     _silent = kwargs.pop("_silent", False)
-    _hide_output = kwargs.pop("_hide_output", False)
     _ignore_immutable = kwargs.pop("_ignore_immutable", True)
     _retry_conflicts = kwargs.pop("_retry_conflicts", True)
     _stdout_log_prefix = kwargs.pop("_stdout_log_prefix", " |stdout| ")
@@ -106,12 +105,13 @@ def _exec_oc(*args, **kwargs):
 
     def _err_line_handler(line, _, process):
         threading.current_thread().name = f"pid-{process.pid}"
-        log.info("%s%s", _stderr_log_prefix, line.rstrip())
+        if not _silent:
+            log.info("%s%s", _stderr_log_prefix, line.rstrip())
         err_lines.append(line)
 
     def _out_line_handler(line, _, process):
         threading.current_thread().name = f"pid-{process.pid}"
-        if not _silent and not _hide_output:
+        if not _silent:
             log.info("%s%s", _stdout_log_prefix, line.rstrip())
         out_lines.append(line)
 
@@ -198,14 +198,15 @@ def oc(*args, **kwargs):
 def oc_login():
     if conf.OC_LOGIN_TOKEN and conf.OC_LOGIN_SERVER:
         # use _silent so token is not logged
+        log.info("logging into cluster '%s'", conf.OC_LOGIN_SERVER)
         oc(
             "login",
             token=conf.OC_LOGIN_TOKEN,
             server=conf.OC_LOGIN_SERVER,
             _silent=True,
         )
-    # run 'oc project' so we see what server we're logged into
-    oc("project")
+    # run 'oc version' so we see what server we're logged into
+    oc("version")
 
 
 # we will assume that 'oc whoami' will not change during execution of a single 'bonfire' command
@@ -220,9 +221,12 @@ def whoami():
 
 def apply_config(namespace, list_resource):
     """
-    Apply a k8s List of items to a namespace
+    Apply a k8s List of items
     """
-    oc("apply", "-f", "-", "-n", namespace, _in=json.dumps(list_resource))
+    if namespace is None:
+        oc("apply", "-f", "-", _in=json.dumps(list_resource))
+    else:
+        oc("apply", "-f", "-", "-n", namespace, _in=json.dumps(list_resource))
 
 
 def get_json(restype, name=None, label=None, namespace=None):
@@ -440,7 +444,14 @@ def _wait_for_resources(namespace, timeout, skip=None):
     skip = skip or []
     wait_for_list = []
     for restype in _CHECKABLE_RESOURCES:
-        resources = get_json(restype, namespace=namespace)
+        try:
+            resources = get_json(restype, namespace=namespace)
+        except ErrorReturnCode as err:
+            if "the server doesn't have a resource type" in str(err):
+                log.debug("server has no resources of type '%s', skipping wait for them", restype)
+                resources = {"items": []}
+            else:
+                raise
         for item in resources["items"]:
             entry = (restype, item["metadata"]["name"])
             if entry not in skip:
@@ -460,7 +471,7 @@ def _operator_resource_present(namespace, owner_kind):
 
 
 def _operator_resources(namespace, timeout, wait_on_app=True):
-    log.info("Waiting for resources owned by 'ClowdEnvironment' to appear")
+    log.info("Waiting for resources owned by 'ClowdEnvironment' to appear in ns '%s'", namespace)
     wait_for(
         _operator_resource_present,
         func_args=(namespace, "ClowdEnvironment"),
@@ -475,7 +486,7 @@ def _operator_resources(namespace, timeout, wait_on_app=True):
         return result
 
     if wait_on_app:
-        log.info("Waiting for resources owned by 'ClowdApp' to appear")
+        log.info("Waiting for resources owned by 'ClowdApp' to appear in ns '%s'", namespace)
         wait_for(
             _operator_resource_present,
             func_args=(namespace, "ClowdApp"),
@@ -534,3 +545,58 @@ def process_template(template_data, params):
     )
     stdout, stderr = proc.communicate(json.dumps(template_data).encode("utf-8"))
     return json.loads(stdout.decode("utf-8"))
+
+
+def find_clowd_env_for_ns(ns):
+    try:
+        clowd_envs = get_json("clowdenvironment")
+    except ErrorReturnCode as err:
+        log.debug("hit error running 'oc get clowdenvironment': %s", err)
+        clowd_envs = {"items": []}
+
+    for clowd_env in clowd_envs["items"]:
+        target_ns = clowd_env["spec"].get("targetNamespace")
+        # in case target ns was not defined in the spec, check the env's status...
+        target_ns = target_ns or clowd_env.get("status", {}).get("targetNamespace")
+        if target_ns == ns:
+            return clowd_env
+
+
+def get_clowd_env_target_ns(clowd_env_name):
+    try:
+        clowd_env = get_json("clowdenvironment", clowd_env_name)
+    except ErrorReturnCode as err:
+        log.debug("hit error running 'oc get clowdenvironment %s': %s", clowd_env_name, err)
+        return None
+
+    return clowd_env.get("status", {}).get("targetNamespace")
+
+
+def wait_for_clowd_env_target_ns(clowd_env_name):
+    log.info("waiting for Clowder to provision target namespace for env '%s'", clowd_env_name)
+    return wait_for(
+        get_clowd_env_target_ns,
+        func_args=(clowd_env_name,),
+        fail_condition=None,
+        num_sec=60,
+        message="wait for Clowder to provision target namespace",
+    ).out
+
+
+def get_all_namespaces():
+    # try to list OpenShift projects
+    try:
+        all_namespaces = get_json("project")["items"]
+    except ErrorReturnCode as err:
+        log.debug("hit error running 'oc get project': %s", err)
+        all_namespaces = []
+
+    # if that doesn't work, we might be on a k8s cluster, try to list namespaces
+    if not all_namespaces:
+        try:
+            all_namespaces = get_json("namespace")["items"]
+        except ErrorReturnCode as err:
+            log.debug("hit error running 'oc get namespace': %s", err)
+            all_namespaces = []
+
+    return all_namespaces
