@@ -7,7 +7,7 @@ with open("requirements.txt") as f:
     requirements = f.read().splitlines()
 
 setup(
-    name="bonfire",
+    name="crc-bonfire",
     use_scm_version=True,
     description="Deploy ephemeral namespaces for cloud.redhat.com app testing",
     long_description=long_description,
