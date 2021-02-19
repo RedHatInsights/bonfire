@@ -216,8 +216,12 @@ def _build_test_conf(env_parser):
             "service_objects": {
                 "playbook_dispatcher_api_v1": {
                     "config": {
-                        "hostname": env_parser.get_hostname("playbook-dispatcher", "playbook-dispatcher-api"),
-                        "port": env_parser.get_port("playbook-dispatcher", "playbook-dispatcher-api"),
+                        "hostname": env_parser.get_hostname(
+                            "playbook-dispatcher", "playbook-dispatcher-api"
+                        ),
+                        "port": env_parser.get_port(
+                            "playbook-dispatcher", "playbook-dispatcher-api"
+                        ),
                         "scheme": "http",
                     }
                 }
