@@ -358,8 +358,8 @@ def _cmd_config_deploy(
         print(ns)
 
 
-def _write_default_config():
-    outpath = conf.DEFAULT_CONFIG_PATH
+def _write_default_config(outpath=None):
+    outpath = Path(outpath) if outpath else conf.DEFAULT_CONFIG_PATH
     outpath.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     inpath = Path(conf.DEFAULT_LOCAL_CONFIG)
     shutil.copy(inpath, outpath)
@@ -423,9 +423,10 @@ def _cmd_local_get(apps, get_dependencies, set_image_tag, local_config_path, clo
 
 
 @local.command("write-default-config")
-def _cmd_write_default_config():
-    """Write/overwrite the default configuration file to $XDG_CONFIG_HOME/bonfire/config.yaml"""
-    _write_default_config()
+@click.argument("path", required=False, type=str)
+def _cmd_write_default_config(path):
+    """Write default configuration file to PATH (default: $XDG_CONFIG_HOME/bonfire/config.yaml)"""
+    _write_default_config(path)
 
 
 if __name__ == "__main__":
