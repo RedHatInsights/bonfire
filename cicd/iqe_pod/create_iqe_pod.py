@@ -194,6 +194,40 @@ def _build_test_conf(env_parser):
             }
         }
 
+    if env_parser.app_present("playbook-dispatcher"):
+        env_conf["MQ"] = {
+            "service_objects": {
+                "kafka": {
+                    "config": {
+                        "hostname": env_parser.get_kafka_hostname("playbook-dispatcher"),
+                        "port": env_parser.get_kafka_port("playbook-dispatcher"),
+                    }
+                }
+            }
+        }
+
+    if env_parser.app_present("playbook-dispatcher"):
+        env_conf["RHC"] = {
+            "kafka": {
+                "playbook_validation_topic": env_parser.get_kafka_topic(
+                    "playbook-dispatcher", "platform.upload.validation"
+                ),
+            },
+            "service_objects": {
+                "playbook_dispatcher_api_v1": {
+                    "config": {
+                        "hostname": env_parser.get_hostname(
+                            "playbook-dispatcher", "playbook-dispatcher-api"
+                        ),
+                        "port": env_parser.get_port(
+                            "playbook-dispatcher", "playbook-dispatcher-api"
+                        ),
+                        "scheme": "http",
+                    }
+                }
+            }
+        }
+
     return conf
 
 
