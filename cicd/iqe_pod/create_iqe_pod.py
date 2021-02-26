@@ -225,7 +225,7 @@ def _build_test_conf(env_parser):
                         "scheme": "http",
                     }
                 }
-            }
+            },
         }
 
     return conf

@@ -295,10 +295,6 @@ def _delete_resources(namespace):
 
     # delete other specific resource types from the namespace
     resources_to_delete = [
-        "secret",
-        "configmap",
-        "pvc",
-        "pod",
         "deployment",
         "deploymentconfig",
         "statefulset",
@@ -308,6 +304,10 @@ def _delete_resources(namespace):
         "job",
         "service",
         "route",
+        "pod",
+        "secret",
+        "configmap",
+        "pvc",
     ]
     for resource in resources_to_delete:
         oc("delete", resource, "--all", n=namespace)
