@@ -12,7 +12,8 @@ python iqe_pod/create_iqe_pod.py $NAMESPACE \
     -e IQE_PLUGINS=$IQE_PLUGINS \
     -e IQE_MARKER_EXPRESSION=$IQE_MARKER_EXPRESSION \
     -e IQE_FILTER_EXPRESSION=$IQE_FILTER_EXPRESSION \
-    -e ENV_FOR_DYNACONF=smoke
+    -e ENV_FOR_DYNACONF=smoke \
+    -e NAMESPACE=$NAMESPACE
 
 oc cp -n $NAMESPACE iqe_pod/iqe_runner.sh $IQE_POD_NAME:/iqe_venv/iqe_runner.sh
 oc exec $IQE_POD_NAME -n $NAMESPACE -- bash /iqe_venv/iqe_runner.sh
