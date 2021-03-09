@@ -8,6 +8,10 @@
 
 IQE_POD_NAME="iqe-tests"
 
+# temporary: create a custom sa for the iqe pod to run with that has elevated permissions
+oc create -n $NAMESPACE sa iqe || echo "service account 'iqe' already exists"
+oc policy -n $NAMESPACE add-role-to-user edit system:serviceaccounts:$NAMESPACE:iqe
+
 python iqe_pod/create_iqe_pod.py $NAMESPACE \
     -e IQE_PLUGINS=$IQE_PLUGINS \
     -e IQE_MARKER_EXPRESSION=$IQE_MARKER_EXPRESSION \

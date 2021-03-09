@@ -19,6 +19,7 @@ def _get_base_pod_cfg():
         "kind": "Pod",
         "metadata": {"name": "iqe-tests"},
         "spec": {
+            "serviceAccountName": "iqe",
             "containers": [
                 {
                     "command": ["/bin/cat"],
