@@ -8,9 +8,13 @@
 
 IQE_POD_NAME="iqe-tests"
 
-# temporary: create a custom sa for the iqe pod to run with that has elevated permissions
-oc create -n $NAMESPACE sa iqe || echo "service account 'iqe' already exists"
+# create a custom svc acct for the iqe pod to run with that has elevated permissions
+SA=$(oc get -n $NAMESPACE sa iqe --ignore-not-found -o jsonpath='{.metadata.name}')
+if [ -z "$SA" ]; then
+    oc create -n $NAMESPACE sa iqe
+fi
 oc policy -n $NAMESPACE add-role-to-user edit system:serviceaccounts:$NAMESPACE:iqe
+oc secrets -n $NAMESPACE link iqe quay-cloudservices-pull --for=pull,mount
 
 python iqe_pod/create_iqe_pod.py $NAMESPACE \
     -e IQE_PLUGINS=$IQE_PLUGINS \
