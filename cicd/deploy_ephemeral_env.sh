@@ -6,11 +6,13 @@
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
 #GIT_COMMIT="abcd123defg456"  # full git commit hash of the PR being tested
+trap "teardown" EXIT ERR SIGINT SIGTERM
 
 set -ex
 
 K8S_ARTIFACTS_DIR="$WORKSPACE/artifacts/k8s_artifacts/"
 START_TIME=$(date +%s)
+TEARDOWN_RAN=0
 
 # adapted from https://stackoverflow.com/a/62475429
 # get all events that were emitted at a time greater than $START_TIME, sort by time, and tabulate
@@ -50,11 +52,14 @@ function collect_k8s_artifacts {
 }
 
 function teardown {
+    [ "$TEARDOWN_RAN" -ne "0" ] && return
     if [ ! -z "$NAMESPACE" ]; then
         set +e
         collect_k8s_artifacts
         bonfire namespace release $NAMESPACE
     fi
+    set -e
+    TEARDOWN_RAN=1
 }
 
 
@@ -71,6 +76,3 @@ result=$(bonfire config deploy \
 if [ $? -eq 0 ]; then
     export NAMESPACE=$result
 fi
-
-trap "teardown" EXIT ERR SIGINT SIGTERM
-
