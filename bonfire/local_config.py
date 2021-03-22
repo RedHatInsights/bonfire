@@ -122,7 +122,7 @@ def _add_dependencies_to_config(app_name, new_items, processed_apps, config):
         # recursively get config for any dependencies, they will be stored in the
         # already-created 'config' dict
         log.info("app '%s' dependencies %s not previously processed", app_name, dependencies)
-        items = process_local_config(config, dependencies, True, processed_apps)["items"]
+        items = process_local_config(config, dependencies, True, [], processed_apps)["items"]
         dep_items.extend(items)
 
     return dep_items
