@@ -184,10 +184,10 @@ def _build_test_conf(env_parser):
                 "api_v1": {
                     "config": {
                         "hostname": env_parser.get_hostname(
-                            "automation-analytics", "automation-analytics-api"
+                            "automation-analytics", "automation-analytics-api-fastapi-v2"
                         ),
                         "port": env_parser.get_port(
-                            "automation-analytics", "automation-analytics-api"
+                            "automation-analytics", "automation-analytics-api-fastapi-v2"
                         ),
                         "scheme": "http",
                     }
