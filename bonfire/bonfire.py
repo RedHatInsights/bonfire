@@ -157,12 +157,10 @@ def _validate_set_image_tag(ctx, param, value):
 
 
 _process_options = [
-    click.option(
-        "--apps",
-        "-a",
+    click.argument(
         "app_names",
         required=True,
-        help="comma,separated,list of application names",
+        nargs=-1,
     ),
     click.option(
         "--source",
@@ -404,7 +402,7 @@ def _process(
 
     processor = TemplateProcessor(
         apps_config,
-        app_names.split(","),
+        app_names,
         get_dependencies,
         set_image_tag,
         set_template_ref,
