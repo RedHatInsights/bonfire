@@ -43,7 +43,7 @@ def get_local_apps(config):
     config_apps = {}
     if "apps" in config:
         log.info("apps found: %s", list(config_apps.keys()))
-        config_apps = _parse_apps_in_cfg()
+        config_apps = _parse_apps_in_cfg(config)
 
     # fetch apps from repo if appsFile is provided in config
     fetched_apps = {}
