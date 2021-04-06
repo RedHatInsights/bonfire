@@ -61,13 +61,12 @@ def process_clowd_env(target_ns, env_name, template_path):
     with env_template_path.open() as fp:
         template_data = yaml.safe_load(fp)
 
-    processed_template = process_template(
-        template_data,
-        params={
-            "ENV_NAME": env_name,
-            "NAMESPACE": target_ns,
-        },
-    )
+    params = dict()
+    params["ENV_NAME"] = env_name
+    if target_ns:
+        params["NAMESPACE"] = target_ns
+
+    processed_template = process_template(template_data, params=params)
 
     if not processed_template.get("items"):
         raise ValueError("Processed ClowdEnvironment template has no items")

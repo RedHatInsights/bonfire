@@ -471,7 +471,7 @@ def _operator_resource_present(namespace, owner_kind):
 
 
 def _operator_resources(namespace, timeout, wait_on_app=True):
-    log.info("Waiting for resources owned by 'ClowdEnvironment' to appear")
+    log.info("Waiting for resources owned by 'ClowdEnvironment' to appear in ns '%s'", namespace)
     wait_for(
         _operator_resource_present,
         func_args=(namespace, "ClowdEnvironment"),
@@ -486,7 +486,7 @@ def _operator_resources(namespace, timeout, wait_on_app=True):
         return result
 
     if wait_on_app:
-        log.info("Waiting for resources owned by 'ClowdApp' to appear")
+        log.info("Waiting for resources owned by 'ClowdApp' to appear in ns '%s'", namespace)
         wait_for(
             _operator_resource_present,
             func_args=(namespace, "ClowdApp"),
@@ -557,6 +557,27 @@ def find_clowd_env_for_ns(ns):
     for clowd_env in clowd_envs["items"]:
         if clowd_env["spec"]["targetNamespace"] == ns:
             return clowd_env
+
+
+def get_clowd_env_target_ns(clowd_env_name):
+    try:
+        clowd_env = get_json("clowdenvironment", clowd_env_name)
+    except ErrorReturnCode as err:
+        log.debug("hit error running 'oc get clowdenvironment %s': %s", clowd_env_name, err)
+        return None
+
+    return clowd_env.get("status", {}).get("targetNamespace")
+
+
+def wait_for_clowd_env_target_ns(clowd_env_name):
+    log.info("waiting for Clowder to provision target namespace for env '%s'", clowd_env_name)
+    return wait_for(
+        get_clowd_env_target_ns,
+        func_args=(clowd_env_name,),
+        fail_condition=None,
+        num_sec=60,
+        message="wait for Clowder to provision target namespace",
+    ).out
 
 
 def get_all_namespaces():

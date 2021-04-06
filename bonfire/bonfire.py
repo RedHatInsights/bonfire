@@ -15,6 +15,7 @@ from bonfire.openshift import (
     oc_login,
     wait_for_all_resources,
     find_clowd_env_for_ns,
+    wait_for_clowd_env_target_ns,
 )
 from bonfire.utils import split_equals
 from bonfire.local import get_local_apps
@@ -251,14 +252,13 @@ _clowdenv_process_options = [
     click.option(
         "--target-namespace",
         "-n",
-        help="Target namespace to set on the ClowdEnvironment",
+        help="Target namespace to set on the ClowdEnvironment (default: none)",
         type=str,
-        required=True,
     ),
     click.option(
         "--env-name",
         "-e",
-        help=f"Name of ClowdEnvironment (default: {conf.ENV_NAME_FORMAT})",
+        help=(f"Name of ClowdEnvironment (default: if target ns provided, {conf.ENV_NAME_FORMAT})"),
         type=str,
         default=None,
     ),
@@ -567,6 +567,11 @@ def _cmd_config_deploy(
 
 def _process_clowdenv(target_namespace, env_name, template_file):
     if not env_name:
+        if not target_namespace:
+            _error(
+                "unable to infer name of ClowdEnvironment if namespace not provided."
+                "  Please run with one of: --env-name or --namespace"
+            )
         env_name = conf.ENV_NAME_FORMAT.format(namespace=target_namespace)
 
     try:
@@ -577,7 +582,7 @@ def _process_clowdenv(target_namespace, env_name, template_file):
     return clowd_env_config
 
 
-@main.command("process-clowdenv")
+@main.command("process-env")
 @options(_clowdenv_process_options)
 def _cmd_process_clowdenv(target_namespace, env_name, template_file):
     """Process ClowdEnv template and print output"""
@@ -585,7 +590,7 @@ def _cmd_process_clowdenv(target_namespace, env_name, template_file):
     print(json.dumps(clowd_env_config, indent=2))
 
 
-@main.command("deploy-clowdenv")
+@main.command("deploy-env")
 @options(_clowdenv_process_options)
 @options(_timeout_option)
 def _cmd_deploy_clowdenv(target_namespace, env_name, template_file, timeout):
@@ -597,7 +602,15 @@ def _cmd_deploy_clowdenv(target_namespace, env_name, template_file, timeout):
     log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
 
     apply_config(None, clowd_env_config)
+
+    if not target_namespace:
+        # wait for Clowder to tell us what target namespace it created
+        target_namespace = wait_for_clowd_env_target_ns(env_name)
+
     _wait_on_namespace_resources(target_namespace, timeout)
+
+    log.info("ClowdEnvironment '%s' using ns '%s' is ready", env_name, target_namespace)
+    print(target_namespace)
 
 
 @config.command("write-default")
