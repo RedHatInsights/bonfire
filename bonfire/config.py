@@ -79,7 +79,7 @@ def _validate_local_config(config):
 
 def load_config(config_path=None):
     if config_path:
-        # user gave a specified config path
+        log.debug("user provided explicit config path: %s", config_path)
         config_path = Path(config_path)
         if not config_path.exists():
             raise ValueError(f"provided config file path '{str(config_path)}' does not exist")
@@ -87,10 +87,11 @@ def load_config(config_path=None):
         # no user-provided path, check default locations
         config_path = Path("config.yaml")
         if not config_path.exists():
+            log.debug("./config.yaml not found, using default path: %s", DEFAULT_CONFIG_PATH)
             config_path = DEFAULT_CONFIG_PATH
-        if not config_path.exists():
-            log.info("no local config file found, creating a default one for you")
-            write_default_config()
+            if not config_path.exists():
+                write_default_config()
+                log.info("default config not found, creating")
 
     log.debug("using local config file: %s", str(config_path.absolute()))
     local_config_data = _load_file(config_path)
