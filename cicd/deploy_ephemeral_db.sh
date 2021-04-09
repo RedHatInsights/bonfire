@@ -32,7 +32,7 @@ PORT_FORWARD_PID=$!
 trap "teardown" EXIT ERR SIGINT SIGTERM
 
 # Store database access info to env vars
-oc get secret $APP_NAME -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
+oc get secret $APP_NAME -o json -n $NAMESPACE | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
 
 export DATABASE_NAME=$(jq -r .name < db-creds.json)
 export DATABASE_ADMIN_USERNAME=$(jq -r .adminUsername < db-creds.json)
