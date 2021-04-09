@@ -113,7 +113,7 @@ class TemplateProcessor:
         required_keys = ["name", "components"]
         missing_keys = [k for k in required_keys if k not in app_cfg]
         if missing_keys:
-            raise ValueError("app is missing required keys: %s", ", ".join(missing_keys))
+            raise ValueError(f"app is missing required keys: {missing_keys}")
 
         return app_cfg
 

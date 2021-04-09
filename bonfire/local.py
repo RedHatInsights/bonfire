@@ -38,20 +38,24 @@ def _parse_apps_in_cfg(config):
     return {a["name"]: a for a in config["apps"]}
 
 
-def get_local_apps(config):
+def get_local_apps(config, fetch_remote=True):
     # get any apps set directly in config
     config_apps = {}
     if "apps" in config:
-        log.info("apps found: %s", list(config_apps.keys()))
         config_apps = _parse_apps_in_cfg(config)
+        log.info("local app configuration overrides found for: %s", list(config_apps.keys()))
 
-    # fetch apps from repo if appsFile is provided in config
-    fetched_apps = {}
-    if "appsFile" in config:
-        log.info("fetching apps file...")
-        fetched_apps = _fetch_apps_file(config)
+    if not fetch_remote:
+        final_apps = config_apps
+    else:
+        # fetch apps from repo if appsFile is provided in config
+        fetched_apps = {}
+        if "appsFile" in config:
+            log.info("fetching remote apps file...")
+            fetched_apps = _fetch_apps_file(config)
 
-    # override fetched apps with local apps if any were defined
-    fetched_apps.update(config_apps)
+        # override fetched apps with local apps if any were defined
+        fetched_apps.update(config_apps)
+        final_apps = fetched_apps
 
-    return fetched_apps
+    return final_apps

@@ -366,6 +366,8 @@ def _cmd_namespace_reset(namespace):
 
 
 def _get_apps_config(source, target_env, ref_env, local_config_path):
+    config = conf.load_config(local_config_path)
+
     if source == APP_SRE_SRC:
         if not target_env:
             _error("target env must be supplied for source '{APP_SRE_SRC}'")
@@ -377,9 +379,11 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
                 for component in app_cfg.get("components", []):
                     component["ref"] = "master"
 
+        # override any apps that were defined in 'apps' setion of local config file
+        apps_config.update(get_local_apps(config, fetch_remote=False))
+
     elif source == LOCAL_SRC:
-        config = conf.load_config(local_config_path)
-        apps_config = get_local_apps(config)
+        apps_config = get_local_apps(config, fetch_remote=True)
 
     if ref_env:
         sub_refs(apps_config, ref_env)

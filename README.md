@@ -60,6 +60,7 @@ If these env vars are not specified, bonfire will attempt to access a local `qon
 
 `bonfire` will query the qontract GraphQL API and read the desired application's deploy configuration.
 
+You can edit the local configuration file (discussed above) if you wish to override any app configurations to allow for "local tinkering". If you define an app under the `apps` key of the config, it will take precedence over that app's configuration that was fetched from app-interface.
 
 ### Loading application configs
 
