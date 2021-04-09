@@ -3,6 +3,10 @@
 
 source _common_deploy_logic.sh
 
+# the db that the unit test relies on can be set before 'source'ing this script via
+# DB_DEPLOYMENT_NAME -- by default it is '<ClowdApp name>-db'
+DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$APP_NAME-db}"
+
 function kill_port_fwd {
     echo "Caught signal, kill port forward"
     if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
@@ -11,17 +15,18 @@ function kill_port_fwd {
 # Deploy k8s resources for app without its dependencies
 NAMESPACE=$(bonfire namespace reserve)
 # TODO: after move to bonfire v1.0, make sure to use '--no-get-dependencies' here
+# TODO: add code to bonfire to deploy an app if it is defined in 'sharedAppDbName' on the ClowdApp
 bonfire config get \
     --ref-env insights-stage \
     --app $APP_NAME \
     --set-template-ref $COMPONENT_NAME=$GIT_COMMIT \
     --set-image-tag $IMAGE=$IMAGE_TAG | oc apply -f - -n $NAMESPACE
-sleep 5  # give clowder a chance to create the DB deployment
-oc rollout status -w deployment/$APP_NAME-db
+
+bonfire namespace wait-on-resources $NAMESPACE --db-only
 
 # Set up port-forward for DB
 LOCAL_DB_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
-oc port-forward svc/$APP_NAME-db $LOCAL_DB_PORT:5432 &
+oc port-forward svc/$DB_DEPLOYMENT_NAME $LOCAL_DB_PORT:5432 &
 PORT_FORWARD_PID=$!
 trap "teardown" EXIT ERR SIGINT SIGTERM
 
