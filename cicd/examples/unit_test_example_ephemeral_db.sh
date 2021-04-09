@@ -1,15 +1,12 @@
 # This script is used to deploy an ephemeral DB for your unit tests run against
 # This script can be found at:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/deploy_ephemeral_db.sh
-source deploy_ephemeral_db.sh
+source $CICD_ROOT/deploy_ephemeral_db.sh
 
 # Here we remap env vars set by `deploy_ephemeral_db.sh`.  APPs call the DB ENV VARs
 # different names, if your env vars do not match what the shell script sets,
 # they should be remapped here.
 export PGPASSWORD=$DATABASE_ADMIN_PASSWORD
-
-# Change dir to the APP root to run the unit tests for your checked out PR code
-cd $APP_ROOT
 
 # Run the code needed for unit tests, example below ...
 python3 -m venv app-venv
@@ -31,6 +28,3 @@ else
     </testsuite>
 EOF
 fi
-
-# Make sure to 'cd -' at the end to return to the original directory
-cd -

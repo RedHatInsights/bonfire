@@ -1,7 +1,7 @@
 # Reserve a namespace, deploy your app without dependencies just to get a DB set up
 # Stores database env vars
 
-source _common_deploy_logic.sh
+source $CICD_ROOT/_common_deploy_logic.sh
 
 # the db that the unit test relies on can be set before 'source'ing this script via
 # DB_DEPLOYMENT_NAME -- by default it is '<ClowdApp name>-db'

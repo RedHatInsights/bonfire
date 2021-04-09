@@ -1,6 +1,4 @@
 #!/bin/bash
-# Change dir to the APP source code
-cd $APP_ROOT
 
 # Add you unit test specific code
 export GO111MODULE="on"
@@ -26,6 +24,3 @@ else
     </testsuite>
 EOF
 fi
-
-# Make sure to 'cd -' at the end to return to the original directory
-cd -
