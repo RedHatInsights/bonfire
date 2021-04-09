@@ -1,27 +1,29 @@
-# This script is used to deploy an ephemeral for django tests to run on
+# This script is used to deploy an ephemeral DB for your unit tests run against
 # This script can be found at:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/deploy_ephemeral_db.sh
 source deploy_ephemeral_db.sh
 
 # Here we remap env vars set by `deploy_ephemeral_db.sh`.  APPs call the DB ENV VARs
-# different names, if the secrets are different than the default they should be remapped here.
+# different names, if your env vars do not match what the shell script sets,
+# they should be remapped here.
 export PGPASSWORD=$DATABASE_ADMIN_PASSWORD
 
-# Change dir to the APP root
+# Change dir to the APP root to run the unit tests for your checked out PR code
 cd $APP_ROOT
 
-# SEtup a virtual env and install any packages needed for unit tests
+# Run the code needed for unit tests, example below ...
 python3 -m venv app-venv
 . app-venv/bin/activate
 pip install --upgrade pip setuptools wheel pipenv tox psycopg2-binary
 tox -r
 result=$?
 
-# Here is where we evaluate the results and post the junit XML result that is required by the job.
+# Evaluate the test run exit code.
 if [ $result != 0 ]; then
     exit $result
 else
-    # TODO: add unittest-xml-reporting to rbac so that junit results can be parsed by jenkins
+    # If your unit tests store junit xml results, you should store them in a file matching format `artifacts/junit-*.xml`
+    # If you have no junit file, use the below code to create a 'dummy' result file so Jenkins will not fail
     mkdir -p artifacts
     cat << EOF > artifacts/junit-dummy.xml
     <testsuite tests="1">
@@ -30,4 +32,5 @@ else
 EOF
 fi
 
+# Make sure to 'cd -' at the end to return to the original directory
 cd -
