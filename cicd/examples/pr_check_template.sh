@@ -12,14 +12,10 @@ IQE_MARKER_EXPRESSION="CHANGEME"  # This is the value passed to pytest -m
 IQE_FILTER_EXPRESSION=""  # This is the value passed to pytest -k
 
 # Install bonfire repo/initialize
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
-
-# The contents of the bootstrap script can be found here:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/bootstrap.sh
-# This script automates the install / config of bonfire, the DOCs covering this can be found:
-# https://internal.cloud.redhat.com/docs/devprod/ephemeral/01-onboarding/
-source bootstrap.sh  # checks out bonfire and initializes env vars
+# This script automates the install / config of bonfire
+CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+curl -s $CICD_URL/bootstrap.sh -o .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 # The contents of build.sh can be found at:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/build.sh
