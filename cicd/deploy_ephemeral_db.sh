@@ -33,6 +33,7 @@ trap "teardown" EXIT ERR SIGINT SIGTERM
 
 # Store database access info to env vars
 oc get secret $APP_NAME -o json | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
+
 export DATABASE_NAME=$(jq -r .name < db-creds.json)
 export DATABASE_ADMIN_USERNAME=$(jq -r .adminUsername < db-creds.json)
 export DATABASE_ADMIN_PASSWORD=$(jq -r .adminPassword < db-creds.json)
@@ -40,6 +41,14 @@ export DATABASE_USER=$(jq -r .user < db-creds.json)
 export DATABASE_PASSWORD=$(jq -r .password < db-creds.json)
 export DATABASE_HOST=localhost
 export DATABASE_PORT=$LOCAL_DB_PORT
+
+if [ -z "$DATABASE_NAME" ]; then
+    echo "DATABASE_NAME is null, error with ephemeral env / clowder config, exiting"
+    exit 1
+else
+    echo "DB_DEPLOYMENT_NAME: ${DB_DEPLOYMENT_NAME}"
+    echo "DATABASE_NAME: ${DATABASE_NAME}"
+fi
 
 # If we got here, the DB came up successfully, clear the k8s artifacts dir in case
 # 'source deploy_ephemeral_env.sh' is called later
