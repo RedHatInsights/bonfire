@@ -11,7 +11,7 @@ function kill_port_fwd {
 # Deploy k8s resources for app without its dependencies
 NAMESPACE=$(bonfire namespace reserve)
 # TODO: after move to bonfire v1.0, make sure to use '--no-get-dependencies' here
-bonfire config get
+bonfire config get \
     --ref-env insights-stage \
     --app $APP_NAME \
     --set-template-ref $COMPONENT_NAME=$GIT_COMMIT \
