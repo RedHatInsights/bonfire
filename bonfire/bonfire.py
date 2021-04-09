@@ -174,8 +174,8 @@ _process_options = [
         "--local-config-path",
         "-c",
         help=(
-            f"When using source={LOCAL_SRC}, file to use for local config (default: first try"
-            " ./config.yaml, then $XDG_CONFIG_HOME/bonfire/config.yaml)"
+            "File to use for local config (default: first try ./config.yaml, then "
+            "$XDG_CONFIG_HOME/bonfire/config.yaml)"
         ),
         default=None,
     ),
