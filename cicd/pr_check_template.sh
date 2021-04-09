@@ -8,7 +8,7 @@ COMPONENT_NAME="CHANGEME"  # name of app-sre "resourceTemplate" in deploy.yaml f
 IMAGE="quay.io/cloudservices/CHANGEME"  # This is the image location on quay
 
 IQE_PLUGINS="CHANGEME"  # name of the IQE plugin for this APP
-IQE_MARKER_EXPRESSION="smoke"  # This is the value passed to pytest -m
+IQE_MARKER_EXPRESSION="CHANGEME"  # This is the value passed to pytest -m
 IQE_FILTER_EXPRESSION=""  # This is the value passed to pytest -k
 
 # Install bonfire repo/initialize
