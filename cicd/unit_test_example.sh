@@ -1,4 +1,6 @@
 #!/bin/bash
+# Change dir to the APP source code
+cd $APP_ROOT
 
 # Add you unit test specific env vars
 export GO111MODULE="on"
@@ -16,3 +18,5 @@ ACG_CONFIG="$(pwd)/cdappconfig.json"  go test -v -race -coverprofile=coverage.tx
 if [ $? != 0 ]; then
     exit 1
 fi
+
+cd -
