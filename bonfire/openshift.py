@@ -459,6 +459,16 @@ def _operator_resource_present(namespace, owner_kind):
     return False
 
 
+def _wait_for_clowdapp_resources(namespace, timeout):
+    log.info("Waiting for resources owned by 'ClowdApp' to appear")
+    return wait_for(
+        _operator_resource_present,
+        func_args=(namespace, "ClowdApp"),
+        message="wait for ClowdApp-owned resources to appear",
+        timeout=timeout,
+    )
+
+
 def _operator_resources(namespace, timeout, wait_on_app=True):
     log.info("Waiting for resources owned by 'ClowdEnvironment' to appear")
     wait_for(
@@ -475,13 +485,7 @@ def _operator_resources(namespace, timeout, wait_on_app=True):
         return result
 
     if wait_on_app:
-        log.info("Waiting for resources owned by 'ClowdApp' to appear")
-        wait_for(
-            _operator_resource_present,
-            func_args=(namespace, "ClowdApp"),
-            message="wait for ClowdApp-owned resources to appear",
-            timeout=timeout,
-        )
+        _wait_for_clowdapp_resources(namespace, timeout)
         # now that ClowdApp resources showed up, again wait for everything new in ns to be 'ready'
         result, _ = _wait_for_resources(namespace, timeout, already_waited_on)
 
@@ -504,6 +508,11 @@ def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):
     return time_taken
 
 
+def _specific_clowdapp_resources(namespace, resources_to_wait_for, timeout):
+    _wait_for_clowdapp_resources(namespace, timeout)
+    return wait_for_ready_threaded(namespace, resources_to_wait_for, timeout=timeout)
+
+
 def wait_for_db_resources(namespace, timeout=300):
     clowdapps = get_json("clowdapp", namespace=namespace).get("items", [])
     if len(clowdapps) == 0:
@@ -524,7 +533,13 @@ def wait_for_db_resources(namespace, timeout=300):
             f"no clowdapps with db configurations found in '{namespace}', no DB's to wait for"
         )
 
-    _, time_taken = wait_for_ready_threaded(namespace, resources_to_wait_for, timeout=timeout)
+    # wrap the other wait_fors in 1 wait_for so overall timeout is honored
+    _, time_taken = wait_for(
+        _specific_clowdapp_resources,
+        func_args=(namespace, resources_to_wait_for, timeout),
+        message="wait for db resources to be ready",
+        timeout=timeout,
+    )
 
     return time_taken
 
