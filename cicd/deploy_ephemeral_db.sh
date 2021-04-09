@@ -20,7 +20,8 @@ bonfire config get \
     --ref-env insights-stage \
     --app $APP_NAME \
     --set-template-ref $COMPONENT_NAME=$GIT_COMMIT \
-    --set-image-tag $IMAGE=$IMAGE_TAG | oc apply -f - -n $NAMESPACE
+    --set-image-tag $IMAGE=$IMAGE_TAG \
+    --namespace $NAMESPACE | oc apply -f - -n $NAMESPACE
 
 bonfire namespace wait-on-resources $NAMESPACE --db-only
 
