@@ -36,7 +36,7 @@ source build.sh
 #
 # One thing to note is that the unit test run results are expected to be in a junit XML format,
 # in the examples we demonstrate how to create a 'dummy result file' as a temporary work-around.
-source unit_test.sh
+source $APP_ROOT/unit_test.sh
 
 # The contents of this script can be found at:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/deploy_ephemeral_env.sh
