@@ -504,6 +504,31 @@ def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):
     return time_taken
 
 
+def wait_for_db_resources(namespace, timeout=300):
+    clowdapps = get_json("clowdapp", namespace=namespace).get("items", [])
+    if len(clowdapps) == 0:
+        raise ValueError(f"no clowdapps found in ns '{namespace}', no DB's to wait for")
+
+    resources_to_wait_for = set()
+    for clowdapp in clowdapps:
+        clowdapp_name = clowdapp["metadata"]["name"]
+        db_name = clowdapp["spec"].get("database", {}).get("name")
+        if db_name:
+            resources_to_wait_for.add(("deployment", f"{clowdapp_name}-db"))
+        shared_db_app_name = clowdapp["spec"].get("database", {}).get("sharedDbAppName")
+        if shared_db_app_name:
+            resources_to_wait_for.add(("deployment", f"{shared_db_app_name}-db"))
+
+    if not resources_to_wait_for:
+        raise ValueError(
+            f"no clowdapps with db configurations found in '{namespace}', no DB's to wait for"
+        )
+
+    _, time_taken = wait_for_ready_threaded(namespace, resources_to_wait_for, timeout=timeout)
+
+    return time_taken
+
+
 def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
     for secret_name in secret_names:
         log.info(
