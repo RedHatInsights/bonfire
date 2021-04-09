@@ -27,7 +27,7 @@ bonfire namespace wait-on-resources $NAMESPACE --db-only
 
 # Set up port-forward for DB
 LOCAL_DB_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
-oc port-forward svc/$DB_DEPLOYMENT_NAME $LOCAL_DB_PORT:5432 &
+oc port-forward svc/$DB_DEPLOYMENT_NAME $LOCAL_DB_PORT:5432 -n $NAMESPACE &
 PORT_FORWARD_PID=$!
 trap "teardown" EXIT ERR SIGINT SIGTERM
 
