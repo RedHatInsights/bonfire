@@ -37,7 +37,7 @@ oc get secret $APP_NAME -o json -n $NAMESPACE | jq -r '.data["cdappconfig.json"]
 export DATABASE_NAME=$(jq -r .name < db-creds.json)
 export DATABASE_ADMIN_USERNAME=$(jq -r .adminUsername < db-creds.json)
 export DATABASE_ADMIN_PASSWORD=$(jq -r .adminPassword < db-creds.json)
-export DATABASE_USER=$(jq -r .user < db-creds.json)
+export DATABASE_USER=$(jq -r .username < db-creds.json)
 export DATABASE_PASSWORD=$(jq -r .password < db-creds.json)
 export DATABASE_HOST=localhost
 export DATABASE_PORT=$LOCAL_DB_PORT
