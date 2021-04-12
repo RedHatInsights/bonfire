@@ -555,7 +555,10 @@ def find_clowd_env_for_ns(ns):
         clowd_envs = {"items": []}
 
     for clowd_env in clowd_envs["items"]:
-        if clowd_env["spec"]["targetNamespace"] == ns:
+        target_ns = clowd_env["spec"].get("targetNamespace")
+        # in case target ns was not defined in the spec, check the env's status...
+        target_ns = target_ns or clowd_env.get("status", {}).get("targetNamespace")
+        if target_ns == ns:
             return clowd_env
 
 
