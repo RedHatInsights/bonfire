@@ -16,14 +16,14 @@ fi
 oc policy -n $NAMESPACE add-role-to-user edit system:serviceaccounts:$NAMESPACE:iqe
 oc secrets -n $NAMESPACE link iqe quay-cloudservices-pull --for=pull,mount
 
-python iqe_pod/create_iqe_pod.py $NAMESPACE \
+python $CICD_ROOT/iqe_pod/create_iqe_pod.py $NAMESPACE \
     -e IQE_PLUGINS=$IQE_PLUGINS \
     -e IQE_MARKER_EXPRESSION=$IQE_MARKER_EXPRESSION \
     -e IQE_FILTER_EXPRESSION=$IQE_FILTER_EXPRESSION \
     -e ENV_FOR_DYNACONF=smoke \
     -e NAMESPACE=$NAMESPACE
 
-oc cp -n $NAMESPACE iqe_pod/iqe_runner.sh $IQE_POD_NAME:/iqe_venv/iqe_runner.sh
+oc cp -n $NAMESPACE $CICD_ROOT/iqe_pod/iqe_runner.sh $IQE_POD_NAME:/iqe_venv/iqe_runner.sh
 oc exec $IQE_POD_NAME -n $NAMESPACE -- bash /iqe_venv/iqe_runner.sh
 
 oc cp -n $NAMESPACE $IQE_POD_NAME:artifacts/ $WORKSPACE/artifacts

@@ -1,6 +1,4 @@
 #!/bin/bash
-# Change dir to the APP source code
-cd $APP_ROOT
 
 # Add you unit test specific code
 export GO111MODULE="on"
@@ -12,20 +10,17 @@ export GOPATH=/var/gopath
 # that has appropraite values and.  Store this file in your git repo.  Example can be found here:
 # https://github.com/RedHatInsights/insights-ingress-go/blob/master/cdappconfig.json
 ACG_CONFIG="$(pwd)/cdappconfig.json"  go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+result=$?
 
-# If the return code is not 0, exit with an error
-if [ $? != 0 ]; then
-    exit $?
-else
-    # If your unit tests store junit xml results, you should store them in a file matching format `artifacts/junit-*.xml`
-    # If you have no junit file, use the below code to create a 'dummy' result file so Jenkins will not fail
-    mkdir -p artifacts
-    cat << EOF > artifacts/junit-dummy.xml
-    <testsuite tests="1">
-        <testcase classname="dummy" name="dummytest"/>
-    </testsuite>
+# Evaluate the test result.
+
+# If your unit tests store junit xml results, you should store them in a file matching format `artifacts/junit-*.xml`
+# If you have no junit file, use the below code to create a 'dummy' result file so Jenkins will not fail
+mkdir -p $WORKSPACE/artifacts
+cat << EOF > $WORKSPACE/artifacts/junit-dummy.xml
+<testsuite tests="1">
+    <testcase classname="dummy" name="dummytest"/>
+</testsuite>
 EOF
-fi
 
-# Make sure to 'cd -' at the end to return to the original directory
-cd -
+exit $result

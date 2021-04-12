@@ -12,19 +12,15 @@ IQE_MARKER_EXPRESSION="CHANGEME"  # This is the value passed to pytest -m
 IQE_FILTER_EXPRESSION=""  # This is the value passed to pytest -k
 
 # Install bonfire repo/initialize
-CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
-curl -s $CICD_URL/bootstrap.sh -o bootstrap.sh
-
-# The contents of the bootstrap script can be found here:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/bootstrap.sh
-# This script automates the install / config of bonfire, the DOCs covering this can be found:
-# https://internal.cloud.redhat.com/docs/devprod/ephemeral/01-onboarding/
-source bootstrap.sh  # checks out bonfire and changes to "cicd" dir...
+# This script automates the install / config of bonfire
+CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
+curl -s $CICD_URL/bootstrap.sh -o .cicd_bootstrap.sh && source .cicd_bootstrap.sh
 
 # The contents of build.sh can be found at:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/build.sh
 # This script is used to build the image that is used in the PR Check
-source build.sh
+source $CICD_ROOT/build.sh
 
 # Your APP's unit tests should be run in the unit_test.sh script.  Two different
 # examples of unit_test.sh are provided in:
@@ -43,11 +39,11 @@ source $APP_ROOT/unit_test.sh
 # This script is used to deploy the ephemeral environment for smoke tests.
 # The manual steps for this can be found in:
 # https://internal.cloud.redhat.com/docs/devprod/ephemeral/02-deploying/
-source deploy_ephemeral_env.sh
+source $CICD_ROOT/deploy_ephemeral_env.sh
 
 # The contents of this script can be found at:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/smoke_test.sh
 # This script is used to run the smoke tests for a given APP.  The ENV VARs are
 # defined at the top in the "Options that must be configured by app owner" section
 # will control the behavior of the test.
-source smoke_test.sh
+source $CICD_ROOT/smoke_test.sh

@@ -1,4 +1,4 @@
-source _common_deploy_logic.sh
+source $CICD_ROOT/_common_deploy_logic.sh
 
 # Deploy k8s resources for app and its dependencies (use insights-stage instead of insights-production for now)
 # -> use this PR as the template ref when downloading configurations for this component

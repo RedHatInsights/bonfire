@@ -10,7 +10,7 @@ from tabulate import tabulate
 
 import bonfire.config as conf
 from bonfire.qontract import get_apps_config
-from bonfire.openshift import apply_config, oc_login, wait_for_all_resources
+from bonfire.openshift import apply_config, oc_login, wait_for_all_resources, wait_for_db_resources
 from bonfire.utils import split_equals
 from bonfire.local_config import process_local_config
 from bonfire.namespaces import (
@@ -76,8 +76,11 @@ def _reserve_namespace(duration, retries, namespace=None):
     return ns.name
 
 
-def _wait_on_namespace_resources(namespace, timeout):
-    time_taken = wait_for_all_resources(namespace, timeout)
+def _wait_on_namespace_resources(namespace, timeout, db_only=False):
+    if db_only:
+        time_taken = wait_for_db_resources(namespace, timeout)
+    else:
+        time_taken = wait_for_all_resources(namespace, timeout)
     if time_taken >= timeout:
         _error("Timed out waiting for resources; exiting")
 
@@ -115,7 +118,7 @@ _ns_reserve_options = [
     ),
 ]
 
-_ns_wait_options = [
+_common_ns_wait_options = [
     click.option(
         "--timeout",
         "-t",
@@ -234,10 +237,16 @@ def _cmd_namespace_release(namespace):
 
 @namespace.command("wait-on-resources")
 @click.argument("namespace", required=True, type=str)
-@common_options(_ns_wait_options)
-def _cmd_namespace_wait_on_resources(namespace, timeout):
+@click.option(
+    "--db-only",
+    is_flag=True,
+    default=False,
+    help="Only wait for DB resources owned by ClowdApps to be ready",
+)
+@common_options(_common_ns_wait_options)
+def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     """Wait for rolled out resources to be ready in namespace"""
-    _wait_on_namespace_resources(namespace, timeout)
+    _wait_on_namespace_resources(namespace, timeout, db_only=db_only)
 
 
 @namespace.command("prepare", hidden=True)
@@ -304,7 +313,7 @@ def _cmd_config_get(
     default=None,
 )
 @common_options(_ns_reserve_options)
-@common_options(_ns_wait_options)
+@common_options(_common_ns_wait_options)
 def _cmd_config_deploy(
     apps,
     get_dependencies,
