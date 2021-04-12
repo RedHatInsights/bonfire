@@ -15,7 +15,7 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 # temporarily pin bonfire for v1.0 migration
-pip install --upgrade pip setuptools wheel 'crc-bonfire>=v0.2.0<v1.0.0'
+pip install --upgrade pip setuptools wheel 'crc-bonfire>=v0.2.0,<v1.0.0'
 
 # clone repo to download cicd scripts
 git clone https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
