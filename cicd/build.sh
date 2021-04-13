@@ -25,6 +25,11 @@ if [[ -z "$RH_REGISTRY_USER" || -z "$RH_REGISTRY_TOKEN" ]]; then
     exit 1
 fi
 
+if [ ! -f "$APP_ROOT/Dockerfile" ]; then
+    echo "ERROR: No Dockerfile found"
+    exit 1
+fi
+echo "LABEL quay.expires-after=3d" >> $APP_ROOT/Dockerfile  # tag expires in 3 days
 
 DOCKER_CONF="$PWD/.docker"
 mkdir -p "$DOCKER_CONF"
