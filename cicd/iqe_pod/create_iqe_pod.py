@@ -65,18 +65,7 @@ def _build_test_conf(env_parser):
             }
         }
 
-    if env_parser.app_present("ingress"):
-        env_conf["INGRESS"] = {
-            "service_objects": {
-                "api_v1": {
-                    "config": {
-                        "hostname": env_parser.get_hostname("ingress", "ingress-service"),
-                        "port": env_parser.get_port("ingress", "ingress-service"),
-                        "scheme": "http",
-                    }
-                }
-            }
-        }
+    # ingress configuration is now present in the plugin's settings.default.yaml
 
     # host-inventory configuration is now present in the plugin's settings.default.yaml
 
