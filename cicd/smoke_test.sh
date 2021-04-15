@@ -13,7 +13,7 @@ SA=$(oc get -n $NAMESPACE sa iqe --ignore-not-found -o jsonpath='{.metadata.name
 if [ -z "$SA" ]; then
     oc create -n $NAMESPACE sa iqe
 fi
-oc policy -n $NAMESPACE add-role-to-user edit system:serviceaccounts:$NAMESPACE:iqe
+oc policy -n $NAMESPACE add-role-to-user edit system:serviceaccount:$NAMESPACE:iqe
 oc secrets -n $NAMESPACE link iqe quay-cloudservices-pull --for=pull,mount
 
 python $CICD_ROOT/iqe_pod/create_iqe_pod.py $NAMESPACE \
