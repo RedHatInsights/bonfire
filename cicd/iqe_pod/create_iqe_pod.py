@@ -53,6 +53,9 @@ def _build_test_conf(env_parser):
     env_name = "clowder_smoke"
     env_conf = conf[env_name] = {}
 
+    # disable the 'new' env parser built into the framework
+    env_conf["VALUE_GETTERS"]["env_parser"]["enabled"] = False
+
     if env_parser.app_present("host-inventory"):
         env_conf["MQ"] = {
             "service_objects": {
