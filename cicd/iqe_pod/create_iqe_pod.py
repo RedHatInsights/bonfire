@@ -78,40 +78,9 @@ def _build_test_conf(env_parser):
             }
         }
 
-    if env_parser.app_present("host-inventory"):
-        env_conf["HOST_INVENTORY"] = {
-            # todo: potentially look these deployment names up dynamically?
-            # but we know their name at the moment is "app name" + "deployment name"
-            "inventory_mq_dc_name": "host-inventory-inventory-mq-p1",
-            "inventory_api_dc_name": "host-inventory-service",
-            "kafka": {
-                "ingress_topic": env_parser.get_kafka_topic(
-                    "host-inventory", "platform.inventory.host-ingress"
-                ),
-                "events_topic": env_parser.get_kafka_topic(
-                    "host-inventory", "platform.inventory.events"
-                ),
-                "egress_timeout": 30,
-            },
-            "service_objects": {
-                "api": {
-                    "config": {
-                        "hostname": env_parser.get_hostname(
-                            "host-inventory", "host-inventory-service"
-                        ),
-                        "port": env_parser.get_port("host-inventory", "host-inventory-service"),
-                        "scheme": "http",
-                    }
-                }
-            },
-            "db": {
-                "hostname": env_parser.get_db_config("host-inventory").hostname,
-                "database": env_parser.get_db_config("host-inventory").name,
-                "username": env_parser.get_db_config("host-inventory").username,
-                "password": env_parser.get_db_config("host-inventory").password,
-                "port": env_parser.get_db_config("host-inventory").port,
-            },
-        }
+
+    # host-inventory configuration is now present in the plugin's settings.default.yaml
+
 
     if env_parser.app_present("marketplace"):
         mp_storage_cfg = env_parser.get_storage_config("marketplace")
