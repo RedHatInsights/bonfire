@@ -78,9 +78,7 @@ def _build_test_conf(env_parser):
             }
         }
 
-
     # host-inventory configuration is now present in the plugin's settings.default.yaml
-
 
     if env_parser.app_present("marketplace"):
         mp_storage_cfg = env_parser.get_storage_config("marketplace")
