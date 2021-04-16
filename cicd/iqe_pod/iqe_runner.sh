@@ -31,8 +31,10 @@ PLUGIN_ARRAY=${IQE_PLUGINS//,/ }
 set +e  # test pass/fail should be determined by analyzing the junit xml artifacts left in the pod
 
 for plugin in $PLUGIN_ARRAY; do
+    _marker=""
+    [ -n "${IQE_MARKER_EXPRESSION}" ] && _marker="and (${IQE_MARKER_EXPRESSION})"
     # run tests marked for 'parallel'
-    marker="parallel and (${IQE_MARKER_EXPRESSION})"
+    marker="parallel ${_marker}"
     iqe tests plugin ${plugin} \
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-parallel.xml \
         -m "${marker}" \
@@ -41,7 +43,7 @@ for plugin in $PLUGIN_ARRAY; do
         --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-parallel.log 2>&1
 
     # run non-parallel tests in sequence
-    marker="not parallel and (${IQE_MARKER_EXPRESSION})"
+    marker="not parallel ${_marker}"
     iqe tests plugin ${plugin} \
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-sequential.xml \
         -m "${marker}" \
