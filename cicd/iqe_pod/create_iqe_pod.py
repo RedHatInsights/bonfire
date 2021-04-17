@@ -53,17 +53,7 @@ def _build_test_conf(env_parser):
     env_name = "clowder_smoke"
     env_conf = conf[env_name] = {}
 
-    if env_parser.app_present("host-inventory"):
-        env_conf["MQ"] = {
-            "service_objects": {
-                "kafka": {
-                    "config": {
-                        "hostname": env_parser.get_kafka_hostname("host-inventory"),
-                        "port": env_parser.get_kafka_port("host-inventory"),
-                    }
-                }
-            }
-        }
+    # mq plugin configuration is now present in the plugin's settings.default.yaml
 
     # ingress configuration is now present in the plugin's settings.default.yaml
 
@@ -146,18 +136,6 @@ def _build_test_conf(env_parser):
                             "automation-analytics", "automation-analytics-api-fastapi-v2"
                         ),
                         "scheme": "http",
-                    }
-                }
-            }
-        }
-
-    if env_parser.app_present("playbook-dispatcher"):
-        env_conf["MQ"] = {
-            "service_objects": {
-                "kafka": {
-                    "config": {
-                        "hostname": env_parser.get_kafka_hostname("playbook-dispatcher"),
-                        "port": env_parser.get_kafka_port("playbook-dispatcher"),
                     }
                 }
             }
