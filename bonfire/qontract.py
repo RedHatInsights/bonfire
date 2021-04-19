@@ -304,7 +304,11 @@ def _get_processed_items(
         # set IMAGE_TAG to be the reference env's IMAGE_TAG
         p["IMAGE_TAG"] = ref_target.get("parameters", {}).get("IMAGE_TAG")
         if not p.get("IMAGE_TAG"):
-            p.update({"IMAGE_TAG": "latest" if template_ref == "master" else template_ref[:7]})
+            if template_ref == "master" or template_ref == "main":
+                image_tag = "latest"
+            else:
+                image_tag = template_ref[:7]
+            p.update({"IMAGE_TAG": image_tag})
             log.debug(
                 "%s -- no IMAGE_TAG found on ref target, assuming tag '%s' based on template ref",
                 _format_app_resource(app, resource_name, saas_file),
