@@ -396,7 +396,7 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
         apps_config = get_local_apps(config, fetch_remote=True)
 
     if ref_env:
-        sub_refs(apps_config, ref_env)
+        apps_config = sub_refs(apps_config, ref_env)
 
     return apps_config
 

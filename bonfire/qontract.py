@@ -273,6 +273,14 @@ def sub_refs(apps, ref_env_name):
                 ref_image_tag = ref_component["parameters"].get("IMAGE_TAG")
                 if ref_image_tag:
                     final_component["parameters"]["IMAGE_TAG"] = ref_image_tag
+                log.debug(
+                    "app: '%s' component: '%s' -- using ref from env '%s': %s%s",
+                    app_name,
+                    component_name,
+                    ref_env_name,
+                    final_component["ref"],
+                    f", IMAGE_TAG: {ref_image_tag}" if ref_image_tag else "",
+                )
             else:
                 log.debug(
                     "app: '%s' component: '%s' -- no deploy cfg for env '%s', using ref 'master'",
