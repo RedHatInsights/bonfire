@@ -5,6 +5,7 @@ source ${CICD_ROOT}/_common_deploy_logic.sh
 # -> use this PR's newly built image in the deployed configurations
 result=$(bonfire deploy \
     ${APP_NAME} \
+    --source=appsre \
     --ref-env insights-stage \
     --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag ${IMAGE}=${IMAGE_TAG})

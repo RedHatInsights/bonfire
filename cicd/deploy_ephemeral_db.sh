@@ -18,6 +18,7 @@ NAMESPACE=$(bonfire namespace reserve)
 # TODO: add code to bonfire to deploy an app if it is defined in 'sharedAppDbName' on the ClowdApp
 bonfire process \
     $APP_NAME \
+    --source=appsre \
     --ref-env insights-stage \
     --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag $IMAGE=$IMAGE_TAG \
