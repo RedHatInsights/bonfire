@@ -43,7 +43,6 @@ objects:
 parameters:
 - name: NAMESPACE
   description: Namespace that ClowdEnvironment components will be deployed to
-  required: true
 - name: ENV_NAME
   description: Name of the ClowdEnvironment
   required: true
