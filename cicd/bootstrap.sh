@@ -2,8 +2,8 @@ set -exv
 
 export APP_ROOT=$(pwd)
 export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build's workspace
-export BONFIRE_ROOT=$WORKSPACE/bonfire
-export CICD_ROOT=$BONFIRE_ROOT/cicd
+export BONFIRE_ROOT=${WORKSPACE}/bonfire
+export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 export GIT_COMMIT=$(git rev-parse HEAD)
 
@@ -24,6 +24,6 @@ git clone https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 #### TEMPORARY
 cd $BONFIRE_ROOT
 git checkout local_enhancements
+cd -
 ####
 
-cd $CICD_ROOT
