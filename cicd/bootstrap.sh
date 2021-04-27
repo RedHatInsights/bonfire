@@ -14,8 +14,16 @@ export LC_ALL=en_US.utf-8
 python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
+### TEMPORARY
 pip install --upgrade pip setuptools wheel 'crc-bonfire==v1.0.0b10'
+###
 
 # clone repo to download cicd scripts
 git clone https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+
+#### TEMPORARY
+cd $BONFIRE_ROOT
+git checkout local_enhancements
+####
+
 cd $CICD_ROOT
