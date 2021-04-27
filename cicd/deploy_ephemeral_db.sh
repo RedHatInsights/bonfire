@@ -16,9 +16,9 @@ function kill_port_fwd {
 NAMESPACE=$(bonfire namespace reserve)
 # TODO: after move to bonfire v1.0, make sure to use '--no-get-dependencies' here
 # TODO: add code to bonfire to deploy an app if it is defined in 'sharedAppDbName' on the ClowdApp
-bonfire config get \
+bonfire process \
+    $APP_NAME \
     --ref-env insights-stage \
-    --app $APP_NAME \
     --set-template-ref $COMPONENT_NAME=$GIT_COMMIT \
     --set-image-tag $IMAGE=$IMAGE_TAG \
     --namespace $NAMESPACE | oc apply -f - -n $NAMESPACE
