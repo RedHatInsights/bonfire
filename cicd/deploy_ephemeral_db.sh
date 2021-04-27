@@ -1,7 +1,7 @@
 # Reserve a namespace, deploy your app without dependencies just to get a DB set up
 # Stores database env vars
 
-source $CICD_ROOT/_common_deploy_logic.sh
+source ${CICD_ROOT}/_common_deploy_logic.sh
 
 # the db that the unit test relies on can be set before 'source'ing this script via
 # DB_DEPLOYMENT_NAME -- by default it is '<ClowdApp name>-db'
@@ -19,8 +19,9 @@ NAMESPACE=$(bonfire namespace reserve)
 bonfire process \
     $APP_NAME \
     --ref-env insights-stage \
-    --set-template-ref $COMPONENT_NAME=$GIT_COMMIT \
+    --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag $IMAGE=$IMAGE_TAG \
+    --no-get-dependencies \
     --namespace $NAMESPACE | oc apply -f - -n $NAMESPACE
 
 bonfire namespace wait-on-resources $NAMESPACE --db-only
