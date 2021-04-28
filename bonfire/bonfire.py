@@ -552,7 +552,7 @@ def _cmd_config_deploy(
         if not match:
             _error(
                 f"could not find a ClowdEnvironment tied to ns '{ns}'.  Specify one with "
-                "'--clowd-env' or apply one with 'bonfire deploy-clowdenv'"
+                "'--clowd-env' or apply one with 'bonfire deploy-env'"
             )
         clowd_env = match["metadata"]["name"]
         log.debug("inferred clowd_env: '%s'", clowd_env)
