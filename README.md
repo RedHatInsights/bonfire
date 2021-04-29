@@ -39,7 +39,7 @@ configuration into a cluster and wait for environment resources to come up succe
 ### Using a local config
 
 To get up and running without needing to contact app-interface's `qontract-server`, you can utilize
-a local config file. `bonfire` ships with a [default config](resources/default_config.yaml) that
+a local config file. `bonfire` ships with a [default config](bonfire/resources/default_config.yaml) that
 should be enough to get started for most internal Red Hat employees. An internal repository holds
 application configurations for the cloud.redhat.com platform that are valid for use in ephemeral environments.
 
