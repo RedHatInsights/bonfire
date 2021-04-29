@@ -415,7 +415,6 @@ def get_namespaces_for_reconciler():
     log.debug(
         "namespaces found for env '%s': %s", conf.EPHEMERAL_ENV_NAME, ephemeral_namespace_names
     )
-    ephemeral_namespace_names.remove(conf.BASE_NAMESPACE_NAME)
     all_namespaces = get_json("project")["items"]
     log.debug(
         "all namespaces found on cluster: %s", [ns["metadata"]["name"] for ns in all_namespaces]
@@ -423,6 +422,9 @@ def get_namespaces_for_reconciler():
     ephemeral_namespaces = []
     for ns in all_namespaces:
         ns_name = ns["metadata"]["name"]
+        if ns_name == conf.BASE_NAMESPACE_NAME:
+            log.debug("ns '%s' is base namespace, will not reconcile it")
+            continue
         if ns_name not in ephemeral_namespace_names:
             log.debug(
                 "ns '%s' is not a member of env '%s', will not reconcile it",
