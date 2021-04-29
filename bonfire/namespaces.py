@@ -137,7 +137,7 @@ class Namespace:
 
     @property
     def available(self):
-        return self.owned_by_me or (not self.reserved and self.ready)
+        return not self.reserved and self.ready
 
     def update(self):
         patch = []
@@ -185,7 +185,13 @@ class Namespace:
         oc("patch", "namespace", self.name, type="json", p=json.dumps(patch))
 
 
-def get_namespaces(available_only=False, mine=False):
+def get_namespaces(available=False, mine=False):
+    """
+    Look up reservable namespaces in the cluster.
+
+    available (bool) -- return only namespaces that are not reserved
+    mine (bool) -- return only namespaces owned by current user
+    """
     all_namespaces = get_all_namespaces()
 
     ephemeral_namespaces = []
@@ -193,10 +199,8 @@ def get_namespaces(available_only=False, mine=False):
         ns = Namespace(namespace_data=ns)
         if not ns.is_reservable:
             continue
-        if mine:
-            if ns.owned_by_me:
-                ephemeral_namespaces.append(ns)
-        elif not available_only or ns.available:
+        get_all = not mine and not available
+        if get_all or (mine and ns.owned_by_me) or (available and ns.available):
             ephemeral_namespaces.append(ns)
 
     return ephemeral_namespaces
@@ -243,10 +247,13 @@ def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
     ns_name = specific_namespace if specific_namespace else ""
     log.info("attempt [%d] to reserve namespace %s", attempt, ns_name)
 
-    available_namespaces = get_namespaces(available_only=True)
-
     if specific_namespace:
+        # look up both available ns's and ns's owned by 'me' to allow for renewing reservation
+        available_namespaces = get_namespaces(available=True, mine=True)
         available_namespaces = [ns for ns in available_namespaces if ns.name == specific_namespace]
+    else:
+        # if a specific namespace was not requested, only look up available ones
+        available_namespaces = get_namespaces(available=True, mine=False)
 
     if not available_namespaces:
         log.info("all namespaces currently unavailable")
