@@ -50,7 +50,7 @@ OC_LOGIN_SERVER = os.getenv("OC_LOGIN_SERVER")
 
 # env vars that could modify behavior of the jenkins reconciler job
 BASE_NAMESPACE_NAME = os.getenv("BASE_NAMESPACE_NAME", "ephemeral-base")
-RESERVABLE_NAMESPACE_REGEX = os.getenv("RESERVABLE_NAMESPACE_REGEX", re.compile(r"ephemeral-\d+"))
+RESERVABLE_NAMESPACE_REGEX = re.compile(os.getenv("RESERVABLE_NAMESPACE_REGEX", r"ephemeral-\d+"))
 EPHEMERAL_ENV_NAME = os.getenv("EPHEMERAL_ENV_NAME", "insights-ephemeral")
 RECONCILE_TIMEOUT = os.getenv("RECONCILE_TIMEOUT", 180)
 ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")

@@ -16,4 +16,4 @@ export QONTRACT_PASSWORD=$APP_INTERFACE_PASSWORD
 
 oc login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
 
-bonfire namespace reconcile
+bonfire --debug namespace reconcile

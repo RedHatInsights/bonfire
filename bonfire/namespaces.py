@@ -412,15 +412,31 @@ def get_namespaces_for_reconciler():
     Query app-interface to get list of namespaces the reconciler operates on.
     """
     ephemeral_namespace_names = get_namespaces_for_env(conf.EPHEMERAL_ENV_NAME)
+    log.debug(
+        "namespaces found for env '%s': %s", conf.EPHEMERAL_ENV_NAME, ephemeral_namespace_names
+    )
     ephemeral_namespace_names.remove(conf.BASE_NAMESPACE_NAME)
     all_namespaces = get_json("project")["items"]
+    log.debug(
+        "all namespaces found on cluster: %s", [ns["metadata"]["name"] for ns in all_namespaces]
+    )
     ephemeral_namespaces = []
     for ns in all_namespaces:
-        if ns["metadata"]["name"] not in ephemeral_namespace_names:
+        ns_name = ns["metadata"]["name"]
+        if ns_name not in ephemeral_namespace_names:
+            log.debug(
+                "ns '%s' is not a member of env '%s', will not reconcile it",
+                ns_name,
+                conf.EPHEMERAL_ENV_NAME,
+            )
             continue
-        if not conf.RESERVABLE_NAMESPACE_REGEX.match(ns["metadata"]["name"]):
+        if not conf.RESERVABLE_NAMESPACE_REGEX.match(ns_name):
+            log.debug(
+                "ns '%s' does not match reservable namespace regex, will not reconcile it", ns_name
+            )
             continue
         ns = Namespace(namespace_data=ns)
+        ephemeral_namespaces.append(ns)
 
     return ephemeral_namespaces
 
