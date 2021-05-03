@@ -188,7 +188,7 @@ class TemplateProcessor:
         for app_component, value in self.template_ref_overrides.items():
             # TODO: remove split when app_name syntax is fully deprecated
             split = app_component.split("/")
-            if len(split) > 1:
+            if len(split) == 2:
                 _, component_name = split
             elif len(split) == 1:
                 component_name = split[0]
@@ -209,7 +209,7 @@ class TemplateProcessor:
         for param_path, value in self.param_overrides.items():
             # TODO: remove split when app_name syntax is fully deprecated
             split = param_path.split("/")
-            if len(split) > 2:
+            if len(split) == 3:
                 _, component_name, param_name = split
             elif len(split) == 2:
                 component_name, param_name = split
