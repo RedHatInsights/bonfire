@@ -52,10 +52,9 @@ jobs:
           python -m pip install pip --upgrade
           pip install -e .
           python -c "import pkg_resources; print(pkg_resources.get_distribution('crc-bonfire').version)"
-          python -c "import bonfire.config as conf"
-          python -c "from bonfire.local_config import process_local_config"
           which bonfire
           bonfire --help
+          bonfire config write-default
 
   package:
     name: ⚙️ Build and Verify Package
