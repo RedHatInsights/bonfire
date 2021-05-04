@@ -52,6 +52,14 @@ def main(debug):
         datefmt="%Y-%m-%d %H:%M:%S",
         level=logging.DEBUG if debug else logging.INFO,
     )
+
+    def custom_formatwarning(msg, *args, **kwargs):
+        # ignore everything except the message
+        return str(msg)
+
+    warnings.formatwarning = custom_formatwarning
+    warnings.simplefilter("default")
+    logging.captureWarnings(True)
     if conf.ENV_FILE:
         log.debug("using env file: %s", conf.ENV_FILE)
 
@@ -142,7 +150,7 @@ def _validate_set_template_ref(ctx, param, value):
                 if len(split) == 2:
                     warnings.warn(
                         (
-                            "<app>/<component>=<ref> syntax is deprecated for --set-template-ref, "
+                            "--set-template-ref: <app>/<component>=<ref> syntax is deprecated, "
                             "use <component>=<ref>"
                         ),
                         DeprecationWarning,
@@ -165,8 +173,8 @@ def _validate_set_parameter(ctx, param, value):
                 if len(split) == 3:
                     warnings.warn(
                         (
-                            "<app>/<component>/<param>=<value> syntax is deprecated for "
-                            "--set-parameter, use <component>/<param>=<value>"
+                            "--set-parameter: <app>/<component>/<param>=<value> syntax is "
+                            "deprecated, use <component>/<param>=<value>"
                         ),
                         DeprecationWarning,
                     )
