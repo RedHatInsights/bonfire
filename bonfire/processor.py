@@ -105,11 +105,11 @@ class TemplateProcessor:
     def _validate_app_config(self, apps_config):
         components_for_app = {}
 
-        for app_cfg in apps_config:
+        for app_name, app_cfg in apps_config.items():
             required_keys = ["name", "components"]
             missing_keys = [k for k in required_keys if k not in app_cfg]
             if missing_keys:
-                raise ValueError(f"app is missing required keys: {missing_keys}")
+                raise ValueError(f"app '{app_name}' is missing required keys: {missing_keys}")
 
             app_name = app_cfg["name"]
             if app_name in components_for_app:
@@ -164,11 +164,10 @@ class TemplateProcessor:
     def _get_app_config(self, app_name):
         if app_name not in self.apps_config:
             raise ValueError(f"app {app_name} not found in apps config")
-        app_cfg = self.apps_config[app_name]
-        return app_cfg
+        return self.apps_config[app_name]
 
     def _get_component_config(self, component_name):
-        for app_cfg in self.apps_config:
+        for _, app_cfg in self.apps_config.items():
             for component in app_cfg["components"]:
                 if component["name"] == component_name:
                     return component
@@ -289,7 +288,7 @@ class TemplateProcessor:
             for component_name in dependencies:
                 self._process_component(component_name)
 
-    def _process_app(self, app_name, component_name):
+    def _process_app(self, app_name):
         log.info("processing app '%s'", app_name)
         app_cfg = self._get_app_config(app_name)
         for component in app_cfg["components"]:
