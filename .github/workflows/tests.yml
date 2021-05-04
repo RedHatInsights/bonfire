@@ -54,6 +54,7 @@ jobs:
           python -c "import pkg_resources; print(pkg_resources.get_distribution('crc-bonfire').version)"
           which bonfire
           bonfire --help
+          bonfire config write-default
 
   package:
     name: ⚙️ Build and Verify Package
