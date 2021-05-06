@@ -1,3 +1,4 @@
+import copy
 import logging
 import json
 import yaml
@@ -84,6 +85,49 @@ class TemplateProcessor:
                 parsed_app_names.add(entry)
         return parsed_app_names
 
+    @staticmethod
+    def _find_dupe_components(components_for_app):
+        """Make sure no component is listed more than once across all apps."""
+        for app_name, components in components_for_app.items():
+            components_for_other_apps = copy.copy(components_for_app)
+            del components_for_other_apps[app_name]
+
+            for component in components:
+                found_in = [app_name]
+                for other_app_name, other_components in components_for_other_apps.items():
+                    if component in other_components:
+                        found_in.append(other_app_name)
+                if len(found_in) > 1:
+                    raise ValueError(
+                        f"component '{component}' is not unique, found in apps: {found_in}"
+                    )
+
+    def _validate_app_config(self, apps_config):
+        components_for_app = {}
+
+        for app_name, app_cfg in apps_config.items():
+            required_keys = ["name", "components"]
+            missing_keys = [k for k in required_keys if k not in app_cfg]
+            if missing_keys:
+                raise ValueError(f"app '{app_name}' is missing required keys: {missing_keys}")
+
+            app_name = app_cfg["name"]
+            if app_name in components_for_app:
+                raise ValueError(f"app with name '{app_name}' is not unique")
+            components_for_app[app_name] = []
+
+            for component in app_cfg.get("components", []):
+                required_keys = ["name", "host", "repo", "path"]
+                missing_keys = [k for k in required_keys if k not in component]
+                if missing_keys:
+                    raise ValueError(
+                        f"component on app {app_name} is missing required keys: {missing_keys}"
+                    )
+                comp_name = component["name"]
+                components_for_app[app_name].append(comp_name)
+
+        self._find_dupe_components(components_for_app)
+
     def __init__(
         self,
         apps_config,
@@ -96,6 +140,8 @@ class TemplateProcessor:
         remove_resources,
         single_replicas,
     ):
+        self._validate_app_config(apps_config)
+
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
         self.get_dependencies = get_dependencies
@@ -113,18 +159,20 @@ class TemplateProcessor:
             "items": [],
         }
 
-        self.processed_apps = set()
+        self.processed_components = set()
 
-    def _parse_app_config(self, app_name):
+    def _get_app_config(self, app_name):
         if app_name not in self.apps_config:
             raise ValueError(f"app {app_name} not found in apps config")
-        app_cfg = self.apps_config[app_name]
-        required_keys = ["name", "components"]
-        missing_keys = [k for k in required_keys if k not in app_cfg]
-        if missing_keys:
-            raise ValueError(f"app is missing required keys: {missing_keys}")
+        return self.apps_config[app_name]
 
-        return app_cfg
+    def _get_component_config(self, component_name):
+        for _, app_cfg in self.apps_config.items():
+            for component in app_cfg["components"]:
+                if component["name"] == component_name:
+                    return component
+        else:
+            raise ValueError(f"component with name '{component_name}' not found")
 
     def _sub_image_tags(self, items):
         content = json.dumps(items)
@@ -135,47 +183,53 @@ class TemplateProcessor:
                 log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
         return json.loads(content)
 
-    def _sub_ref(self, current_app_name, current_component_name, repo_file):
+    def _sub_ref(self, current_component_name, repo_file):
         for app_component, value in self.template_ref_overrides.items():
-            app_name, component_name = app_component.split("/")
-            if current_app_name == app_name and current_component_name == component_name:
+            # TODO: remove split when app_name syntax is fully deprecated
+            split = app_component.split("/")
+            if len(split) == 2:
+                _, component_name = split
+            elif len(split) == 1:
+                component_name = split[0]
+            else:
+                raise ValueError(
+                    f"invalid format for template ref override: {app_component}={value}"
+                )
+
+            if current_component_name == component_name:
                 log.info(
-                    "app: '%s' component: '%s' overriding template ref to '%s'",
-                    app_name,
+                    "component: '%s' overriding template ref to '%s'",
                     component_name,
                     value,
                 )
                 repo_file.ref = value
 
-    def _sub_params(self, current_app_name, current_component_name, params):
+    def _sub_params(self, current_component_name, params):
         for param_path, value in self.param_overrides.items():
-            try:
-                app_name, component_name, param_name = param_path.split("/")
-            except ValueError:
+            # TODO: remove split when app_name syntax is fully deprecated
+            split = param_path.split("/")
+            if len(split) == 3:
+                _, component_name, param_name = split
+            elif len(split) == 2:
+                component_name, param_name = split
+            else:
                 raise ValueError(f"invalid format for parameter override: {param_path}={value}")
-            if current_app_name == app_name and current_component_name == component_name:
+
+            if current_component_name == component_name:
                 log.info(
-                    "app: '%s' component: '%s' overriding param '%s' to '%s'",
-                    app_name,
+                    "component: '%s' overriding param '%s' to '%s'",
                     component_name,
                     param_name,
                     value,
                 )
                 params[param_name] = value
 
-    def _process_component(self, app_name, component):
-        required_keys = ["name", "host", "repo", "path"]
-        missing_keys = [k for k in required_keys if k not in component]
-        if missing_keys:
-            raise ValueError("component is missing required keys: {missing_keys}")
-
-        component_name = component["name"]
-        log.info("processing component %s", component_name)
-
+    def _get_component_items(self, component_name):
+        component = self._get_component_config(component_name)
         try:
             rf = RepoFile.from_config(component)
             # override template ref if requested
-            self._sub_ref(app_name, component_name, rf)
+            self._sub_ref(component_name, rf)
             commit, template_content = rf.fetch()
         except Exception:
             log.error("failed to fetch template file for %s", component_name)
@@ -191,7 +245,7 @@ class TemplateProcessor:
         params.update(component.get("parameters", {}))
 
         # override any specific parameters on this component if requested
-        self._sub_params(app_name, component_name, params)
+        self._sub_params(component_name, params)
 
         new_items = process_template(template, params)["items"]
 
@@ -205,7 +259,21 @@ class TemplateProcessor:
 
         return new_items
 
-    def _add_dependencies_to_config(self, app_name, new_items):
+    def _process_component(self, component_name):
+        if component_name not in self.processed_components:
+            log.info("processing component %s", component_name)
+            new_items = self._get_component_items(component_name)
+            self.k8s_list["items"].extend(new_items)
+
+            self.processed_components.add(component_name)
+
+            if self.get_dependencies:
+                # recursively process components to add config for dependent apps to self.k8s_list
+                self._add_dependencies_to_config(component_name, new_items)
+        else:
+            log.debug("component %s already processed", component_name)
+
+    def _add_dependencies_to_config(self, component_name, new_items):
         clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
         dependencies = {d for item in clowdapp_items for d in item["spec"].get("dependencies", [])}
 
@@ -215,30 +283,20 @@ class TemplateProcessor:
                 dependencies.add(od)
 
         if dependencies:
-            log.debug("found dependencies for app '%s': %s", app_name, list(dependencies))
+            log.debug("component '%s' has dependencies: %s", component_name, list(dependencies))
 
-        dep_items = []
-        dependencies = [d for d in dependencies if d not in self.processed_apps]
+        dependencies = [d for d in dependencies if d not in self.processed_components]
         if dependencies:
-            log.info("app '%s' dependencies %s not previously processed", app_name, dependencies)
-            items = self.process(app_names=dependencies)["items"]
-            dep_items.extend(items)
-
-        return dep_items
+            log.info("dependencies not previously processed: %s", dependencies)
+            for component_name in dependencies:
+                self._process_component(component_name)
 
     def _process_app(self, app_name):
         log.info("processing app '%s'", app_name)
-        app_cfg = self._parse_app_config(app_name)
+        app_cfg = self._get_app_config(app_name)
         for component in app_cfg["components"]:
-            new_items = self._process_component(app_name, component)
-            self.k8s_list["items"].extend(new_items)
-
-        self.processed_apps.add(app_name)
-
-        if self.get_dependencies:
-            # recursively call self.process to add config for dependent apps to self.k8s_list
-            items = self._add_dependencies_to_config(app_name, new_items)
-            self.k8s_list["items"].extend(items)
+            component_name = component["name"]
+            self._process_component(component_name)
 
     def process(self, app_names=None):
         if not app_names:

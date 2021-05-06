@@ -4,6 +4,7 @@ import click
 import json
 import logging
 import sys
+import warnings
 
 from tabulate import tabulate
 
@@ -51,6 +52,14 @@ def main(debug):
         datefmt="%Y-%m-%d %H:%M:%S",
         level=logging.DEBUG if debug else logging.INFO,
     )
+
+    def custom_formatwarning(msg, *args, **kwargs):
+        # ignore everything except the message
+        return str(msg)
+
+    warnings.formatwarning = custom_formatwarning
+    warnings.simplefilter("default")
+    logging.captureWarnings(True)
     if conf.ENV_FILE:
         log.debug("using env file: %s", conf.ENV_FILE)
 
@@ -136,10 +145,21 @@ def _validate_set_template_ref(ctx, param, value):
         if split_value:
             # check that values unpack properly
             for app_component, value in split_value.items():
-                app_name, component_name = app_component.split("/")
+                # TODO: remove once app name syntax fully deprecated
+                split = app_component.split("/")
+                if len(split) == 2:
+                    warnings.warn(
+                        (
+                            "--set-template-ref: <app>/<component>=<ref> syntax is deprecated, "
+                            "use <component>=<ref>"
+                        ),
+                        DeprecationWarning,
+                    )
+                elif len(split) > 2:
+                    raise ValueError
         return split_value
     except ValueError:
-        raise click.BadParameter("format must be '<app>/<component>=<ref>'")
+        raise click.BadParameter("format must be '<component>=<ref>'")
 
 
 def _validate_set_parameter(ctx, param, value):
@@ -148,10 +168,21 @@ def _validate_set_parameter(ctx, param, value):
         if split_value:
             # check that values unpack properly
             for param_path, value in split_value.items():
-                app_name, component_name, param_name = param_path.split("/")
+                # TODO: remove once app name syntax fully deprecated
+                split = param_path.split("/")
+                if len(split) == 3:
+                    warnings.warn(
+                        (
+                            "--set-parameter: <app>/<component>/<param>=<value> syntax is "
+                            "deprecated, use <component>/<param>=<value>"
+                        ),
+                        DeprecationWarning,
+                    )
+                elif len(split) < 2 or len(split) > 3:
+                    raise ValueError
         return split_value
     except ValueError:
-        raise click.BadParameter("format must be '<app>/<component>/<param>=<value>'")
+        raise click.BadParameter("format must be '<component>/<param>=<value>'")
 
 
 def _validate_set_image_tag(ctx, param, value):

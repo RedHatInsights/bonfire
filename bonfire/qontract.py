@@ -148,17 +148,59 @@ def _check_replace_other(other_params, this_params):
     return False
 
 
+def _add_component_if_priority_higher(
+    apps, app_name, component_name, env_name, saas_file, component, defined_multiple
+):
+    add_component = True
+    existing_match = _find_matching_component(apps, app_name, component_name)
+
+    if existing_match:
+        # this app/component is defined multiple times in the environment
+        # look at the parameters set on it to decide which definition to prioritize
+        defined_multiple.add((app_name, component_name))
+        other_params = existing_match["parameters"]
+        this_params = component["parameters"]
+        add_component = _check_replace_other(other_params, this_params)
+        if add_component:
+            log.debug(
+                "app: '%s' component: '%s' defined in saas file '%s' takes priority",
+                app_name,
+                component_name,
+                saas_file["path"],
+            )
+        else:
+            log.debug(
+                "app: '%s' component: '%s' defined in saas file '%s' has lower priority, skipped",
+                app_name,
+                component_name,
+                saas_file["path"],
+            )
+
+    if add_component:
+        apps[app_name]["name"] = app_name
+        apps[app_name]["components"].append(component)
+        log.debug(
+            "app: '%s' component: '%s' added for env '%s' using saas file: %s",
+            app_name,
+            component_name,
+            env_name,
+            saas_file["name"],
+        )
+
+
 def _add_component(apps, env, app_name, saas_file, resource_template, target, defined_multiple):
     component_name = resource_template["name"]
     env_name = env["name"]
-    sp = saas_file["path"]
+    saas_file_path = saas_file["path"]
 
     if app_name not in apps:
         apps[app_name] = {"name": app_name, "components": []}
 
     url = resource_template["url"]
     if "github" not in url and "gitlab" not in url:
-        raise ValueError(f"unknown host for resourceTemplate url '{url}' found in saas file '{sp}'")
+        raise ValueError(
+            f"unknown host for resourceTemplate url '{url}' found in saas file '{saas_file_path}'"
+        )
     host = "github" if "github" in url else "gitlab"
 
     org, repo = url.split("/")[-2:]
@@ -178,39 +220,9 @@ def _add_component(apps, env, app_name, saas_file, resource_template, target, de
         "parameters": p,
     }
 
-    add_component = True
-    existing_match = _find_matching_component(apps, app_name, component_name)
-    if existing_match:
-        # this app/component is defined multiple times in the environment
-        # look at the parameters set on it to decide which definition to prioritize
-        defined_multiple.add((app_name, component_name))
-        other_params = existing_match["parameters"]
-        this_params = p
-        add_component = _check_replace_other(other_params, this_params)
-        if add_component:
-            log.debug(
-                "app: '%s' component: '%s' defined in saas file '%s' takes priority",
-                app_name,
-                component_name,
-                sp,
-            )
-        else:
-            log.debug(
-                "app: '%s' component: '%s' defined in saas file '%s' has lower priority, skipped",
-                app_name,
-                component_name,
-                sp,
-            )
-
-    if add_component:
-        apps[app_name]["components"].append(component)
-        log.debug(
-            "app: '%s' component: '%s' added for env '%s' using saas file: %s",
-            app_name,
-            component_name,
-            env_name,
-            saas_file["name"],
-        )
+    _add_component_if_priority_higher(
+        apps, app_name, component_name, env_name, saas_file, component, defined_multiple
+    )
 
 
 def get_apps_for_env(env_name):
