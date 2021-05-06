@@ -260,15 +260,18 @@ class TemplateProcessor:
         return new_items
 
     def _process_component(self, component_name):
-        log.info("processing component %s", component_name)
-        new_items = self._get_component_items(component_name)
-        self.k8s_list["items"].extend(new_items)
+        if component_name not in self.processed_components:
+            log.info("processing component %s", component_name)
+            new_items = self._get_component_items(component_name)
+            self.k8s_list["items"].extend(new_items)
 
-        self.processed_components.add(component_name)
+            self.processed_components.add(component_name)
 
-        if self.get_dependencies:
-            # recursively process components to add config for dependent apps to self.k8s_list
-            self._add_dependencies_to_config(component_name, new_items)
+            if self.get_dependencies:
+                # recursively process components to add config for dependent apps to self.k8s_list
+                self._add_dependencies_to_config(component_name, new_items)
+        else:
+            log.debug("component %s already processed", component_name)
 
     def _add_dependencies_to_config(self, component_name, new_items):
         clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
