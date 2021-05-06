@@ -34,6 +34,24 @@ def _get_base_pod_cfg():
                     "tty": True,
                     "env": [{"name": "IQE_TESTS_LOCAL_CONF_PATH", "value": "/iqe_settings"}],
                     "volumeMounts": [{"mountPath": "/iqe_settings", "name": "iqe-settings-volume"}],
+                },
+                {
+                    "image": "quay.io/redhatqe/selenium-standalone",
+                    "imagePullPolicy": "Always",
+                    "name": "selenium",
+                    "resources": {
+                        "limits": {"cpu": "1", "memory": "2Gi"},
+                        "requests": {"cpu": "500m", "memory": "512Mi"},
+                    },
+                    "ports": [{
+                        "name": "vnc",
+                        "containerPort": 5999,
+                        "protocol": "TCP",
+                    }],
+                    "terminationMessagePolicy": "File",
+                    "stdin": True,
+                    "tty": True,
+                    "volumeMounts": [{"mountPath": "/iqe_settings", "name": "iqe-settings-volume"}],
                 }
             ],
             "imagePullSecrets": [{"name": "quay-cloudservices-pull"}],
@@ -53,6 +71,19 @@ def _build_test_conf(env_parser):
     env_name = "clowder_smoke"
     env_conf = conf[env_name] = {}
 
+    env_conf["main"] = {
+        "hostname": "front-end-aggregator-ephemeral-20.apps.c-rh-c-eph.8p0c.p1.openshiftapps.com",
+        "path": '/',
+        "api_path": "api",
+        "scheme": "https",
+        "default_user": "default",
+    }
+    env_conf['users'] = {
+        "default": {
+            "username": 'jdoe',
+            "password": 'redhat',
+        }
+    }
     # mq plugin configuration is now present in the plugin's settings.default.yaml
 
     # ingress configuration is now present in the plugin's settings.default.yaml
@@ -187,7 +218,7 @@ def _create_conf_secret(namespace):
         "metadata": {"name": SECRET_NAME},
         "data": {"settings.local.yaml": encoded_conf},
     }
-    oc("create", f="-", n=namespace, _in=json.dumps(secret))
+    oc("apply", f="-", n=namespace, _in=json.dumps(secret))
 
 
 def _create_pod(namespace, pod_name, env):
@@ -201,7 +232,7 @@ def _create_pod(namespace, pod_name, env):
             if val:
                 pod_env_vars.append({"name": key, "value": val})
 
-    oc("create", f="-", n=namespace, _in=json.dumps(pod))
+    oc("apply", f="-", n=namespace, _in=json.dumps(pod))
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
