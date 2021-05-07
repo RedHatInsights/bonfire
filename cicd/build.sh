@@ -42,7 +42,7 @@ if ! command -v podman &> /dev/null; then
 else
     AUTH_CONF_DIR="$(pwd)/.podman"
     mkdir -p $AUTH_CONF_DIR
-    export REGISTRY_AUTH_FILE=$AUTH_CONF_DIR
+    export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
     podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
     podman build -f $APP_ROOT/Dockerfile -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT
