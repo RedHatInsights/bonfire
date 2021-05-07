@@ -45,8 +45,6 @@ QONTRACT_BASE_URL = os.getenv(
 QONTRACT_USERNAME = os.getenv("QONTRACT_USERNAME", APP_INTERFACE_USERNAME or None)
 QONTRACT_PASSWORD = os.getenv("QONTRACT_PASSWORD", APP_INTERFACE_PASSWORD or None)
 QONTRACT_TOKEN = os.getenv("QONTRACT_TOKEN")
-OC_LOGIN_TOKEN = os.getenv("OC_LOGIN_TOKEN")
-OC_LOGIN_SERVER = os.getenv("OC_LOGIN_SERVER")
 
 # env vars that could modify behavior of the jenkins reconciler job
 BASE_NAMESPACE_NAME = os.getenv("BASE_NAMESPACE_NAME", "ephemeral-base")
