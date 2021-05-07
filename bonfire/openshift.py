@@ -12,8 +12,6 @@ from subprocess import Popen
 from ocviapy import export
 from wait_for import wait_for, TimedOutError
 
-import bonfire.config as conf
-
 log = logging.getLogger(__name__)
 
 # Resource types and their cli shortcuts
@@ -193,20 +191,6 @@ def oc(*args, **kwargs):
         else:
             if not kwargs.get("_silent"):
                 log.warning("Non-zero return code ignored")
-
-
-def oc_login():
-    if conf.OC_LOGIN_TOKEN and conf.OC_LOGIN_SERVER:
-        # use _silent so token is not logged
-        log.info("logging into cluster '%s'", conf.OC_LOGIN_SERVER)
-        oc(
-            "login",
-            token=conf.OC_LOGIN_TOKEN,
-            server=conf.OC_LOGIN_SERVER,
-            _silent=True,
-        )
-    # run 'oc version' so we see what server we're logged into
-    oc("version")
 
 
 # we will assume that 'oc whoami' will not change during execution of a single 'bonfire' command
@@ -624,19 +608,14 @@ def wait_for_clowd_env_target_ns(clowd_env_name):
 
 
 def get_all_namespaces():
-    # try to list OpenShift projects
-    try:
-        all_namespaces = get_json("project")["items"]
-    except ErrorReturnCode as err:
-        log.debug("hit error running 'oc get project': %s", err)
-        all_namespaces = []
+    project_resources = oc("api-resources", "--api-group=project.openshift.io", o="name")
+    log.info("")
 
-    # if that doesn't work, we might be on a k8s cluster, try to list namespaces
-    if not all_namespaces:
-        try:
-            all_namespaces = get_json("namespace")["items"]
-        except ErrorReturnCode as err:
-            log.debug("hit error running 'oc get namespace': %s", err)
-            all_namespaces = []
+    if str(project_resources).strip():
+        # we are on OpenShift, get projects
+        all_namespaces = get_json("project")["items"]
+    else:
+        # we are on k8s, get namespaces instead
+        all_namespaces = get_json("namespace")["items"]
 
     return all_namespaces

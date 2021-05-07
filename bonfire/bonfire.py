@@ -13,7 +13,6 @@ from bonfire.qontract import get_apps_for_env, sub_refs
 from bonfire.openshift import (
     apply_config,
     get_all_namespaces,
-    oc_login,
     wait_for_all_resources,
     wait_for_db_resources,
     find_clowd_env_for_ns,
@@ -549,8 +548,6 @@ def _cmd_config_deploy(
     requested_ns = namespace
     ns = None
 
-    oc_login()
-
     successfully_reserved_ns = False
     reservable_namespaces = get_namespaces()
 
@@ -651,8 +648,6 @@ def _cmd_process_clowdenv(namespace, clowd_env, template_file):
 @options(_timeout_option)
 def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
     """Process ClowdEnv template and deploy to a cluster"""
-    oc_login()
-
     clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
 
     log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
