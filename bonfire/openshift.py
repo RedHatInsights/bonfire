@@ -609,7 +609,6 @@ def wait_for_clowd_env_target_ns(clowd_env_name):
 
 def get_all_namespaces():
     project_resources = oc("api-resources", "--api-group=project.openshift.io", o="name")
-    log.info("")
 
     if str(project_resources).strip():
         # we are on OpenShift, get projects
