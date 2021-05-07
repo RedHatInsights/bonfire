@@ -139,6 +139,12 @@ class Namespace:
     def available(self):
         return not self.reserved and self.ready
 
+    def __str__(self):
+        return (
+            f"ns {self.name} (reservable: {self.is_reservable}, owned_by_me: {self.owned_by_me}, "
+            f"available: {self.available})"
+        )
+
     def update(self):
         patch = []
 
@@ -192,11 +198,13 @@ def get_namespaces(available=False, mine=False):
     available (bool) -- return only namespaces that are not reserved
     mine (bool) -- return only namespaces owned by current user
     """
-    all_namespaces = get_all_namespaces()
+    log.debug("get_namespaces(available=%s, mine=%s)", available, mine)
+    all_namespaces = [Namespace(namespace_data=ns) for ns in get_all_namespaces()]
+
+    log.debug("namespaces found:\n%s", "\n".join([str(n) for n in all_namespaces]))
 
     ephemeral_namespaces = []
     for ns in all_namespaces:
-        ns = Namespace(namespace_data=ns)
         if not ns.is_reservable:
             continue
         get_all = not mine and not available
@@ -248,6 +256,7 @@ def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
     log.info("attempt [%d] to reserve namespace %s", attempt, ns_name)
 
     if specific_namespace:
+        log.debug("specific namespace requested: %s", ns_name)
         # look up both available ns's and ns's owned by 'me' to allow for renewing reservation
         available_namespaces = get_namespaces(available=True, mine=True)
         available_namespaces = [ns for ns in available_namespaces if ns.name == specific_namespace]

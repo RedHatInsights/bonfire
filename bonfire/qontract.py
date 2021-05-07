@@ -309,7 +309,9 @@ def get_namespaces_for_env(environment_name):
     client = get_client()
 
     namespaces = client.get_env(environment_name)["namespaces"]
-    return list(namespaces)
+    results = list(namespaces)
+    log.debug("namespaces listed in qontract for environment '%s': %s", environment_name, results)
+    return results
 
 
 def get_secret_names_in_namespace(namespace_name):
