@@ -13,6 +13,7 @@ import bonfire.config as conf
 from bonfire.qontract import get_namespaces_for_env, get_secret_names_in_namespace
 from bonfire.openshift import (
     oc,
+    on_k8s,
     get_all_namespaces,
     get_json,
     copy_namespace_secrets,
@@ -133,6 +134,8 @@ class Namespace:
 
     @property
     def owned_by_me(self):
+        if on_k8s():
+            return True
         return self.requester_name == whoami()
 
     @property
