@@ -32,7 +32,8 @@ fi
 echo "LABEL quay.expires-after=3d" >> $APP_ROOT/Dockerfile  # tag expires in 3 days
 
 
-if ! command -v podman &> /dev/null; then
+if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
+    # on RHEL7, use docker
     DOCKER_CONF="$PWD/.docker"
     mkdir -p "$DOCKER_CONF"
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
@@ -40,6 +41,7 @@ if ! command -v podman &> /dev/null; then
     docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/Dockerfile
     docker --config="$DOCKER_CONF" push "${IMAGE}:${IMAGE_TAG}"
 else
+    # on RHEL8 or anything else, use podman
     AUTH_CONF_DIR="$(pwd)/.podman"
     mkdir -p $AUTH_CONF_DIR
     export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
