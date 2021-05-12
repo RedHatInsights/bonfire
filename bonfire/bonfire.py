@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 
 APP_SRE_SRC = "appsre"
 LOCAL_SRC = "local"
+NO_RESERVATION_SYS = "this cluster does not use a namespace reservation system"
 
 
 def _error(msg):
@@ -75,13 +76,61 @@ def config():
     pass
 
 
-def _reserve_namespace(duration, retries, namespace=None):
+def _warn_if_unsafe(namespace):
+    ns = Namespace(name=namespace)
+    if not ns.owned_by_me and not ns.available:
+        if not click.confirm(
+            "Namespace currently not ready or reserved by someone else.  Continue anyway?"
+        ):
+            click.echo("Aborting")
+            sys.exit(0)
+
+
+def _reserve_namespace(duration, retries, namespace):
+    log.info(
+        "reserving ephemeral namespace%s...",
+        f" '{namespace}'" if namespace else "",
+    )
+
     if namespace:
         _warn_if_unsafe(namespace)
+
     ns = reserve_namespace(duration, retries, namespace)
     if not ns:
         _error("unable to reserve namespace")
-    return ns.name
+
+    return ns
+
+
+def _get_target_namespace(duration, retries, namespace=None):
+    """Determine the namespace to deploy to.
+
+    Use ns reservation system if on a cluster that has reservable namespaces. Otherwise the user
+    must specify a namespace with '--namespace' and we assume they have ownership of it.
+
+    Returns tuple of:
+    (bool indicating whether ns reservation system was used, namespace name)
+    """
+    # check if we're on a cluster that has reservable namespaces
+    reservable_namespaces = get_namespaces()
+    if reservable_namespaces:
+        ns = _reserve_namespace(duration, retries, namespace)
+        return (True, ns.name)
+    else:
+        # we're not, user has to namespace to deploy to
+        if not namespace:
+            _error(NO_RESERVATION_SYS + ".  Use -n/--namespace to specify target namespace")
+
+        # make sure ns exists on the cluster
+        cluster_namespaces = get_all_namespaces()
+        for cluster_ns in cluster_namespaces:
+            if cluster_ns["metadata"]["name"] == namespace:
+                ns = namespace
+                break
+        else:
+            _error(f"namespace '{namespace}' not found on cluster")
+
+        return (False, ns)
 
 
 def _wait_on_namespace_resources(namespace, timeout, db_only=False):
@@ -95,16 +144,6 @@ def _wait_on_namespace_resources(namespace, timeout, db_only=False):
 
 def _prepare_namespace(namespace):
     add_base_resources(namespace)
-
-
-def _warn_if_unsafe(namespace):
-    ns = Namespace(name=namespace)
-    if not ns.owned_by_me and not ns.available:
-        if not click.confirm(
-            "Namespace currently not ready or reserved by someone else.  Continue anyway?"
-        ):
-            click.echo("Aborting")
-            sys.exit(0)
 
 
 _ns_reserve_options = [
@@ -341,7 +380,9 @@ def options(options_list):
 def _list_namespaces(available, mine):
     """Get list of ephemeral namespaces"""
     namespaces = get_namespaces(available=available, mine=mine)
-    if not namespaces:
+    if not available and not mine and not namespaces:
+        _error(NO_RESERVATION_SYS)
+    elif not namespaces:
         click.echo("no namespaces found")
     else:
         data = {
@@ -360,13 +401,18 @@ def _list_namespaces(available, mine):
 @click.argument("namespace", required=False, type=str)
 def _cmd_namespace_reserve(duration, retries, namespace):
     """Reserve an ephemeral namespace (specific or random)"""
-    click.echo(_reserve_namespace(duration, retries, namespace))
+    if not get_namespaces():
+        _error(NO_RESERVATION_SYS)
+    ns = _reserve_namespace(duration, retries, namespace)
+    click.echo(ns.name)
 
 
 @namespace.command("release")
 @click.argument("namespace", required=True, type=str)
 def _cmd_namespace_release(namespace):
     """Remove reservation from an ephemeral namespace"""
+    if not get_namespaces():
+        _error(NO_RESERVATION_SYS)
     _warn_if_unsafe(namespace)
     release_namespace(namespace)
 
@@ -546,33 +592,7 @@ def _cmd_config_deploy(
 ):
     """Process app templates and deploy them to a cluster"""
     requested_ns = namespace
-    ns = None
-
-    successfully_reserved_ns = False
-    reservable_namespaces = get_namespaces()
-
-    if reservable_namespaces:
-        # check if we're on a cluster that has reservable namespaces
-        log.info(
-            "reserving ephemeral namespace%s...",
-            f" '{requested_ns}'" if requested_ns else "",
-        )
-        ns = _reserve_namespace(duration, retries, requested_ns)
-        successfully_reserved_ns = True
-
-    else:
-        # we're not, user will have to specify namespace to deploy to
-        if not requested_ns:
-            _error("no reservable namespaces found on this cluster.  '--namespace' is required")
-
-        # make sure namespace exists on the cluster
-        cluster_namespaces = get_all_namespaces()
-        for cluster_ns in cluster_namespaces:
-            if cluster_ns["metadata"]["name"] == requested_ns:
-                ns = requested_ns
-                break
-        else:
-            _error(f"namespace '{requested_ns}' not found on cluster")
+    used_ns_reservation_system, ns = _get_target_namespace(duration, retries, requested_ns)
 
     if not clowd_env:
         # if no ClowdEnvironment name provided, see if a ClowdEnvironment is associated with this ns
@@ -612,7 +632,7 @@ def _cmd_config_deploy(
     except (Exception, KeyboardInterrupt):
         log.exception("hit unexpected error!")
         try:
-            if not no_release_on_fail and not requested_ns and successfully_reserved_ns:
+            if not no_release_on_fail and not requested_ns and used_ns_reservation_system:
                 # if we auto-reserved this ns, auto-release it on failure unless
                 # --no-release-on-fail was requested
                 log.info("releasing namespace '%s'", ns)
@@ -621,7 +641,7 @@ def _cmd_config_deploy(
             _error("deploy failed")
     else:
         log.info("successfully deployed to %s", ns)
-        print(ns)
+        click.echo(ns)
 
 
 def _process_clowdenv(target_namespace, env_name, template_file):

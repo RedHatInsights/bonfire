@@ -607,14 +607,23 @@ def wait_for_clowd_env_target_ns(clowd_env_name):
     ).out
 
 
-def get_all_namespaces():
-    project_resources = oc("api-resources", "--api-group=project.openshift.io", o="name")
+# assume that the result of this will not change during execution of a single 'bonfire' command
+@functools.lru_cache(maxsize=None, typed=False)
+def on_k8s():
+    """Detect whether this is a k8s or openshift cluster based on existence of projects."""
+    project_resources = oc(
+        "api-resources", "--api-group=project.openshift.io", o="name", _silent=True
+    )
 
     if str(project_resources).strip():
-        # we are on OpenShift, get projects
+        return False
+    return True
+
+
+def get_all_namespaces():
+    if not on_k8s():
         all_namespaces = get_json("project")["items"]
     else:
-        # we are on k8s, get namespaces instead
         all_namespaces = get_json("namespace")["items"]
 
     return all_namespaces
