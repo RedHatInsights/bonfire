@@ -32,13 +32,15 @@ function get_oc_events {
 function get_pod_logs {
     LOGS_DIR="$K8S_ARTIFACTS_DIR/logs"
     mkdir -p $LOGS_DIR
-    # get array of pod_name:container for all containers in all pods
-    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $NAMESPACE -o 'jsonpath={range .items[*]}{.metadata.name}{range .spec.containers[*]}{":"}{.name}{" "}'))
+    # get array of pod_name:container1,container2,..,containerN for all containers in all pods
+    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $NAMESPACE -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
     for pc in ${PODS_CONTAINERS[@]}; do
-	# https://stackoverflow.com/a/4444841
-	POD=${pc%%:*}
-	CONTAINER=${pc#*:}
-        oc logs $POD -c $CONTAINER -n $NAMESPACE > $LOGS_DIR/${POD}_${CONTAINER}.log || continue
+        # https://stackoverflow.com/a/4444841
+        POD=${pc%%:*}
+        CONTAINERS=${pc#*:}
+        for container in ${CONTAINERS//,/ }; do
+            oc logs $POD -c $container -n $NAMESPACE > $LOGS_DIR/${POD}_${container}.log || continue
+        done
     done
 }
 
