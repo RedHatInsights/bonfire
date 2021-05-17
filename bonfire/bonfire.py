@@ -261,8 +261,7 @@ _process_options = [
     ),
     click.option(
         "--set-template-ref",
-        "-t",
-        help="Override template ref for a component using format '<app>/<component>=<ref>'",
+        help="Override template ref for a component using format '<component>=<ref>'",
         multiple=True,
         callback=_validate_set_template_ref,
     ),
