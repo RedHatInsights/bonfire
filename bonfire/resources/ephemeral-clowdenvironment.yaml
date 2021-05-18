@@ -28,9 +28,11 @@ objects:
         mode: operator
         path: "/metrics"
       kafka:
-        namespace: default
-        clusterName: my-cluster
-        mode: local
+        cluster:
+          name: "kafka"
+        connect:
+          name: "kafka-connect"
+        mode: operator
       db:
         image: "registry.redhat.io/rhel8/postgresql-12:1-36"
         mode: local
