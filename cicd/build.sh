@@ -2,6 +2,7 @@
 
 # Env vars caller defines:
 #IMAGE="quay.io/myorg/myapp" -- docker image URI to push to
+#DOCKERFILE=Dockerfile.custom  -- dockerfile to use (optional)
 
 # Env vars set by bootstrap.sh:
 #IMAGE_TAG="abcd123" -- image tag to push to
@@ -15,6 +16,8 @@
 
 set -ex
 
+DOCKERFILE=${DOCKERFILE:="Dockerfile"}
+
 if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     echo "QUAY_USER and QUAY_TOKEN must be set"
     exit 1
@@ -25,11 +28,11 @@ if [[ -z "$RH_REGISTRY_USER" || -z "$RH_REGISTRY_TOKEN" ]]; then
     exit 1
 fi
 
-if [ ! -f "$APP_ROOT/Dockerfile" ]; then
-    echo "ERROR: No Dockerfile found"
+if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
+    echo "ERROR: No $DOCKERFILE found"
     exit 1
 fi
-echo "LABEL quay.expires-after=3d" >> $APP_ROOT/Dockerfile  # tag expires in 3 days
+echo "LABEL quay.expires-after=3d" >> $APP_ROOT/$DOCKERFILE  # tag expires in 3 days
 
 
 if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
@@ -38,7 +41,7 @@ if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; th
     mkdir -p "$DOCKER_CONF"
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
-    docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/Dockerfile
+    docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
     docker --config="$DOCKER_CONF" push "${IMAGE}:${IMAGE_TAG}"
 else
     # on RHEL8 or anything else, use podman
@@ -47,6 +50,6 @@ else
     export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
     podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
-    podman build -f $APP_ROOT/Dockerfile -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT
+    podman build -f $APP_ROOT/$DOCKERFILE -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT
     podman push "${IMAGE}:${IMAGE_TAG}"
 fi
