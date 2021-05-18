@@ -187,7 +187,7 @@ def _create_conf_secret(namespace):
         "metadata": {"name": SECRET_NAME},
         "data": {"settings.local.yaml": encoded_conf},
     }
-    oc("create", f="-", n=namespace, _in=json.dumps(secret))
+    oc("apply", f="-", n=namespace, _in=json.dumps(secret))
 
 
 def _create_pod(namespace, pod_name, env):
@@ -201,7 +201,7 @@ def _create_pod(namespace, pod_name, env):
             if val:
                 pod_env_vars.append({"name": key, "value": val})
 
-    oc("create", f="-", n=namespace, _in=json.dumps(pod))
+    oc("apply", f="-", n=namespace, _in=json.dumps(pod))
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
