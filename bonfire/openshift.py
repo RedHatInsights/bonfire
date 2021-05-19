@@ -15,40 +15,6 @@ from wait_for import wait_for, TimedOutError
 
 log = logging.getLogger(__name__)
 
-# Resource types and their cli shortcuts
-# Mostly listed here: https://docs.openshift.com/online/cli_reference/basic_cli_operations.html
-SHORTCUTS = {
-    "all": None,
-    "build": None,
-    "buildconfig": "bc",
-    "daemonset": "ds",
-    "deployment": "deploy",
-    "deploymentconfig": "dc",
-    "event": "ev",
-    "imagestream": "is",
-    "imagestreamtag": "istag",
-    "imagestreamimage": "isimage",
-    "job": None,
-    "limitrange": "limits",
-    "namespace": "ns",
-    "node": "no",
-    "pod": "po",
-    "project": "project",
-    "resourcequota": "quota",
-    "replicationcontroller": "rc",
-    "secrets": "secret",
-    "service": "svc",
-    "serviceaccount": "sa",
-    "statefulset": "sts",
-    "persistentvolume": "pv",
-    "persistentvolumeclaim": "pvc",
-    "configmap": "cm",
-    "replicaset": "rs",
-    "route": None,
-    "clowdenvironment": None,
-    "clowdapp": None,
-}
-
 
 # assume that the result of this will not change during execution of our app
 @functools.lru_cache(maxsize=None, typed=False)
@@ -75,7 +41,7 @@ def get_api_resources():
     for line in lines[1:]:
         shortnames = line[shortnames_start:shortnames_end].strip()
         resource = {
-            "name": line[name_start:name_end].strip() or None,
+            "name": line[name_start:name_end].strip().rstrip("s") or None,
             "shortnames": shortnames.split(",") if shortnames else [],
             "apigroup": line[apigroup_start:apigroup_end].strip() or None,
             "namespaced": line[namespaced_start:namespaced_end].strip() == "true",
@@ -89,13 +55,10 @@ def parse_restype(string):
     """
     Given a resource type or its shortcut, return the full resource type name.
     """
-    string_lower = string.lower()
-    if string_lower in SHORTCUTS:
-        return string_lower
-
-    for resource_name, shortcut in SHORTCUTS.items():
-        if string_lower == shortcut:
-            return resource_name
+    s = string.lower()
+    for r in get_api_resources():
+        if s in r["shortnames"] or s == r["name"]:
+            return r["name"]
 
     raise ValueError("Unknown resource type: {}".format(string))
 
@@ -230,7 +193,7 @@ def oc(*args, **kwargs):
                 log.warning("Non-zero return code ignored")
 
 
-# we will assume that 'oc whoami' will not change during execution of a single 'bonfire' command
+# we will assume that 'oc whoami' will not change during execution
 @functools.lru_cache(maxsize=None, typed=False)
 def whoami():
     name = oc("whoami", _silent=True).strip()
@@ -299,6 +262,7 @@ class StatusError(Exception):
     pass
 
 
+# resources we are able to parse the status of
 _CHECKABLE_RESOURCES = [
     "deploymentconfig",
     "deployment",
@@ -306,7 +270,21 @@ _CHECKABLE_RESOURCES = [
     "daemonset",
     "clowdapp",
     "clowdenvironment",
+    "kafka",
+    "kafkaconnect",
 ]
+
+
+def _available_checkable_resources():
+    """Returns resources we are able to parse status of that are present on the cluster."""
+    return [r["name"] for r in get_api_resources() if r["name"] in _CHECKABLE_RESOURCES]
+
+
+def _get_name_for_kind(kind):
+    for r in get_api_resources():
+        if r["kind"].lower() == kind.lower():
+            return r["name"]
+    raise ValueError(f"unable to find resource name for kind '{kind}'")
 
 
 def _check_status_for_restype(restype, json_data):
@@ -334,10 +312,8 @@ def _check_status_for_restype(restype, json_data):
         spec_replicas = json_data["spec"]["replicas"]
         available_replicas = status.get("availableReplicas", 0)
         updated_replicas = status.get("updatedReplicas", 0)
-        unavailable_replicas = status.get("unavailableReplicas", 1)
-        if unavailable_replicas == 0:
-            if available_replicas == spec_replicas and updated_replicas == spec_replicas:
-                return True
+        if available_replicas == spec_replicas and updated_replicas == spec_replicas:
+            return True
 
     elif restype == "statefulset":
         spec_replicas = json_data["spec"]["replicas"]
@@ -353,8 +329,14 @@ def _check_status_for_restype(restype, json_data):
         if status.get("phase").lower() == "running":
             return True
 
-    elif restype == "clowdenvironment" or restype == "clowdapp":
+    elif restype in ("clowdenvironment", "clowdapp"):
         return status.get("ready") is True
+
+    elif restype in ("kafka", "kafkaconnect"):
+        conditions = status.get("conditions", [])
+        for condition in conditions:
+            if condition.get("status") == "True" and condition.get("type") == "Ready":
+                return True
 
 
 def _wait_with_periodic_status_check(namespace, timeout, key, restype, name):
@@ -402,7 +384,7 @@ def wait_for_ready(namespace, restype, name, timeout=300, _result_dict=None):
         _result_dict[resource_name] = True or False
     """
     restype = parse_restype(restype)
-    key = "{}/{}".format(SHORTCUTS.get(restype) or restype, name)
+    key = "{}/{}".format(restype, name)
 
     if _result_dict is None:
         _result_dict = dict()
@@ -474,7 +456,7 @@ def wait_for_ready_threaded(namespace, restype_name_list, timeout=300):
 def _wait_for_resources(namespace, timeout, skip=None):
     skip = skip or []
     wait_for_list = []
-    for restype in _CHECKABLE_RESOURCES:
+    for restype in _available_checkable_resources():
         try:
             resources = get_json(restype, namespace=namespace)
         except ErrorReturnCode as err:
@@ -497,7 +479,7 @@ class ResourceOwnerWaiter:
         self.namespace = namespace
         self.owner_kind = owner_kind.lower()
         self.owner_name = owner_name.lower()
-        self._observed_resources = set()
+        self.observed_resources = dict()
         self._uid = None
 
     def _update_observed_resources(self, item):
@@ -506,21 +488,29 @@ class ResourceOwnerWaiter:
             owner_uid_matches = owner_ref["uid"] == self._uid
             if owner_kind_matches and owner_uid_matches:
                 kind = item["kind"].lower()
+                restype = _get_name_for_kind(kind)
                 name = item["metadata"]["name"]
-                resource = f"{kind}/{name}"
-                if resource not in self._observed_resources:
-                    self._observed_resources.add(resource)
+                resource_key = f"{restype}/{name}"
+                if resource_key not in self.observed_resources:
+                    self.observed_resources[resource_key] = {"ready": False}
                     log.info(
                         "found resource %s owned by %s/%s",
-                        resource,
+                        resource_key,
                         self.owner_kind,
                         self.owner_name,
                     )
 
+                # check if ready state has transitioned for this resource
+                if not self.observed_resources[resource_key]["ready"]:
+                    if _check_status_for_restype(restype, item):
+                        log.info("%s is ready!", resource_key)
+                        self.observed_resources[resource_key]["ready"] = True
+
     def _observe_owned_resources(self):
-        response = get_json("all", namespace=self.namespace)
-        for item in response.get("items", []):
-            self._update_observed_resources(item)
+        for restype in _available_checkable_resources():
+            response = get_json(restype, namespace=self.namespace)
+            for item in response.get("items", []):
+                self._update_observed_resources(item)
 
     def check_ready(self):
         response = get_json(self.owner_kind, name=self.owner_name, namespace=self.namespace)
