@@ -308,6 +308,11 @@ def _check_status_for_restype(restype, json_data):
     if not status:
         return False
 
+    generation = json_data["metadata"].get("generation")
+    status_generation = status.get("observedGeneration") or status.get("generation")
+    if generation is not None and generation != status_generation:
+        return False
+
     if restype == "deploymentconfig" or restype == "deployment":
         spec_replicas = json_data["spec"]["replicas"]
         available_replicas = status.get("availableReplicas", 0)
@@ -330,12 +335,12 @@ def _check_status_for_restype(restype, json_data):
             return True
 
     elif restype in ("clowdenvironment", "clowdapp"):
-        return status.get("ready") is True
+        return str(status.get("ready")).lower() == "true"
 
     elif restype in ("kafka", "kafkaconnect"):
         conditions = status.get("conditions", [])
-        for condition in conditions:
-            if condition.get("status") == "True" and condition.get("type") == "Ready":
+        for c in conditions:
+            if str(c.get("status")).lower() == "true" and c.get("type").lower() == "ready":
                 return True
 
 
