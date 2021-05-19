@@ -199,6 +199,8 @@ your own local copy of the app-interface API server.
 In `qontract-server`, run:
 ```
 npm install yarn
+yarn install
+yarn build
 make bundle APP_INTERFACE_PATH=/path/to/app-interface
 LOAD_METHOD=fs DATAFILES_FILE=bundle/bundle.json yarn run server
 ```
