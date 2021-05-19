@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 # Resource types and their cli shortcuts
 # Mostly listed here: https://docs.openshift.com/online/cli_reference/basic_cli_operations.html
 SHORTCUTS = {
+    "all": None,
     "build": None,
     "buildconfig": "bc",
     "daemonset": "ds",
@@ -262,7 +263,14 @@ class StatusError(Exception):
     pass
 
 
-_CHECKABLE_RESOURCES = ["deploymentconfig", "deployment", "statefulset", "daemonset"]
+_CHECKABLE_RESOURCES = [
+    "deploymentconfig",
+    "deployment",
+    "statefulset",
+    "daemonset",
+    "clowdapp",
+    "clowdenvironment",
+]
 
 
 def _check_status_for_restype(restype, json_data):
@@ -308,6 +316,9 @@ def _check_status_for_restype(restype, json_data):
     elif restype == "pod":
         if status.get("phase").lower() == "running":
             return True
+
+    elif restype == "clowdenvironment" or restype == "clowdapp":
+        return status.get("ready") is True
 
 
 def _wait_with_periodic_status_check(namespace, timeout, key, restype, name):
@@ -445,46 +456,62 @@ def _wait_for_resources(namespace, timeout, skip=None):
     return result, wait_for_list
 
 
-def _operator_resource_present(namespace, owner_kind):
-    response = get_json("deployment", namespace=namespace)
-    for item in response.get("items", []):
-        if item.get("metadata", {}).get("ownerReferences"):
-            if item["metadata"]["ownerReferences"][0]["kind"] == owner_kind:
-                return True
-    return False
+class ResourceOwnerWaiter:
+    def __init__(self, namespace, owner_kind, owner_name):
+        self.namespace = namespace
+        self.owner_kind = owner_kind.lower()
+        self.owner_name = owner_name.lower()
+        self._observed_resources = set()
+        self._uid = None
+
+    def _update_observed_resources(self, item):
+        for owner_ref in item["metadata"].get("ownerReferences", []):
+            owner_kind_matches = owner_ref["kind"].lower() == self.owner_kind
+            owner_uid_matches = owner_ref["uid"] == self._uid
+            if owner_kind_matches and owner_uid_matches:
+                kind = item["kind"].lower()
+                name = item["metadata"]["name"]
+                resource = f"{kind}/{name}"
+                if resource not in self._observed_resources:
+                    self._observed_resources.add(resource)
+                    log.info(
+                        "found resource %s owned by %s/%s",
+                        resource,
+                        self.owner_kind,
+                        self.owner_name,
+                    )
+
+    def _observe_owned_resources(self):
+        response = get_json("all", namespace=self.namespace)
+        for item in response.get("items", []):
+            self._update_observed_resources(item)
+
+    def check_ready(self):
+        response = get_json(self.owner_kind, name=self.owner_name, namespace=self.namespace)
+        self._uid = response["metadata"]["uid"]
+        self._observe_owned_resources()
+        return _check_status_for_restype(self.owner_kind, response)
+
+    def wait_for_ready(self, timeout):
+        log.info("waiting for %s/%s to be 'ready'", self.owner_kind, self.owner_name)
+        wait_for(
+            self.check_ready,
+            message=f"wait for {self.owner_kind}/{self.owner_name} to be 'ready'",
+            timeout=timeout,
+        )
 
 
-def _wait_for_clowdapp_resources(namespace, timeout):
-    log.info("Waiting for resources owned by 'ClowdApp' to appear")
-    return wait_for(
-        _operator_resource_present,
-        func_args=(namespace, "ClowdApp"),
-        message="wait for ClowdApp-owned resources to appear",
-        timeout=timeout,
-    )
+def _wait_for_operator_resources(namespace, timeout, wait_on_app=True):
+    clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
 
-
-def _operator_resources(namespace, timeout, wait_on_app=True):
-    log.info("Waiting for resources owned by 'ClowdEnvironment' to appear in ns '%s'", namespace)
-    wait_for(
-        _operator_resource_present,
-        func_args=(namespace, "ClowdEnvironment"),
-        message="wait for ClowdEnvironment-owned resources to appear",
-        timeout=timeout,
-    )
-    # now wait for everything in ns to be 'ready'
-    result, already_waited_on = _wait_for_resources(namespace, timeout)
-
-    # the first wait failed, so just return 'False' now
-    if not result:
-        return result
+    waiter = ResourceOwnerWaiter(namespace, "clowdenvironment", clowd_env_name)
+    waiter.wait_for_ready(timeout)
 
     if wait_on_app:
-        _wait_for_clowdapp_resources(namespace, timeout)
-        # now that ClowdApp resources showed up, again wait for everything new in ns to be 'ready'
-        result, _ = _wait_for_resources(namespace, timeout, already_waited_on)
-
-    return result
+        clowdapps = get_json("clowdapp", namespace=namespace)
+        for clowdapp in clowdapps["items"]:
+            waiter = ResourceOwnerWaiter(namespace, "clowdapp", clowdapp["metadata"]["name"])
+            waiter.wait_for_ready(timeout)
 
 
 def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):
@@ -494,8 +521,8 @@ def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):
         # only wait on ClowdApp if one was deployed
         wait_on_app = False
 
-    return_val, time_taken = wait_for(
-        _operator_resources,
+    _, time_taken = wait_for(
+        _wait_for_operator_resources,
         func_args=(namespace, timeout, wait_on_app),
         message="wait for all deployed resources to be ready",
         timeout=timeout,
@@ -503,8 +530,8 @@ def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):
     return time_taken
 
 
-def _specific_clowdapp_resources(namespace, resources_to_wait_for, timeout):
-    _wait_for_clowdapp_resources(namespace, timeout)
+def _specific_resources(namespace, resources_to_wait_for, timeout):
+    # TODO: wait for clowdapp to appear first?
     return wait_for_ready_threaded(namespace, resources_to_wait_for, timeout=timeout)
 
 
@@ -530,7 +557,7 @@ def wait_for_db_resources(namespace, timeout=300):
 
     # wrap the other wait_fors in 1 wait_for so overall timeout is honored
     _, time_taken = wait_for(
-        _specific_clowdapp_resources,
+        _specific_resources,
         func_args=(namespace, resources_to_wait_for, timeout),
         message="wait for db resources to be ready",
         timeout=timeout,
