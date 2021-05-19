@@ -1,6 +1,7 @@
 import functools
 import json
 import logging
+import re
 import threading
 import time
 
@@ -47,6 +48,41 @@ SHORTCUTS = {
     "clowdenvironment": None,
     "clowdapp": None,
 }
+
+
+# assume that the result of this will not change during execution of our app
+@functools.lru_cache(maxsize=None, typed=False)
+def get_api_resources():
+    output = oc("api-resources", cached=True, verbs="list", _silent=True).strip()
+    if not output:
+        return []
+
+    lines = output.split("\n")
+    # lines[0] is the table header, use it to figure out length of each column
+    groups = re.findall(r"(\w+\s+)", lines[0])
+
+    name_start = 0
+    name_end = len(groups[0])
+    shortnames_start = name_end
+    shortnames_end = name_end + len(groups[1])
+    apigroup_start = shortnames_end
+    apigroup_end = shortnames_end + len(groups[2])
+    namespaced_start = apigroup_end
+    namespaced_end = apigroup_end + len(groups[3])
+    kind_start = namespaced_end
+
+    resources = []
+    for line in lines[1:]:
+        shortnames = line[shortnames_start:shortnames_end].strip()
+        resource = {
+            "name": line[name_start:name_end].strip() or None,
+            "shortnames": shortnames.split(",") if shortnames else [],
+            "apigroup": line[apigroup_start:apigroup_end].strip() or None,
+            "namespaced": line[namespaced_start:namespaced_end].strip() == "true",
+            "kind": line[kind_start:].strip() or None,
+        }
+        resources.append(resource)
+    return resources
 
 
 def parse_restype(string):
@@ -638,11 +674,9 @@ def wait_for_clowd_env_target_ns(clowd_env_name):
 @functools.lru_cache(maxsize=None, typed=False)
 def on_k8s():
     """Detect whether this is a k8s or openshift cluster based on existence of projects."""
-    project_resources = oc(
-        "api-resources", "--api-group=project.openshift.io", o="name", _silent=True
-    )
+    project_resource = [r for r in get_api_resources() if r["name"] == "projects"]
 
-    if str(project_resources).strip():
+    if project_resource:
         return False
     return True
 
