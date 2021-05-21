@@ -250,7 +250,7 @@ class TemplateProcessor:
         new_items = process_template(template, params)["items"]
 
         # override the tags for all occurences of an image if requested
-        self._sub_image_tags(new_items)
+        new_items = self._sub_image_tags(new_items)
 
         if self.remove_resources:
             _remove_resource_config(new_items)
