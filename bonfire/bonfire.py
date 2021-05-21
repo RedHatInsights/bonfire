@@ -640,7 +640,7 @@ def _cmd_config_deploy(
         else:
             log.info("applying app configs...")
             apply_config(ns, apps_config)
-            log.info("waiting on resources...")
+            log.info("waiting on resources for max of %dsec...", timeout)
             _wait_on_namespace_resources(ns, timeout)
     except KeyboardInterrupt:
         log.error("Aborted by keyboard interrupt!")
@@ -691,6 +691,7 @@ def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
             # wait for Clowder to tell us what target namespace it created
             namespace = wait_for_clowd_env_target_ns(clowd_env)
 
+        log.info("waiting on resources for max of %dsec...", timeout)
         _wait_on_namespace_resources(namespace, timeout)
 
         clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]

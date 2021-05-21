@@ -275,8 +275,15 @@ _CHECKABLE_RESOURCES = [
 ]
 
 
-def _available_checkable_resources():
+def _available_checkable_resources(namespaced=False):
     """Returns resources we are able to parse status of that are present on the cluster."""
+    if namespaced:
+        return [
+            r["name"]
+            for r in get_api_resources()
+            if r["name"] in _CHECKABLE_RESOURCES and r["namespaced"]
+        ]
+
     return [r["name"] for r in get_api_resources() if r["name"] in _CHECKABLE_RESOURCES]
 
 
@@ -344,6 +351,14 @@ def _check_status_for_restype(restype, json_data):
                 return True
 
 
+def _get_resource_info(item):
+    kind = item["kind"].lower()
+    restype = _get_name_for_kind(kind)
+    name = item["metadata"]["name"]
+    key = f"{restype}/{name}"
+    return kind, restype, name, key
+
+
 class ResourceWaiter:
     def __init__(self, namespace, restype, name):
         self.namespace = namespace
@@ -361,13 +376,13 @@ class ResourceWaiter:
             )
 
     def _observe(self, item):
-        kind = item["kind"].lower()
-        restype = _get_name_for_kind(kind)
-        name = item["metadata"]["name"]
-        key = f"{restype}/{name}"
+        _, restype, _, key = _get_resource_info(item)
         if key not in self.observed_resources:
             self.observed_resources[key] = {"ready": False}
-        self.observed_resources[key]["ready"] = _check_status_for_restype(self.restype, item)
+        if not self.observed_resources[key]["ready"]:
+            if _check_status_for_restype(restype, item):
+                log.info("[%s] resource is ready!", key)
+                self.observed_resources[key]["ready"] = True
 
     def check_ready(self):
         response = get_json(self.restype, name=self.name, namespace=self.namespace)
@@ -387,18 +402,20 @@ class ResourceWaiter:
         return False
 
     def wait_for_ready(self, timeout):
-        log.info("[%s] waiting up to %dsec for resource to be 'ready'", self.key, timeout)
-
         self._time_last_logged = time.time()
         self._time_remaining = timeout
 
         try:
-            wait_for(
-                self._check_with_periodic_log,
-                message=f"wait for {self.key} to be 'ready'",
-                delay=5,
-                timeout=timeout,
-            )
+            # check for ready initially, only wait_for if we need to
+            log.debug("[%s] checking if 'ready'", self.key)
+            if not self.check_ready():
+                log.info("[%s] waiting up to %dsec for resource to be 'ready'", self.key, timeout)
+                wait_for(
+                    self._check_with_periodic_log,
+                    message=f"wait for {self.key} to be 'ready'",
+                    delay=5,
+                    timeout=timeout,
+                )
             return True
         except (StatusError, ErrorReturnCode) as err:
             log.error("[%s] hit error waiting for resource to be ready: %s", self.key, str(err))
@@ -413,10 +430,7 @@ class ResourceOwnerWaiter(ResourceWaiter):
             restype_matches = owner_ref["kind"].lower() == self.restype
             owner_uid_matches = owner_ref["uid"] == self._uid
             if restype_matches and owner_uid_matches:
-                kind = item["kind"].lower()
-                restype = _get_name_for_kind(kind)
-                name = item["metadata"]["name"]
-                resource_key = f"{restype}/{name}"
+                _, restype, _, resource_key = _get_resource_info(item)
                 if resource_key not in self.observed_resources:
                     self.observed_resources[resource_key] = {"ready": False}
                     log.info(
@@ -469,32 +483,62 @@ def wait_for_ready_threaded(waiters, timeout=300):
     return True
 
 
-def _wait_for_operator_resources(namespace, timeout, wait_on_app=True):
-    clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
+def _all_resources_ready(namespace, timeout):
+    already_waited_on = set()
 
+    # wait on ClowdEnvironment
+    start = time.time()
+
+    clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
     waiter = ResourceOwnerWaiter(namespace, "clowdenvironment", clowd_env_name)
     if not waiter.wait_for_ready(timeout):
         return False
 
-    if wait_on_app:
-        clowdapps = get_json("clowdapp", namespace=namespace)
-        waiters = []
-        for clowdapp in clowdapps["items"]:
-            waiter = ResourceOwnerWaiter(namespace, "clowdapp", clowdapp["metadata"]["name"])
-            waiters.append(waiter)
-        return wait_for_ready_threaded(waiters, timeout)
+    for key in waiter.observed_resources:
+        already_waited_on.add(key)
+
+    end = time.time()
+    elapsed = end - start
+    timeout = int(timeout - elapsed)
+
+    # wait on all ClowdApps
+    start = time.time()
+
+    waiters = []
+    clowdapps = get_json("clowdapp", namespace=namespace)
+    for clowdapp in clowdapps["items"]:
+        waiter = ResourceOwnerWaiter(namespace, "clowdapp", clowdapp["metadata"]["name"])
+        waiters.append(waiter)
+    if not wait_for_ready_threaded(waiters, timeout):
+        return False
+
+    for waiter in waiters:
+        for key in waiter.observed_resources:
+            already_waited_on.add(key)
+
+    end = time.time()
+    elapsed = end - start
+    timeout = int(timeout - elapsed)
+
+    # wait on anything else not covered by the above
+    waiters = []
+    for restype in _available_checkable_resources(namespaced=True):
+        response = get_json(restype, namespace=namespace)
+        for item in response.get("items", []):
+            _, restype, name, resource_key = _get_resource_info(item)
+            if resource_key not in already_waited_on:
+                waiter = ResourceWaiter(namespace, restype, name)
+                waiters.append(waiter)
+
+    return wait_for_ready_threaded(waiters, timeout)
 
 
-def wait_for_all_resources(namespace, timeout=300, wait_on_app=True):
+def wait_for_all_resources(namespace, timeout=300):
     # wrap the other wait_fors in 1 wait_for so overall timeout is honored
     # wait_for returns a tuple of the return code and the time taken
-    if len(get_json("clowdapp", namespace=namespace).get("items", [])) == 0:
-        # only wait on ClowdApp if one was deployed
-        wait_on_app = False
-
     wait_for(
-        _wait_for_operator_resources,
-        func_args=(namespace, timeout, wait_on_app),
+        _all_resources_ready,
+        func_args=(namespace, timeout),
         message="wait for all deployed resources to be ready",
         timeout=timeout,
     )
