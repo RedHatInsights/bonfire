@@ -7,6 +7,7 @@ import sys
 import warnings
 
 from tabulate import tabulate
+from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -135,11 +136,9 @@ def _get_target_namespace(duration, retries, namespace=None):
 
 def _wait_on_namespace_resources(namespace, timeout, db_only=False):
     if db_only:
-        time_taken = wait_for_db_resources(namespace, timeout)
+        wait_for_db_resources(namespace, timeout)
     else:
-        time_taken = wait_for_all_resources(namespace, timeout)
-    if time_taken >= timeout:
-        _error("Timed out waiting for resources; exiting")
+        wait_for_all_resources(namespace, timeout)
 
 
 def _prepare_namespace(namespace):
@@ -427,7 +426,11 @@ def _cmd_namespace_release(namespace):
 @options(_timeout_option)
 def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     """Wait for rolled out resources to be ready in namespace"""
-    _wait_on_namespace_resources(namespace, timeout, db_only=db_only)
+    try:
+        _wait_on_namespace_resources(namespace, timeout, db_only=db_only)
+    except TimedOutError as err:
+        log.error("Hit timeout error: %s", err)
+        _error("namespace wait timed out")
 
 
 @namespace.command("prepare", hidden=True)
@@ -604,6 +607,16 @@ def _cmd_config_deploy(
         clowd_env = match["metadata"]["name"]
         log.debug("inferred clowd_env: '%s'", clowd_env)
 
+    def _err_handler():
+        try:
+            if not no_release_on_fail and not requested_ns and used_ns_reservation_system:
+                # if we auto-reserved this ns, auto-release it on failure unless
+                # --no-release-on-fail was requested
+                log.info("releasing namespace '%s'", ns)
+                release_namespace(ns)
+        finally:
+            _error("deploy failed")
+
     try:
         log.info("processing app templates...")
         apps_config = _process(
@@ -626,20 +639,19 @@ def _cmd_config_deploy(
         else:
             log.info("applying app configs...")
             apply_config(ns, apps_config)
-            log.info("waiting on resources...")
+            log.info("waiting on resources for max of %dsec...", timeout)
             _wait_on_namespace_resources(ns, timeout)
-    except (Exception, KeyboardInterrupt):
+    except KeyboardInterrupt:
+        log.error("Aborted by keyboard interrupt!")
+        _err_handler()
+    except TimedOutError as err:
+        log.error("Hit timeout error: %s", err)
+        _err_handler()
+    except Exception:
         log.exception("hit unexpected error!")
-        try:
-            if not no_release_on_fail and not requested_ns and used_ns_reservation_system:
-                # if we auto-reserved this ns, auto-release it on failure unless
-                # --no-release-on-fail was requested
-                log.info("releasing namespace '%s'", ns)
-                release_namespace(ns)
-        finally:
-            _error("deploy failed")
+        _err_handler()
     else:
-        log.info("successfully deployed to %s", ns)
+        log.info("successfully deployed to namespace '%s'", ns)
         click.echo(ns)
 
 
@@ -667,21 +679,33 @@ def _cmd_process_clowdenv(namespace, clowd_env, template_file):
 @options(_timeout_option)
 def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
     """Process ClowdEnv template and deploy to a cluster"""
-    clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
+    try:
+        clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
 
-    log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
+        log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
 
-    apply_config(None, clowd_env_config)
+        apply_config(None, clowd_env_config)
 
-    if not namespace:
-        # wait for Clowder to tell us what target namespace it created
-        namespace = wait_for_clowd_env_target_ns(clowd_env)
+        if not namespace:
+            # wait for Clowder to tell us what target namespace it created
+            namespace = wait_for_clowd_env_target_ns(clowd_env)
 
-    _wait_on_namespace_resources(namespace, timeout)
+        log.info("waiting on resources for max of %dsec...", timeout)
+        _wait_on_namespace_resources(namespace, timeout)
 
-    clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
-    log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
-    print(namespace)
+        clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
+    except KeyboardInterrupt:
+        log.error("Aborted by keyboard interrupt!")
+        _error("deploy failed")
+    except TimedOutError as err:
+        log.error("Hit timeout error: %s", err)
+        _error("deploy failed")
+    except Exception:
+        log.exception("hit unexpected error!")
+        _error("deploy failed")
+    else:
+        log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
+        click.echo(namespace)
 
 
 @config.command("write-default")
