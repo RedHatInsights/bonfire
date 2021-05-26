@@ -272,6 +272,7 @@ _CHECKABLE_RESOURCES = [
     "clowdenvironment",
     "kafka",
     "kafkaconnect",
+    "pod",
 ]
 
 
@@ -285,6 +286,19 @@ def _available_checkable_resources(namespaced=False):
         ]
 
     return [r["name"] for r in get_api_resources() if r["name"] in _CHECKABLE_RESOURCES]
+
+
+def _resources_for_ns_wait():
+    """Only check "higher level" resource types when waiting on a namespace"""
+    resources = _available_checkable_resources(namespaced=True)
+    try:
+        resources.remove("pod")
+    except ValueError as err:
+        if "not in list" in str(err):
+            pass
+        else:
+            raise
+    return resources
 
 
 def _get_name_for_kind(kind):
@@ -522,7 +536,7 @@ def _all_resources_ready(namespace, timeout):
 
     # wait on anything else not covered by the above
     waiters = []
-    for restype in _available_checkable_resources(namespaced=True):
+    for restype in _resources_for_ns_wait():
         response = get_json(restype, namespace=namespace)
         for item in response.get("items", []):
             _, restype, name, resource_key = _get_resource_info(item)
