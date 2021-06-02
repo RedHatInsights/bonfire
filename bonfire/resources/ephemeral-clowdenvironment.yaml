@@ -31,6 +31,8 @@ objects:
         mode: operator
       kafka:
         mode: operator
+        # disable tls/auth for now until core apps are ready
+        enableLegacyStrimzi: true
       db:
         mode: local
       logging:
