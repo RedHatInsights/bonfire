@@ -55,6 +55,27 @@ APPS_QUERY = gql(
             }
           }
         }
+        saasFilesV2 {
+          path
+          name
+          parameters
+          resourceTemplates {
+            name
+            path
+            url
+            parameters
+            targets {
+              namespace {
+                name
+                cluster {
+                  name
+                }
+              }
+              ref
+              parameters
+            }
+          }
+        }
       }
     }
     """
@@ -238,7 +259,8 @@ def get_apps_for_env(env_name):
         if app["parentApp"] and app["parentApp"].get("name") != "insights":
             ignored_apps.add(app["name"])
             continue
-        for saas_file in app.get("saasFiles", []):
+        saas_files = app.get("saasFiles", []) + app.get("saasFilesV2", [])
+        for saas_file in saas_files:
             for resource_template in saas_file.get("resourceTemplates", []):
                 for target in resource_template.get("targets", []):
                     if target["namespace"]["name"] in env["namespaces"]:
