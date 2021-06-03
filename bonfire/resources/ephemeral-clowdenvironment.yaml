@@ -22,17 +22,18 @@ objects:
         port: 8000
         mode: operator
       featureFlags:
-        mode: none
+        mode: local
       metrics:
         port: 9000
-        mode: operator
         path: "/metrics"
+        prometheus:
+          deploy: true
+        mode: operator
       kafka:
-        namespace: default
-        clusterName: my-cluster
-        mode: local
+        mode: operator
+        # disable tls/auth for now until core apps are ready
+        enableLegacyStrimzi: true
       db:
-        image: "registry.redhat.io/rhel8/postgresql-12:1-36"
         mode: local
       logging:
         mode: none

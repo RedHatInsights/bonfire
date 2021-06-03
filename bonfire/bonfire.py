@@ -10,7 +10,7 @@ from tabulate import tabulate
 from wait_for import TimedOutError
 
 import bonfire.config as conf
-from bonfire.qontract import get_apps_for_env, sub_refs
+from bonfire.qontract import get_apps_for_env, sub_refs, get_secret_names_in_namespace
 from bonfire.openshift import (
     apply_config,
     get_all_namespaces,
@@ -142,7 +142,8 @@ def _wait_on_namespace_resources(namespace, timeout, db_only=False):
 
 
 def _prepare_namespace(namespace):
-    add_base_resources(namespace)
+    base_secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
+    add_base_resources(namespace, base_secret_names)
 
 
 _ns_reserve_options = [
