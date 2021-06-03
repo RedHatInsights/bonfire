@@ -276,16 +276,20 @@ _CHECKABLE_RESOURCES = [
 ]
 
 
+def _is_checkable(kind):
+    return kind.lower() in _CHECKABLE_RESOURCES
+
+
 def _available_checkable_resources(namespaced=False):
     """Returns resources we are able to parse status of that are present on the cluster."""
     if namespaced:
         return [
-            r["name"]
+            r["kind"].lower()
             for r in get_api_resources()
-            if r["name"] in _CHECKABLE_RESOURCES and r["namespaced"]
+            if _is_checkable(r["kind"]) and r["namespaced"]
         ]
 
-    return [r["name"] for r in get_api_resources() if r["name"] in _CHECKABLE_RESOURCES]
+    return [r["kind"].lower() for r in get_api_resources() if _is_checkable(r["kind"])]
 
 
 def _resources_for_ns_wait():
