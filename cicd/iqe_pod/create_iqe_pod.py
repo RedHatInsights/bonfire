@@ -61,6 +61,10 @@ def _build_test_conf(env_parser):
 
     if env_parser.app_present("marketplace"):
         mp_storage_cfg = env_parser.get_storage_config("marketplace")
+        if mp_storage_cfg.get('hostname', '') == '':
+            raise
+        if mp_storage_cfg.get('port', '') == '':
+            raise
         bucket = env_parser.get_bucket_config("marketplace", "marketplace-s3")
         env_conf["MARKETPLACE"] = {
             "aws_access_key_id": bucket.accessKey,
