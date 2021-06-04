@@ -18,6 +18,22 @@ objects:
         cpu: 30m
         memory: 128Mi
     providers:
+      testing:
+        # Level of access the testing pod has in the namespace
+        k8sAccessLevel: edit
+        # How much environment configuration the testing pod can see
+        configAccess: environment
+        iqe:
+          # Base image for iqe-tests
+          imageBase: "quay.io/cloudservices/iqe-tests"
+          # Resources the IQE pod spins up with
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 200m
+              memory: 256Mi
       web:
         port: 8000
         mode: operator
