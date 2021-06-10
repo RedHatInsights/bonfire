@@ -298,8 +298,12 @@ class TemplateProcessor:
         app_cfg = self._get_app_config(app_name)
         for component in app_cfg["components"]:
             component_name = component["name"]
+            log.debug("app '%s' has component '%s'", app_name, component_name)
             if self.component_filter and component_name not in self.component_filter:
-                log.debug("skipping component '%s'", component_name)
+                log.debug(
+                    "skipping component '%s', not found in --component filter", component_name
+                )
+                self.processed_components.add(component_name)
                 continue
             self._process_component(component_name)
 

@@ -2,7 +2,7 @@
 #APP_NAME="myapp"  # name of app-sre "application" folder this component lives in
 #COMPONENT_NAME="mycomponent"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 #IMAGE="quay.io/cloudservices/mycomponent"  # image that this application uses
-#COMPONENTS="component1 component2"  # components to deploy (optional)
+#COMPONENTS="component1 component2"  # specific components to deploy (optional, default: all)
 
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
@@ -72,5 +72,5 @@ if [ ! -z "$COMPONENTS" ]; then
     for c in $COMPONENTS; do
         options="$options --component $c"
     done
-    export COMPONENTS=$options
+    export COMPONENTS_ARG=$options
 fi

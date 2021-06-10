@@ -324,10 +324,10 @@ _process_options = [
         "--component",
         "-C",
         "component_filter",
-        help="Component that should be processed (default: all components)",
+        help="Specific component(s) that should be processed (default: all)",
         type=str,
         multiple=True,
-    )
+    ),
 ]
 
 
