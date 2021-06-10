@@ -504,22 +504,23 @@ def wait_for_ready_threaded(waiters, timeout=300):
 def _all_resources_ready(namespace, timeout):
     already_waited_on = set()
 
-    # wait on ClowdEnvironment
+    # wait on ClowdEnvironment, if there's one using this ns as its targetNamespace
     start = time.time()
 
-    clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
-    waiter = ResourceOwnerWaiter(namespace, "clowdenvironment", clowd_env_name)
-    if not waiter.wait_for_ready(timeout):
-        return False
+    clowd_env = find_clowd_env_for_ns(namespace)
+    if clowd_env:
+        waiter = ResourceOwnerWaiter(namespace, "clowdenvironment", clowd_env["metadata"]["name"])
+        if not waiter.wait_for_ready(timeout):
+            return False
 
-    for key in waiter.observed_resources:
-        already_waited_on.add(key)
+        for key in waiter.observed_resources:
+            already_waited_on.add(key)
 
     end = time.time()
     elapsed = end - start
     timeout = int(timeout - elapsed)
 
-    # wait on all ClowdApps
+    # wait on all ClowdApps in this namespace
     start = time.time()
 
     waiters = []
