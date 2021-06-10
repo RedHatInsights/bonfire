@@ -176,7 +176,13 @@ class RepoFile:
 
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
         response = requests.get(url, verify=self._gl_certfile)
-        response.raise_for_status()
+        if response.status_code == 404:
+            log.warning(
+                "http response 404 for url %s, checking for template in current working dir...", url
+            )
+            return self._fetch_local(os.getcwd())
+        else:
+            response.raise_for_status()
 
         return commit, response.content
 
@@ -191,16 +197,23 @@ class RepoFile:
             # look up the commit hash for this branch
             commit = self._get_gh_commit_hash()
 
-        response = requests.get(
-            GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
-        )
-        response.raise_for_status()
+        url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
+        response = requests.get(url)
+        if response.status_code == 404:
+            log.warning(
+                "http response 404 for url %s, checking for template in current working dir...", url
+            )
+            return self._fetch_local(os.getcwd())
+        else:
+            response.raise_for_status()
+
         return commit, response.content
 
-    def _fetch_local(self):
-        repodir = os.path.expanduser(self.repo)
-        cmd = f"git -C {repodir} rev-parse HEAD"
+    def _fetch_local(self, repo_dir=None):
+        if not repo_dir:
+            repo_dir = os.path.expanduser(self.repo)
+        cmd = f"git -C {repo_dir} rev-parse HEAD"
         commit = subprocess.check_output(shlex.split(cmd)).decode("ascii")
-        p = os.path.join(repodir, self.path.lstrip("/"))
+        p = os.path.join(repo_dir, self.path.lstrip("/"))
         with open(p) as fp:
             return commit, fp.read()
