@@ -320,6 +320,14 @@ _process_options = [
         help="Set replicas to '1' on all on ClowdApp configs (default: true)",
         default=True,
     ),
+    click.option(
+        "--component",
+        "-C",
+        "component_filter",
+        help="Component that should be processed (default: all components)",
+        type=str,
+        multiple=True,
+    )
 ]
 
 
@@ -504,6 +512,7 @@ def _process(
     local_config_path,
     remove_resources,
     single_replicas,
+    component_filter,
 ):
     apps_config = _get_apps_config(source, target_env, ref_env, local_config_path)
 
@@ -517,6 +526,7 @@ def _process(
         clowd_env,
         remove_resources,
         single_replicas,
+        component_filter,
     )
     return processor.process()
 
@@ -537,6 +547,7 @@ def _cmd_process(
     local_config_path,
     remove_resources,
     single_replicas,
+    component_filter,
 ):
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
@@ -554,6 +565,7 @@ def _cmd_process(
         local_config_path,
         remove_resources,
         single_replicas,
+        component_filter,
     )
     print(json.dumps(processed_templates, indent=2))
 
@@ -592,6 +604,7 @@ def _cmd_config_deploy(
     retries,
     timeout,
     no_release_on_fail,
+    component_filter,
 ):
     """Process app templates and deploy them to a cluster"""
     requested_ns = namespace
@@ -633,6 +646,7 @@ def _cmd_config_deploy(
             local_config_path,
             remove_resources,
             single_replicas,
+            component_filter,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:

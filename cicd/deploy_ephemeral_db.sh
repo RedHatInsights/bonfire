@@ -23,7 +23,8 @@ bonfire process \
     --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag $IMAGE=$IMAGE_TAG \
     --no-get-dependencies \
-    --namespace $NAMESPACE | oc apply -f - -n $NAMESPACE
+    --namespace $NAMESPACE \
+    $COMPONENTS | oc apply -f - -n $NAMESPACE
 
 bonfire namespace wait-on-resources $NAMESPACE --db-only
 

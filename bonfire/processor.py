@@ -139,6 +139,7 @@ class TemplateProcessor:
         clowd_env,
         remove_resources,
         single_replicas,
+        component_filter,
     ):
         self._validate_app_config(apps_config)
 
@@ -151,6 +152,7 @@ class TemplateProcessor:
         self.clowd_env = clowd_env
         self.remove_resources = remove_resources
         self.single_replicas = single_replicas
+        self.component_filter = component_filter
 
         self.k8s_list = {
             "kind": "List",
@@ -296,6 +298,9 @@ class TemplateProcessor:
         app_cfg = self._get_app_config(app_name)
         for component in app_cfg["components"]:
             component_name = component["name"]
+            if self.component_filter and component_name not in self.component_filter:
+                log.debug("skipping component '%s'", component_name)
+                continue
             self._process_component(component_name)
 
     def process(self, app_names=None):
