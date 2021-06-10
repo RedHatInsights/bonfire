@@ -303,7 +303,6 @@ class TemplateProcessor:
                 log.debug(
                     "skipping component '%s', not found in --component filter", component_name
                 )
-                self.processed_components.add(component_name)
                 continue
             self._process_component(component_name)
 
