@@ -50,7 +50,7 @@ QONTRACT_TOKEN = os.getenv("QONTRACT_TOKEN")
 BASE_NAMESPACE_NAME = os.getenv("BASE_NAMESPACE_NAME", "ephemeral-base")
 RESERVABLE_NAMESPACE_REGEX = re.compile(os.getenv("RESERVABLE_NAMESPACE_REGEX", r"ephemeral-\d+"))
 EPHEMERAL_ENV_NAME = os.getenv("EPHEMERAL_ENV_NAME", "insights-ephemeral")
-RECONCILE_TIMEOUT = os.getenv("RECONCILE_TIMEOUT", 300)
+RECONCILE_TIMEOUT = os.getenv("RECONCILE_TIMEOUT", 600)
 ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")
 
 
