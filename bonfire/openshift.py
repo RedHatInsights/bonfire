@@ -404,9 +404,11 @@ class ResourceWaiter:
 
     def check_ready(self):
         response = get_json(self.restype, name=self.name, namespace=self.namespace)
-        self._uid = response["metadata"]["uid"]
-        self._observe(response)
-        return all([r["ready"] is True for _, r in self.observed_resources.items()])
+        if response:
+            self._uid = response["metadata"]["uid"]
+            self._observe(response)
+            return all([r["ready"] is True for _, r in self.observed_resources.items()])
+        return False
 
     def _check_with_periodic_log(self):
         if self.check_ready():
