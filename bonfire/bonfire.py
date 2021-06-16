@@ -757,16 +757,31 @@ def _cmd_write_default_config(path):
 
 
 @options(_app_source_options)
+@click.option(
+    "--components/--no-components",
+    "list_components",
+    default=False,
+    help="List components contained within each app group",
+)
 @apps.command("list")
 def _cmd_apps_list(
     source,
     local_config_path,
     target_env,
+    list_components,
 ):
     """List names of all apps that are marked for deployment in given 'target_env'"""
-    log.info("")
     apps = _get_apps_config(source, target_env, None, local_config_path)
-    click.echo("\n" + "\n".join(sorted(apps.keys())))
+
+    print("")
+    sorted_keys = sorted(apps.keys())
+    for app_name in sorted_keys:
+        app_config = apps[app_name]
+        print(app_name)
+        if list_components:
+            component_names = sorted([c["name"] for c in app_config["components"]])
+            for component_name in component_names:
+                print(f" `-- {component_name}")
 
 
 if __name__ == "__main__":
