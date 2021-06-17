@@ -51,7 +51,7 @@ def get_local_apps(config, fetch_remote=True):
         # fetch apps from repo if appsFile is provided in config
         fetched_apps = {}
         if "appsFile" in config:
-            log.info("fetching remote apps file...")
+            log.info("local config has a remote 'appsFile' defined, fetching it...")
             fetched_apps = _fetch_apps_file(config)
 
         # override fetched apps with local apps if any were defined

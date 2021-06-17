@@ -77,6 +77,12 @@ def config():
     pass
 
 
+@main.group()
+def apps():
+    """Show information about deployable apps"""
+    pass
+
+
 def _warn_if_unsafe(namespace):
     ns = Namespace(name=namespace)
     if not ns.owned_by_me and not ns.available:
@@ -230,12 +236,7 @@ def _validate_set_image_tag(ctx, param, value):
         raise click.BadParameter("format must be '<image uri>=<tag>'")
 
 
-_process_options = [
-    click.argument(
-        "app_names",
-        required=True,
-        nargs=-1,
-    ),
+_app_source_options = [
     click.option(
         "--source",
         "-s",
@@ -252,6 +253,26 @@ _process_options = [
         ),
         default=None,
     ),
+    click.option(
+        "--target-env",
+        help=(
+            f"When using source={APP_SRE_SRC}, name of environment to fetch templates for"
+            f" (default: {conf.EPHEMERAL_ENV_NAME})"
+        ),
+        type=str,
+        default=conf.EPHEMERAL_ENV_NAME,
+    ),
+]
+
+
+_process_options = [
+    click.argument(
+        "app_names",
+        required=True,
+        nargs=-1,
+    ),
+    _app_source_options[0],
+    _app_source_options[1],
     click.option(
         "--set-image-tag",
         "-i",
@@ -290,6 +311,7 @@ _process_options = [
         type=str,
         default=None,
     ),
+    _app_source_options[2],
     click.option(
         "--target-env",
         help=(
@@ -466,6 +488,7 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
     config = conf.load_config(local_config_path)
 
     if source == APP_SRE_SRC:
+        log.info("fetching apps config using source: %s, target env: %s", source, target_env)
         if not target_env:
             _error("target env must be supplied for source '{APP_SRE_SRC}'")
         apps_config = get_apps_for_env(target_env)
@@ -480,9 +503,11 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
         apps_config.update(get_local_apps(config, fetch_remote=False))
 
     elif source == LOCAL_SRC:
+        log.info("fetching apps config using source: %s", source)
         apps_config = get_local_apps(config, fetch_remote=True)
 
     if ref_env:
+        log.info("subbing app template refs/image tags using environment: %s", ref_env)
         apps_config = sub_refs(apps_config, ref_env)
 
     return apps_config
@@ -729,6 +754,34 @@ def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
 def _cmd_write_default_config(path):
     """Write default configuration file to PATH (default: $XDG_CONFIG_HOME/bonfire/config.yaml)"""
     conf.write_default_config(path)
+
+
+@options(_app_source_options)
+@click.option(
+    "--components/--no-components",
+    "list_components",
+    default=False,
+    help="List components contained within each app group",
+)
+@apps.command("list")
+def _cmd_apps_list(
+    source,
+    local_config_path,
+    target_env,
+    list_components,
+):
+    """List names of all apps that are marked for deployment in given 'target_env'"""
+    apps = _get_apps_config(source, target_env, None, local_config_path)
+
+    print("")
+    sorted_keys = sorted(apps.keys())
+    for app_name in sorted_keys:
+        app_config = apps[app_name]
+        print(app_name)
+        if list_components:
+            component_names = sorted([c["name"] for c in app_config["components"]])
+            for component_name in component_names:
+                print(f" `-- {component_name}")
 
 
 if __name__ == "__main__":
