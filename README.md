@@ -45,26 +45,52 @@ application configurations for the cloud.redhat.com platform that are valid for 
 
 By default, the configuration file will be stored in `~/.config/bonfire/config.yaml`. You can reset the config to default at any time using `bonfire config write-default`.
 
-You can edit this file to override any app configurations to allow for "local tinkering". If you define an app under the
-`apps` key of the config, it will take precedence over that app's configuration that was fetched
-using the `appsFile`
+### App config overrides
 
-As an example, the local config should look like similar to:
+You can edit your local config file to override any app configurations to allow for "local tinkering". If you define an app under the
+`apps` key of the config, it will take precedence over any app's configuration that was fetched/downloaded.
+
+#### Deploy app template using changes you've made locally
+
+As an example, if you wanted to test out some changes you're making to an app but you have not yet pushed these changes to a git repo, the local config could look similar to:
 
 ```
 apps:
-- name: compliance
+- name: my_app
   components:
     - name: service
       host: local
-      repo: ~/dev/projects/compliance-backend
+      repo: ~/dev/projects/my-app
       path: /clowdapp.yaml
 ```
 
-- **host** needs to be set to `local`.
-- **repo** must specify the path to your project where the clowdapp template is.
-- **path** must specify the path to the Clowder template relative to the path specified on your **repo** key.
+- Where **host** set `local` indicates to look for the repo in a local directory
+- Where **repo** indicates the path to your git repo folder
+- Where **path** specifies the relative path to your ClowdApp template file in your git repo
 
+By default, bonfire will run `git rev-parse` to determine what IMAGE_TAG to set when the template is deployed. However, you can use `--set-image-tag` or `--set-parameter` to override this.
+
+#### Deploy app template using changes you've made in a remote git branch
+
+As an example, if you wanted to deploy changes to your app that you were working on which have been pushed to a PR/branch, the local config could look similar to:
+
+```
+apps:
+- name: my_app
+  components:
+    - name: service
+      host: github
+      repo: MyOrg/MyRepo
+      path: /clowdapp.yaml
+```
+
+- Where **host** set to `github` or `gitlab` indicates where the repo is hosted
+- Where **repo** indicates the `OrganizationName/RepoName`
+- Where **path** specifies the relative path to your ClowdApp template file in your git repo
+
+By default, bonfire will use the commit hash of `master` to determine what IMAGE_TAG to deploy.
+
+NOTE: For this particular use case, if your changes are already present in a git repo, and your app already has appropriate ephemeral deployment configs set up, then using the `--set-template-ref` and `--set-image-tag` flags in bonfire may be simpler than editing your app config.
 ### Loading an app's ephemeral config from app-interface
 
 You can also run `bonfire process`/`bonfire deploy` using `--source appsre` which will pull configurations from app-interface.
@@ -82,6 +108,7 @@ If these env vars are not specified, bonfire will attempt to access a local `qon
 `bonfire` will query the qontract GraphQL API and read the desired application's deploy configuration.
 
 You can edit the local configuration file (discussed above) if you wish to override any app configurations to allow for "local tinkering". If you define an app under the `apps` key of the config, it will take precedence over that app's configuration that was fetched from app-interface.
+
 
 ### Loading application configs
 
