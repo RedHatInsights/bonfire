@@ -49,6 +49,22 @@ You can edit this file to override any app configurations to allow for "local ti
 `apps` key of the config, it will take precedence over that app's configuration that was fetched
 using the `appsFile`
 
+As an example, the local config should look like similar to:
+
+```
+apps:
+- name: compliance
+  components:
+    - name: service
+      host: local
+      repo: ~/dev/projects/compliance-backend
+      path: /clowdapp.yaml
+```
+
+- **host** needs to be set to `local`.
+- **repo** must specify the path to your project where the clowdapp template is.
+- **path** must specify the path to the Clowder template relative to the path specified on your **repo** key.
+
 ### Loading an app's ephemeral config from app-interface
 
 You can also run `bonfire process`/`bonfire deploy` using `--source appsre` which will pull configurations from app-interface.
