@@ -40,6 +40,7 @@ for plugin in $PLUGIN_ARRAY; do
         -m "${marker}" \
         -k "${IQE_FILTER_EXPRESSION}" \
         -n 2 \
+        -s \
         --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-parallel.log 2>&1
 
     # run non-parallel tests in sequence
@@ -48,6 +49,7 @@ for plugin in $PLUGIN_ARRAY; do
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-sequential.xml \
         -m "${marker}" \
         -k "${IQE_FILTER_EXPRESSION}" \
+        -s \
         --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-sequential.log 2>&1
 done
 
