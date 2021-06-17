@@ -251,6 +251,10 @@ def get_apps_for_env(env_name):
     all_apps = client.get_apps()
     env = client.get_env(env_name)
 
+    # work-around to only show apps with an ephemeral deploy target
+    if env_name == conf.EPHEMERAL_ENV_NAME:
+        env["namespaces"] = [conf.BASE_NAMESPACE_NAME]
+
     apps = {}
     ignored_apps = set()
     defined_multiple = set()
