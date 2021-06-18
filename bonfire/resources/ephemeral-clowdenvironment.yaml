@@ -51,8 +51,10 @@ objects:
         enableLegacyStrimzi: true
         # use v2.6.0 since the custom kafka-connect image for cyndi-operator expects that
         cluster:
+          name: kafka
           version: "2.6.0"
         connect:
+          name: connect
           version: "2.6.0"
       db:
         mode: local
