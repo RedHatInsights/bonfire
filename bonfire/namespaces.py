@@ -329,6 +329,7 @@ def _delete_resources(namespace):
         "clowdapps",
         "clowdjobinvocations",
         "cyndipipelines",
+        "horizontalpodautoscalers",
         "kafkabridges",
         "kafkaconnectors",
         "kafkaconnects",
