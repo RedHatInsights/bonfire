@@ -6,27 +6,76 @@
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, can be set by 'deploy_ephemeral_env.sh'
 
-IQE_POD_NAME="iqe-tests"
+# The CJI var name will need to be exported in the main pr_check.sh
+oc apply -n $NAMESPACE -f $APP_ROOT/$CJI_PATH
 
-# create a custom svc acct for the iqe pod to run with that has elevated permissions
-SA=$(oc get -n $NAMESPACE sa iqe --ignore-not-found -o jsonpath='{.metadata.name}')
-if [ -z "$SA" ]; then
-    oc create -n $NAMESPACE sa iqe
+job_name=$APP_NAME-smoke-tests-iqe
+found=false
+end=$((SECONDS+60))
+
+echo "Waiting for Job $job_name to appear"
+
+while [ $SECONDS -lt $end ]; do
+    if `oc get job $job_name -n $NAMESPACE >/dev/null 2>&1`; then
+        found=true
+        break
+    fi
+    sleep 1
+done
+
+if [ "$found" == "false" ] ; then
+    echo "Job $job_name failed to appear"
+    exit 1
 fi
-oc policy -n $NAMESPACE add-role-to-user edit system:serviceaccount:$NAMESPACE:iqe
-oc secrets -n $NAMESPACE link iqe quay-cloudservices-pull --for=pull,mount
 
-python $CICD_ROOT/iqe_pod/create_iqe_pod.py $NAMESPACE \
-    -e IQE_PLUGINS=$IQE_PLUGINS \
-    -e IQE_MARKER_EXPRESSION=$IQE_MARKER_EXPRESSION \
-    -e IQE_FILTER_EXPRESSION=$IQE_FILTER_EXPRESSION \
-    -e ENV_FOR_DYNACONF=smoke \
-    -e NAMESPACE=$NAMESPACE
+echo "Waiting for Job $job_name to be running"
+running=false
+pod=""
 
-oc cp -n $NAMESPACE $CICD_ROOT/iqe_pod/iqe_runner.sh $IQE_POD_NAME:/iqe_venv/iqe_runner.sh
-oc exec $IQE_POD_NAME -n $NAMESPACE -- bash /iqe_venv/iqe_runner.sh
+# The jq magic will find all running pods in the ns and regex on the app name
+# Loop over for SECONDS and send back the pod's name once found
+while [ $SECONDS -lt $end ]; do
+    pod=$(oc get pods -n $NAMESPACE -o json | jq -r --arg JOB $job_name '.items[] | select(.status.phase=="Running") | select(.metadata.name|test($JOB)) .metadata.name')
+    if [[ -n $pod ]]; then
+        running=true
+        break
+    fi
+    sleep 5
+done
 
-oc cp -n $NAMESPACE $IQE_POD_NAME:artifacts/ $WORKSPACE/artifacts
+if [ "$running" == "false" ] ; then
+    echo "Job $job_name failed to start"
+    exit 1
+fi
+
+# Pipe logs to background to keep them rolling in jenkins
+oc logs -n $NAMESPACE $pod -f &
+
+# Wait for the job to Complete or Fail before we try to grab artifacts
+# condition=complete does trigger when the job fails
+oc wait --timeout=3m --for=condition=Complete -n $NAMESPACE job/$job_name 
+
+# Get the minio client (curl would be even more complicated)
+curl https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
+chmod +x mc
+
+
+# Get the secret from the env
+oc get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq '.data | map_values(@base64d)' > minio-creds.json
+
+# Grab the needed creds from the secret
+export MINIO_HOST=$(jq -r .hostname < minio-creds.json)
+export MINIO_PORT=$(jq -r .port < minio-creds.json)
+export MINIO_ACCESS=$(jq -r .accessKey < minio-creds.json)
+export MINIO_SECRET_KEY=$(jq -r .secretKey < minio-creds.json)
+
+# Setup the minio client to auth to the local eph minio in the ns
+./mc alias set minio $MINIO_HOST:$MINIO_PORT $MINIO_ACCESS $MINIO_SECRET_KEY
+
+# "mirror" copies the entire artifacts dir from the pod and writes it to the jenkins node
+./mc mirror --overwrite minio/$pod-artifacts artifacts/
+
+oc cp -n $NAMESPACE $pod:/iqe-venv/artifacts/ $WORKSPACE/artifacts
 
 echo "copied artifacts from iqe pod: "
 ls -l $WORKSPACE/artifacts
