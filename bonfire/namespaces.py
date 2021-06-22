@@ -10,7 +10,11 @@ import threading
 from wait_for import TimedOutError
 
 import bonfire.config as conf
-from bonfire.qontract import get_namespaces_for_env, get_secret_names_in_namespace
+from bonfire.qontract import (
+    get_namespaces_for_env,
+    get_secret_names_in_namespace,
+    get_api_resources,
+)
 from bonfire.openshift import (
     oc,
     on_k8s,
@@ -310,9 +314,6 @@ def reset_namespace(namespace):
 
 
 def _delete_resources(namespace):
-    # installation of certain operators on the cluster may break 'oc delete all'
-    # oc("delete", "all", "--all", n=namespace)
-
     # delete the ClowdApps in this namespace
     oc("delete", "clowdapp", "--all", n=namespace)
 
@@ -325,36 +326,12 @@ def _delete_resources(namespace):
         )
 
     # delete other specific resource types from the namespace
-    resources_to_delete = [
-        "clowdapps",
-        "clowdjobinvocations",
-        "cyndipipelines",
-        "kafkabridges",
-        "kafkaconnectors",
-        "kafkaconnects",
-        "kafkaconnects2is",
-        "kafkamirrormaker2s",
-        "kafkamirrormakers",
-        "kafkarebalances",
-        "kafkas",
-        "kafkatopics",
-        "kafkausers",
-        "deployments",
-        "deploymentconfigs",
-        "statefulsets",
-        "daemonsets",
-        "replicasets",
-        "cronjobs",
-        "jobs",
-        "services",
-        "routes",
-        "pods",
-        "secrets",
-        "configmaps",
-        "persistentvolumeclaims",
-    ]
-    for resource in resources_to_delete:
-        oc("delete", resource, "--all", n=namespace)
+    kinds_to_delete = [r["kind"].lower() for r in get_api_resources() if r["namespaced"]]
+    for kind in kinds_to_delete:
+        if kind == "clowdapp":
+            # we already took care of this.
+            continue
+        oc("delete", kind, "--all", n=namespace)
 
 
 def add_base_resources(namespace, secret_names):
