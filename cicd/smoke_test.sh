@@ -1,10 +1,15 @@
 # Spin up iqe pod and execute IQE tests in it
 
 # Env vars defined by caller:
-#IQE_PLUGINS="plugin1,plugin2" -- pytest plugins to run separated by ","
-#IQE_MARKER_EXPRESSION="mymarker" -- pytest marker expression
+#IQE_PLUGINS="plugin1,plugin2" -- pytest plugins to run separated by "," #IQE_MARKER_EXPRESSION="mymarker" -- pytest marker expression
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, can be set by 'deploy_ephemeral_env.sh'
+
+
+function kill_port_fwd {
+    echo "Caught signal, kill port forward"
+    if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
+}
 
 # The CJI var name will need to be exported in the main pr_check.sh
 oc apply -n $NAMESPACE -f $APP_ROOT/$CJI_PATH
@@ -53,29 +58,35 @@ oc logs -n $NAMESPACE $pod -f &
 
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
-oc wait --timeout=3m --for=condition=Complete -n $NAMESPACE job/$job_name 
+oc wait --timeout=3m --for=condition=Complete -n $NAMESPACE job/$job_name
 
-# Get the minio client (curl would be even more complicated)
+# Get the minio client
 curl https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
 chmod +x mc
 
+# Set up port-forward for minio
+LOCAL_SVC_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
+oc port-forward svc/env-$NAMESPACE-minio $LOCAL_SVC_PORT:9000 -n $NAMESPACE &
+PORT_FORWARD_PID=$!
+trap "teardown" EXIT ERR SIGINT SIGTERM
+
+# sleep so port-forward has time to get established
+sleep 5
 
 # Get the secret from the env
-oc get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq '.data | map_values(@base64d)' > minio-creds.json
+oc get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq -r '.data' > minio-creds.json
 
 # Grab the needed creds from the secret
-export MINIO_HOST=$(jq -r .hostname < minio-creds.json)
-export MINIO_PORT=$(jq -r .port < minio-creds.json)
-export MINIO_ACCESS=$(jq -r .accessKey < minio-creds.json)
-export MINIO_SECRET_KEY=$(jq -r .secretKey < minio-creds.json)
+export MINIO_ACCESS=$(jq -r .accessKey < minio-creds.json | base64 -d)
+export MINIO_SECRET_KEY=$(jq -r .secretKey < minio-creds.json | base64 -d)
+export MINIO_HOST=localhost
+export MINIO_PORT=$LOCAL_SVC_PORT
 
 # Setup the minio client to auth to the local eph minio in the ns
-./mc alias set minio $MINIO_HOST:$MINIO_PORT $MINIO_ACCESS $MINIO_SECRET_KEY
+./mc alias set minio http://$MINIO_HOST:$MINIO_PORT $MINIO_ACCESS $MINIO_SECRET_KEY
 
 # "mirror" copies the entire artifacts dir from the pod and writes it to the jenkins node
 ./mc mirror --overwrite minio/$pod-artifacts artifacts/
-
-oc cp -n $NAMESPACE $pod:/iqe-venv/artifacts/ $WORKSPACE/artifacts
 
 echo "copied artifacts from iqe pod: "
 ls -l $WORKSPACE/artifacts
