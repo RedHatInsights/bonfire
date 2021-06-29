@@ -5,6 +5,7 @@ from pkg_resources import resource_filename
 import re
 import shutil
 import yaml
+import subprocess
 
 from dotenv import load_dotenv
 
@@ -66,6 +67,15 @@ def write_default_config(outpath=None):
     shutil.copy(inpath, outpath)
     outpath.chmod(0o600)
     log.info("saved config to: %s", outpath.absolute())
+
+
+def edit_default_config(confpath=None):
+    confpath = Path(confpath) if confpath else DEFAULT_CONFIG_PATH
+    if os.getenv("EDITOR") is None:
+        log.info("No $EDITOR set, exiting.")
+        return
+
+    subprocess.call([os.getenv("EDITOR"), confpath])
 
 
 def load_config(config_path=None):

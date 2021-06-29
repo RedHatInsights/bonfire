@@ -756,6 +756,13 @@ def _cmd_write_default_config(path):
     conf.write_default_config(path)
 
 
+@config.command("edit")
+@click.argument("path", required=False, type=str)
+def _cmd_edit_default_config(path):
+    """Edit configuration with $EDITOR (default path: $XDG_CONFIG_HOME/bonfire/config.yaml)"""
+    conf.edit_default_config(path)
+
+
 @options(_app_source_options)
 @click.option(
     "--components/--no-components",
