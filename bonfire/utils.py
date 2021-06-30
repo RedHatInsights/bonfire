@@ -212,8 +212,8 @@ class RepoFile:
     def _fetch_local(self, repo_dir=None):
         if not repo_dir:
             repo_dir = os.path.expanduser(self.repo)
-        cmd = f"git -C {repo_dir} rev-parse HEAD"
-        commit = subprocess.check_output(shlex.split(cmd)).decode("ascii")
+        cmd = "git rev-parse HEAD"
+        commit = subprocess.check_output(shlex.split(cmd), cwd=repo_dir).decode("ascii")
         p = os.path.join(repo_dir, self.path.lstrip("/"))
         with open(p) as fp:
             return commit, fp.read()
