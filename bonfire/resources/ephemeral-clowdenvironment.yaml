@@ -56,6 +56,7 @@ objects:
         connect:
           name: connect
           version: "2.6.0"
+          image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:182ab8b"
       db:
         mode: local
       logging:
