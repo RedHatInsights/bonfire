@@ -3,6 +3,7 @@
 #COMPONENT_NAME="mycomponent"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 #IMAGE="quay.io/cloudservices/mycomponent"  # image that this application uses
 #COMPONENTS="component1 component2"  # specific components to deploy (optional, default: all)
+#COMPONENTS_W_RESOURCES="component1 component2"  # components which should preserve resource settings (optional, default: none)
 
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
@@ -12,6 +13,7 @@ trap "teardown" EXIT ERR SIGINT SIGTERM
 set -ex
 
 COMPONENTS=${COMPONENTS:=""}
+COMPONENTS_W_RESOURCES=${COMPONENTS_W_RESOURCES:=""}
 K8S_ARTIFACTS_DIR="$WORKSPACE/artifacts/k8s_artifacts/"
 START_TIME=$(date +%s)
 TEARDOWN_RAN=0
@@ -66,11 +68,21 @@ function teardown {
     TEARDOWN_RAN=1
 }
 
-if [ ! -z "$COMPONENTS" ]; then
-    # transform to --component option for bonfire
+function transform_arg {
+    # transform components to "$1" options for bonfire
     options=""
-    for c in $COMPONENTS; do
-        options="$options --component $c"
+    option="$1"; shift;
+    components="$@"
+    for c in $components; do
+        options="$options $option $c"
     done
-    export COMPONENTS_ARG=$options
+    echo "$options"
+}
+
+if [ ! -z "$COMPONENTS" ]; then
+    export COMPONENTS_ARG=$(transform_arg --component $COMPONENTS)
+fi
+
+if [ ! -z "$COMPONENTS_W_RESOURCES" ]; then
+    export COMPONENTS_RESOURCES_ARG=$(transform_arg --no-remove-resources $COMPONENTS_W_RESOURCES)
 fi

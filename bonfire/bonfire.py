@@ -236,6 +236,20 @@ def _validate_set_image_tag(ctx, param, value):
         raise click.BadParameter("format must be '<image uri>=<tag>'")
 
 
+def _validate_resource_arguments(ctx, param, value):
+    opposite_option = {
+        "remove_resources": "no_remove_resources",
+        "no_remove_resources": "remove_resources",
+    }
+    if "all" in value and "all" in ctx.params.get(opposite_option[param.name], {}):
+        raise click.BadParameter(
+            "--remove-resources and --no-remove-resources can't be both set to 'all'"
+        )
+    if param.name == "remove_resources" and not value:
+        value = ("all",)
+    return value
+
+
 _app_source_options = [
     click.option(
         "--source",
@@ -333,9 +347,24 @@ _process_options = [
         default=True,
     ),
     click.option(
-        "--remove-resources/--no-remove-resources",
-        help="Remove resource limits and requests on ClowdApp configs (default: true)",
-        default=True,
+        "--remove-resources",
+        help=(
+            "Remove resource limits and requests on ClowdApp configs "
+            "for specific components (default: all)"
+        ),
+        type=str,
+        multiple=True,
+        callback=_validate_resource_arguments,
+    ),
+    click.option(
+        "--no-remove-resources",
+        help=(
+            "Don't remove resource limits and requests on ClowdApp configs "
+            "for specific components (default: none)"
+        ),
+        type=str,
+        multiple=True,
+        callback=_validate_resource_arguments,
     ),
     click.option(
         "--single-replicas/--no-single-replicas",
@@ -536,6 +565,7 @@ def _process(
     clowd_env,
     local_config_path,
     remove_resources,
+    no_remove_resources,
     single_replicas,
     component_filter,
 ):
@@ -550,6 +580,7 @@ def _process(
         set_parameter,
         clowd_env,
         remove_resources,
+        no_remove_resources,
         single_replicas,
         component_filter,
     )
@@ -571,6 +602,7 @@ def _cmd_process(
     namespace,
     local_config_path,
     remove_resources,
+    no_remove_resources,
     single_replicas,
     component_filter,
 ):
@@ -589,6 +621,7 @@ def _cmd_process(
         clowd_env,
         local_config_path,
         remove_resources,
+        no_remove_resources,
         single_replicas,
         component_filter,
     )
@@ -623,6 +656,7 @@ def _cmd_config_deploy(
     clowd_env,
     local_config_path,
     remove_resources,
+    no_remove_resources,
     single_replicas,
     namespace,
     duration,
@@ -671,6 +705,7 @@ def _cmd_config_deploy(
             clowd_env,
             local_config_path,
             remove_resources,
+            no_remove_resources,
             single_replicas,
             component_filter,
         )
