@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: default-iqe-cji
+
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: ${NAME}
+  spec:
+    appName: ${APP_NAME}
+    testing:
+      iqe:
+        debug: ${{DEBUG}}
+        imageTag: ${IMAGE_TAG}
+        marker: ${MARKER}
+        filter: ${FILTER}
+        dynaconfEnvName: ${ENV_NAME}
+
+parameters:
+- name: NAME
+  required: true
+- name: APP_NAME
+  required: true
+- name: DEBUG
+  value: "false"
+- name: IMAGE_TAG
+  value: ""
+- name: MARKER
+  value: ""
+- name: FILTER
+  value: ""
+- name: ENV_NAME
+  value: "clowder_smoke"
+  required: true

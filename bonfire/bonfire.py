@@ -21,7 +21,7 @@ from bonfire.openshift import (
 )
 from bonfire.utils import split_equals
 from bonfire.local import get_local_apps
-from bonfire.processor import TemplateProcessor, process_clowd_env
+from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.namespaces import (
     Namespace,
     get_namespaces,
@@ -373,6 +373,67 @@ _clowdenv_process_options = [
         help=(
             "Path to ClowdEnvironment template file (default: use ephemeral template packaged with"
             " bonfire)"
+        ),
+        type=str,
+        default=None,
+    ),
+]
+
+
+_iqe_cji_process_options = [
+    click.argument(
+        "clowd_app_name",
+        type=str,
+        required=True,
+    ),
+    click.option(
+        "--debug",
+        "-d",
+        help="Set debug mode on IQE CJI",
+        default=False,
+        is_flag=True,
+    ),
+    click.option(
+        "--marker",
+        "-m",
+        help="pytest marker expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--filter",
+        "-k",
+        help="pytest filter expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--env",
+        "-e",
+        help="dynaconf env name",
+        type=str,
+        default="clowder_smoke",
+    ),
+    click.option(
+        "--image-tag",
+        "-i",
+        help="image tag to use for IQE pod",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--cji-name",
+        "-c",
+        help="Name of ClowdJobInvocation (default: generate a random name)",
+        type=str,
+        default=None,
+    ),
+    click.option(
+        "--template-file",
+        "-f",
+        help=(
+            "Path to ClowdJobInvocation template file (default: use IQE CJI template packaged"
+            " with bonfire)"
         ),
         type=str,
         default=None,
@@ -747,6 +808,54 @@ def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
     else:
         log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
         click.echo(namespace)
+
+
+@main.command("process-iqe-cji")
+@options(_iqe_cji_process_options)
+def _cmd_process_iqe_cji(
+    clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+):
+    """Process IQE ClowdJobInvocation template and print output"""
+    cji_config = process_iqe_cji(
+        clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+    )
+    print(json.dumps(cji_config, indent=2))
+
+
+'''
+@main.command("deploy-iqe-cji")
+@options(_clowdenv_process_options)
+@options(_timeout_option)
+def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
+    """Process ClowdEnv template and deploy to a cluster"""
+    try:
+        clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
+
+        log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
+
+        apply_config(None, clowd_env_config)
+
+        if not namespace:
+            # wait for Clowder to tell us what target namespace it created
+            namespace = wait_for_clowd_env_target_ns(clowd_env)
+
+        log.info("waiting on resources for max of %dsec...", timeout)
+        _wait_on_namespace_resources(namespace, timeout)
+
+        clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
+    except KeyboardInterrupt:
+        log.error("Aborted by keyboard interrupt!")
+        _error("deploy failed")
+    except TimedOutError as err:
+        log.error("Hit timeout error: %s", err)
+        _error("deploy failed")
+    except Exception:
+        log.exception("hit unexpected error!")
+        _error("deploy failed")
+    else:
+        log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
+        click.echo(namespace)
+'''
 
 
 @config.command("write-default")
