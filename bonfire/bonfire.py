@@ -18,6 +18,7 @@ from bonfire.openshift import (
     wait_for_db_resources,
     find_clowd_env_for_ns,
     wait_for_clowd_env_target_ns,
+    wait_on_cji,
 )
 from bonfire.utils import split_equals
 from bonfire.local import get_local_apps
@@ -387,9 +388,10 @@ _iqe_cji_process_options = [
         required=True,
     ),
     click.option(
-        "--debug",
+        "--debug-pod",
         "-d",
-        help="Set debug mode on IQE CJI",
+        "debug",
+        help="Set debug mode on IQE pod",
         default=False,
         is_flag=True,
     ),
@@ -781,6 +783,8 @@ def _cmd_process_clowdenv(namespace, clowd_env, template_file):
 @options(_timeout_option)
 def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
     """Process ClowdEnv template and deploy to a cluster"""
+    _warn_if_unsafe(namespace)
+
     try:
         clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
 
@@ -822,27 +826,41 @@ def _cmd_process_iqe_cji(
     print(json.dumps(cji_config, indent=2))
 
 
-'''
 @main.command("deploy-iqe-cji")
-@options(_clowdenv_process_options)
+@click.option("--namespace", "-n", help="Namespace to deploy to", type=str, required=True)
+@options(_iqe_cji_process_options)
 @options(_timeout_option)
-def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
-    """Process ClowdEnv template and deploy to a cluster"""
+def _cmd_deploy_iqe_cji(
+    namespace,
+    clowd_app_name,
+    debug,
+    marker,
+    filter,
+    env,
+    image_tag,
+    cji_name,
+    template_file,
+    timeout,
+):
+    """Process IQE CJI template, apply it, and wait for it to start running."""
+    _warn_if_unsafe(namespace)
+
     try:
-        clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
+        cji_config = process_iqe_cji(
+            clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+        )
 
-        log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
+        log.debug("processed CJI config:\n%s", cji_config)
 
-        apply_config(None, clowd_env_config)
+        try:
+            cji_name = cji_config["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            raise Exception("error parsing name of CJI from processed template, check CJI template")
 
-        if not namespace:
-            # wait for Clowder to tell us what target namespace it created
-            namespace = wait_for_clowd_env_target_ns(clowd_env)
+        apply_config(namespace, cji_config)
 
-        log.info("waiting on resources for max of %dsec...", timeout)
-        _wait_on_namespace_resources(namespace, timeout)
-
-        clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
+        log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
+        pod_name = wait_on_cji(namespace, cji_name, timeout)
     except KeyboardInterrupt:
         log.error("Aborted by keyboard interrupt!")
         _error("deploy failed")
@@ -853,9 +871,10 @@ def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
         log.exception("hit unexpected error!")
         _error("deploy failed")
     else:
-        log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
-        click.echo(namespace)
-'''
+        log.info(
+            "pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace
+        )
+        click.echo(pod_name)
 
 
 @config.command("write-default")

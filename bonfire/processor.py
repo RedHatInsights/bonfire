@@ -97,7 +97,7 @@ def process_iqe_cji(
         template_data = yaml.safe_load(fp)
 
     params = dict()
-    params["DEBUG"] = debug
+    params["DEBUG"] = str(debug).lower()
     params["MARKER"] = marker
     params["FILTER"] = filter
     params["ENV_NAME"] = env
