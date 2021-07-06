@@ -298,12 +298,6 @@ _process_options = [
         callback=_validate_set_parameter,
     ),
     click.option(
-        "--namespace",
-        "-n",
-        help="Namespace you intend to deploy to (default: none)",
-        type=str,
-    ),
-    click.option(
         "--clowd-env",
         "-e",
         help=(
@@ -313,15 +307,6 @@ _process_options = [
         default=None,
     ),
     _app_source_options[2],
-    click.option(
-        "--target-env",
-        help=(
-            f"When using source={APP_SRE_SRC}, name of environment to fetch templates for"
-            f" (default: {conf.EPHEMERAL_ENV_NAME})"
-        ),
-        type=str,
-        default=conf.EPHEMERAL_ENV_NAME,
-    ),
     click.option(
         "--ref-env",
         help=f"Query {APP_SRE_SRC} for apps in this environment and substitute 'ref'/'IMAGE_TAG'",
@@ -621,6 +606,12 @@ def _process(
 
 @main.command("process")
 @options(_process_options)
+@click.option(
+    "--namespace",
+    "-n",
+    help="Namespace you intend to deploy to (default: none)",
+    type=str,
+)
 def _cmd_process(
     app_names,
     source,
