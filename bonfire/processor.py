@@ -3,6 +3,7 @@ import logging
 import json
 import yaml
 import re
+import uuid
 
 from pathlib import Path
 
@@ -71,6 +72,43 @@ def process_clowd_env(target_ns, env_name, template_path):
 
     if not processed_template.get("items"):
         raise ValueError("Processed ClowdEnvironment template has no items")
+
+    return processed_template
+
+
+def process_iqe_cji(
+    clowd_app_name,
+    debug=False,
+    marker="",
+    filter="",
+    env="clowder_smoke",
+    image_tag="",
+    cji_name=None,
+    template_path=None,
+):
+    log.info("processing IQE ClowdJobInvocation")
+
+    template_path = Path(template_path if template_path else conf.DEFAULT_IQE_CJI_TEMPLATE)
+
+    if not template_path.exists():
+        raise ValueError("CJI template file does not exist: %s", template_path)
+
+    with template_path.open() as fp:
+        template_data = yaml.safe_load(fp)
+
+    params = dict()
+    params["DEBUG"] = str(debug).lower()
+    params["MARKER"] = marker
+    params["FILTER"] = filter
+    params["ENV_NAME"] = env
+    params["IMAGE_TAG"] = image_tag
+    params["NAME"] = cji_name or f"iqe-{str(uuid.uuid4()).split('-')[0]}"
+    params["APP_NAME"] = clowd_app_name
+
+    processed_template = process_template(template_data, params=params)
+
+    if not processed_template.get("items"):
+        raise ValueError("Processed CJI template has no items")
 
     return processed_template
 

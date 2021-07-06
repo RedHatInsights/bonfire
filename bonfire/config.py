@@ -28,6 +28,7 @@ DEFAULT_ENV_PATH = _get_config_path().joinpath("env")
 DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
     "bonfire", "resources/ephemeral-clowdenvironment.yaml"
 )
+DEFAULT_IQE_CJI_TEMPLATE = resource_filename("bonfire", "resources/default-iqe-cji.yaml")
 DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yaml")
 
 LOCAL_GRAPHQL_URL = "http://localhost:4000/graphql"

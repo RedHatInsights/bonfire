@@ -18,10 +18,11 @@ from bonfire.openshift import (
     wait_for_db_resources,
     find_clowd_env_for_ns,
     wait_for_clowd_env_target_ns,
+    wait_on_cji,
 )
 from bonfire.utils import split_equals
 from bonfire.local import get_local_apps
-from bonfire.processor import TemplateProcessor, process_clowd_env
+from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.namespaces import (
     Namespace,
     get_namespaces,
@@ -380,6 +381,68 @@ _clowdenv_process_options = [
 ]
 
 
+_iqe_cji_process_options = [
+    click.argument(
+        "clowd_app_name",
+        type=str,
+        required=True,
+    ),
+    click.option(
+        "--debug-pod",
+        "-d",
+        "debug",
+        help="Set debug mode on IQE pod",
+        default=False,
+        is_flag=True,
+    ),
+    click.option(
+        "--marker",
+        "-m",
+        help="pytest marker expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--filter",
+        "-k",
+        help="pytest filter expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--env",
+        "-e",
+        help="dynaconf env name",
+        type=str,
+        default="clowder_smoke",
+    ),
+    click.option(
+        "--image-tag",
+        "-i",
+        help="image tag to use for IQE pod",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--cji-name",
+        "-c",
+        help="Name of ClowdJobInvocation (default: generate a random name)",
+        type=str,
+        default=None,
+    ),
+    click.option(
+        "--template-file",
+        "-f",
+        help=(
+            "Path to ClowdJobInvocation template file (default: use IQE CJI template packaged"
+            " with bonfire)"
+        ),
+        type=str,
+        default=None,
+    ),
+]
+
+
 def options(options_list):
     """Click decorator used to set a list of click options on a command."""
 
@@ -720,6 +783,8 @@ def _cmd_process_clowdenv(namespace, clowd_env, template_file):
 @options(_timeout_option)
 def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
     """Process ClowdEnv template and deploy to a cluster"""
+    _warn_if_unsafe(namespace)
+
     try:
         clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
 
@@ -747,6 +812,69 @@ def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
     else:
         log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
         click.echo(namespace)
+
+
+@main.command("process-iqe-cji")
+@options(_iqe_cji_process_options)
+def _cmd_process_iqe_cji(
+    clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+):
+    """Process IQE ClowdJobInvocation template and print output"""
+    cji_config = process_iqe_cji(
+        clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+    )
+    print(json.dumps(cji_config, indent=2))
+
+
+@main.command("deploy-iqe-cji")
+@click.option("--namespace", "-n", help="Namespace to deploy to", type=str, required=True)
+@options(_iqe_cji_process_options)
+@options(_timeout_option)
+def _cmd_deploy_iqe_cji(
+    namespace,
+    clowd_app_name,
+    debug,
+    marker,
+    filter,
+    env,
+    image_tag,
+    cji_name,
+    template_file,
+    timeout,
+):
+    """Process IQE CJI template, apply it, and wait for it to start running."""
+    _warn_if_unsafe(namespace)
+
+    try:
+        cji_config = process_iqe_cji(
+            clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+        )
+
+        log.debug("processed CJI config:\n%s", cji_config)
+
+        try:
+            cji_name = cji_config["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            raise Exception("error parsing name of CJI from processed template, check CJI template")
+
+        apply_config(namespace, cji_config)
+
+        log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
+        pod_name = wait_on_cji(namespace, cji_name, timeout)
+    except KeyboardInterrupt:
+        log.error("Aborted by keyboard interrupt!")
+        _error("deploy failed")
+    except TimedOutError as err:
+        log.error("Hit timeout error: %s", err)
+        _error("deploy failed")
+    except Exception:
+        log.exception("hit unexpected error!")
+        _error("deploy failed")
+    else:
+        log.info(
+            "pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace
+        )
+        click.echo(pod_name)
 
 
 @config.command("write-default")

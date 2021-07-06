@@ -674,3 +674,52 @@ def get_all_namespaces():
         all_namespaces = get_json("namespace")["items"]
 
     return all_namespaces
+
+
+def wait_on_cji(namespace, cji_name, timeout):
+    # first wait for job associated with this CJI to appear
+    log.info("waiting for Job to appear owned by CJI '%s'", cji_name)
+
+    def _find_job():
+        jobs = get_json("job", label=f"clowdjob={cji_name}", namespace=namespace)
+        try:
+            return jobs["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            return False
+
+    job_name, elapsed = wait_for(
+        _find_job, num_sec=timeout, message=f"wait for Job to appear owned by CJI '{cji_name}'"
+    )
+
+    log.info(
+        "found Job '%s' created by CJI '%s', now waiting for pod to appear", job_name, cji_name
+    )
+
+    def _pod_found():
+        pods = get_json("pod", label=f"job-name={job_name}", namespace=namespace)
+        try:
+            return pods["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            return False
+
+    remaining_time = timeout - elapsed
+
+    pod_name, elapsed = wait_for(
+        _pod_found,
+        fail_condition=None,
+        num_sec=remaining_time,
+        message=f"wait for Pod to appear owned by CJI '{cji_name}'",
+    )
+
+    log.info(
+        "found pod '%s' associated with CJI '%s', now waiting for pod to be 'running'",
+        pod_name,
+        cji_name,
+    )
+
+    remaining_time = remaining_time - elapsed
+
+    waiter = ResourceWaiter(namespace, "pod", pod_name)
+    waiter.wait_for_ready(remaining_time)
+
+    return pod_name
