@@ -1,9 +1,17 @@
 # Run smoke tests as a ClowdJobInvocation deployed by bonfire
 
 # Env vars defined by caller:
-#IQE_PLUGINS="plugin1,plugin2" -- pytest plugins to run separated by "," #IQE_MARKER_EXPRESSION="mymarker" -- pytest marker expression
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, can be set by 'deploy_ephemeral_env.sh'
+
+# In order for the deploy-iqe-cji to run correctly, we must set the marker and filter to "" if they
+# are not set in pr_check.sh
+# https://unix.stackexchange.com/questions/122845/using-a-b-for-variable-assignment-in-scripts/122848#122848
+IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:='""'}"
+IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:='""'}"
+
+# The timeout can be overriden in the main pr_check by exporting the value below.
+IQE_CJI_TIMEOUT="${IQE_CJI_TIMEOUT:=30m}"
 
 CJI_NAME="$APP_NAME-smoke-tests"
 
@@ -13,7 +21,7 @@ function kill_port_fwd {
 }
 
 # Invoke the CJI with the exported vars from pr_check
-pod=$(bonfire deploy-iqe-cji $APP_NAME -m $IQE_MARKER_EXPRESSION -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
+pod=$(bonfire deploy-iqe-cji $APP_NAME -m $IQE_MARKER_EXPRESSION -k $IQE_FILTER_EXPRESSION -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
 
 # Pipe logs to background to keep them rolling in jenkins
 oc logs -n $NAMESPACE $pod -f &
