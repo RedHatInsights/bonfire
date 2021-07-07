@@ -36,6 +36,7 @@ objects:
               memory: 256Mi
       web:
         port: 8000
+        privatePort: 10000
         mode: operator
       featureFlags:
         mode: local
