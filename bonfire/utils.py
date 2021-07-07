@@ -102,6 +102,9 @@ class RepoFile:
         self.repo = repo
         self.path = path
         self.ref = ref
+        self._alternate_refs = {
+            "master": ["main", "stable"],
+        }
 
     @classmethod
     def from_config(cls, d):
@@ -140,6 +143,44 @@ class RepoFile:
 
         return cert_fname
 
+    def _get_ref(self, get_ref_func):
+        """
+        Wrapper to attempt fetching a git ref and trying alternate refs if needed
+
+        Calls get_ref_func(ref) for each ref to attempt fetching.
+
+        get_ref_func is a function defined by the caller which should return a requests.Response
+        """
+        refs_to_try = [self.ref]
+        if self.ref in self._alternate_refs:
+            refs_to_try += self._alternate_refs[self.ref]
+
+        response = None
+
+        for idx, ref in enumerate(refs_to_try):
+            log.debug("attempting ref '%s'", ref)
+
+            response = get_ref_func(ref)
+            if response.status_code == 200:
+                log.debug("fetch succeeded for ref '%s'", ref)
+                break
+            if response.status_code == 404:
+                if idx < len(refs_to_try):
+                    # more alternates to try...
+                    log.warning(
+                        "git ref '%s' not found, trying alternate:", ref, refs_to_try[idx + 1]
+                    )
+                    continue
+                else:
+                    log.error(
+                        "could not find git ref '%s' or any of its alternates: ",
+                        self.ref,
+                        ", ".join(self._alternate_refs[self.ref]),
+                    )
+
+        response.raise_for_status()
+        return response
+
     def _get_gl_commit_hash(self):
         group, project = self.org, self.repo
         response = requests.get(
@@ -162,10 +203,12 @@ class RepoFile:
         if not project_id:
             raise ValueError("gitlab project ID not found for {self.org}/{self.repo}")
 
-        response = requests.get(
-            GL_BRANCH_URL.format(id=project_id, branch=self.ref), verify=self._gl_certfile
-        )
-        response.raise_for_status()
+        def get_ref_func(ref):
+            return requests.get(
+                GL_BRANCH_URL.format(id=project_id, branch=ref), verify=self._gl_certfile
+            )
+
+        response = self._get_ref(get_ref_func)
         return response.json()["commit"]["id"]
 
     def _fetch_gitlab(self):
@@ -187,8 +230,10 @@ class RepoFile:
         return commit, response.content
 
     def _get_gh_commit_hash(self):
-        response = requests.get(GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=self.ref))
-        response.raise_for_status()
+        def get_ref_func(ref):
+            return requests.get(GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref))
+
+        response = self._get_ref(get_ref_func)
         return response.json()["object"]["sha"]
 
     def _fetch_github(self):
