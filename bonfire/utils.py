@@ -164,21 +164,20 @@ class RepoFile:
             if response.status_code == 200:
                 log.debug("fetch succeeded for ref '%s'", ref)
                 break
-            if response.status_code == 404:
-                if idx < len(refs_to_try):
+            else:
+                log.warning(
+                    "failed to fetch git ref '%s' (http code: %d)", ref, response.status_code
+                )
+                if idx + 1 < len(refs_to_try):
                     # more alternates to try...
-                    log.warning(
-                        "git ref '%s' not found, trying alternate:", ref, refs_to_try[idx + 1]
-                    )
+                    log.info("trying alternate:", refs_to_try[idx + 1])
                     continue
                 else:
-                    log.error(
-                        "could not find git ref '%s' or any of its alternates: ",
-                        self.ref,
-                        ", ".join(self._alternate_refs[self.ref]),
+                    alts = ", ".join(self._alternate_refs[self.ref])
+                    raise Exception(
+                        f"failed to fetch git ref {self.ref} or any of its alternates: {alts}"
                     )
 
-        response.raise_for_status()
         return response
 
     def _get_gl_commit_hash(self):
