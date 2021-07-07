@@ -10,9 +10,6 @@
 IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:='""'}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:='""'}"
 
-# The timeout can be overriden in the main pr_check by exporting the value below.
-IQE_CJI_TIMEOUT="${IQE_CJI_TIMEOUT:=30m}"
-
 CJI_NAME="$APP_NAME-smoke-tests"
 
 function kill_port_fwd {
