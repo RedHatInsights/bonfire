@@ -20,6 +20,11 @@ function kill_port_fwd {
     if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
 }
 
+if [[ -z $IQE_CJI_TIMEOUT ]]; then
+    echo "Error: no timeout set; export IQE_CJI_TIMEOUT in the main pr_check.sh file"
+    exit 1
+fi
+
 # Invoke the CJI with the exported vars from pr_check
 pod=$(bonfire deploy-iqe-cji $APP_NAME -m $IQE_MARKER_EXPRESSION -k $IQE_FILTER_EXPRESSION -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
 
