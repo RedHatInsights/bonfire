@@ -24,7 +24,8 @@ bonfire process \
     --set-image-tag $IMAGE=$IMAGE_TAG \
     --no-get-dependencies \
     --namespace $NAMESPACE \
-    $COMPONENTS_ARG | oc apply -f - -n $NAMESPACE
+    $COMPONENTS_ARG \
+    $COMPONENTS_RESOURCES_ARG | oc apply -f - -n $NAMESPACE
 
 bonfire namespace wait-on-resources $NAMESPACE --db-only
 

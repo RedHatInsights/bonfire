@@ -176,6 +176,7 @@ class TemplateProcessor:
         param_overrides,
         clowd_env,
         remove_resources,
+        no_remove_resources,
         single_replicas,
         component_filter,
     ):
@@ -189,6 +190,7 @@ class TemplateProcessor:
         self.param_overrides = param_overrides
         self.clowd_env = clowd_env
         self.remove_resources = remove_resources
+        self.no_remove_resources = no_remove_resources
         self.single_replicas = single_replicas
         self.component_filter = component_filter
 
@@ -292,7 +294,11 @@ class TemplateProcessor:
         # override the tags for all occurences of an image if requested
         new_items = self._sub_image_tags(new_items)
 
-        if self.remove_resources:
+        if (
+            "all" not in self.no_remove_resources
+            and ("all" in self.remove_resources or component_name in self.remove_resources)
+            and component_name not in self.no_remove_resources
+        ):
             _remove_resource_config(new_items)
         if self.single_replicas:
             _set_replicas(new_items)
