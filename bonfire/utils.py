@@ -170,7 +170,7 @@ class RepoFile:
                 )
                 if idx + 1 < len(refs_to_try):
                     # more alternates to try...
-                    log.info("trying alternate:", refs_to_try[idx + 1])
+                    log.info("trying alternate: %s", refs_to_try[idx + 1])
                     continue
                 else:
                     alts = ", ".join(self._alternate_refs[self.ref])
