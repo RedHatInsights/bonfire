@@ -1,11 +1,14 @@
 # Run smoke tests as a ClowdJobInvocation deployed by bonfire
 
 # Env vars defined by caller:
+#APP_NAME -- name of ClowdApp to run tests against
+#IQE_CJI_TIMEOUT="10m" -- timeout value to pass to 'oc wait', should be slightly higher than expected test run time
+#IQE_MARKER_EXPRESSION="something AND something_else" -- pytest marker, can be "" if no filter desired
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
-#NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, can be set by 'deploy_ephemeral_env.sh'
+#NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, usually set by 'deploy_ephemeral_env.sh'
 
 # In order for the deploy-iqe-cji to run correctly, we must set the marker and filter to "" if they
-# are not set in pr_check.sh
+# are not already set by caller
 # https://unix.stackexchange.com/questions/122845/using-a-b-for-variable-assignment-in-scripts/122848#122848
 IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:='""'}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:='""'}"
@@ -18,11 +21,11 @@ function kill_port_fwd {
 }
 
 if [[ -z $IQE_CJI_TIMEOUT ]]; then
-    echo "Error: no timeout set; export IQE_CJI_TIMEOUT in the main pr_check.sh file"
+    echo "Error: no timeout set; export IQE_CJI_TIMEOUT before invoking cji_smoke_test.sh"
     exit 1
 fi
 
-# Invoke the CJI with the exported vars from pr_check
+# Invoke the CJI using the options set via env vars
 pod=$(bonfire deploy-iqe-cji $APP_NAME -m $IQE_MARKER_EXPRESSION -k $IQE_FILTER_EXPRESSION -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
 
 # Pipe logs to background to keep them rolling in jenkins
@@ -33,6 +36,7 @@ oc logs -n $NAMESPACE $pod -f &
 oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=Complete -n $NAMESPACE job/$CJI_NAME-iqe
 
 # Get the minio client
+# TODO: bake this into jenkins agent template
 curl https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
 chmod +x mc
 
