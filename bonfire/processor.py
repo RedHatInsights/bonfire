@@ -52,7 +52,7 @@ def _set_replicas(items):
             log.debug("set replicas to '1' on ClowdApp '%s'", i["metadata"]["name"])
 
 
-def process_clowd_env(target_ns, env_name, template_path):
+def process_clowd_env(target_ns, quay_user, env_name, template_path):
     log.info("processing ClowdEnvironment")
 
     env_template_path = Path(template_path if template_path else conf.DEFAULT_CLOWDENV_TEMPLATE)
@@ -65,8 +65,11 @@ def process_clowd_env(target_ns, env_name, template_path):
 
     params = dict()
     params["ENV_NAME"] = env_name
+    if quay_user:
+        params["PULL_SECRET_NAME"] = f"{quay_user}-pull-secret"
     if target_ns:
         params["NAMESPACE"] = target_ns
+        params["PULL_SECRET_NAMESPACE"] = target_ns
 
     processed_template = process_template(template_data, params=params)
 

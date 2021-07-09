@@ -376,6 +376,12 @@ _clowdenv_process_options = [
         type=str,
     ),
     click.option(
+        "--quay-user",
+        "-u",
+        help="Quay username for pullSecret provider",
+        type=str,
+    ),
+    click.option(
         "--clowd-env",
         "-e",
         help=(f"Name of ClowdEnvironment (default: if target ns provided, {conf.ENV_NAME_FORMAT})"),
@@ -785,11 +791,11 @@ def _cmd_config_deploy(
         click.echo(ns)
 
 
-def _process_clowdenv(target_namespace, env_name, template_file):
+def _process_clowdenv(target_namespace, quay_user, env_name, template_file):
     env_name = _get_env_name(target_namespace, env_name)
 
     try:
-        clowd_env_config = process_clowd_env(target_namespace, env_name, template_file)
+        clowd_env_config = process_clowd_env(target_namespace, quay_user, env_name, template_file)
     except ValueError as err:
         _error(str(err))
 
@@ -798,21 +804,21 @@ def _process_clowdenv(target_namespace, env_name, template_file):
 
 @main.command("process-env")
 @options(_clowdenv_process_options)
-def _cmd_process_clowdenv(namespace, clowd_env, template_file):
+def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file):
     """Process ClowdEnv template and print output"""
-    clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
+    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
     print(json.dumps(clowd_env_config, indent=2))
 
 
 @main.command("deploy-env")
 @options(_clowdenv_process_options)
 @options(_timeout_option)
-def _cmd_deploy_clowdenv(namespace, clowd_env, template_file, timeout):
+def _cmd_deploy_clowdenv(namespace, quay_user, clowd_env, template_file, timeout):
     """Process ClowdEnv template and deploy to a cluster"""
     _warn_if_unsafe(namespace)
 
     try:
-        clowd_env_config = _process_clowdenv(namespace, clowd_env, template_file)
+        clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
 
         log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
 
