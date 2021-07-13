@@ -35,6 +35,8 @@ for plugin in $PLUGIN_ARRAY; do
     [ -n "${IQE_MARKER_EXPRESSION}" ] && _marker="and (${IQE_MARKER_EXPRESSION})"
     # run tests marked for 'parallel'
     marker="parallel ${_marker}"
+    # Convert image name to plugin name for clowder
+    plugin=$(echo $plugin | tr "-" "_")
     iqe tests plugin ${plugin} \
         --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-parallel.xml \
         -m "${marker}" \
