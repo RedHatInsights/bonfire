@@ -18,6 +18,9 @@ objects:
         cpu: 30m
         memory: 128Mi
     providers:
+      pullSecrets:
+        - name: ${PULL_SECRET_NAME}
+          namespace: ${PULL_SECRET_NAMESPACE}
       testing:
         # Level of access the testing pod has in the namespace
         k8sAccessLevel: edit
@@ -70,3 +73,7 @@ parameters:
 - name: ENV_NAME
   description: Name of the ClowdEnvironment
   required: true
+- name: PULL_SECRET_NAME
+  value: quay-cloudservices-pull
+- name: PULL_SECRET_NAMESPACE
+  value: ephemeral-base
