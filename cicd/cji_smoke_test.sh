@@ -26,7 +26,7 @@ if [[ -z $IQE_CJI_TIMEOUT ]]; then
 fi
 
 # Invoke the CJI using the options set via env vars
-pod=$(bonfire deploy-iqe-cji $APP_NAME -m $IQE_MARKER_EXPRESSION -k $IQE_FILTER_EXPRESSION -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
+pod=$(bonfire deploy-iqe-cji $APP_NAME -m "$IQE_MARKER_EXPRESSION" -k "$IQE_FILTER_EXPRESSION" -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
 
 # Pipe logs to background to keep them rolling in jenkins
 oc logs -n $NAMESPACE $pod -f &
