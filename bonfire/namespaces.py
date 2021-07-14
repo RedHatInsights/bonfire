@@ -313,6 +313,7 @@ def _delete_resources(namespace):
     # delete some of our own operator resources first
     resources_to_delete = [
         "cyndipipelines",  # delete this first to prevent hanging
+        "xjoinpipelines",
         "clowdjobinvocations",
         "clowdapps",
     ]
