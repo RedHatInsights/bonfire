@@ -17,9 +17,9 @@ oc policy -n $NAMESPACE add-role-to-user edit system:serviceaccount:$NAMESPACE:i
 oc secrets -n $NAMESPACE link iqe quay-cloudservices-pull --for=pull,mount
 
 python $CICD_ROOT/iqe_pod/create_iqe_pod.py $NAMESPACE \
-    -e IQE_PLUGINS=$IQE_PLUGINS \
-    -e IQE_MARKER_EXPRESSION=$IQE_MARKER_EXPRESSION \
-    -e IQE_FILTER_EXPRESSION=$IQE_FILTER_EXPRESSION \
+    -e IQE_PLUGINS="$IQE_PLUGINS" \
+    -e IQE_MARKER_EXPRESSION="$IQE_MARKER_EXPRESSION" \
+    -e IQE_FILTER_EXPRESSION="$IQE_FILTER_EXPRESSION" \
     -e ENV_FOR_DYNACONF=smoke \
     -e NAMESPACE=$NAMESPACE
 
