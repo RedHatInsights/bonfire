@@ -330,6 +330,7 @@ def _delete_resources(namespace):
 
     # delete any other lingering specific resource types from the namespace
     resources_to_delete = [
+        "elasticsearches",
         "horizontalpodautoscalers",
         "kafkabridges",
         "kafkaconnectors",
