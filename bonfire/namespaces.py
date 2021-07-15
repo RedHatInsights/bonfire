@@ -318,7 +318,7 @@ def _delete_resources(namespace):
         "clowdapps",
     ]
     for resource in resources_to_delete:
-        oc("delete", resource, "--all", n=namespace)
+        oc("delete", resource, "--all", n=namespace, timeout="60s")
 
     # delete the ClowdEnvironment for this namespace
     if get_json("clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace)):
@@ -326,6 +326,7 @@ def _delete_resources(namespace):
             "delete",
             "clowdenvironment",
             conf.ENV_NAME_FORMAT.format(namespace=namespace),
+            timeout="60s",
         )
 
     # delete any other lingering specific resource types from the namespace
@@ -357,7 +358,7 @@ def _delete_resources(namespace):
         "persistentvolumeclaims",
     ]
     for resource in resources_to_delete:
-        oc("delete", resource, "--all", n=namespace)
+        oc("delete", resource, "--all", n=namespace, timeout="60s")
 
 
 def add_base_resources(namespace, secret_names):
