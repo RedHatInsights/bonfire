@@ -3,6 +3,7 @@
 # Env vars caller defines:
 #IMAGE="quay.io/myorg/myapp" -- docker image URI to push to
 #DOCKERFILE=Dockerfile.custom  -- dockerfile to use (optional)
+#CACHE_FROM_LATEST_IMAGE=true  -- build image from cache from latest image (optional)
 
 # Env vars set by bootstrap.sh:
 #IMAGE_TAG="abcd123" -- image tag to push to
@@ -17,6 +18,7 @@
 set -ex
 
 DOCKERFILE=${DOCKERFILE:="Dockerfile"}
+CACHE_FROM_LATEST_IMAGE=${CACHE_FROM_LATEST_IMAGE:="false"}
 
 if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     echo "QUAY_USER and QUAY_TOKEN must be set"
@@ -41,7 +43,13 @@ if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; th
     mkdir -p "$DOCKER_CONF"
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
-    docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+    if [ "$CACHE_FROM_LATEST_IMAGE" == "true" ]; then
+        docker --config="$DOCKER_CONF" pull "${IMAGE}" && \
+        docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}" || \
+        docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+    else
+        docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+    fi
     docker --config="$DOCKER_CONF" push "${IMAGE}:${IMAGE_TAG}"
 else
     # on RHEL8 or anything else, use podman
