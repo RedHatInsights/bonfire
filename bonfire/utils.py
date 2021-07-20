@@ -237,7 +237,7 @@ class RepoFile:
 
     def _fetch_github(self):
         commit = self.ref
-        if not GIT_SHA_RE.match(commit):
+        if not GIT_SHA_RE.match(commit) and commit not in ("master", "main", "stable"):
             # look up the commit hash for this branch
             commit = self._get_gh_commit_hash()
 
