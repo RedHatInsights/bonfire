@@ -29,6 +29,10 @@ objects:
         iqe:
           # Base image for iqe-tests
           imageBase: "quay.io/cloudservices/iqe-tests"
+          # Grant IQE pod access to vault
+          vaultSecretRef:
+            name: ${IQE_VAULT_SECRET_NAME}
+            namespace: ${IQE_VAULT_SECRET_NAMESPACE}
           # Resources the IQE pod spins up with
           resources:
             limits:
@@ -76,4 +80,8 @@ parameters:
 - name: PULL_SECRET_NAME
   value: quay-cloudservices-pull
 - name: PULL_SECRET_NAMESPACE
+  value: ephemeral-base
+- name: IQE_VAULT_SECRET_NAME
+  value: iqe-vault
+- name: IQE_VAULT_SECRET_NAMESPACE
   value: ephemeral-base
