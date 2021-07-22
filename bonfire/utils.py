@@ -11,7 +11,9 @@ from cached_property import cached_property
 
 GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
-GH_BRANCH_URL = "https://api.github.com/repos/{org}/{repo}/git/refs/heads/{branch}"
+_GH_BRANCH_URL = "https://api.github.com/repos/{org}/{repo}/git/refs/heads/{branch}"
+_GH_BRANCH_URL_MIRROR = "https://github-mirror.devshift.net/repos/{org}/{repo}/git/refs/heads/{branch}"
+GH_BRANCH_URLS = {"local": _GH_BRANCH_URL, "jenkins": _GH_BRANCH_URL_MIRROR}
 GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects/?per_page=100"
 GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
 
@@ -143,6 +145,19 @@ class RepoFile:
 
         return cert_fname
 
+    @cached_property
+    def _gh_auth_headers(self):
+        gh_token = os.getenv("GITHUB_TOKEN")
+        if gh_token:
+            return {"Authorization": f"token {gh_token}"}
+        return None
+
+    @property
+    def _jenkins_or_local(self):
+        if self._gh_auth_headers:
+            return "jenkins"
+        return "local"
+
     def _get_ref(self, get_ref_func):
         """
         Wrapper to attempt fetching a git ref and trying alternate refs if needed
@@ -230,7 +245,14 @@ class RepoFile:
 
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
-            return requests.get(GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref))
+            return requests.get(
+                GH_BRANCH_URLS[self._jenkins_or_local].format(
+                    org=self.org,
+                    repo=self.repo,
+                    branch=ref,
+                ),
+                headers=self._gh_auth_headers
+            )
 
         response = self._get_ref(get_ref_func)
         return response.json()["object"]["sha"]
