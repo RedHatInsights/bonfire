@@ -1,7 +1,7 @@
 # Run smoke tests as a ClowdJobInvocation deployed by bonfire
 
 # Env vars defined by caller:
-#APP_NAME -- name of ClowdApp to run tests against
+#COMPONENT_NAME -- name of ClowdApp to run tests against /  app-sre "resourceTemplate"
 #IQE_CJI_TIMEOUT="10m" -- timeout value to pass to 'oc wait', should be slightly higher than expected test run time
 #IQE_MARKER_EXPRESSION="something AND something_else" -- pytest marker, can be "" if no filter desired
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
@@ -13,7 +13,7 @@
 IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:='""'}"
 IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:='""'}"
 
-CJI_NAME="$APP_NAME-smoke-tests"
+CJI_NAME="$COMPONENT_NAME-smoke-tests"
 
 function kill_port_fwd {
     echo "Caught signal, kill port forward"
@@ -26,7 +26,7 @@ if [[ -z $IQE_CJI_TIMEOUT ]]; then
 fi
 
 # Invoke the CJI using the options set via env vars
-pod=$(bonfire deploy-iqe-cji $APP_NAME -m "$IQE_MARKER_EXPRESSION" -k "$IQE_FILTER_EXPRESSION" -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
+pod=$(bonfire deploy-iqe-cji $COMPONENT_NAME -m "$IQE_MARKER_EXPRESSION" -k "$IQE_FILTER_EXPRESSION" -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
 
 # Pipe logs to background to keep them rolling in jenkins
 oc logs -n $NAMESPACE $pod -f &
