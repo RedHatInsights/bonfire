@@ -44,9 +44,14 @@ if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; th
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
     if [ "$CACHE_FROM_LATEST_IMAGE" == "true" ]; then
-        docker --config="$DOCKER_CONF" pull "${IMAGE}" && \
-        docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}" || \
-        docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+        echo "Attempting to build image using cache"
+        {
+            docker --config="$DOCKER_CONF" pull "${IMAGE}" &&
+            docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}"
+        } || {
+            echo "Build from cache failed, attempting build without cache"
+            docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+        }
     else
         docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
     fi
