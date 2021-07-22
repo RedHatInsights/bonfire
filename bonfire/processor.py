@@ -66,6 +66,7 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path):
     params = dict()
     params["ENV_NAME"] = env_name
     if quay_user:
+        quay_user = quay_user.replace("_", "-")
         params["PULL_SECRET_NAME"] = f"{quay_user}-pull-secret"
     if target_ns:
         params["NAMESPACE"] = target_ns
