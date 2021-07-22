@@ -190,7 +190,8 @@ class RepoFile:
                 else:
                     alts = ", ".join(self._alternate_refs[self.ref])
                     raise Exception(
-                        f"failed to fetch git ref {self.ref} or any of its alternates: {alts}"
+                        f"failed to fetch git ref '{self.ref}' or any of its alternates: '{alts}' "
+                        f"request failed with '{response.text}'"
                     )
 
         return response
