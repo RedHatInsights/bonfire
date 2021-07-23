@@ -20,7 +20,7 @@ objects:
     providers:
       pullSecrets:
         - name: ${PULL_SECRET_NAME}
-          namespace: ${PULL_SECRET_NAMESPACE}
+          namespace: ${NAMESPACE}
       testing:
         # Level of access the testing pod has in the namespace
         k8sAccessLevel: edit
@@ -29,7 +29,6 @@ objects:
         iqe:
           # Base image for iqe-tests
           imageBase: "quay.io/cloudservices/iqe-tests"
-          # Resources the IQE pod spins up with
           resources:
             limits:
               cpu: 1
@@ -75,5 +74,3 @@ parameters:
   required: true
 - name: PULL_SECRET_NAME
   value: quay-cloudservices-pull
-- name: PULL_SECRET_NAMESPACE
-  value: ephemeral-base
