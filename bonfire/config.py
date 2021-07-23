@@ -26,7 +26,10 @@ def _get_config_path():
 DEFAULT_CONFIG_PATH = _get_config_path().joinpath("config.yaml")
 DEFAULT_ENV_PATH = _get_config_path().joinpath("env")
 DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
-    "bonfire", "resources/ephemeral-clowdenvironment.yaml"
+    "bonfire", "resources/local-cluster-clowdenvironment.yaml"
+)
+EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE = resource_filename(
+    "bonfire", "resources/ephemeral-cluster-clowdenvironment.yaml"
 )
 DEFAULT_IQE_CJI_TEMPLATE = resource_filename("bonfire", "resources/default-iqe-cji.yaml")
 DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yaml")

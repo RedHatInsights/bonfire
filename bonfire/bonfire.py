@@ -392,8 +392,8 @@ _clowdenv_process_options = [
         "--template-file",
         "-f",
         help=(
-            "Path to ClowdEnvironment template file (default: use ephemeral template packaged with"
-            " bonfire)"
+            "Path to ClowdEnvironment template file (default: use local cluster template packaged"
+            " with bonfire)"
         ),
         type=str,
         default=None,

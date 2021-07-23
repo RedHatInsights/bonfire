@@ -364,7 +364,7 @@ def _delete_resources(namespace):
 def add_base_resources(namespace, secret_names):
     copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
 
-    with open(conf.DEFAULT_CLOWDENV_TEMPLATE) as fp:
+    with open(conf.EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE) as fp:
         template_data = yaml.safe_load(fp)
 
     processed_template = process_template(
