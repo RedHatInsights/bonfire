@@ -20,7 +20,7 @@ objects:
     providers:
       pullSecrets:
         - name: ${PULL_SECRET_NAME}
-          namespace: ${PULL_SECRET_NAMESPACE}
+          namespace: ${NAMESPACE}
       testing:
         # Level of access the testing pod has in the namespace
         k8sAccessLevel: edit
@@ -73,4 +73,4 @@ parameters:
   description: Name of the ClowdEnvironment
   required: true
 - name: PULL_SECRET_NAME
-- name: PULL_SECRET_NAMESPACE
+  value: quay-cloudservices-pull

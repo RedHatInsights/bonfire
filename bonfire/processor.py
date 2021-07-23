@@ -70,7 +70,6 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path):
         params["PULL_SECRET_NAME"] = f"{quay_user}-pull-secret"
     if target_ns:
         params["NAMESPACE"] = target_ns
-        params["PULL_SECRET_NAMESPACE"] = target_ns
 
     processed_template = process_template(template_data, params=params)
 
