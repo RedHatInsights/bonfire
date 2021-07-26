@@ -32,6 +32,7 @@ from bonfire.namespaces import (
     add_base_resources,
     reconcile,
 )
+from bonfire.secrets import import_secrets_from_dir
 
 log = logging.getLogger(__name__)
 
@@ -697,6 +698,18 @@ def _cmd_process(
     default=None,
 )
 @click.option(
+    "--import-secrets",
+    is_flag=True,
+    help="Import secrets from local directory at deploy time",
+    default=False,
+)
+@click.option(
+    "--secrets-dir",
+    type=str,
+    help="Import secrets from this directory (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)",
+    default=conf.DEFAULT_SECRETS_DIR,
+)
+@click.option(
     "--no-release-on-fail",
     "-f",
     is_flag=True,
@@ -724,10 +737,15 @@ def _cmd_config_deploy(
     timeout,
     no_release_on_fail,
     component_filter,
+    import_secrets,
+    secrets_dir,
 ):
     """Process app templates and deploy them to a cluster"""
     requested_ns = namespace
     used_ns_reservation_system, ns = _get_target_namespace(duration, retries, requested_ns)
+
+    if import_secrets:
+        import_secrets_from_dir(secrets_dir)
 
     if not clowd_env:
         # if no ClowdEnvironment name provided, see if a ClowdEnvironment is associated with this ns
@@ -812,12 +830,29 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file):
 
 @main.command("deploy-env")
 @options(_clowdenv_process_options)
+@click.option(
+    "--import-secrets",
+    is_flag=True,
+    help="Import secrets from local directory at deploy time",
+    default=False,
+)
+@click.option(
+    "--secrets-dir",
+    type=str,
+    help=("Import secrets from this directory (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)"),
+    default=conf.DEFAULT_SECRETS_DIR,
+)
 @options(_timeout_option)
-def _cmd_deploy_clowdenv(namespace, quay_user, clowd_env, template_file, timeout):
+def _cmd_deploy_clowdenv(
+    namespace, quay_user, clowd_env, template_file, timeout, import_secrets, secrets_dir
+):
     """Process ClowdEnv template and deploy to a cluster"""
     _warn_if_unsafe(namespace)
 
     try:
+        if import_secrets:
+            import_secrets_from_dir(secrets_dir)
+
         clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
 
         log.debug("ClowdEnvironment config:\n%s", clowd_env_config)

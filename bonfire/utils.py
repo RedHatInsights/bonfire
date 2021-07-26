@@ -1,4 +1,5 @@
 import atexit
+import json
 import logging
 import os
 import re
@@ -6,6 +7,7 @@ import requests
 import shlex
 import subprocess
 import tempfile
+import yaml
 
 from cached_property import cached_property
 
@@ -286,3 +288,24 @@ class RepoFile:
         p = os.path.join(repo_dir, self.path.lstrip("/"))
         with open(p) as fp:
             return commit, fp.read()
+
+
+def load_file(path):
+    """Load a .json/.yml/.yaml file."""
+    if not os.path.isfile(path):
+        raise ValueError("Path '{}' is not a file or does not exist".format(path))
+
+    _, file_ext = os.path.splitext(path)
+
+    with open(path, "rb") as f:
+        if file_ext == ".yaml" or file_ext == ".yml":
+            content = yaml.safe_load(f)
+        elif file_ext == ".json":
+            content = json.load(f)
+        else:
+            raise ValueError("File '{}' must be a YAML or JSON file".format(path))
+
+    if not content:
+        raise ValueError("File '{}' is empty!".format(path))
+
+    return content
