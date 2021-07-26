@@ -706,7 +706,7 @@ def _cmd_process(
 @click.option(
     "--secrets-dir",
     type=str,
-    help="Import secrets from this directory (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)",
+    help="Directory to use for secrets import (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)",
     default=conf.DEFAULT_SECRETS_DIR,
 )
 @click.option(
