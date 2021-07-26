@@ -146,10 +146,16 @@ class RepoFile:
 
     @cached_property
     def _gh_auth_headers(self):
+        log_msg = f"using GITHUB_API_URL '{GH_API_URL}' with no authorization"
+        headers = None
+
         gh_token = os.getenv("GITHUB_TOKEN")
         if gh_token:
-            return {"Authorization": f"token {gh_token}"}
-        return None
+            log_msg = f"using GITHUB_API_URL '{GH_API_URL}' with GITHUB_TOKEN"
+            headers = {"Authorization": f"token {gh_token}"}
+
+        log.info(log_msg)
+        return headers
 
     def _get_ref(self, get_ref_func):
         """
