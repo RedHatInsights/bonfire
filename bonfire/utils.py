@@ -11,7 +11,8 @@ from cached_property import cached_property
 
 GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
-GH_BRANCH_URL = "https://api.github.com/repos/{org}/{repo}/git/refs/heads/{branch}"
+GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
+GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
 GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects/?per_page=100"
 GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
 
@@ -143,6 +144,13 @@ class RepoFile:
 
         return cert_fname
 
+    @cached_property
+    def _gh_auth_headers(self):
+        gh_token = os.getenv("GITHUB_TOKEN")
+        if gh_token:
+            return {"Authorization": f"token {gh_token}"}
+        return None
+
     def _get_ref(self, get_ref_func):
         """
         Wrapper to attempt fetching a git ref and trying alternate refs if needed
@@ -166,7 +174,10 @@ class RepoFile:
                 break
             else:
                 log.warning(
-                    "failed to fetch git ref '%s' (http code: %d)", ref, response.status_code
+                    "failed to fetch git ref '%s' (http code: %d, response txt: %s)",
+                    ref,
+                    response.status_code,
+                    response.text,
                 )
                 if idx + 1 < len(refs_to_try):
                     # more alternates to try...
@@ -175,7 +186,8 @@ class RepoFile:
                 else:
                     alts = ", ".join(self._alternate_refs[self.ref])
                     raise Exception(
-                        f"failed to fetch git ref {self.ref} or any of its alternates: {alts}"
+                        f"failed to fetch git ref '{self.ref}' or any of its alternates: '{alts}',"
+                        " check logs for more details"
                     )
 
         return response
@@ -230,7 +242,14 @@ class RepoFile:
 
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
-            return requests.get(GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref))
+            return requests.get(
+                GH_BRANCH_URL.format(
+                    org=self.org,
+                    repo=self.repo,
+                    branch=ref,
+                ),
+                headers=self._gh_auth_headers,
+            )
 
         response = self._get_ref(get_ref_func)
         return response.json()["object"]["sha"]
