@@ -308,8 +308,10 @@ def sub_refs(apps, ref_env_name):
             if ref_component:
                 final_component = final_apps[app_name]["components"][idx]
                 final_component["ref"] = ref_component["ref"]
-                ref_image_tag = ref_component["parameters"].get("IMAGE_TAG")
+                ref_image_tag = ref_component.get("parameters", {}).get("IMAGE_TAG")
                 if ref_image_tag:
+                    if "parameters" not in final_component:
+                        final_component["parameters"] = {}
                     final_component["parameters"]["IMAGE_TAG"] = ref_image_tag
                 log.debug(
                     "app: '%s' component: '%s' -- using ref from env '%s': %s%s",
