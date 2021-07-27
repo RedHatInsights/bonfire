@@ -4,11 +4,11 @@ from pathlib import Path
 from pkg_resources import resource_filename
 import re
 import shutil
-import yaml
 import subprocess
 
 from dotenv import load_dotenv
 
+from bonfire.utils import load_file
 
 log = logging.getLogger(__name__)
 
@@ -25,6 +25,7 @@ def _get_config_path():
 
 DEFAULT_CONFIG_PATH = _get_config_path().joinpath("config.yaml")
 DEFAULT_ENV_PATH = _get_config_path().joinpath("env")
+DEFAULT_SECRETS_DIR = _get_config_path().joinpath("secrets")
 DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
     "bonfire", "resources/local-cluster-clowdenvironment.yaml"
 )
@@ -57,11 +58,6 @@ RESERVABLE_NAMESPACE_REGEX = re.compile(os.getenv("RESERVABLE_NAMESPACE_REGEX", 
 EPHEMERAL_ENV_NAME = os.getenv("EPHEMERAL_ENV_NAME", "insights-ephemeral")
 RECONCILE_TIMEOUT = os.getenv("RECONCILE_TIMEOUT", 600)
 ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")
-
-
-def _load_file(path):
-    with path.open() as fp:
-        return yaml.safe_load(fp)
 
 
 def write_default_config(outpath=None):
@@ -99,6 +95,6 @@ def load_config(config_path=None):
                 log.info("default config not found, creating")
 
     log.info("using local config file: %s", str(config_path.absolute()))
-    local_config_data = _load_file(config_path)
+    local_config_data = load_file(config_path)
 
     return local_config_data
