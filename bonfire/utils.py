@@ -86,7 +86,7 @@ def split_equals(list_of_str, allow_null=False):
             raise ValueError(
                 f"invalid format for value '{item}', must match: r'{equals_regex.pattern}'"
             )
-        key, val = item.split("=")
+        key, val = item.split("=", 1)
         output[key] = val
 
     return output
