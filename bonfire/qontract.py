@@ -114,6 +114,9 @@ class Client:
         transport = RequestsHTTPTransport(**transport_kwargs)
         self.client = GQLClient(transport=transport, fetch_schema_from_transport=True)
 
+        # info level is way too noisy for the gql client
+        logging.getLogger("gql").setLevel(logging.ERROR)
+
     def get_env(self, env):
         """Get insights env configuration."""
         for env_data in self.client.execute(ENVS_QUERY)["envs"]:
