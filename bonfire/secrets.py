@@ -50,7 +50,9 @@ def _import_secret(secret_name, secret_data):
     current_secret = get_json("secret", secret_name) or {}
 
     # avoid race conditions when running multiple processes by comparing the data
-    if current_secret.get("data") != secret_data.get("data"):
+    data_mismatch = current_secret.get("data") != secret_data.get("data")
+    str_data_mismatch = current_secret.get("stringData") != secret_data.get("stringData")
+    if data_mismatch or str_data_mismatch:
         log.info("replacing secret '%s' using local copy", secret_name)
         # delete from dst ns so that applying 'null' values will work
         oc("delete", "--ignore-not-found", "secret", secret_name, _silent=True)
