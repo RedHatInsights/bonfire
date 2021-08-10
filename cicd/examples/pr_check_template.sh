@@ -10,6 +10,8 @@ IMAGE="quay.io/cloudservices/CHANGEME"  # image location on quay
 IQE_PLUGINS="CHANGEME"  # name of the IQE plugin for this app.
 IQE_MARKER_EXPRESSION="CHANGEME"  # This is the value passed to pytest -m
 IQE_FILTER_EXPRESSION=""  # This is the value passed to pytest -k
+IQE_CJI_TIMEOUT="30m"  # This is the time to wait for smoke test to complete or fail
+
 
 # Install bonfire repo/initialize
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/bootstrap.sh
@@ -41,9 +43,16 @@ source $APP_ROOT/unit_test.sh
 # https://internal.cloud.redhat.com/docs/devprod/ephemeral/02-deploying/
 source $CICD_ROOT/deploy_ephemeral_env.sh
 
+# (DEPRECATED!) Run smoke tests using smoke_test.sh
+#
 # The contents of this script can be found at:
 # https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/smoke_test.sh
 # This script is used to run the smoke tests for a given APP.  The ENV VARs are
 # defined at the top in the "Options that must be configured by app owner" section
 # will control the behavior of the test.
-source $CICD_ROOT/smoke_test.sh
+#source $CICD_ROOT/smoke_test.sh
+
+# Run somke tests using a ClowdJobInvocation (preferred)
+# The contents of this script can be found at:
+# https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd/cji_smoke_test.sh
+source $CICD_ROOT/cji_smoke_test.sh
