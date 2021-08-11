@@ -590,13 +590,22 @@ def wait_for_db_resources(namespace, timeout=300):
 
 def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
     for secret_name in secret_names:
+        secret_data = export("secret", secret_name, namespace=src_namespace)
+        ignore = secret_data["metadata"].get("annotations", {}).get("bonfire.ignore")
+        if str(ignore).lower() == "true":
+            log.debug(
+                "secret '%s' in namespace '%s' has bonfire.ignore==true, skipping",
+                secret_name,
+                src_namespace,
+            )
+            continue
+
         log.info(
             "copying secret '%s' from namespace '%s' to namespace '%s'",
             secret_name,
             src_namespace,
             dst_namespace,
         )
-        secret_data = export("secret", secret_name, namespace=src_namespace)
         oc(
             "apply",
             f="-",
