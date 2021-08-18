@@ -15,11 +15,6 @@ IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:='""'}"
 
 CJI_NAME="$COMPONENT_NAME-smoke-tests"
 
-function kill_port_fwd {
-    echo "Caught signal, kill port forward"
-    if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
-}
-
 if [[ -z $IQE_CJI_TIMEOUT ]]; then
     echo "Error: no timeout set; export IQE_CJI_TIMEOUT before invoking cji_smoke_test.sh"
     exit 1
