@@ -156,7 +156,7 @@ class RepoFile:
             log_msg = f"using GITHUB_API_URL '{GH_API_URL}' with GITHUB_TOKEN"
             headers = {"Authorization": f"token {gh_token}"}
 
-        log.info(log_msg)
+        log.debug(log_msg)
         return headers
 
     def _get_ref(self, get_ref_func):
@@ -288,6 +288,52 @@ class RepoFile:
         p = os.path.join(repo_dir, self.path.lstrip("/"))
         with open(p) as fp:
             return commit, fp.read()
+
+
+def get_dependencies(items):
+    """
+    Returns dict of clowdapp_name: set of dependencies found for any ClowdApps in 'items'
+
+    'items' is a list of k8s resources found in a template
+    """
+    clowdapp_items = [item for item in items if item.get("kind").lower() == "clowdapp"]
+
+    deps_for_app = dict()
+
+    for clowdapp in clowdapp_items:
+        name = clowdapp["metadata"]["name"]
+        dependencies = {d for d in clowdapp["spec"].get("dependencies", [])}
+        optional_dependencies = {d for d in clowdapp["spec"].get("optionalDependencies", [])}
+        combined = dependencies.union(optional_dependencies)
+        deps_for_app[name] = combined
+        log.debug("found clowdapp '%s' with dependencies: %s", name, combined)
+
+    return deps_for_app
+
+
+def find_what_depends_on(apps_config, clowdapp_name):
+    found = set()
+    sorted_keys = sorted(apps_config.keys())
+    for app_name in sorted_keys:
+        app_config = apps_config[app_name]
+        for component in app_config.get("components", []):
+            component_name = component.get("name")
+            try:
+                rf = RepoFile.from_config(component)
+                _, template_content = rf.fetch()
+            except Exception:
+                log.error("failed to fetch template file for %s", component_name)
+
+            template = yaml.safe_load(template_content)
+            items = template.get("objects", [])
+
+            dependencies = get_dependencies(items)
+
+            for name, deps in dependencies.items():
+                if clowdapp_name.strip().lower() in [d.strip().lower() for d in deps]:
+                    found.add(name)
+
+    return found
 
 
 def load_file(path):
