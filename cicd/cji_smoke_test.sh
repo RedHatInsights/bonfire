@@ -10,8 +10,8 @@
 # In order for the deploy-iqe-cji to run correctly, we must set the marker and filter to "" if they
 # are not already set by caller
 # https://unix.stackexchange.com/questions/122845/using-a-b-for-variable-assignment-in-scripts/122848#122848
-IQE_MARKER_EXPRESSION="${IQE_MARKER_EXPRESSION:='""'}"
-IQE_FILTER_EXPRESSION="${IQE_FILTER_EXPRESSION:='""'}"
+: "${IQE_MARKER_EXPRESSION:='""'}"
+: "${IQE_FILTER_EXPRESSION:='""'}"
 
 CJI_NAME="$COMPONENT_NAME-smoke-tests"
 
