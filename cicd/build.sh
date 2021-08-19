@@ -17,8 +17,8 @@
 
 set -ex
 
-DOCKERFILE=${DOCKERFILE:="Dockerfile"}
-CACHE_FROM_LATEST_IMAGE=${CACHE_FROM_LATEST_IMAGE:="false"}
+: ${DOCKERFILE:="Dockerfile"}
+: ${CACHE_FROM_LATEST_IMAGE:="false"}
 
 if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     echo "QUAY_USER and QUAY_TOKEN must be set"
