@@ -317,7 +317,7 @@ def get_dependencies(items):
         optional_dependencies = {d for d in clowdapp["spec"].get("optionalDependencies", [])}
         combined = dependencies.union(optional_dependencies)
         deps_for_app[name] = combined
-        log.debug("found clowdapp '%s' with dependencies: %s", name, combined)
+        log.debug("found clowdapp '%s' with dependencies: %s", name, list(combined))
 
     return deps_for_app
 
