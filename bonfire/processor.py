@@ -10,6 +10,7 @@ from pathlib import Path
 import bonfire.config as conf
 from bonfire.openshift import process_template
 from bonfire.utils import RepoFile
+from bonfire.utils import get_dependencies as utils_get_dependencies
 
 log = logging.getLogger(__name__)
 
@@ -323,18 +324,11 @@ class TemplateProcessor:
             log.debug("component %s already processed", component_name)
 
     def _add_dependencies_to_config(self, component_name, new_items):
-        clowdapp_items = [item for item in new_items if item.get("kind").lower() == "clowdapp"]
-        dependencies = {d for item in clowdapp_items for d in item["spec"].get("dependencies", [])}
+        dependencies = {deps for _, deps in utils_get_dependencies(new_items).items()}
 
-        # also include optionalDependencies since we're interested in them for testing
-        for item in clowdapp_items:
-            for od in item["spec"].get("optionalDependencies", []):
-                dependencies.add(od)
-
-        if dependencies:
-            log.debug("component '%s' has dependencies: %s", component_name, list(dependencies))
-
+        # filter out ones we've already processed before
         dependencies = [d for d in dependencies if d not in self.processed_components]
+
         if dependencies:
             log.info("dependencies not previously processed: %s", dependencies)
             for component_name in dependencies:

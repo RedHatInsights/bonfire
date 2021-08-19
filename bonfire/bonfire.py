@@ -20,7 +20,7 @@ from bonfire.openshift import (
     wait_for_clowd_env_target_ns,
     wait_on_cji,
 )
-from bonfire.utils import split_equals
+from bonfire.utils import split_equals, find_what_depends_on
 from bonfire.local import get_local_apps
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.namespaces import (
@@ -984,6 +984,24 @@ def _cmd_apps_list(
             component_names = sorted([c["name"] for c in app_config["components"]])
             for component_name in component_names:
                 print(f" `-- {component_name}")
+
+
+@options(_app_source_options)
+@click.argument(
+    "component",
+    type=str,
+)
+@apps.command("what-depends-on")
+def _cmd_apps_what_depends_on(
+    source,
+    local_config_path,
+    target_env,
+    component,
+):
+    """Show any apps that depend on COMPONENT for deployments in given 'target_env'"""
+    apps = _get_apps_config(source, target_env, None, local_config_path)
+    found = find_what_depends_on(apps, component)
+    print("\n".join(found) or f"no apps depending on {component} found")
 
 
 if __name__ == "__main__":
