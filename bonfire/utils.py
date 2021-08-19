@@ -48,6 +48,13 @@ RxNEp7yHoXcwn+fXna+t5JWh1gxUZty3
 -----END CERTIFICATE-----
 """
 
+_RATE_LIMIT_ERR_MSG = (
+    "rate limited by GitHub, set GITHUB_TOKEN env var and/or use GITHUB_API_URL "
+    "to point to a mirror"
+)
+
+_PARAM_REGEX = re.compile(r"\${(\S+)}")
+
 log = logging.getLogger(__name__)
 
 
@@ -180,6 +187,8 @@ class RepoFile:
             if response.status_code == 200:
                 log.debug("fetch succeeded for ref '%s'", ref)
                 break
+            elif response.status_code == 403 and "api rate limit exceeded" in response.text.lower():
+                raise Exception(_RATE_LIMIT_ERR_MSG)
             else:
                 log.warning(
                     "failed to fetch git ref '%s' (http code: %d, response txt: %s)",
@@ -275,6 +284,8 @@ class RepoFile:
                 "http response 404 for url %s, checking for template in current working dir...", url
             )
             return self._fetch_local(os.getcwd())
+        elif response.status_code == 403 and "api rate limit exceeded" in response.text.lower():
+            raise Exception(_RATE_LIMIT_ERR_MSG)
         else:
             response.raise_for_status()
 
@@ -321,8 +332,8 @@ def find_what_depends_on(apps_config, clowdapp_name):
             try:
                 rf = RepoFile.from_config(component)
                 _, template_content = rf.fetch()
-            except Exception:
-                log.error("failed to fetch template file for %s", component_name)
+            except Exception as err:
+                log.error("failed to fetch template file for %s: %s", component_name, err)
 
             template = yaml.safe_load(template_content)
             items = template.get("objects", [])
@@ -330,6 +341,15 @@ def find_what_depends_on(apps_config, clowdapp_name):
             dependencies = get_dependencies(items)
 
             for name, deps in dependencies.items():
+                # check if the name of the ClowdApp is set with a parameter
+                parameter_name = _PARAM_REGEX.findall(name)
+                if parameter_name:
+                    # replace 'name' with parameter's default value if found
+                    for p in template.get("parameters", {}):
+                        if p["name"] == parameter_name[0]:
+                            name = p.get("value", name)
+
+                # if this ClowdApp depends on the one we're interested in, add it to the list
                 if clowdapp_name.strip().lower() in [d.strip().lower() for d in deps]:
                     found.add(name)
 
