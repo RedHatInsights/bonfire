@@ -9,7 +9,7 @@ DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$APP_NAME-db}"
 
 function kill_port_fwd {
     echo "Caught signal, kill port forward"
-    if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
+    if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID || true; fi
 }
 
 trap "kill_port_fwd" EXIT ERR SIGINT SIGTERM

@@ -17,7 +17,7 @@ CJI_NAME="$COMPONENT_NAME-smoke-tests"
 
 function kill_port_fwd {
     echo "Caught signal, kill port forward"
-    if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
+    if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID || true; fi
 }
 
 trap "kill_port_fwd" EXIT ERR SIGINT SIGTERM
