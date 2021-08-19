@@ -12,6 +12,8 @@ function kill_port_fwd {
     if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
 }
 
+trap "kill_port_fwd" EXIT ERR SIGINT SIGTERM
+
 # Deploy k8s resources for app without its dependencies
 NAMESPACE=$(bonfire namespace reserve)
 # TODO: after move to bonfire v1.0, make sure to use '--no-get-dependencies' here
@@ -33,7 +35,6 @@ bonfire namespace wait-on-resources $NAMESPACE --db-only
 LOCAL_DB_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
 oc port-forward svc/$DB_DEPLOYMENT_NAME $LOCAL_DB_PORT:5432 -n $NAMESPACE &
 PORT_FORWARD_PID=$!
-trap "teardown" EXIT ERR SIGINT SIGTERM
 
 # Store database access info to env vars
 oc get secret $APP_NAME -o json -n $NAMESPACE | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json

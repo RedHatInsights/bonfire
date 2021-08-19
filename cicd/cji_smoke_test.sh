@@ -20,6 +20,8 @@ function kill_port_fwd {
     if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
 }
 
+trap "kill_port_fwd" EXIT ERR SIGINT SIGTERM
+
 if [[ -z $IQE_CJI_TIMEOUT ]]; then
     echo "Error: no timeout set; export IQE_CJI_TIMEOUT before invoking cji_smoke_test.sh"
     exit 1
@@ -45,7 +47,6 @@ LOCAL_SVC_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); p
 oc port-forward svc/env-$NAMESPACE-minio $LOCAL_SVC_PORT:9000 -n $NAMESPACE &
 sleep 5
 PORT_FORWARD_PID=$!
-trap "teardown" EXIT ERR SIGINT SIGTERM
 
 # Get the secret from the env
 oc get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq -r '.data' > minio-creds.json
