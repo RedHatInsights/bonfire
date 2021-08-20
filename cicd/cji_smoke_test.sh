@@ -40,7 +40,6 @@ LOCAL_SVC_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); p
 oc port-forward svc/env-$NAMESPACE-minio $LOCAL_SVC_PORT:9000 -n $NAMESPACE &
 sleep 5
 PORT_FORWARD_PID=$!
-trap "teardown" EXIT ERR SIGINT SIGTERM
 
 # Get the secret from the env
 oc get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq -r '.data' > minio-creds.json
