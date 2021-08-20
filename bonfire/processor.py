@@ -326,7 +326,7 @@ class TemplateProcessor:
     def _add_dependencies_to_config(self, component_name, new_items):
         dependencies = set()
         for _, deps in utils_get_dependencies(new_items).items():
-            dependencies.union(deps)
+            dependencies = dependencies.union(deps)
 
         # filter out ones we've already processed before
         dependencies = [d for d in dependencies if d not in self.processed_components]
