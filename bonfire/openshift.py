@@ -16,14 +16,6 @@ from wait_for import wait_for, TimedOutError
 log = logging.getLogger(__name__)
 
 
-def run_oc_status():
-    try:
-        oc("status", _silent=True)
-        return True
-    except ErrorReturnCode:
-        return False
-
-
 # assume that the result of this will not change during execution of our app
 @functools.lru_cache(maxsize=None, typed=False)
 def get_api_resources():
@@ -685,14 +677,10 @@ def on_k8s():
 
 
 def get_all_namespaces():
-
-    if run_oc_status():
-        if not on_k8s():
-            all_namespaces = get_json("project")["items"]
-        else:
-            all_namespaces = get_json("namespace")["items"]
+    if not on_k8s():
+        all_namespaces = get_json("project")["items"]
     else:
-        raise ValueError("Error running oc status, check cluster login session")
+        all_namespaces = get_json("namespace")["items"]
 
     return all_namespaces
 
