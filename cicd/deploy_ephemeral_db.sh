@@ -9,15 +9,14 @@ DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$APP_NAME-db}"
 
 # Deploy k8s resources for app without its dependencies
 NAMESPACE=$(bonfire namespace reserve)
-# TODO: after move to bonfire v1.0, make sure to use '--no-get-dependencies' here
 # TODO: add code to bonfire to deploy an app if it is defined in 'sharedAppDbName' on the ClowdApp
+# TODO: add a bonfire command to deploy just an app's DB
 bonfire process \
     $APP_NAME \
     --source=appsre \
     --ref-env insights-stage \
     --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag $IMAGE=$IMAGE_TAG \
-    --no-get-dependencies \
     --namespace $NAMESPACE \
     $COMPONENTS_ARG \
     $COMPONENTS_RESOURCES_ARG | oc apply -f - -n $NAMESPACE
