@@ -7,11 +7,6 @@ source ${CICD_ROOT}/_common_deploy_logic.sh
 # DB_DEPLOYMENT_NAME -- by default it is '<ClowdApp name>-db'
 DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$APP_NAME-db}"
 
-function kill_port_fwd {
-    echo "Caught signal, kill port forward"
-    if [ ! -z "$PORT_FORWARD_PID" ]; then kill $PORT_FORWARD_PID; fi
-}
-
 # Deploy k8s resources for app without its dependencies
 NAMESPACE=$(bonfire namespace reserve)
 # TODO: after move to bonfire v1.0, make sure to use '--no-get-dependencies' here
