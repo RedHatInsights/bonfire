@@ -5,7 +5,7 @@ source ${CICD_ROOT}/_common_deploy_logic.sh
 
 # the db that the unit test relies on can be set before 'source'ing this script via
 # DB_DEPLOYMENT_NAME -- by default it is '<ClowdApp name>-db'
-DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$APP_NAME-db}"
+DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$COMPONENT_NAME-db}"
 
 # Deploy k8s resources for app without its dependencies
 NAMESPACE=$(bonfire namespace reserve)
@@ -29,7 +29,7 @@ oc port-forward svc/$DB_DEPLOYMENT_NAME $LOCAL_DB_PORT:5432 -n $NAMESPACE &
 PORT_FORWARD_PID=$!
 
 # Store database access info to env vars
-oc get secret $APP_NAME -o json -n $NAMESPACE | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
+oc get secret $COMPONENT_NAME -o json -n $NAMESPACE | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
 
 export DATABASE_NAME=$(jq -r .name < db-creds.json)
 export DATABASE_ADMIN_USERNAME=$(jq -r .adminUsername < db-creds.json)
