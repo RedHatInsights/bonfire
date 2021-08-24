@@ -569,7 +569,11 @@ def _cmd_namespace_reset(namespace):
 
 
 def _get_apps_config(source, target_env, ref_env, local_config_path):
-    config = conf.load_config(local_config_path)
+    try:
+        config = conf.load_config(local_config_path)
+    except ValueError as err:
+        log.warning("config file looks suspicious: %s", err)
+        config = {}
 
     if source == APP_SRE_SRC:
         log.info("fetching apps config using source: %s, target env: %s", source, target_env)
@@ -795,6 +799,9 @@ def _cmd_config_deploy(
             apply_config(ns, apps_config)
             log.info("waiting on resources for max of %dsec...", timeout)
             _wait_on_namespace_resources(ns, timeout)
+    except ValueError as err:
+        log.error(err)
+        _err_handler()
     except KeyboardInterrupt:
         log.error("Aborted by keyboard interrupt!")
         _err_handler()
