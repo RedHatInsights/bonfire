@@ -7,7 +7,7 @@ import logging
 import os
 
 from bonfire.openshift import oc, get_json
-from bonfire.utils import load_file
+from bonfire.utils import load_file, FatalError
 
 
 log = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def _parse_secret_file(path):
             try:
                 secrets[item["metadata"]["name"]] = item
             except KeyError:
-                raise ValueError("Secret at path '{}' has no metadata/name".format(path))
+                raise FatalError("Secret at path '{}' has no metadata/name".format(path))
 
     return secrets
 
@@ -61,10 +61,10 @@ def _import_secret(secret_name, secret_data):
 
 def import_secrets_from_dir(path):
     if not os.path.exists(path):
-        raise ValueError(f"secrets directory not found: {path}")
+        raise FatalError(f"secrets directory not found: {path}")
 
     if not os.path.isdir(path):
-        raise ValueError(f"invalid secrets directory: {path}")
+        raise FatalError(f"invalid secrets directory: {path}")
 
     files = _get_files_in_dir(path)
     secrets = {}
@@ -74,7 +74,7 @@ def import_secrets_from_dir(path):
         log.info("loaded %d secret(s) from file '%s'", len(secrets_in_file), secret_file)
         for secret_name in secrets_in_file:
             if secret_name in secrets:
-                raise ValueError(f"secret with name '{secret_name}' defined twice in secrets dir")
+                raise FatalError(f"secret with name '{secret_name}' defined twice in secrets dir")
         secrets.update(secrets_in_file)
 
     for secret_name, secret_data in secrets.items():

@@ -20,7 +20,7 @@ from bonfire.openshift import (
     wait_for_clowd_env_target_ns,
     wait_on_cji,
 )
-from bonfire.utils import split_equals, find_what_depends_on
+from bonfire.utils import FatalError, split_equals, find_what_depends_on
 from bonfire.local import get_local_apps
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.namespaces import (
@@ -811,13 +811,7 @@ def _cmd_config_deploy(
 
 def _process_clowdenv(target_namespace, quay_user, env_name, template_file):
     env_name = _get_env_name(target_namespace, env_name)
-
-    try:
-        clowd_env_config = process_clowd_env(target_namespace, quay_user, env_name, template_file)
-    except ValueError as err:
-        _error(str(err))
-
-    return clowd_env_config
+    return process_clowd_env(target_namespace, quay_user, env_name, template_file)
 
 
 @main.command("process-env")
@@ -1005,4 +999,7 @@ def _cmd_apps_what_depends_on(
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FatalError as err:
+        _error(str(err))

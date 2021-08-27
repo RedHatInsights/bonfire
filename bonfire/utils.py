@@ -11,6 +11,12 @@ import yaml
 
 from cached_property import cached_property
 
+
+class FatalError(Exception):
+    """An exception that will cause the CLI to exit"""
+    pass
+
+
 GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
 GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
@@ -102,7 +108,7 @@ def split_equals(list_of_str, allow_null=False):
 class RepoFile:
     def __init__(self, host, org, repo, path, ref="master"):
         if host not in ["local", "github", "gitlab"]:
-            raise ValueError(f"invalid repo host type: {host}")
+            raise FatalError(f"invalid repo host type: {host}")
 
         if not path.startswith("/"):
             path = f"/{path}"
@@ -121,12 +127,12 @@ class RepoFile:
         required_keys = ["host", "repo", "path"]
         missing_keys = [k for k in required_keys if k not in d.keys()]
         if missing_keys:
-            raise ValueError(f"repo config missing keys: {', '.join(missing_keys)}")
+            raise FatalError(f"repo config missing keys: {', '.join(missing_keys)}")
 
         repo = d["repo"]
         if d["host"] in ["github", "gitlab"]:
             if "/" not in repo:
-                raise ValueError(
+                raise FatalError(
                     f"invalid value for repo '{repo}', required format: <org>/<repo name>"
                 )
             org, repo = repo.split("/")
@@ -229,7 +235,7 @@ class RepoFile:
                 project_id = p["id"]
 
         if not project_id:
-            raise ValueError("gitlab project ID not found for {self.org}/{self.repo}")
+            raise FatalError("gitlab project ID not found for {self.org}/{self.repo}")
 
         def get_ref_func(ref):
             return requests.get(
@@ -359,7 +365,7 @@ def find_what_depends_on(apps_config, clowdapp_name):
 def load_file(path):
     """Load a .json/.yml/.yaml file."""
     if not os.path.isfile(path):
-        raise ValueError("Path '{}' is not a file or does not exist".format(path))
+        raise FatalError("Path '{}' is not a file or does not exist".format(path))
 
     _, file_ext = os.path.splitext(path)
 
@@ -369,9 +375,9 @@ def load_file(path):
         elif file_ext == ".json":
             content = json.load(f)
         else:
-            raise ValueError("File '{}' must be a YAML or JSON file".format(path))
+            raise FatalError("File '{}' must be a YAML or JSON file".format(path))
 
     if not content:
-        raise ValueError("File '{}' is empty!".format(path))
+        raise FatalError("File '{}' is empty!".format(path))
 
     return content
