@@ -14,6 +14,7 @@ from cached_property import cached_property
 
 class FatalError(Exception):
     """An exception that will cause the CLI to exit"""
+
     pass
 
 

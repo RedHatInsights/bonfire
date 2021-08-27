@@ -998,8 +998,12 @@ def _cmd_apps_what_depends_on(
     print("\n".join(found) or f"no apps depending on {component} found")
 
 
-if __name__ == "__main__":
+def main_with_handler():
     try:
         main()
     except FatalError as err:
         _error(str(err))
+
+
+if __name__ == "__main__":
+    main_with_handler()
