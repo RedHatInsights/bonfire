@@ -17,47 +17,14 @@
 
 set -ex
 
-: ${DOCKERFILE:="Dockerfile"}
-: ${CACHE_FROM_LATEST_IMAGE:="false"}
-
-if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
-    echo "QUAY_USER and QUAY_TOKEN must be set"
-    exit 1
-fi
-
-if [[ -z "$RH_REGISTRY_USER" || -z "$RH_REGISTRY_TOKEN" ]]; then
-    echo "RH_REGISTRY_USER and RH_REGISTRY_TOKEN must be set"
-    exit 1
-fi
-
-if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
-    echo "ERROR: No $DOCKERFILE found"
-    exit 1
-fi
-echo "LABEL quay.expires-after=3d" >> $APP_ROOT/$DOCKERFILE  # tag expires in 3 days
-
-
-if [[ $IMAGE == quay.io/* ]]; then
-    # if using quay, check to see if this tag already exists
-    echo "checking if image '$IMAGE:$IMAGE_TAG' already exists in quay.io..."
-    QUAY_REPO=${IMAGE#"quay.io/"}
-    RESPONSE=$( \
-        curl -Ls -I -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $QUAY_TOKEN" \
-        https://quay.io/api/v1/repository/$QUAY_REPO/tag/$IMAGE_TAG/images \
-    )
-    echo "received HTTP response: $RESPONSE"
-    if [[ $RESPONSE == 200 ]]; then
-        echo "$IMAGE:$IMAGE_TAG already present in quay, not rebuilding"
-    else
-        # image does not yet exist, build and push it
-        build
-    fi
-else
-    # if not pushing to quay, always build
-    build
-fi
-
 function build {
+    if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
+        echo "ERROR: No $DOCKERFILE found"
+        exit 1
+    fi
+
+    echo "LABEL quay.expires-after=3d" >> $APP_ROOT/$DOCKERFILE  # tag expires in 3 days
+
     if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
         # on RHEL7, use docker
         docker_build
@@ -96,3 +63,37 @@ function podman_build {
     podman build -f $APP_ROOT/$DOCKERFILE -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT
     podman push "${IMAGE}:${IMAGE_TAG}"
 }
+
+
+: ${DOCKERFILE:="Dockerfile"}
+: ${CACHE_FROM_LATEST_IMAGE:="false"}
+
+if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
+    echo "QUAY_USER and QUAY_TOKEN must be set"
+    exit 1
+fi
+
+if [[ -z "$RH_REGISTRY_USER" || -z "$RH_REGISTRY_TOKEN" ]]; then
+    echo "RH_REGISTRY_USER and RH_REGISTRY_TOKEN must be set"
+    exit 1
+fi
+
+if [[ $IMAGE == quay.io/* ]]; then
+    # if using quay, check to see if this tag already exists
+    echo "checking if image '$IMAGE:$IMAGE_TAG' already exists in quay.io..."
+    QUAY_REPO=${IMAGE#"quay.io/"}
+    RESPONSE=$( \
+        curl -Ls -I -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $QUAY_TOKEN" \
+        https://quay.io/api/v1/repository/$QUAY_REPO/tag/$IMAGE_TAG/images \
+    )
+    echo "received HTTP response: $RESPONSE"
+    if [[ $RESPONSE == 200 ]]; then
+        echo "$IMAGE:$IMAGE_TAG already present in quay, not rebuilding"
+    else
+        # image does not yet exist, build and push it
+        build
+    fi
+else
+    # if not pushing to quay, always build
+    build
+fi
