@@ -1,7 +1,7 @@
 import logging
 import yaml
 
-from bonfire.utils import RepoFile, get_dupes
+from bonfire.utils import RepoFile, get_dupes, FatalError
 
 log = logging.getLogger(__name__)
 
@@ -20,12 +20,12 @@ def _fetch_apps_file(config):
     fetched_apps = yaml.safe_load(content)
 
     if "apps" not in fetched_apps:
-        raise ValueError("fetched apps file has no 'apps' key")
+        raise FatalError("fetched apps file has no 'apps' key")
 
     app_names = [a["name"] for a in fetched_apps["apps"]]
     dupes = get_dupes(app_names)
     if dupes:
-        raise ValueError("duplicate app names found in fetched apps file: {dupes}")
+        raise FatalError("duplicate app names found in fetched apps file: {dupes}")
 
     return {a["name"]: a for a in fetched_apps["apps"]}
 
@@ -34,7 +34,7 @@ def _parse_apps_in_cfg(config):
     app_names = [a["name"] for a in config["apps"]]
     dupes = get_dupes(app_names)
     if dupes:
-        raise ValueError("duplicate app names found in config: {dupes}")
+        raise FatalError("duplicate app names found in config: {dupes}")
     return {a["name"]: a for a in config["apps"]}
 
 

@@ -8,7 +8,7 @@ import subprocess
 
 from dotenv import load_dotenv
 
-from bonfire.utils import load_file
+from bonfire.utils import load_file, FatalError
 
 log = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ def load_config(config_path=None):
         log.debug("user provided explicit config path: %s", config_path)
         config_path = Path(config_path)
         if not config_path.exists():
-            raise ValueError(f"provided config file path '{str(config_path)}' does not exist")
+            raise FatalError(f"provided config file path '{str(config_path)}' does not exist")
     else:
         # no user-provided path, check default locations
         config_path = Path("config.yaml")

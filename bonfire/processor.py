@@ -9,7 +9,7 @@ from pathlib import Path
 
 import bonfire.config as conf
 from bonfire.openshift import process_template
-from bonfire.utils import RepoFile
+from bonfire.utils import RepoFile, FatalError
 from bonfire.utils import get_dependencies as utils_get_dependencies
 
 log = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path):
     env_template_path = Path(template_path if template_path else conf.DEFAULT_CLOWDENV_TEMPLATE)
 
     if not env_template_path.exists():
-        raise ValueError("ClowdEnvironment template file does not exist: %s", env_template_path)
+        raise FatalError("ClowdEnvironment template file does not exist: %s", env_template_path)
 
     with env_template_path.open() as fp:
         template_data = yaml.safe_load(fp)
@@ -75,7 +75,7 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path):
     processed_template = process_template(template_data, params=params)
 
     if not processed_template.get("items"):
-        raise ValueError("Processed ClowdEnvironment template has no items")
+        raise FatalError("Processed ClowdEnvironment template has no items")
 
     return processed_template
 
@@ -95,7 +95,7 @@ def process_iqe_cji(
     template_path = Path(template_path if template_path else conf.DEFAULT_IQE_CJI_TEMPLATE)
 
     if not template_path.exists():
-        raise ValueError("CJI template file does not exist: %s", template_path)
+        raise FatalError("CJI template file does not exist: %s", template_path)
 
     with template_path.open() as fp:
         template_data = yaml.safe_load(fp)
@@ -112,7 +112,7 @@ def process_iqe_cji(
     processed_template = process_template(template_data, params=params)
 
     if not processed_template.get("items"):
-        raise ValueError("Processed CJI template has no items")
+        raise FatalError("Processed CJI template has no items")
 
     return processed_template
 
@@ -140,7 +140,7 @@ class TemplateProcessor:
                     if component in other_components:
                         found_in.append(other_app_name)
                 if len(found_in) > 1:
-                    raise ValueError(
+                    raise FatalError(
                         f"component '{component}' is not unique, found in apps: {found_in}"
                     )
 
@@ -151,18 +151,18 @@ class TemplateProcessor:
             required_keys = ["name", "components"]
             missing_keys = [k for k in required_keys if k not in app_cfg]
             if missing_keys:
-                raise ValueError(f"app '{app_name}' is missing required keys: {missing_keys}")
+                raise FatalError(f"app '{app_name}' is missing required keys: {missing_keys}")
 
             app_name = app_cfg["name"]
             if app_name in components_for_app:
-                raise ValueError(f"app with name '{app_name}' is not unique")
+                raise FatalError(f"app with name '{app_name}' is not unique")
             components_for_app[app_name] = []
 
             for component in app_cfg.get("components", []):
                 required_keys = ["name", "host", "repo", "path"]
                 missing_keys = [k for k in required_keys if k not in component]
                 if missing_keys:
-                    raise ValueError(
+                    raise FatalError(
                         f"component on app {app_name} is missing required keys: {missing_keys}"
                     )
                 comp_name = component["name"]
@@ -209,7 +209,7 @@ class TemplateProcessor:
 
     def _get_app_config(self, app_name):
         if app_name not in self.apps_config:
-            raise ValueError(f"app {app_name} not found in apps config")
+            raise FatalError(f"app {app_name} not found in apps config")
         return self.apps_config[app_name]
 
     def _get_component_config(self, component_name):
@@ -218,7 +218,7 @@ class TemplateProcessor:
                 if component["name"] == component_name:
                     return component
         else:
-            raise ValueError(f"component with name '{component_name}' not found")
+            raise FatalError(f"component with name '{component_name}' not found")
 
     def _sub_image_tags(self, items):
         content = json.dumps(items)
@@ -238,7 +238,7 @@ class TemplateProcessor:
             elif len(split) == 1:
                 component_name = split[0]
             else:
-                raise ValueError(
+                raise FatalError(
                     f"invalid format for template ref override: {app_component}={value}"
                 )
 
@@ -259,7 +259,7 @@ class TemplateProcessor:
             elif len(split) == 2:
                 component_name, param_name = split
             else:
-                raise ValueError(f"invalid format for parameter override: {param_path}={value}")
+                raise FatalError(f"invalid format for parameter override: {param_path}={value}")
 
             if current_component_name == component_name:
                 log.info(

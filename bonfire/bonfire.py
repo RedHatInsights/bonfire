@@ -20,7 +20,7 @@ from bonfire.openshift import (
     wait_for_clowd_env_target_ns,
     wait_on_cji,
 )
-from bonfire.utils import split_equals, find_what_depends_on
+from bonfire.utils import FatalError, split_equals, find_what_depends_on
 from bonfire.local import get_local_apps
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.namespaces import (
@@ -759,7 +759,7 @@ def _cmd_config_deploy(
         clowd_env = match["metadata"]["name"]
         log.debug("inferred clowd_env: '%s'", clowd_env)
 
-    def _err_handler():
+    def _err_handler(err):
         try:
             if not no_release_on_fail and not requested_ns and used_ns_reservation_system:
                 # if we auto-reserved this ns, auto-release it on failure unless
@@ -767,7 +767,8 @@ def _cmd_config_deploy(
                 log.info("releasing namespace '%s'", ns)
                 release_namespace(ns)
         finally:
-            _error("deploy failed")
+            msg = f"deploy failed: {str(err)}"
+            _error(msg)
 
     try:
         log.info("processing app templates...")
@@ -795,15 +796,18 @@ def _cmd_config_deploy(
             apply_config(ns, apps_config)
             log.info("waiting on resources for max of %dsec...", timeout)
             _wait_on_namespace_resources(ns, timeout)
-    except KeyboardInterrupt:
-        log.error("Aborted by keyboard interrupt!")
-        _err_handler()
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
     except TimedOutError as err:
-        log.error("Hit timeout error: %s", err)
-        _err_handler()
-    except Exception:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
         log.exception("hit unexpected error!")
-        _err_handler()
+        _err_handler(err)
     else:
         log.info("successfully deployed to namespace '%s'", ns)
         click.echo(ns)
@@ -811,13 +815,7 @@ def _cmd_config_deploy(
 
 def _process_clowdenv(target_namespace, quay_user, env_name, template_file):
     env_name = _get_env_name(target_namespace, env_name)
-
-    try:
-        clowd_env_config = process_clowd_env(target_namespace, quay_user, env_name, template_file)
-    except ValueError as err:
-        _error(str(err))
-
-    return clowd_env_config
+    return process_clowd_env(target_namespace, quay_user, env_name, template_file)
 
 
 @main.command("process-env")
@@ -849,6 +847,10 @@ def _cmd_deploy_clowdenv(
     """Process ClowdEnv template and deploy to a cluster"""
     _warn_if_unsafe(namespace)
 
+    def _err_handler(err):
+        msg = f"deploy failed: {str(err)}"
+        _error(msg)
+
     try:
         if import_secrets:
             import_secrets_from_dir(secrets_dir)
@@ -867,15 +869,18 @@ def _cmd_deploy_clowdenv(
         _wait_on_namespace_resources(namespace, timeout)
 
         clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
-    except KeyboardInterrupt:
-        log.error("Aborted by keyboard interrupt!")
-        _error("deploy failed")
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
     except TimedOutError as err:
-        log.error("Hit timeout error: %s", err)
-        _error("deploy failed")
-    except Exception:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
         log.exception("hit unexpected error!")
-        _error("deploy failed")
+        _err_handler(err)
     else:
         log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
         click.echo(namespace)
@@ -912,6 +917,10 @@ def _cmd_deploy_iqe_cji(
     """Process IQE CJI template, apply it, and wait for it to start running."""
     _warn_if_unsafe(namespace)
 
+    def _err_handler(err):
+        msg = f"deploy failed: {str(err)}"
+        _error(msg)
+
     try:
         cji_config = process_iqe_cji(
             clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
@@ -928,15 +937,18 @@ def _cmd_deploy_iqe_cji(
 
         log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
         pod_name = wait_on_cji(namespace, cji_name, timeout)
-    except KeyboardInterrupt:
-        log.error("Aborted by keyboard interrupt!")
-        _error("deploy failed")
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
     except TimedOutError as err:
-        log.error("Hit timeout error: %s", err)
-        _error("deploy failed")
-    except Exception:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
         log.exception("hit unexpected error!")
-        _error("deploy failed")
+        _err_handler(err)
     else:
         log.info(
             "pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace
@@ -1004,5 +1016,12 @@ def _cmd_apps_what_depends_on(
     print("\n".join(found) or f"no apps depending on {component} found")
 
 
+def main_with_handler():
+    try:
+        main()
+    except FatalError as err:
+        _error(str(err))
+
+
 if __name__ == "__main__":
-    main()
+    main_with_handler()
