@@ -18,6 +18,7 @@ bonfire process \
     --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag $IMAGE=$IMAGE_TAG \
     --namespace $NAMESPACE \
+    --no-get-dependencies \
     $COMPONENTS_ARG \
     $COMPONENTS_RESOURCES_ARG | oc apply -f - -n $NAMESPACE
 
