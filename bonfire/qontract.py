@@ -1,6 +1,7 @@
 import json
 import copy
 import logging
+from urllib.parse import urlparse
 
 from gql import gql
 from gql import Client as GQLClient
@@ -227,7 +228,11 @@ def _add_component(apps, env, app_name, saas_file, resource_template, target, de
         )
     host = "github" if "github" in url else "gitlab"
 
-    org, repo = url.split("/")[-2:]
+    try:
+        parsed_url = urlparse(url)
+        org, repo = parsed_url.path.rstrip("/").split("/")[-2:]
+    except (ValueError, IndexError) as err:
+        raise ValueError(f"invalid repo url '{url}': {err}")
 
     # merge the various layers of parameters
     p = copy.deepcopy(_to_dict(env["parameters"]))
