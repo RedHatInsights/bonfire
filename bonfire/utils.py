@@ -192,12 +192,12 @@ class RepoFile:
 
             response = get_ref_func(ref)
             if response.status_code == 200:
-                log.debug("fetch succeeded for ref '%s'", ref)
+                log.info("fetch succeeded for ref '%s'", ref)
                 break
             elif response.status_code == 403 and "api rate limit exceeded" in response.text.lower():
                 raise Exception(_RATE_LIMIT_ERR_MSG)
             else:
-                log.warning(
+                log.info(
                     "failed to fetch git ref '%s' (http code: %d, response txt: %s)",
                     ref,
                     response.status_code,
