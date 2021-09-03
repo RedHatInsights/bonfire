@@ -224,7 +224,7 @@ class TemplateProcessor:
         content = json.dumps(items)
         for image, image_tag in self.image_tag_overrides.items():
             # easier to just re.sub on a whole string
-            content, subs = re.subn(rf"{image}:[^\"]*", rf"{image}:{image_tag}", content)
+            content, subs = re.subn(rf"{image}:[-\w\.]+", rf"{image}:{image_tag}", content)
             if subs:
                 log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
         return json.loads(content)
