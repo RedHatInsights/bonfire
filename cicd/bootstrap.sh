@@ -17,7 +17,7 @@ export LC_ALL=en_US.utf-8
 python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
-pip install --upgrade pip setuptools wheel
+pip install --upgrade pip 'setuptools<58' wheel
 pip install --upgrade 'crc-bonfire>=1.0.0'
 
 # clone repo to download cicd scripts
