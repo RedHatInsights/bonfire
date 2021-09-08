@@ -8,7 +8,7 @@ bonfire deploy \
     ${APP_NAME} \
     --source=appsre \
     --ref-env insights-stage \
-    --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
+    --set-template-ref ${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag ${IMAGE}=${IMAGE_TAG} \
     --namespace ${NAMESPACE} \
     --timeout ${DEPLOY_TIMEOUT} \
