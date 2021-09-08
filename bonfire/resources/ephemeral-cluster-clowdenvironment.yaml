@@ -55,6 +55,7 @@ objects:
         mode: operator
       kafka:
         mode: operator
+        pvc: true
         # disable tls/auth for now until core apps are ready
         enableLegacyStrimzi: true
         # use v2.6.0 since the custom kafka-connect image for cyndi-operator expects that
@@ -65,6 +66,7 @@ objects:
           image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:182ab8b"
       db:
         mode: local
+        pvc: true
       logging:
         mode: none
       objectStore:
