@@ -25,7 +25,12 @@ from bonfire.openshift import (
 )
 from bonfire.utils import FatalError, split_equals, find_what_depends_on
 from bonfire.local import get_local_apps
-from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji, process_reservation
+from bonfire.processor import (
+    TemplateProcessor,
+    process_clowd_env,
+    process_iqe_cji,
+    process_reservation,
+)
 from bonfire.namespaces import (
     Namespace,
     get_namespaces,
@@ -1034,8 +1039,21 @@ def _cmd_apps_what_depends_on(
 
 
 @reservation.command("create")
-@click.option('--requester', '-r', prompt='Requester', type=str, help='Name of the user requesting a reservation')
-@click.option('--duration', '-d', prompt='Duration', type=str, default='1h', help='Duration of the reservation')
+@click.option(
+    '--requester',
+    '-r',
+    prompt='Requester',
+    type=str,
+    help='Name of the user requesting a reservation',
+)
+@click.option(
+    '--duration',
+    '-d',
+    prompt='Duration',
+    type=str,
+    default='1h',
+    help='Duration of the reservation',
+)
 @options(_timeout_option)
 def _create_new_reservation(requester, duration, timeout):
     def _err_handler(err):
@@ -1050,7 +1068,10 @@ def _create_new_reservation(requester, duration, timeout):
         try:
             res_name = res_config["items"][0]["metadata"]["name"]
         except (KeyError, IndexError):
-            raise Exception("error parsing name of Reservation from processed template, check Reservation template")
+            raise Exception(
+                "error parsing name of Reservation from processed template, " +
+                "check Reservation template"
+            )
 
         apply_config(None, list_resource=res_config)
 
@@ -1075,8 +1096,21 @@ def _create_new_reservation(requester, duration, timeout):
 
 
 @reservation.command("extend")
-@click.option('--requester', '-r', prompt='Requester', type=str, help='Name of the user requesting an extension')
-@click.option('--duration', '-d', prompt='Duration', type=str, default='1h', help='Duration of the extension')
+@click.option(
+    '--requester',
+    '-r',
+    prompt='Requester',
+    type=str,
+    help='Name of the user requesting an extension',
+)
+@click.option(
+    '--duration',
+    '-d',
+    prompt='Duration',
+    type=str,
+    default='1h',
+    help='Duration of the extension',
+)
 def _extend_reservation(requester, duration):
     def _err_handler(err):
         msg = f"reservation extension failed: {str(err)}"
@@ -1107,7 +1141,13 @@ def _extend_reservation(requester, duration):
 
 
 @reservation.command("delete")
-@click.option('--requester', '-r', prompt='Requester', type=str, help='Name of the user requesting an extension')
+@click.option(
+    '--requester',
+    '-r',
+    prompt='Requester',
+    type=str,
+    help='Name of the user requesting an extension',
+)
 def _delete_reservation(requester):
     def _err_handler(err):
         msg = f"reservation deletion failed: {str(err)}"

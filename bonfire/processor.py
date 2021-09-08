@@ -136,7 +136,7 @@ def process_reservation(
     params = dict()
     params["DURATION"] = duration
     params["REQUESTER"] = requester
-    
+
     if extension:
         res = get_reservation_by_requester(requester)
         if res:

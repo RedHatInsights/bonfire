@@ -743,9 +743,11 @@ def wait_on_reservation(res_name, timeout):
             return res["status"]["namespace"]
         except (KeyError, IndexError):
             return False
-    
+
     ns_name, elapsed = wait_for(
-        _find_reservation, num_sec=timeout, message=f"wait for namespace to be owned by reservation '{res_name}'"
+        _find_reservation,
+        num_sec=timeout,
+        message=f"wait for namespace to be owned by reservation '{res_name}'",
     )
     return ns_name
 
@@ -758,5 +760,5 @@ def get_reservation_by_requester(requester):
     for res in all_res["items"]:
         if res["spec"]["requester"] == requester:
             return res
-    
+
     return None
