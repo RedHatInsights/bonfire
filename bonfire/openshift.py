@@ -732,3 +732,31 @@ def wait_on_cji(namespace, cji_name, timeout):
     waiter.wait_for_ready(remaining_time)
 
     return pod_name
+
+
+def wait_on_reservation(res_name, timeout):
+    log.info("waiting for reservation '%s' to get picked up by operator", res_name)
+
+    def _find_reservation():
+        res = get_json("reservation", name=res_name)
+        try:
+            return res["status"]["namespace"]
+        except (KeyError, IndexError):
+            return False
+    
+    ns_name, elapsed = wait_for(
+        _find_reservation, num_sec=timeout, message=f"wait for namespace to be owned by reservation '{res_name}'"
+    )
+    return ns_name
+
+
+def get_reservation_by_requester(requester):
+    log.info("Retrieving reservation for '%s'", requester)
+
+    all_res = get_json("reservation")
+
+    for res in all_res["items"]:
+        if res["spec"]["requester"] == requester:
+            return res
+    
+    return None

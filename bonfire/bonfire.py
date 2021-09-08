@@ -19,10 +19,13 @@ from bonfire.openshift import (
     find_clowd_env_for_ns,
     wait_for_clowd_env_target_ns,
     wait_on_cji,
+    wait_on_reservation,
+    get_reservation_by_requester,
+    oc,
 )
 from bonfire.utils import FatalError, split_equals, find_what_depends_on
 from bonfire.local import get_local_apps
-from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
+from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji, process_reservation
 from bonfire.namespaces import (
     Namespace,
     get_namespaces,
@@ -85,6 +88,12 @@ def apps():
     pass
 
 
+@main.group()
+def reservation():
+    """Perform operations related to the NamespaceReservation CRD"""
+    pass
+
+
 def _warn_if_unsafe(namespace):
     ns = Namespace(name=namespace)
     if not ns.owned_by_me and not ns.available:
@@ -93,6 +102,14 @@ def _warn_if_unsafe(namespace):
         ):
             click.echo("Aborting")
             sys.exit(0)
+
+
+def _warn_before_delete(reservation, namespace_name):
+    if not click.confirm(
+        "Deleting your reservation will also delete the associated namespace. Proceed?"
+    ):
+        click.echo("Aborting")
+        sys.exit(0)
 
 
 def _reserve_namespace(duration, retries, namespace):
@@ -1014,6 +1031,135 @@ def _cmd_apps_what_depends_on(
     apps = _get_apps_config(source, target_env, None, local_config_path)
     found = find_what_depends_on(apps, component)
     print("\n".join(found) or f"no apps depending on {component} found")
+
+
+@reservation.command("create")
+@click.option('--requester', '-r', prompt='Requester', type=str, help='Name of the user requesting a reservation')
+@click.option('--duration', '-d', prompt='Duration', type=str, default='1h', help='Duration of the reservation')
+@options(_timeout_option)
+def _create_new_reservation(requester, duration, timeout):
+    def _err_handler(err):
+        msg = f"reservation failed: {str(err)}"
+        _error(msg)
+
+    try:
+        res_config = process_reservation(requester, duration, extension=False)
+
+        log.debug("processed reservation:\n%s", res_config)
+
+        try:
+            res_name = res_config["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            raise Exception("error parsing name of Reservation from processed template, check Reservation template")
+
+        apply_config(None, list_resource=res_config)
+
+        ns_name = wait_on_reservation(res_name, timeout)
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
+        log.exception("hit unexpected error!")
+        _err_handler(err)
+    else:
+        log.info(
+            "namespace '%s' is reserved by '%s' for '%s'", ns_name, requester, duration
+        )
+        click.echo(ns_name)
+
+
+@reservation.command("extend")
+@click.option('--requester', '-r', prompt='Requester', type=str, help='Name of the user requesting an extension')
+@click.option('--duration', '-d', prompt='Duration', type=str, default='1h', help='Duration of the extension')
+def _extend_reservation(requester, duration):
+    def _err_handler(err):
+        msg = f"reservation extension failed: {str(err)}"
+        _error(msg)
+
+    try:
+        res_config = process_reservation(requester, duration, extension=True)
+
+        log.debug("processed reservation:\n%s", res_config)
+
+        apply_config(None, list_resource=res_config)
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
+        log.exception("hit unexpected error!")
+        _err_handler(err)
+    else:
+        log.info(
+            "reservation for '%s' extended by '%s'", requester, duration
+        )
+
+
+@reservation.command("delete")
+@click.option('--requester', '-r', prompt='Requester', type=str, help='Name of the user requesting an extension')
+def _delete_reservation(requester):
+    def _err_handler(err):
+        msg = f"reservation deletion failed: {str(err)}"
+        _error(msg)
+
+    try:
+        res = get_reservation_by_requester(requester)
+        if res:
+            res_name = res["metadata"]["name"]
+            _warn_before_delete(res_name, res["status"]["namespace"])
+            log.info("deleting reservation '%s' for requester '%s'", res_name, requester)
+            oc("delete", "reservation", res_name)
+        else:
+            raise FatalError("Existing reservation for '%s' not found", requester)
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
+        log.exception("hit unexpected error!")
+        _err_handler(err)
+    else:
+        log.info(
+            "reservation for '%s' deleted", requester
+        )
+
+
+@reservation.command("list")
+def _list_reservations():
+    def _err_handler(err):
+        msg = f"reservation listing failed: {str(err)}"
+        _error(msg)
+
+    try:
+        oc("get", "reservation")
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
+        log.exception("hit unexpected error!")
+        _err_handler(err)
 
 
 def main_with_handler():
