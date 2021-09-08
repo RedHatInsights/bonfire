@@ -12,6 +12,7 @@
 # Env vars normally supplied by CI environment:
 #QUAY_USER
 #QUAY_TOKEN
+#QUAY_API_TOKEN
 #RH_REGISTRY_USER
 #RH_REGISTRY_TOKEN
 
@@ -83,7 +84,7 @@ if [[ $IMAGE == quay.io/* ]]; then
     echo "checking if image '$IMAGE:$IMAGE_TAG' already exists in quay.io..."
     QUAY_REPO=${IMAGE#"quay.io/"}
     RESPONSE=$( \
-        curl -Ls -I -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $QUAY_TOKEN" \
+        curl -Ls -I -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $QUAY_API_TOKEN" \
         https://quay.io/api/v1/repository/$QUAY_REPO/tag/$IMAGE_TAG/images \
     )
     echo "received HTTP response: $RESPONSE"
