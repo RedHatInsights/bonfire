@@ -4,6 +4,7 @@
 #IMAGE="quay.io/cloudservices/mycomponent"  # image that this application uses
 #COMPONENTS="component1 component2"  # specific components to deploy (optional, default: all)
 #COMPONENTS_W_RESOURCES="component1 component2"  # components which should preserve resource settings (optional, default: none)
+#DEPLOY_TIMEOUT="300"  # bonfire deployment timeout parameter in seconds
 
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
@@ -14,6 +15,7 @@ set -ex
 
 : ${COMPONENTS:=""}
 : ${COMPONENTS_W_RESOURCES:=""}
+: ${DEPLOY_TIMEOUT:="300"}
 K8S_ARTIFACTS_DIR="$WORKSPACE/artifacts/k8s_artifacts/"
 START_TIME=$(date +%s)
 TEARDOWN_RAN=0
