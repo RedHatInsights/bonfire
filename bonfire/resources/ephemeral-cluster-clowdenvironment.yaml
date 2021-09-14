@@ -62,7 +62,7 @@ objects:
           version: "2.7.0"
         connect:
           version: "2.7.0"
-          image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:bccd413"
+          image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:182ab8b"
       db:
         mode: local
         pvc: true
