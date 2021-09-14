@@ -53,9 +53,9 @@ objects:
         # disable tls/auth for now until core apps are ready
         enableLegacyStrimzi: true
         cluster:
-          version: "2.8.0"
+          version: "2.7.0"
         connect:
-          version: "2.8.0"
+          version: "2.7.0"
           image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:bccd413"
       db:
         mode: local
