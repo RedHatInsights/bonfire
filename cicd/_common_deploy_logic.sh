@@ -46,6 +46,7 @@ function get_pod_logs {
         CONTAINERS=${pc#*:}
         for container in ${CONTAINERS//,/ }; do
             oc logs $POD -c $container -n $NAMESPACE > $LOGS_DIR/${POD}_${container}.log || continue
+            oc logs $POD -c $container --previous -n $NAMESPACE > $LOGS_DIR/${POD}_${container}-previous.log || continue
         done
     done
 }
