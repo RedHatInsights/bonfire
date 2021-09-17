@@ -715,7 +715,6 @@ def wait_on_cji(namespace, cji_name, timeout):
 
     pod_name, elapsed = wait_for(
         _pod_found,
-        fail_condition=None,
         num_sec=remaining_time,
         message=f"wait for Pod to appear owned by CJI '{cji_name}'",
     )
