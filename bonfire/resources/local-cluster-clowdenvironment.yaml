@@ -54,6 +54,13 @@ objects:
         enableLegacyStrimzi: true
         cluster:
           version: "2.7.0"
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 600Mi
         connect:
           version: "2.7.0"
           image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:182ab8b"
