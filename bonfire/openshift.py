@@ -752,13 +752,21 @@ def wait_on_reservation(res_name, timeout):
     return ns_name
 
 
-def get_reservation_by_requester(requester):
-    log.info("Retrieving reservation for '%s'", requester)
+def get_reservation(name=None, namespace=None):
+    res = {}
+    if name or namespace:
+        log.info("Retrieving reservation")
+        res = get_json("reservation", name=name, namespace=namespace)
+    return res
+
+
+def check_for_existing_reservation(requester):
+    log.info("Checking for existing reservations for '%s'", requester)
 
     all_res = get_json("reservation")
 
     for res in all_res["items"]:
         if res["spec"]["requester"] == requester:
-            return res
-
-    return None
+            return True
+    
+    return False

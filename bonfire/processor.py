@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 import bonfire.config as conf
-from bonfire.openshift import process_template, get_reservation_by_requester
+from bonfire.openshift import process_template, whoami
 from bonfire.utils import RepoFile, FatalError
 from bonfire.utils import get_dependencies as utils_get_dependencies
 
@@ -118,9 +118,9 @@ def process_iqe_cji(
 
 
 def process_reservation(
+    name,
     requester,
     duration,
-    extension=False,
     template_path=None,
 ):
     log.info("processing namespace reservation")
@@ -134,17 +134,18 @@ def process_reservation(
         template_data = yaml.safe_load(fp)
 
     params = dict()
-    params["DURATION"] = duration
-    params["REQUESTER"] = requester
 
-    if extension:
-        res = get_reservation_by_requester(requester)
-        if res:
-            params["NAME"] = res["metadata"]["name"]
-        else:
-            raise FatalError("Existing reservation for '%s' not found", requester)
-    else:
-        params["NAME"] = f"bonfire-reservation-{str(uuid.uuid4()).split('-')[0]}"
+    params["NAME"] = name if name else f"bonfire-reservation-{str(uuid.uuid4()).split('-')[0]}"
+    params["DURATION"] = duration
+
+    if requester is None:
+        try:
+            requester = whoami()
+        except:
+            log.info("whoami returned an error - setting requester to 'bonfire'") # minikube
+            requester = "bonfire"
+    
+    params["REQUESTER"] = requester
 
     processed_template = process_template(template_data, params=params)
 
