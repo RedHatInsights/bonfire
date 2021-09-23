@@ -747,7 +747,7 @@ def wait_on_reservation(res_name, timeout):
     ns_name, elapsed = wait_for(
         _find_reservation,
         num_sec=timeout,
-        message=f"wait for namespace to be owned by reservation '{res_name}'",
+        message=f"waiting for namespace to be allocated to reservation '{res_name}'",
     )
     return ns_name
 
