@@ -1128,7 +1128,10 @@ def _create_new_reservation(bot, name, requester, duration, timeout):
         _err_handler(err)
     else:
         log.info(
-            "namespace '%s' is reserved by '%s' for '%s'", ns_name, res_config["items"][0]["spec"]["requester"], duration
+            "namespace '%s' is reserved by '%s' for '%s'",
+            ns_name,
+            res_config["items"][0]["spec"]["requester"],
+            duration,
         )
         click.echo(ns_name)
 
@@ -1237,8 +1240,8 @@ def _list_reservations(mine, requester):
         if mine:
             try:
                 requester = whoami()
-            except:
-                log.info("whoami returned an error - getting reservations for 'bonfire'") # minikube
+            except Exception:
+                log.info("whoami returned an error - getting reservations for 'bonfire'")  # minikube
                 requester = "bonfire"
             oc("get", "reservation", "--selector", f"requester={requester}")
         else:

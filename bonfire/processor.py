@@ -141,10 +141,10 @@ def process_reservation(
     if requester is None:
         try:
             requester = whoami()
-        except:
-            log.info("whoami returned an error - setting requester to 'bonfire'") # minikube
+        except Exception:
+            log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
             requester = "bonfire"
-    
+
     params["REQUESTER"] = requester
 
     processed_template = process_template(template_data, params=params)

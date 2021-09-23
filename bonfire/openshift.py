@@ -768,5 +768,5 @@ def check_for_existing_reservation(requester):
     for res in all_res["items"]:
         if res["spec"]["requester"] == requester:
             return True
-    
+
     return False
