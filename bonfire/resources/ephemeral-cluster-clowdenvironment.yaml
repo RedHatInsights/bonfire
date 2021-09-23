@@ -55,7 +55,7 @@ objects:
         mode: operator
       kafka:
         mode: operator
-        pvc: true
+        pvc: false
         # disable tls/auth for now until core apps are ready
         enableLegacyStrimzi: true
         cluster:
@@ -72,7 +72,7 @@ objects:
           image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:182ab8b"
       db:
         mode: local
-        pvc: true
+        pvc: false
       logging:
         mode: none
       objectStore:
