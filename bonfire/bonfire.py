@@ -1241,7 +1241,9 @@ def _list_reservations(mine, requester):
             try:
                 requester = whoami()
             except Exception:
-                log.info("whoami returned an error - getting reservations for 'bonfire'")  # minikube
+                log.info(
+                    "whoami returned an error - getting reservations for 'bonfire'"
+                )  # minikube
                 requester = "bonfire"
             oc("get", "reservation", "--selector", f"requester={requester}")
         else:
