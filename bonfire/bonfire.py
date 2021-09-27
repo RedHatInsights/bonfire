@@ -499,7 +499,6 @@ _iqe_cji_process_options = [
 _reservation_process_options = [
     click.option(
         "--name",
-        "-n",
         type=str,
         default=None,
         help="Identifier for the reservation",
@@ -517,6 +516,29 @@ _reservation_process_options = [
         type=str,
         default="1h",
         help="Duration of the reservation",
+    ),
+]
+
+_reservation_lookup_options = [
+    click.option(
+        "--name",
+        type=str,
+        default=None,
+        help="Identifier for the reservation",
+    ),
+    click.option(
+        "--requester",
+        "-r",
+        type=str,
+        default=None,
+        help="Name of the user requesting a reservation"
+    ),
+    click.option(
+        "--namespace",
+        "-n",
+        type=str,
+        default=None,
+        help="Namespace for the reservation",
     ),
 ]
 
@@ -1137,13 +1159,7 @@ def _create_new_reservation(bot, name, requester, duration, timeout):
 
 
 @reservation.command("extend")
-@click.option(
-    '--namespace',
-    '-ns',
-    type=str,
-    default=None,
-    help='Name of the reserved namespace',
-)
+@options(_reservation_lookup_options)
 @options(_reservation_process_options)
 def _extend_reservation(name, namespace, requester, duration):
     def _err_handler(err):
@@ -1151,9 +1167,13 @@ def _extend_reservation(name, namespace, requester, duration):
         _error(msg)
 
     try:
-        res = get_reservation(name, namespace)
+        res = get_reservation(name, namespace, requester)
         if res:
-            res_config = process_reservation(name, res["spec"]["requester"], duration)
+            res_config = process_reservation(
+                res["metadata"]["name"],
+                res["spec"]["requester"],
+                duration,
+            )
 
             log.debug("processed reservation:\n%s", res_config)
 
@@ -1174,31 +1194,25 @@ def _extend_reservation(name, namespace, requester, duration):
         _err_handler(err)
     else:
         log.info(
-            "reservation '%s' extended by '%s'", name, duration
+            "reservation '%s' extended by '%s'", res["metadata"]["name"], duration
         )
 
 
 @reservation.command("delete")
-@click.option(
-    '--name',
-    '-n',
-    type=str,
-    required=True,
-    help='Name of reservation to delete',
-)
-def _delete_reservation(name):
+@options(_reservation_lookup_options)
+def _delete_reservation(name, namespace, requester):
     def _err_handler(err):
         msg = f"reservation deletion failed: {str(err)}"
         _error(msg)
 
     try:
-        res = get_reservation(name)
+        res = get_reservation(name, namespace, requester)
         if res:
             _warn_before_delete(name, res["status"]["namespace"])
             log.info("deleting reservation '%s'", name)
             oc("delete", "reservation", name)
         else:
-            raise FatalError(f"Existing reservation {name} not found")
+            raise FatalError("Reservation lookup failed")
     except KeyboardInterrupt as err:
         log.error("aborted by keyboard interrupt!")
         _err_handler(err)

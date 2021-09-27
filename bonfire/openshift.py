@@ -752,14 +752,6 @@ def wait_on_reservation(res_name, timeout):
     return ns_name
 
 
-def get_reservation(name=None, namespace=None):
-    res = {}
-    if name or namespace:
-        log.info("Retrieving reservation")
-        res = get_json("reservation", name=name, namespace=namespace)
-    return res
-
-
 def check_for_existing_reservation(requester):
     log.info("Checking for existing reservations for '%s'", requester)
 
@@ -768,5 +760,28 @@ def check_for_existing_reservation(requester):
     for res in all_res["items"]:
         if res["spec"]["requester"] == requester:
             return True
+
+    return False
+
+
+def get_reservation(name=None, namespace=None, requester=None):
+    if name:
+        res = get_json("reservation", name=name)
+        return res if res else False
+    elif namespace:
+        all_res = get_json("reservation")
+        for res in all_res["items"]:
+            if res["status"]["namespace"] == namespace:
+                return res
+    elif requester:
+        all_res = get_json("reservation", label=f"requester={requester}")
+        numRes = len(all_res["items"])
+        if numRes == 0:
+            return False
+        elif numRes == 1:
+            return all_res["items"][0]
+        else:
+            log.info("Multiple reservations found for requester '%s'. Aborting.", requester)
+            return False
 
     return False
