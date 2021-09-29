@@ -25,7 +25,7 @@ from bonfire.openshift import (
     oc,
     whoami,
 )
-from bonfire.utils import FatalError, split_equals, find_what_depends_on
+from bonfire.utils import FatalError, split_equals, find_what_depends_on, validate_time_string
 from bonfire.local import get_local_apps
 from bonfire.processor import (
     TemplateProcessor,
@@ -97,7 +97,7 @@ def apps():
 
 @main.group()
 def reservation():
-    """Perform operations related to the NamespaceReservation CRD"""
+    """ALPHA: Perform operations related to the NamespaceReservation CRD"""
     pass
 
 
@@ -111,7 +111,7 @@ def _warn_if_unsafe(namespace):
             sys.exit(0)
 
 
-def _warn_before_delete(reservation, namespace_name):
+def _warn_before_delete():
     if not click.confirm(
         "Deleting your reservation will also delete the associated namespace. Proceed?"
     ):
@@ -283,6 +283,13 @@ def _validate_resource_arguments(ctx, param, value):
     if param.name == "remove_resources" and not value:
         value = ("all",)
     return value
+
+
+def _validate_reservation_duration(ctx, param, value):
+    try:
+        return validate_time_string(value)
+    except ValueError:
+        raise click.BadParameter("duration should be in string format. Ex: '1h30m'")
 
 
 _app_source_options = [
@@ -516,6 +523,7 @@ _reservation_process_options = [
         type=str,
         default="1h",
         help="Duration of the reservation",
+        callback=_validate_reservation_duration,
     ),
 ]
 
@@ -1117,6 +1125,7 @@ def _create_new_reservation(bot, name, requester, duration, timeout):
                 f"Reservation with name {name} already exists"
             )
 
+        print(duration)
         res_config = process_reservation(name, requester, duration)
 
         log.debug("processed reservation:\n%s", res_config)
@@ -1159,8 +1168,15 @@ def _create_new_reservation(bot, name, requester, duration, timeout):
 
 
 @reservation.command("extend")
+@click.option(
+    '--duration',
+    '-d',
+    type=str,
+    default='1h',
+    help='Amount of time to extend the reservation',
+    callback=_validate_reservation_duration,
+)
 @options(_reservation_lookup_options)
-@options(_reservation_process_options)
 def _extend_reservation(name, namespace, requester, duration):
     def _err_handler(err):
         msg = f"reservation extension failed: {str(err)}"
@@ -1208,9 +1224,9 @@ def _delete_reservation(name, namespace, requester):
     try:
         res = get_reservation(name, namespace, requester)
         if res:
-            _warn_before_delete(name, res["status"]["namespace"])
-            log.info("deleting reservation '%s'", name)
-            oc("delete", "reservation", name)
+            _warn_before_delete()
+            log.info("deleting reservation '%s'", res["metadata"]["name"])
+            oc("delete", "reservation", res["metadata"]["name"])
         else:
             raise FatalError("Reservation lookup failed")
     except KeyboardInterrupt as err:
