@@ -289,7 +289,7 @@ def _validate_reservation_duration(ctx, param, value):
     try:
         return validate_time_string(value)
     except ValueError:
-        raise click.BadParameter("duration should be in string format. Ex: '1h30m'")
+        raise click.BadParameter("expecting h/m/s string. Ex: '1h30m'")
 
 
 _app_source_options = [
@@ -1224,8 +1224,10 @@ def _delete_reservation(name, namespace, requester):
         res = get_reservation(name, namespace, requester)
         if res:
             _warn_before_delete()
-            log.info("deleting reservation '%s'", res["metadata"]["name"])
-            oc("delete", "reservation", res["metadata"]["name"])
+            res_name = res["metadata"]["name"]
+            log.info("deleting reservation '%s'", res_name)
+            oc("delete", "reservation", res_name)
+            log.info("reservation '%s' deleted", res_name)
         else:
             raise FatalError("Reservation lookup failed")
     except KeyboardInterrupt as err:
@@ -1240,10 +1242,6 @@ def _delete_reservation(name, namespace, requester):
     except Exception as err:
         log.exception("hit unexpected error!")
         _err_handler(err)
-    else:
-        log.info(
-            "reservation '%s' deleted", name
-        )
 
 
 @reservation.command("list")
