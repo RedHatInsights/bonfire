@@ -108,7 +108,6 @@ def split_equals(list_of_str, allow_null=False):
 
 def validate_time_string(time):
     valid_time = re.compile(r"^((\d+)h)?((\d+)m)?((\d+)s)?$")
-    print(time)
     if not valid_time.match(time):
         raise ValueError(
             f"invalid format for duration '{time}', must match: r'{valid_time.pattern}'"

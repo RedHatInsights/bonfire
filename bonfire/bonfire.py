@@ -1125,7 +1125,6 @@ def _create_new_reservation(bot, name, requester, duration, timeout):
                 f"Reservation with name {name} already exists"
             )
 
-        print(duration)
         res_config = process_reservation(name, requester, duration)
 
         log.debug("processed reservation:\n%s", res_config)
