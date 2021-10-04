@@ -170,6 +170,11 @@ def _check_replace_other(other_params, this_params):
     if other_replicas < 1 and this_replicas > 1:
         return True
 
+    this_replicas = int(this_params.get("MIN_REPLICAS", 1))
+    other_replicas = int(other_params.get("MIN_REPLICAS", 1))
+    if other_replicas < 1 and this_replicas > 1:
+        return True
+
     return False
 
 
