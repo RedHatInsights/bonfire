@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 import bonfire.config as conf
-from bonfire.openshift import process_template
+from bonfire.openshift import process_template, whoami
 from bonfire.utils import RepoFile, FatalError
 from bonfire.utils import get_dependencies as utils_get_dependencies
 
@@ -113,6 +113,44 @@ def process_iqe_cji(
 
     if not processed_template.get("items"):
         raise FatalError("Processed CJI template has no items")
+
+    return processed_template
+
+
+def process_reservation(
+    name,
+    requester,
+    duration,
+    template_path=None,
+):
+    log.info("processing namespace reservation")
+
+    template_path = Path(template_path if template_path else conf.DEFAULT_RESERVATION_TEMPLATE)
+
+    if not template_path.exists():
+        raise FatalError("Reservation template file does not exist: %s", template_path)
+
+    with template_path.open() as fp:
+        template_data = yaml.safe_load(fp)
+
+    params = dict()
+
+    params["NAME"] = name if name else f"bonfire-reservation-{str(uuid.uuid4()).split('-')[0]}"
+    params["DURATION"] = duration
+
+    if requester is None:
+        try:
+            requester = whoami()
+        except Exception:
+            log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
+            requester = "bonfire"
+
+    params["REQUESTER"] = requester
+
+    processed_template = process_template(template_data, params=params)
+
+    if not processed_template.get("items"):
+        raise FatalError("Processed Reservation template has no items")
 
     return processed_template
 

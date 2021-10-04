@@ -731,3 +731,56 @@ def wait_on_cji(namespace, cji_name, timeout):
     waiter.wait_for_ready(remaining_time)
 
     return pod_name
+
+
+def wait_on_reservation(res_name, timeout):
+    log.info("waiting for reservation '%s' to get picked up by operator", res_name)
+
+    def _find_reservation():
+        res = get_json("reservation", name=res_name)
+        try:
+            return res["status"]["namespace"]
+        except (KeyError, IndexError):
+            return False
+
+    ns_name, elapsed = wait_for(
+        _find_reservation,
+        num_sec=timeout,
+        message=f"waiting for namespace to be allocated to reservation '{res_name}'",
+    )
+    return ns_name
+
+
+def check_for_existing_reservation(requester):
+    log.info("Checking for existing reservations for '%s'", requester)
+
+    all_res = get_json("reservation")
+
+    for res in all_res["items"]:
+        if res["spec"]["requester"] == requester:
+            return True
+
+    return False
+
+
+def get_reservation(name=None, namespace=None, requester=None):
+    if name:
+        res = get_json("reservation", name=name)
+        return res if res else False
+    elif namespace:
+        all_res = get_json("reservation")
+        for res in all_res["items"]:
+            if res["status"]["namespace"] == namespace:
+                return res
+    elif requester:
+        all_res = get_json("reservation", label=f"requester={requester}")
+        numRes = len(all_res["items"])
+        if numRes == 0:
+            return False
+        elif numRes == 1:
+            return all_res["items"][0]
+        else:
+            log.info("Multiple reservations found for requester '%s'. Aborting.", requester)
+            return False
+
+    return False

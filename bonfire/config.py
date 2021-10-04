@@ -34,6 +34,7 @@ EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE = resource_filename(
 )
 DEFAULT_IQE_CJI_TEMPLATE = resource_filename("bonfire", "resources/default-iqe-cji.yaml")
 DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yaml")
+DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservation-template.yaml")
 
 LOCAL_GRAPHQL_URL = "http://localhost:4000/graphql"
 

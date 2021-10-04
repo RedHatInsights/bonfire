@@ -19,10 +19,20 @@ from bonfire.openshift import (
     find_clowd_env_for_ns,
     wait_for_clowd_env_target_ns,
     wait_on_cji,
+    wait_on_reservation,
+    get_reservation,
+    check_for_existing_reservation,
+    oc,
+    whoami,
 )
-from bonfire.utils import FatalError, split_equals, find_what_depends_on
+from bonfire.utils import FatalError, split_equals, find_what_depends_on, validate_time_string
 from bonfire.local import get_local_apps
-from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
+from bonfire.processor import (
+    TemplateProcessor,
+    process_clowd_env,
+    process_iqe_cji,
+    process_reservation,
+)
 from bonfire.namespaces import (
     Namespace,
     get_namespaces,
@@ -85,6 +95,12 @@ def apps():
     pass
 
 
+@main.group()
+def reservation():
+    """ALPHA: Perform operations related to the NamespaceReservation CRD"""
+    pass
+
+
 def _warn_if_unsafe(namespace):
     ns = Namespace(name=namespace)
     if not ns.owned_by_me and not ns.available:
@@ -93,6 +109,23 @@ def _warn_if_unsafe(namespace):
         ):
             click.echo("Aborting")
             sys.exit(0)
+
+
+def _warn_before_delete():
+    if not click.confirm(
+        "Deleting your reservation will also delete the associated namespace. Proceed?"
+    ):
+        click.echo("Aborting")
+        sys.exit(0)
+
+
+def _warn_of_existing(requester):
+    if not click.confirm(
+        f"Existing reservation(s) detected for requester '{requester}'. "
+        "Do you need to reserve an additional namespace?"
+    ):
+        click.echo("Aborting")
+        sys.exit(0)
 
 
 def _reserve_namespace(duration, retries, namespace):
@@ -250,6 +283,13 @@ def _validate_resource_arguments(ctx, param, value):
     if param.name == "remove_resources" and not value:
         value = ("all",)
     return value
+
+
+def _validate_reservation_duration(ctx, param, value):
+    try:
+        return validate_time_string(value)
+    except ValueError:
+        raise click.BadParameter("expecting h/m/s string. Ex: '1h30m'")
 
 
 _app_source_options = [
@@ -460,6 +500,53 @@ _iqe_cji_process_options = [
         ),
         type=str,
         default=None,
+    ),
+]
+
+_reservation_process_options = [
+    click.option(
+        "--name",
+        type=str,
+        default=None,
+        help="Identifier for the reservation",
+    ),
+    click.option(
+        "--requester",
+        "-r",
+        type=str,
+        default=None,
+        help="Name of the user requesting a reservation",
+    ),
+    click.option(
+        "--duration",
+        "-d",
+        type=str,
+        default="1h",
+        help="Duration of the reservation",
+        callback=_validate_reservation_duration,
+    ),
+]
+
+_reservation_lookup_options = [
+    click.option(
+        "--name",
+        type=str,
+        default=None,
+        help="Identifier for the reservation",
+    ),
+    click.option(
+        "--requester",
+        "-r",
+        type=str,
+        default=None,
+        help="Name of the user requesting a reservation"
+    ),
+    click.option(
+        "--namespace",
+        "-n",
+        type=str,
+        default=None,
+        help="Namespace for the reservation",
     ),
 ]
 
@@ -1014,6 +1101,195 @@ def _cmd_apps_what_depends_on(
     apps = _get_apps_config(source, target_env, None, local_config_path)
     found = find_what_depends_on(apps, component)
     print("\n".join(found) or f"no apps depending on {component} found")
+
+
+@reservation.command("create")
+@click.option(
+    '--bot',
+    '-b',
+    is_flag=True,
+    help="Use this flag to skip the duplicate reservation check (for automation)",
+)
+@options(_reservation_process_options)
+@options(_timeout_option)
+def _create_new_reservation(bot, name, requester, duration, timeout):
+    def _err_handler(err):
+        msg = f"reservation failed: {str(err)}"
+        _error(msg)
+
+    try:
+        res = get_reservation(name)
+        # Name should be unique on reservation creation.
+        if res:
+            raise FatalError(
+                f"Reservation with name {name} already exists"
+            )
+
+        res_config = process_reservation(name, requester, duration)
+
+        log.debug("processed reservation:\n%s", res_config)
+
+        if not bot:
+            if check_for_existing_reservation(res_config["items"][0]["spec"]["requester"]):
+                _warn_of_existing(res_config["items"][0]["spec"]["requester"])
+
+        try:
+            res_name = res_config["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            raise Exception(
+                "error parsing name of Reservation from processed template, "
+                "check Reservation template"
+            )
+
+        apply_config(None, list_resource=res_config)
+
+        ns_name = wait_on_reservation(res_name, timeout)
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
+        log.exception("hit unexpected error!")
+        _err_handler(err)
+    else:
+        log.info(
+            "namespace '%s' is reserved by '%s' for '%s'",
+            ns_name,
+            res_config["items"][0]["spec"]["requester"],
+            duration,
+        )
+        click.echo(ns_name)
+
+
+@reservation.command("extend")
+@click.option(
+    '--duration',
+    '-d',
+    type=str,
+    default='1h',
+    help='Amount of time to extend the reservation',
+    callback=_validate_reservation_duration,
+)
+@options(_reservation_lookup_options)
+def _extend_reservation(name, namespace, requester, duration):
+    def _err_handler(err):
+        msg = f"reservation extension failed: {str(err)}"
+        _error(msg)
+
+    try:
+        res = get_reservation(name, namespace, requester)
+        if res:
+            res_config = process_reservation(
+                res["metadata"]["name"],
+                res["spec"]["requester"],
+                duration,
+            )
+
+            log.debug("processed reservation:\n%s", res_config)
+
+            apply_config(None, list_resource=res_config)
+        else:
+            raise FatalError("Reservation lookup failed")
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
+        log.exception("hit unexpected error!")
+        _err_handler(err)
+    else:
+        log.info(
+            "reservation '%s' extended by '%s'", res["metadata"]["name"], duration
+        )
+
+
+@reservation.command("delete")
+@options(_reservation_lookup_options)
+def _delete_reservation(name, namespace, requester):
+    def _err_handler(err):
+        msg = f"reservation deletion failed: {str(err)}"
+        _error(msg)
+
+    try:
+        res = get_reservation(name, namespace, requester)
+        if res:
+            _warn_before_delete()
+            res_name = res["metadata"]["name"]
+            log.info("deleting reservation '%s'", res_name)
+            oc("delete", "reservation", res_name)
+            log.info("reservation '%s' deleted", res_name)
+        else:
+            raise FatalError("Reservation lookup failed")
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
+        log.exception("hit unexpected error!")
+        _err_handler(err)
+
+
+@reservation.command("list")
+@click.option(
+    '--mine',
+    '-m',
+    is_flag=True,
+    help='Return reservations belonging to the result of oc whoami',
+)
+@click.option(
+    '--requester',
+    '-r',
+    type=str,
+    default=None,
+    help='Return reservations belonging to the provided requester',
+)
+def _list_reservations(mine, requester):
+    def _err_handler(err):
+        msg = f"reservation listing failed: {str(err)}"
+        _error(msg)
+
+    try:
+        if mine:
+            try:
+                requester = whoami()
+            except Exception:
+                log.info(
+                    "whoami returned an error - getting reservations for 'bonfire'"
+                )  # minikube
+                requester = "bonfire"
+            oc("get", "reservation", "--selector", f"requester={requester}")
+        else:
+            if requester:
+                oc("get", "reservation", "--selector", f"requester={requester}")
+            else:
+                oc("get", "reservation")
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        _err_handler(err)
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        _err_handler(err)
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except Exception as err:
+        log.exception("hit unexpected error!")
+        _err_handler(err)
 
 
 def main_with_handler():

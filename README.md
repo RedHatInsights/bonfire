@@ -207,6 +207,14 @@ When a tester is logged in using the proper account, namespace commands can be u
 
 Use `bonfire namespace -h` to see a list of all available namespace commands.
 
+
+### NamespaceReservation CRD
+
+`bonfire` can also be used to perform create, extend, list, and delete operations on a new NamespaceReservation CRD. This is available in the ephemeral cluster and is currently 
+in an 'alpha' state while we test out the new ephemeral namespace operator.
+
+Use `bonfire reservation -h` to test it out.
+
 ### Namespace reconciler
 
 A separate cron job runs the `bonfire namespace reconcile` command every 2 minutes. This command does the following:

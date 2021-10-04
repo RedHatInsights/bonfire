@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: default-reservation
+
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: NamespaceReservation
+  metadata:
+    name: ${NAME}
+    extensionId: ${EXTENSIONID}
+    labels:
+      requester: ${REQUESTER}
+  spec:
+    duration: ${DURATION}
+    requester: ${REQUESTER}
+
+parameters:
+- name: DURATION
+  required: true
+- name: REQUESTER
+  required: true
+- name: NAME
+  required: true
+- name: EXTENSIONID
+  description: ID used to indicate a new extension of an existing reservation
+  generate: expression
+  from: "[a-zA-Z0-9]{10}"

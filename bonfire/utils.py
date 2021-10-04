@@ -106,6 +106,15 @@ def split_equals(list_of_str, allow_null=False):
     return output
 
 
+def validate_time_string(time):
+    valid_time = re.compile(r"^((\d+)h)?((\d+)m)?((\d+)s)?$")
+    if not valid_time.match(time):
+        raise ValueError(
+            f"invalid format for duration '{time}', must match: r'{valid_time.pattern}'"
+        )
+    return time
+
+
 class RepoFile:
     def __init__(self, host, org, repo, path, ref="master"):
         if host not in ["local", "github", "gitlab"]:
