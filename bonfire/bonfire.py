@@ -604,7 +604,7 @@ def _list_namespaces(available, mine, output):
                     "requester": ns.requester_name,
                     "expires_in": ns.expires_in,
                 }
-            click.echo(data)
+            click.echo(json.dumps(data, indent=2))
         else:
             data = {
                 "NAME": [ns.name for ns in namespaces],
