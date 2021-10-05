@@ -577,23 +577,44 @@ def options(options_list):
     default=False,
     help="show only namespaces reserved in your name",
 )
-def _list_namespaces(available, mine):
+@click.option(
+    "--output",
+    "-o",
+    default="cli",
+    help="which output format to return the data in",
+    type=click.Choice(['cli', 'json'], case_sensitive=False)
+)
+def _list_namespaces(available, mine, output):
     """Get list of ephemeral namespaces"""
     namespaces = get_namespaces(available=available, mine=mine)
     if not available and not mine and not namespaces:
         _error(NO_RESERVATION_SYS)
     elif not namespaces:
-        click.echo("no namespaces found")
+        if output == 'json':
+            click.echo("{}")
+        else:
+            click.echo("no namespaces found")
     else:
-        data = {
-            "NAME": [ns.name for ns in namespaces],
-            "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
-            "READY": [str(ns.ready).lower() for ns in namespaces],
-            "REQUESTER": [ns.requester_name for ns in namespaces],
-            "EXPIRES IN": [ns.expires_in for ns in namespaces],
-        }
-        tabulated = tabulate(data, headers="keys")
-        click.echo(tabulated)
+        if output == 'json':
+            data = {}
+            for ns in namespaces:
+                data[ns.name] = {
+                    "reserved": ns.reserved,
+                    "ready": ns.ready,
+                    "requester": ns.requester_name,
+                    "expires_in": ns.expires_in,
+                }
+            click.echo(json.dumps(data, indent=2))
+        else:
+            data = {
+                "NAME": [ns.name for ns in namespaces],
+                "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
+                "READY": [str(ns.ready).lower() for ns in namespaces],
+                "REQUESTER": [ns.requester_name for ns in namespaces],
+                "EXPIRES IN": [ns.expires_in for ns in namespaces],
+            }
+            tabulated = tabulate(data, headers="keys")
+            click.echo(tabulated)
 
 
 @namespace.command("reserve")
