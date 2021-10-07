@@ -195,24 +195,16 @@ class TemplateProcessor:
 
         for path, value in data.items():
             split = path.split("/")
-            component_name = None
-            remaining_path = []
             if len(split) == max_len:
                 # first item was an app name
-                component_name = split[1]
-                try:
-                    remaining_path = split[2:]
-                except KeyError:
-                    pass
+                new_path = split[1:]
             elif len(split) == max_len - 1:
                 # first item was a component name
-                component_name = split[0]
-                try:
-                    remaining_path = split[1:]
-                except KeyError:
-                    pass
+                new_path = split[0:]
             else:
                 raise FatalError(f"invalid format for {name}: {path}={value}")
+
+            component_name = new_path[0]
 
             # Make sure component name actually exists in app config
             if component_name not in all_components:
@@ -220,10 +212,7 @@ class TemplateProcessor:
                     f"component given for {name} not found in app config: {component_name}"
                 )
 
-            key_path = [component_name]
-            key_path.extend(remaining_path)
-
-            key = "/".join(key_path)
+            key = "/".join(new_path)
             updated_data[key] = value
 
         # Update the paths
