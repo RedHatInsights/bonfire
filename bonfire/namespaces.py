@@ -301,12 +301,12 @@ def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
 
 
 def release_namespace(namespace):
-    oc("label", "--overwrite", "namespace", namespace, f"{NS_RESERVED}=false")
-
-
-def reset_namespace(namespace):
-    release_namespace(namespace)
-    oc("label", "--overwrite", "namespace", namespace, f"{NS_READY}=false")
+    ns = Namespace(name=namespace)
+    ns.reserved = False
+    ns.requester = None
+    ns.requester_name = None
+    ns.ready = False
+    ns.update()
 
 
 def _delete_resources(namespace):
