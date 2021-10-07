@@ -37,10 +37,10 @@ objects:
           resources:
             limits:
               cpu: 1
-              memory: 1Gi
+              memory: 2Gi
             requests:
               cpu: 200m
-              memory: 256Mi
+              memory: 1Gi
       web:
         port: 8000
         privatePort: 10000
