@@ -12,6 +12,7 @@
 # https://unix.stackexchange.com/questions/122845/using-a-b-for-variable-assignment-in-scripts/122848#122848
 : "${IQE_MARKER_EXPRESSION:='""'}"
 : "${IQE_FILTER_EXPRESSION:='""'}"
+: "${IQE_IMAGE_TAG:='""'}"
 
 CJI_NAME="$COMPONENT_NAME-smoke-tests"
 
@@ -21,7 +22,7 @@ if [[ -z $IQE_CJI_TIMEOUT ]]; then
 fi
 
 # Invoke the CJI using the options set via env vars
-pod=$(bonfire deploy-iqe-cji $COMPONENT_NAME -m "$IQE_MARKER_EXPRESSION" -k "$IQE_FILTER_EXPRESSION" -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE)
+pod=$(bonfire deploy-iqe-cji $COMPONENT_NAME -m "$IQE_MARKER_EXPRESSION" -k "$IQE_FILTER_EXPRESSION" -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE --image-tag "${IQE_IMAGE_TAG}")
 
 # Pipe logs to background to keep them rolling in jenkins
 oc logs -n $NAMESPACE $pod -f &
