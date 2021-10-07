@@ -38,7 +38,6 @@ from bonfire.namespaces import (
     get_namespaces,
     reserve_namespace,
     release_namespace,
-    reset_namespace,
     add_base_resources,
     reconcile,
 )
@@ -630,11 +629,19 @@ def _cmd_namespace_reserve(duration, retries, namespace):
 
 @namespace.command("release")
 @click.argument("namespace", required=True, type=str)
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Do not check if you own this namespace",
+)
 def _cmd_namespace_release(namespace):
     """Remove reservation from an ephemeral namespace"""
     if not get_namespaces():
         _error(NO_RESERVATION_SYS)
-    _warn_if_unsafe(namespace)
+    if not force:
+        _warn_if_unsafe(namespace)
     release_namespace(namespace)
 
 
@@ -667,13 +674,6 @@ def _cmd_namespace_prepare(namespace):
 def _cmd_namespace_reconcile():
     """Run reconciler for namespace reservations (for admin use only)"""
     reconcile()
-
-
-@namespace.command("reset", hidden=True)
-@click.argument("namespace", required=True, type=str)
-def _cmd_namespace_reset(namespace):
-    """Set namespace to not released/not ready (for admin use only)"""
-    reset_namespace(namespace)
 
 
 def _get_apps_config(source, target_env, ref_env, local_config_path):
