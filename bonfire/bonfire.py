@@ -538,7 +538,7 @@ _reservation_lookup_options = [
         "-r",
         type=str,
         default=None,
-        help="Name of the user requesting a reservation"
+        help="Name of the user requesting a reservation",
     ),
     click.option(
         "--namespace",
@@ -581,7 +581,7 @@ def options(options_list):
     "-o",
     default="cli",
     help="which output format to return the data in",
-    type=click.Choice(['cli', 'json'], case_sensitive=False)
+    type=click.Choice(["cli", "json"], case_sensitive=False),
 )
 def _list_namespaces(available, mine, output):
     """Get list of ephemeral namespaces"""
@@ -589,12 +589,12 @@ def _list_namespaces(available, mine, output):
     if not available and not mine and not namespaces:
         _error(NO_RESERVATION_SYS)
     elif not namespaces:
-        if output == 'json':
+        if output == "json":
             click.echo("{}")
         else:
             click.echo("no namespaces found")
     else:
-        if output == 'json':
+        if output == "json":
             data = {}
             for ns in namespaces:
                 data[ns.name] = {
@@ -1126,8 +1126,8 @@ def _cmd_apps_what_depends_on(
 
 @reservation.command("create")
 @click.option(
-    '--bot',
-    '-b',
+    "--bot",
+    "-b",
     is_flag=True,
     help="Use this flag to skip the duplicate reservation check (for automation)",
 )
@@ -1142,9 +1142,7 @@ def _create_new_reservation(bot, name, requester, duration, timeout):
         res = get_reservation(name)
         # Name should be unique on reservation creation.
         if res:
-            raise FatalError(
-                f"Reservation with name {name} already exists"
-            )
+            raise FatalError(f"Reservation with name {name} already exists")
 
         res_config = process_reservation(name, requester, duration)
 
@@ -1189,11 +1187,11 @@ def _create_new_reservation(bot, name, requester, duration, timeout):
 
 @reservation.command("extend")
 @click.option(
-    '--duration',
-    '-d',
+    "--duration",
+    "-d",
     type=str,
-    default='1h',
-    help='Amount of time to extend the reservation',
+    default="1h",
+    help="Amount of time to extend the reservation",
     callback=_validate_reservation_duration,
 )
 @options(_reservation_lookup_options)
@@ -1229,9 +1227,7 @@ def _extend_reservation(name, namespace, requester, duration):
         log.exception("hit unexpected error!")
         _err_handler(err)
     else:
-        log.info(
-            "reservation '%s' extended by '%s'", res["metadata"]["name"], duration
-        )
+        log.info("reservation '%s' extended by '%s'", res["metadata"]["name"], duration)
 
 
 @reservation.command("delete")
@@ -1267,17 +1263,17 @@ def _delete_reservation(name, namespace, requester):
 
 @reservation.command("list")
 @click.option(
-    '--mine',
-    '-m',
+    "--mine",
+    "-m",
     is_flag=True,
-    help='Return reservations belonging to the result of oc whoami',
+    help="Return reservations belonging to the result of oc whoami",
 )
 @click.option(
-    '--requester',
-    '-r',
+    "--requester",
+    "-r",
     type=str,
     default=None,
-    help='Return reservations belonging to the provided requester',
+    help="Return reservations belonging to the provided requester",
 )
 def _list_reservations(mine, requester):
     def _err_handler(err):
