@@ -3,6 +3,7 @@ import logging
 import json
 import yaml
 import re
+import traceback
 import uuid
 
 from pathlib import Path
@@ -182,21 +183,95 @@ class TemplateProcessor:
                         f"component '{component}' is not unique, found in apps: {found_in}"
                     )
 
-    def _validate_app_config(self, apps_config):
+    @staticmethod
+    def _validate_component_dict(all_components, data, name):
+        # Translate deprecated "APP_NAME/COMPONENT_NAME" path syntax
+        updated_data = {}
+
+        # Max number of items we expect separated by '/' in the CLI option value
+        max_len = 2
+        if name == "--set-parameter":
+            max_len = 3
+
+        for path, value in data.items():
+            split = path.split("/")
+            component_name = None
+            remaining_path = []
+            if len(split) == max_len:
+                # first item was an app name
+                component_name = split[1]
+                try:
+                    remaining_path = split[2:]
+                except KeyError:
+                    pass
+            elif len(split) == max_len - 1:
+                # first item was a component name
+                component_name = split[0]
+                try:
+                    remaining_path = split[1:]
+                except KeyError:
+                    pass
+            else:
+                raise FatalError(f"invalid format for {name}: {path}={value}")
+
+            # Make sure component name actually exists in app config
+            if component_name not in all_components:
+                raise FatalError(
+                    f"component given for {name} not found in app config: {component_name}"
+                )
+
+            key_path = [component_name]
+            key_path.extend(remaining_path)
+
+            key = "/".join(key_path)
+            updated_data[key] = value
+
+        # Update the paths
+        data.clear()
+        for key, val in updated_data.items():
+            data[key] = val
+
+    @staticmethod
+    def _validate_component_list(all_components, data, name):
+        for component_name in data:
+            if component_name not in all_components:
+                raise FatalError(
+                    f"component given for {name} not found in app config: {component_name}"
+                )
+
+    def _validate_component_options(self, all_components, data, name):
+        if isinstance(data, dict):
+            self._validate_component_dict(all_components, data, name)
+        else:
+            self._validate_component_list(all_components, data, name)
+
+    def _validate(self):
+        """
+        Validate app configurations and options passed to the TemplateProcessor
+
+        1. Check that each app has required keys
+        2. Check that each app name is unique
+        3. Check that each component in an app has required keys
+        4. Check that each component is a unique name across the whole config
+        5. Check that CLI params requiring a component use a valid component name
+        """
         components_for_app = {}
 
-        for app_name, app_cfg in apps_config.items():
+        for app_name, app_cfg in self.apps_config.items():
+            # Check that each app has required keys
             required_keys = ["name", "components"]
             missing_keys = [k for k in required_keys if k not in app_cfg]
             if missing_keys:
                 raise FatalError(f"app '{app_name}' is missing required keys: {missing_keys}")
 
+            # Check that each app name is unique
             app_name = app_cfg["name"]
             if app_name in components_for_app:
                 raise FatalError(f"app with name '{app_name}' is not unique")
             components_for_app[app_name] = []
 
             for component in app_cfg.get("components", []):
+                # Check that each component in an app has required keys
                 required_keys = ["name", "host", "repo", "path"]
                 missing_keys = [k for k in required_keys if k not in component]
                 if missing_keys:
@@ -206,7 +281,31 @@ class TemplateProcessor:
                 comp_name = component["name"]
                 components_for_app[app_name].append(comp_name)
 
+        # Check that each component name is unique across the whole config
         self._find_dupe_components(components_for_app)
+
+        # Check that CLI params requiring a component use a valid component name
+        all_components = []
+        for _, app_components in components_for_app.items():
+            all_components.extend(app_components)
+
+        log.debug("components found: %s", all_components)
+
+        self._validate_component_options(
+            all_components, self.template_ref_overrides, "--set-template-ref"
+        )
+        self._validate_component_options(all_components, self.param_overrides, "--set-parameter")
+
+        # 'all' is a valid component keyword for these options below
+        all_components.append("all")
+
+        self._validate_component_options(
+            all_components, self.remove_resources, "--remove-resources"
+        )
+        self._validate_component_options(
+            all_components, self.no_remove_resources, "--no-remove-resources"
+        )
+        self._validate_component_options(all_components, self.component_filter, "--component")
 
     def __init__(
         self,
@@ -222,8 +321,6 @@ class TemplateProcessor:
         single_replicas,
         component_filter,
     ):
-        self._validate_app_config(apps_config)
-
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
         self.get_dependencies = get_dependencies
@@ -235,6 +332,8 @@ class TemplateProcessor:
         self.no_remove_resources = no_remove_resources
         self.single_replicas = single_replicas
         self.component_filter = component_filter
+
+        self._validate()
 
         self.k8s_list = {
             "kind": "List",
@@ -268,18 +367,7 @@ class TemplateProcessor:
         return json.loads(content)
 
     def _sub_ref(self, current_component_name, repo_file):
-        for app_component, value in self.template_ref_overrides.items():
-            # TODO: remove split when app_name syntax is fully deprecated
-            split = app_component.split("/")
-            if len(split) == 2:
-                _, component_name = split
-            elif len(split) == 1:
-                component_name = split[0]
-            else:
-                raise FatalError(
-                    f"invalid format for template ref override: {app_component}={value}"
-                )
-
+        for component_name, value in self.template_ref_overrides.items():
             if current_component_name == component_name:
                 log.info(
                     "component: '%s' overriding template ref to '%s'",
@@ -289,15 +377,12 @@ class TemplateProcessor:
                 repo_file.ref = value
 
     def _sub_params(self, current_component_name, params):
-        for param_path, value in self.param_overrides.items():
-            # TODO: remove split when app_name syntax is fully deprecated
-            split = param_path.split("/")
-            if len(split) == 3:
-                _, component_name, param_name = split
-            elif len(split) == 2:
+        for path, value in self.param_overrides.items():
+            split = path.split("/")
+            if len(split) == 2:
                 component_name, param_name = split
             else:
-                raise FatalError(f"invalid format for parameter override: {param_path}={value}")
+                raise FatalError(f"invalid format for --set-parameter: {path}={value}")
 
             if current_component_name == component_name:
                 log.info(
@@ -315,9 +400,10 @@ class TemplateProcessor:
             # override template ref if requested
             self._sub_ref(component_name, rf)
             commit, template_content = rf.fetch()
-        except Exception:
+        except Exception as err:
             log.error("failed to fetch template file for %s", component_name)
-            raise
+            log.debug(traceback.format_exc())
+            raise FatalError(err)
 
         template = yaml.safe_load(template_content)
 

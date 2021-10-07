@@ -217,10 +217,12 @@ class RepoFile:
                     log.info("trying alternate: %s", refs_to_try[idx + 1])
                     continue
                 else:
-                    alts = ", ".join(self._alternate_refs[self.ref])
+                    alts_txt = ""
+                    if self.ref in self._alternate_refs:
+                        alts = ", ".join(self._alternate_refs[self.ref])
+                        alts_txt = f" and its alternates: {alts}"
                     raise Exception(
-                        f"failed to fetch git ref '{self.ref}' or any of its alternates: '{alts}',"
-                        " check logs for more details"
+                        f"git ref fetch failed for '{self.ref}'{alts_txt}, see logs for details"
                     )
 
         return response
