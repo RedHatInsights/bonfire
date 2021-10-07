@@ -636,7 +636,7 @@ def _cmd_namespace_reserve(duration, retries, namespace):
     default=False,
     help="Do not check if you own this namespace",
 )
-def _cmd_namespace_release(namespace):
+def _cmd_namespace_release(namespace, force):
     """Remove reservation from an ephemeral namespace"""
     if not get_namespaces():
         _error(NO_RESERVATION_SYS)
