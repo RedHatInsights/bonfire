@@ -11,7 +11,7 @@
 #GIT_COMMIT="abcd123defg456"  # full git commit hash of the PR being tested
 trap "teardown" EXIT ERR SIGINT SIGTERM
 
-set -ex
+set -e
 
 : ${COMPONENTS:=""}
 : ${COMPONENTS_W_RESOURCES:=""}

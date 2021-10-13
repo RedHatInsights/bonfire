@@ -16,7 +16,7 @@
 #RH_REGISTRY_USER
 #RH_REGISTRY_TOKEN
 
-set -ex
+set -e
 
 function build {
     if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
