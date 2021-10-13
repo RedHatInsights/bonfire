@@ -1,4 +1,4 @@
-set -exv
+set -ev
 
 # log in to ephemeral cluster
 oc login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
