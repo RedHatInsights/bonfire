@@ -28,7 +28,7 @@ oc logs -n $NAMESPACE $pod -f &
 
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
-oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=Complete -n $NAMESPACE job/$CJI_NAME-iqe
+oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
 
 # Get the minio client
 # TODO: bake this into jenkins agent template
