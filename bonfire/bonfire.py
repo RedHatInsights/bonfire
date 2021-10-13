@@ -1059,6 +1059,9 @@ def _cmd_deploy_iqe_cji(
     cji_name,
     template_file,
     timeout,
+    requirements,
+    requirements_priority,
+    test_importance,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
     _warn_if_unsafe(namespace)
