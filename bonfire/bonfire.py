@@ -500,6 +500,24 @@ _iqe_cji_process_options = [
         type=str,
         default=None,
     ),
+    click.option(
+        "--requirements",
+        help="iqe --requirements expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--requirements-priority",
+        help="iqe --requirements-priority expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--test-importance",
+        help="iqe --test-importance expression",
+        type=str,
+        default="",
+    ),
 ]
 
 _reservation_process_options = [
@@ -997,11 +1015,31 @@ def _cmd_deploy_clowdenv(
 @main.command("process-iqe-cji")
 @options(_iqe_cji_process_options)
 def _cmd_process_iqe_cji(
-    clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+    clowd_app_name,
+    debug,
+    marker,
+    filter,
+    env,
+    image_tag,
+    cji_name,
+    template_file,
+    requirements,
+    requirements_priority,
+    test_importance,
 ):
     """Process IQE ClowdJobInvocation template and print output"""
     cji_config = process_iqe_cji(
-        clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+        clowd_app_name,
+        debug,
+        marker,
+        filter,
+        env,
+        image_tag,
+        cji_name,
+        template_file,
+        requirements,
+        requirements_priority,
+        test_importance,
     )
     print(json.dumps(cji_config, indent=2))
 
