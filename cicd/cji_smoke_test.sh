@@ -30,15 +30,15 @@ fi
 # Invoke the CJI using the options set via env vars
 pod=$(
     bonfire deploy-iqe-cji $COMPONENT_NAME \
-    -m "$IQE_MARKER_EXPRESSION" \
-    -k "$IQE_FILTER_EXPRESSION" \
+    --marker "$IQE_MARKER_EXPRESSION" \
+    --filter "$IQE_FILTER_EXPRESSION" \
     --image-tag "${IQE_IMAGE_TAG}" \
     --requirements "$IQE_REQUIREMENTS" \
     --requirements-priority "$IQE_REQUIREMENTS_PRIORITY" \
     --test-importance "$IQE_TEST_IMPORTANCE" \
-    -e "clowder_smoke" \
+    --env "clowder_smoke" \
     --cji-name $CJI_NAME \
-    -n $NAMESPACE)
+    --namespace $NAMESPACE)
 
 # Pipe logs to background to keep them rolling in jenkins
 oc logs -n $NAMESPACE $pod -f &
