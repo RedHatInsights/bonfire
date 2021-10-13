@@ -28,7 +28,7 @@ def _get_base_pod_cfg():
                     "name": "iqe-tests",
                     "resources": {
                         "limits": {"cpu": "1", "memory": "2Gi"},
-                        "requests": {"cpu": "500m", "memory": "512Mi"},
+                        "requests": {"cpu": "500m", "memory": "1Gi"},
                     },
                     "stdin": True,
                     "tty": True,
