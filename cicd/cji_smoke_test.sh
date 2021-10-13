@@ -5,6 +5,9 @@
 #IQE_CJI_TIMEOUT="10m" -- timeout value to pass to 'oc wait', should be slightly higher than expected test run time
 #IQE_MARKER_EXPRESSION="something AND something_else" -- pytest marker, can be "" if no filter desired
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
+#IQE_REQUIREMENTS="{'something','something_else'}" -- iqe requirements filter, can be "" if no filter desired
+#IQE_REQUIREMENTS_PRIORITY="{'something','something_else'}" -- iqe requirements filter, can be "" if no filter desired
+#IQE_TEST_IMPORTANCE="{'something','something_else'}" -- iqe requirements filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, usually set by 'deploy_ephemeral_env.sh'
 
 # In order for the deploy-iqe-cji to run correctly, we must set the marker and filter to "" if they
@@ -13,6 +16,9 @@
 : "${IQE_MARKER_EXPRESSION:='""'}"
 : "${IQE_FILTER_EXPRESSION:='""'}"
 : "${IQE_IMAGE_TAG:='""'}"
+: "${IQE_REQUIREMENTS:='""'}"
+: "${IQE_REQUIREMENTS_PRIORITY:='""'}"
+: "${IQE_TEST_IMPORTANCE:='""'}"
 
 CJI_NAME="$COMPONENT_NAME-smoke-tests"
 
@@ -22,7 +28,17 @@ if [[ -z $IQE_CJI_TIMEOUT ]]; then
 fi
 
 # Invoke the CJI using the options set via env vars
-pod=$(bonfire deploy-iqe-cji $COMPONENT_NAME -m "$IQE_MARKER_EXPRESSION" -k "$IQE_FILTER_EXPRESSION" -e "clowder_smoke" --cji-name $CJI_NAME -n $NAMESPACE --image-tag "${IQE_IMAGE_TAG}")
+pod=$(
+    bonfire deploy-iqe-cji $COMPONENT_NAME \
+    --marker "$IQE_MARKER_EXPRESSION" \
+    --filter "$IQE_FILTER_EXPRESSION" \
+    --image-tag "${IQE_IMAGE_TAG}" \
+    --requirements "$IQE_REQUIREMENTS" \
+    --requirements-priority "$IQE_REQUIREMENTS_PRIORITY" \
+    --test-importance "$IQE_TEST_IMPORTANCE" \
+    --env "clowder_smoke" \
+    --cji-name $CJI_NAME \
+    --namespace $NAMESPACE)
 
 # Pipe logs to background to keep them rolling in jenkins
 oc logs -n $NAMESPACE $pod -f &
