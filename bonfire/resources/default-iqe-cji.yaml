@@ -17,9 +17,9 @@ objects:
         marker: ${MARKER}
         filter: ${FILTER}
         dynaconfEnvName: ${ENV_NAME}
-        requirements: ${REQUIREMENTS}
-        requirementsPriority: ${REQUIREMENTS_PRIORITY}
-        testImportance: ${TEST_IMPORTANCE}
+        requirements: ${{REQUIREMENTS}}
+        requirementsPriority: ${{REQUIREMENTS_PRIORITY}}
+        testImportance: ${{TEST_IMPORTANCE}}
 
 parameters:
 - name: NAME
@@ -38,8 +38,8 @@ parameters:
   value: "clowder_smoke"
   required: true
 - name: REQUIREMENTS
-  value: ""
+  value: "[]"
 - name: REQUIREMENTS_PRIORITY
-  value: ""
+  value: "[]"
 - name: TEST_IMPORTANCE
-  value: ""
+  value: "[]"

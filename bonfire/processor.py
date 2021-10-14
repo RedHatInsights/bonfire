@@ -104,6 +104,10 @@ def process_iqe_cji(
     with template_path.open() as fp:
         template_data = yaml.safe_load(fp)
 
+    requirements = requirements.split(",") if requirements else []
+    requirements_priority = requirements_priority.split(",") if requirements_priority else []
+    test_importance = test_importance.split(",") if test_importance else []
+
     params = dict()
     params["DEBUG"] = str(debug).lower()
     params["MARKER"] = marker
@@ -112,9 +116,9 @@ def process_iqe_cji(
     params["IMAGE_TAG"] = image_tag
     params["NAME"] = cji_name or f"iqe-{str(uuid.uuid4()).split('-')[0]}"
     params["APP_NAME"] = clowd_app_name
-    params["REQUIREMENTS"] = requirements
-    params["REQUIREMENTS_PRIORITY"] = requirements_priority
-    params["TEST_IMPORTANCE"] = test_importance
+    params["REQUIREMENTS"] = json.dumps(requirements)
+    params["REQUIREMENTS_PRIORITY"] = json.dumps(requirements_priority)
+    params["TEST_IMPORTANCE"] = json.dumps(test_importance)
 
     processed_template = process_template(template_data, params=params)
 
