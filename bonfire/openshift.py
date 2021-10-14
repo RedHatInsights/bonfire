@@ -421,7 +421,7 @@ class ResourceWaiter:
                 self._time_last_logged = time.time()
         return False
 
-    def wait_for_ready(self, timeout):
+    def wait_for_ready(self, timeout, reraise=False):
         self._time_last_logged = time.time()
         self._time_remaining = timeout
 
@@ -439,8 +439,12 @@ class ResourceWaiter:
             return True
         except (StatusError, ErrorReturnCode) as err:
             log.error("[%s] hit error waiting for resource to be ready: %s", self.key, str(err))
+            if reraise:
+                raise
         except (TimeoutException, TimedOutError):
             log.error("[%s] timed out waiting for resource to be ready", self.key)
+            if reraise:
+                raise
         return False
 
 
@@ -728,7 +732,7 @@ def wait_on_cji(namespace, cji_name, timeout):
     remaining_time = remaining_time - elapsed
 
     waiter = ResourceWaiter(namespace, "pod", pod_name)
-    waiter.wait_for_ready(remaining_time)
+    waiter.wait_for_ready(remaining_time, reraise=True)
 
     return pod_name
 
