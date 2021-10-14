@@ -1072,7 +1072,17 @@ def _cmd_deploy_iqe_cji(
 
     try:
         cji_config = process_iqe_cji(
-            clowd_app_name, debug, marker, filter, env, image_tag, cji_name, template_file
+            clowd_app_name,
+            debug,
+            marker,
+            filter,
+            env,
+            image_tag,
+            cji_name,
+            template_file,
+            requirements,
+            requirements_priority,
+            test_importance,
         )
 
         log.debug("processed CJI config:\n%s", cji_config)
