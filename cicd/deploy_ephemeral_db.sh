@@ -11,6 +11,7 @@ DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$COMPONENT_NAME-db}"
 NAMESPACE=$(bonfire namespace reserve)
 # TODO: add code to bonfire to deploy an app if it is defined in 'sharedAppDbName' on the ClowdApp
 # TODO: add a bonfire command to deploy just an app's DB
+set -x
 bonfire process \
     $APP_NAME \
     --source=appsre \
@@ -23,6 +24,7 @@ bonfire process \
     $COMPONENTS_RESOURCES_ARG | oc apply -f - -n $NAMESPACE
 
 bonfire namespace wait-on-resources $NAMESPACE --db-only
+set +x
 
 # Set up port-forward for DB
 LOCAL_DB_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')

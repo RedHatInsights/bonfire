@@ -28,6 +28,7 @@ if [[ -z $IQE_CJI_TIMEOUT ]]; then
 fi
 
 # Invoke the CJI using the options set via env vars
+set -x
 pod=$(
     bonfire deploy-iqe-cji $COMPONENT_NAME \
     --marker "$IQE_MARKER_EXPRESSION" \
@@ -39,13 +40,16 @@ pod=$(
     --env "clowder_smoke" \
     --cji-name $CJI_NAME \
     --namespace $NAMESPACE)
+set +x
 
 # Pipe logs to background to keep them rolling in jenkins
 oc logs -n $NAMESPACE $pod -f &
 
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
+set -x
 oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
+set +x
 
 # Get the minio client
 # TODO: bake this into jenkins agent template
@@ -68,6 +72,7 @@ export MINIO_HOST=localhost
 export MINIO_PORT=$LOCAL_SVC_PORT
 
 # Setup the minio client to auth to the local eph minio in the ns
+echo "Fetching artifacts from minio..."
 ./mc alias set minio http://$MINIO_HOST:$MINIO_PORT $MINIO_ACCESS $MINIO_SECRET_KEY
 
 # "mirror" copies the entire artifacts dir from the pod and writes it to the jenkins node

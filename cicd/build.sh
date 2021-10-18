@@ -38,31 +38,43 @@ function build {
 function docker_build {
     DOCKER_CONF="$PWD/.docker"
     mkdir -p "$DOCKER_CONF"
+    set -x
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
+    set +x
     if [ "$CACHE_FROM_LATEST_IMAGE" == "true" ]; then
         echo "Attempting to build image using cache"
         {
+            set -x
             docker --config="$DOCKER_CONF" pull "${IMAGE}" &&
             docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}"
+            set +x
         } || {
             echo "Build from cache failed, attempting build without cache"
+            set -x
             docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+            set +x
         }
     else
+        set -x
         docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+        set +x
     fi
+    set -x
     docker --config="$DOCKER_CONF" push "${IMAGE}:${IMAGE_TAG}"
+    set +x
 }
 
 function podman_build {
     AUTH_CONF_DIR="$(pwd)/.podman"
     mkdir -p $AUTH_CONF_DIR
     export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
+    set -x
     podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
     podman build -f $APP_ROOT/$DOCKERFILE -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT
     podman push "${IMAGE}:${IMAGE_TAG}"
+    set +x
 }
 
 
