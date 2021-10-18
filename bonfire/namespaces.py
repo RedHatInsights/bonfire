@@ -329,8 +329,20 @@ def _delete_resources(namespace):
             timeout="60s",
         )
 
+    # delete the FrontendEnvironment for this namespace
+    if get_json("frontendenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace)):
+        oc(
+            "delete",
+            "frontendenvironment",
+            conf.ENV_NAME_FORMAT.format(namespace=namespace),
+            timeout="60s",
+        )
+
     # delete any other lingering specific resource types from the namespace
     resources_to_delete = [
+        "ingresses",
+        "frontends",
+        "bundles",
         "elasticsearches",
         "horizontalpodautoscalers",
         "kafkabridges",
