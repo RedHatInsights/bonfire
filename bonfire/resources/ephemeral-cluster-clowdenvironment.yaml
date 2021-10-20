@@ -46,7 +46,7 @@ objects:
         privatePort: 10000
         mode: operator
       featureFlags:
-        mode: local
+        mode: none
       metrics:
         port: 9000
         path: "/metrics"
