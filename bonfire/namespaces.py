@@ -224,7 +224,7 @@ def get_namespaces(available=False, mine=False):
 
     ephemeral_namespaces = []
     for ns in all_namespaces:
-        ns.ready = env_ready_for_ns.get(ns.name, False)
+        ns.ready = ns.ready and env_ready_for_ns.get(ns.name, False)
         if not ns.is_reservable:
             continue
         get_all = not mine and not available
@@ -493,7 +493,7 @@ def get_namespaces_for_reconciler():
             )
             continue
         ns = Namespace(namespace_data=ns)
-        ns.ready = env_ready_for_ns.get(ns.name, False)
+        ns.ready = ns.ready and env_ready_for_ns.get(ns.name, False)
         ephemeral_namespaces.append(ns)
 
     return ephemeral_namespaces
