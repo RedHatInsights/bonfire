@@ -194,11 +194,24 @@ class Namespace:
         oc("patch", "namespace", self.name, type="json", p=json.dumps(patch))
 
 
+def _get_env_ready_status():
+    clowd_env_ready_for_ns = {}
+    clowd_envs = get_json("clowdenvironment")
+    for clowd_env in clowd_envs["items"]:
+        status = clowd_env.get("status", {})
+        target_ns = status.get("targetNamespace")
+        ready = status.get("ready", False)
+        clowd_env_ready_for_ns[target_ns] = ready
+        if not ready:
+            log.debug("found target ns '%s' with env status not ready", target_ns)
+    return clowd_env_ready_for_ns
+
+
 def get_namespaces(available=False, mine=False):
     """
     Look up reservable namespaces in the cluster.
 
-    available (bool) -- return only namespaces that are not reserved
+    available (bool) -- return only namespaces that are ready and not reserved
     mine (bool) -- return only namespaces owned by current user
     """
     log.debug("get_namespaces(available=%s, mine=%s)", available, mine)
@@ -206,8 +219,12 @@ def get_namespaces(available=False, mine=False):
 
     log.debug("namespaces found:\n%s", "\n".join([str(n) for n in all_namespaces]))
 
+    # get clowd envs to ensure that ClowdEnvironment is ready for the namespaces
+    env_ready_for_ns = _get_env_ready_status()
+
     ephemeral_namespaces = []
     for ns in all_namespaces:
+        ns.ready = env_ready_for_ns.get(ns.name, False)
         if not ns.is_reservable:
             continue
         get_all = not mine and not available
@@ -415,7 +432,7 @@ def _reconcile_ns(ns, base_secret_names):
 
     if not ns.reserved and not ns.ready:
         # check if any released namespaces need to be prepped
-        log.info("namespace '%s' - released but needs prep, prepping", ns.name)
+        log.info("namespace '%s' - not reserved, but not 'ready', prepping", ns.name)
         _delete_resources(ns.name)
         try:
             add_base_resources(ns.name, base_secret_names)
@@ -455,6 +472,9 @@ def get_namespaces_for_reconciler():
         "all namespaces found on cluster: %s", [ns["metadata"]["name"] for ns in all_namespaces]
     )
     ephemeral_namespaces = []
+
+    # get clowd envs to ensure that ClowdEnvironment is ready for the namespaces
+    env_ready_for_ns = _get_env_ready_status()
     for ns in all_namespaces:
         ns_name = ns["metadata"]["name"]
         if ns_name == conf.BASE_NAMESPACE_NAME:
@@ -473,6 +493,7 @@ def get_namespaces_for_reconciler():
             )
             continue
         ns = Namespace(namespace_data=ns)
+        ns.ready = env_ready_for_ns.get(ns.name, False)
         ephemeral_namespaces.append(ns)
 
     return ephemeral_namespaces
