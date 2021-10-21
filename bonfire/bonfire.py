@@ -1114,7 +1114,7 @@ def _cmd_deploy_iqe_cji(
 @main.command("version")
 def _cmd_version():
     """Print bonfire version"""
-    print("bonfire version " + __version__)
+    click.echo("bonfire version " + __version__)
 
 
 @config.command("write-default")
