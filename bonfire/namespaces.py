@@ -197,10 +197,10 @@ class Namespace:
 def _get_env_ready_status():
     clowd_env_ready_for_ns = {}
     clowd_envs = get_json("clowdenvironment")
-    for clowd_env in clowd_envs['items']:
+    for clowd_env in clowd_envs["items"]:
         status = clowd_env.get("status", {})
         target_ns = status.get("targetNamespace")
-        ready = status.get('ready', False)
+        ready = status.get("ready", False)
         clowd_env_ready_for_ns[target_ns] = ready
         if not ready:
             log.debug("found target ns '%s' with env status not ready", target_ns)
