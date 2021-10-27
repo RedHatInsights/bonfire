@@ -26,6 +26,9 @@ def _get_config_path():
 DEFAULT_CONFIG_PATH = _get_config_path().joinpath("config.yaml")
 DEFAULT_ENV_PATH = _get_config_path().joinpath("env")
 DEFAULT_SECRETS_DIR = _get_config_path().joinpath("secrets")
+VER_CHECK_PATH = _get_config_path().joinpath("lastvercheck")
+VER_CHECK_TIME = 3600  # check every 1hr
+
 DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
     "bonfire", "resources/local-cluster-clowdenvironment.yaml"
 )

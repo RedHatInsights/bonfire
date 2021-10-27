@@ -3,13 +3,19 @@ import json
 import logging
 import os
 import re
-import requests
 import shlex
 import subprocess
 import tempfile
+import time
 import yaml
+from distutils.version import StrictVersion
+from pathlib import Path
 
+import pkg_resources
+import requests
 from cached_property import cached_property
+
+import bonfire.config as conf
 
 
 class FatalError(Exception):
@@ -17,6 +23,9 @@ class FatalError(Exception):
 
     pass
 
+
+PKG_NAME = "crc-bonfire"
+PYPI_URL = f"https://pypi.python.org/pypi/{PKG_NAME}/json"
 
 GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
@@ -393,3 +402,90 @@ def load_file(path):
         raise FatalError("File '{}' is empty!".format(path))
 
     return content
+
+
+def get_version():
+    try:
+        return pkg_resources.get_distribution(PKG_NAME).version
+    except pkg_resources.DistributionNotFound:
+        return "0.0.0"
+
+
+def _compare_version(pypi_version):
+    pypi_version = StrictVersion(pypi_version)
+
+    local_version = get_version()
+    try:
+        my_version = StrictVersion(local_version)
+    except ValueError:
+        print(f"Version {local_version} seems to be a dev version, assuming up-to-date")
+        my_version = StrictVersion("999.999.999")
+        return
+
+    if my_version < pypi_version:
+        print(
+            "\n"
+            "There is a new bonfire version available! (yours: {}, available: {})"
+            "\n"
+            "Upgrade with:\n"
+            f"    pip install --upgrade {PKG_NAME}"
+            " ".format(my_version, pypi_version)
+        )
+    else:
+        print("Up-to-date!")
+
+
+def _update_ver_check_file():
+    ver_check_file = Path(conf.VER_CHECK_PATH)
+    try:
+        with ver_check_file.open(mode="w") as fp:
+            fp.write(str(time.time()))
+    except OSError:
+        log.error("failed to update version check file at path: %s", ver_check_file.resolve())
+
+
+def _ver_check_needed():
+    ver_check_file = Path(conf.VER_CHECK_PATH)
+    if not ver_check_file.exists():
+        _update_ver_check_file()
+        return True
+
+    last_check_time = 0
+    try:
+        with ver_check_file.open() as fp:
+            last_check_time = float(fp.read().strip())
+    except (OSError, ValueError):
+        log.exception("failed to read version check file at path: %s", ver_check_file.resolve())
+
+    if time.time() > last_check_time + conf.VER_CHECK_TIME:
+        _update_ver_check_file()
+        return True
+
+    return False
+
+
+def check_pypi():
+    if not _ver_check_needed():
+        return
+
+    print("\nChecking pypi for latest release...")
+
+    pkg_data = {}
+    try:
+        response = requests.get(PYPI_URL, timeout=5)
+        response.raise_for_status()
+        pkg_data = response.json()
+    except requests.exceptions.Timeout:
+        print("Unable to reach pypi quickly, giving up.")
+    except requests.exceptions.HTTPError as e:
+        print("Error response from pypi: ", e.errno, e.message)
+    except ValueError:
+        print("Response was not valid json, giving up.")
+
+    try:
+        pypi_version = pkg_data["info"]["version"]
+    except KeyError:
+        print("Unable to parse version info from pypi")
+    else:
+        _compare_version(pypi_version)
+    print("\n")

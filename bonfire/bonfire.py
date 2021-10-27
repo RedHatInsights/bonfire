@@ -6,12 +6,6 @@ import logging
 import sys
 import warnings
 
-from importlib.metadata import version, PackageNotFoundError
-try:
-    __version__ = version("crc-bonfire")
-except PackageNotFoundError:
-    __version__ = "(unknown)"
-
 from tabulate import tabulate
 from wait_for import TimedOutError
 
@@ -31,7 +25,14 @@ from bonfire.openshift import (
     oc,
     whoami,
 )
-from bonfire.utils import FatalError, split_equals, find_what_depends_on, validate_time_string
+from bonfire.utils import (
+    FatalError,
+    split_equals,
+    find_what_depends_on,
+    validate_time_string,
+    check_pypi,
+    get_version,
+)
 from bonfire.local import get_local_apps
 from bonfire.processor import (
     TemplateProcessor,
@@ -64,6 +65,8 @@ def _error(msg):
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
 def main(debug):
+    check_pypi()
+
     logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
     logging.basicConfig(
         format="%(asctime)s [%(levelname)8s] [%(threadName)20s] %(message)s",
@@ -1124,7 +1127,7 @@ def _cmd_deploy_iqe_cji(
 @main.command("version")
 def _cmd_version():
     """Print bonfire version"""
-    click.echo("bonfire version " + __version__)
+    click.echo("bonfire version " + get_version())
 
 
 @config.command("write-default")
