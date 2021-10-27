@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 def get_api_resources():
     output = oc("api-resources", verbs="list", _silent=True).strip()
     if not output:
+        log.info("oc api-resources came back empty")
         return []
 
     lines = output.split("\n")
@@ -43,12 +44,30 @@ def get_api_resources():
         resource = {
             "name": line[name_start:name_end].strip().rstrip("s") or None,
             "shortnames": shortnames.split(",") if shortnames else [],
-            "apigroup": line[apigroup_start:apigroup_end].strip() or None,
+            "apigroup": line[apigroup_start:apigroup_end].strip() or "",
             "namespaced": line[namespaced_start:namespaced_end].strip() == "true",
             "kind": line[kind_start:].strip() or None,
         }
         resources.append(resource)
     return resources
+
+
+def has_ns_operator():
+    for res in get_api_resources():
+        name = res["name"]
+        apigroup = res["apigroup"].split("/")[0]
+        if name == "namespacereservation" and apigroup == "cloud.redhat.com":
+            return True
+    return False
+
+
+def has_clowder():
+    for res in get_api_resources():
+        name = res["name"]
+        apigroup = res["apigroup"].split("/")[0]
+        if name == "clowdapp" and apigroup == "cloud.redhat.com":
+            return True
+    return False
 
 
 def parse_restype(string):
@@ -768,10 +787,7 @@ def wait_on_reservation(res_name, timeout):
 
     def _find_reservation():
         res = get_json("reservation", name=res_name)
-        try:
-            return res["status"]["namespace"]
-        except (KeyError, IndexError):
-            return False
+        return res.get("status", {}).get("namespace", False)
 
     ns_name, elapsed = wait_for(
         _find_reservation,
@@ -781,42 +797,46 @@ def wait_on_reservation(res_name, timeout):
     return ns_name
 
 
+def get_all_reservations():
+    if not has_ns_operator():
+        return []
+    return get_json("reservation").get("items", [])
+
+
 def check_for_existing_reservation(requester):
-    if on_k8s():
+    if not has_ns_operator():
         return False
 
     log.info("Checking for existing reservations for '%s'", requester)
 
-    all_res = get_json("reservation")
-
-    for res in all_res["items"]:
-        if res["spec"]["requester"] == requester:
+    for res in get_all_reservations():
+        res_state = res.get("status", {}).get("state")
+        if res["spec"]["requester"] == requester and res_state == "active":
             return True
 
     return False
 
 
 def get_reservation(name=None, namespace=None, requester=None):
-    if on_k8s():
-        return False
+    if not has_ns_operator():
+        return None
 
     if name:
         res = get_json("reservation", name=name)
         return res if res else False
     elif namespace:
-        all_res = get_json("reservation")
-        for res in all_res["items"]:
-            if res["status"]["namespace"] == namespace:
+        for res in get_all_reservations():
+            if res.get("status", {}).get("namespace") == namespace:
                 return res
     elif requester:
-        all_res = get_json("reservation", label=f"requester={requester}")
-        numRes = len(all_res["items"])
+        requester_res = get_json("reservation", label=f"requester={requester}")
+        numRes = len(requester_res.get("items", []))
         if numRes == 0:
-            return False
+            return None
         elif numRes == 1:
-            return all_res["items"][0]
+            return requester_res["items"][0]
         else:
             log.info("Multiple reservations found for requester '%s'. Aborting.", requester)
-            return False
+            return None
 
-    return False
+    return None
