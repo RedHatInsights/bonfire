@@ -15,8 +15,6 @@ import pkg_resources
 import requests
 from cached_property import cached_property
 
-import bonfire.config as conf
-
 
 class FatalError(Exception):
     """An exception that will cause the CLI to exit"""
@@ -24,8 +22,21 @@ class FatalError(Exception):
     pass
 
 
+def get_config_path():
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config_home:
+        config_home = Path(xdg_config_home)
+    else:
+        config_home = Path.home().joinpath(".config")
+
+    return config_home.joinpath("bonfire")
+
+
 PKG_NAME = "crc-bonfire"
 PYPI_URL = f"https://pypi.python.org/pypi/{PKG_NAME}/json"
+
+VER_CHECK_PATH = get_config_path().joinpath("lastvercheck")
+VER_CHECK_TIME = 3600  # check every 1hr
 
 GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
@@ -436,7 +447,7 @@ def _compare_version(pypi_version):
 
 
 def _update_ver_check_file():
-    ver_check_file = Path(conf.VER_CHECK_PATH)
+    ver_check_file = Path(VER_CHECK_PATH)
     try:
         with ver_check_file.open(mode="w") as fp:
             fp.write(str(time.time()))
@@ -445,7 +456,7 @@ def _update_ver_check_file():
 
 
 def _ver_check_needed():
-    ver_check_file = Path(conf.VER_CHECK_PATH)
+    ver_check_file = Path(VER_CHECK_PATH)
     if not ver_check_file.exists():
         _update_ver_check_file()
         return True
@@ -457,7 +468,7 @@ def _ver_check_needed():
     except (OSError, ValueError):
         log.exception("failed to read version check file at path: %s", ver_check_file.resolve())
 
-    if time.time() > last_check_time + conf.VER_CHECK_TIME:
+    if time.time() > last_check_time + VER_CHECK_TIME:
         _update_ver_check_file()
         return True
 
