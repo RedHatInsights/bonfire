@@ -12,15 +12,20 @@ from wait_for import TimedOutError
 import bonfire.config as conf
 from bonfire.qontract import get_namespaces_for_env, get_secret_names_in_namespace
 from bonfire.openshift import (
+    apply_config,
     oc,
     on_k8s,
     get_all_namespaces,
     get_json,
+    get_reservation,
     copy_namespace_secrets,
     process_template,
     wait_for_all_resources,
+    wait_on_reservation,
     whoami,
 )
+from bonfire.processor import process_reservation
+from bonfire.utils import FatalError
 
 
 NS_RESERVED = "ephemeral-ns-reserved"
@@ -44,7 +49,7 @@ RESERVATION_DELAY_SEC = 5
 log = logging.getLogger(__name__)
 
 
-TIME_FMT = "%Y-%m-%d_T%H-%M-%S_%Z"
+TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def _utc_tz(dt):
@@ -96,32 +101,32 @@ class Namespace:
         self.data = copy.deepcopy(namespace_data)
         self.name = self.data["metadata"]["name"]
 
-        self._initialize_labels = False
-        if "labels" not in self.data["metadata"]:
-            self.data["metadata"]["labels"] = {}
-            self._initialize_labels = True
+        if "annotations" not in self.data["metadata"]:
+            self.data["metadata"]["annotations"] = {}
 
-        self.labels = self.data["metadata"]["labels"]
+        self.annotations = self.data["metadata"]["annotations"]
 
-        self.reserved = self.labels.get(NS_RESERVED, "false") == "true"
-        self.ready = self.labels.get(NS_READY, "false") == "true"
-        requester = self.labels.get(NS_REQUESTER)
-        self.requester = str(requester) if requester else None
-        duration = self.labels.get(NS_DURATION)
-        self.duration = int(duration) if duration else None
-        # convert time format to one that can be used in a label
-        self.expires = _parse_time(self.labels.get(NS_EXPIRES))
-        requester_name = self.labels.get(NS_REQUESTER_NAME)
-        self.requester_name = str(requester_name) if requester_name else None
+        self.reserved = self.annotations.get("reserved", "false") == "true"
+        self.status = self.annotations.get("status", "false")
+        self.operator_ns = self.annotations.get("operator-ns", "false") == "true"
+
+        if self.reserved:
+            res = get_reservation(namespace=self.name)
+            if res:
+                self.requester = res["spec"]["requester"]
+                self.expires = _parse_time(res["status"]["expiration"])
+            else:
+                log.error("Could not retrieve reservation details for ns: %s", self.name)
+        else:
+            self.requester = None
+            self.expires = None
 
     @property
     def is_reservable(self):
         """
-        Check whether a namespace has the required labels set on it.
+        Check whether a namespace was created by the namespace operator.
         """
-        if all([label in self.labels for label in NS_REQUIRED_LABELS]):
-            return True
-        return False
+        return self.operator_ns
 
     @property
     def expires_in(self):
@@ -129,18 +134,21 @@ class Namespace:
             # reconciler needs to set the time ...
             return "TBD"
         utcnow = _utcnow()
-        delta = self.expires - utcnow
-        return _pretty_time_delta(delta.total_seconds())
+        if self.expires < utcnow:
+            return "expired"
+        else:
+            delta = self.expires - utcnow
+            return _pretty_time_delta(delta.total_seconds())
 
     @property
     def owned_by_me(self):
         if on_k8s():
             return True
-        return self.requester_name == whoami()
+        return self.requester == whoami()
 
     @property
     def available(self):
-        return not self.reserved and self.ready
+        return not self.reserved and self.status == "ready"
 
     def __str__(self):
         return (
@@ -224,7 +232,6 @@ def get_namespaces(available=False, mine=False):
 
     ephemeral_namespaces = []
     for ns in all_namespaces:
-        ns.ready = ns.ready and env_ready_for_ns.get(ns.name, False)
         if not ns.is_reservable:
             continue
         get_all = not mine and not available
@@ -234,96 +241,118 @@ def get_namespaces(available=False, mine=False):
     return ephemeral_namespaces
 
 
-def _reserve_ns_for_duration(namespace, duration):
-    requester_id = uuid.uuid4()
-    namespace.reserved = True
-    namespace.ready = False
-    namespace.requester = requester_id
-    namespace.duration = duration
-    namespace.expires = None  # let the reconciler tell us when it expires
-    namespace.requester_name = whoami()
-    namespace.update()
-    return requester_id
+def reserve_namespace(name, requester, duration, timeout):
+    try:
+        res = get_reservation(name)
+        # Name should be unique on reservation creation.
+        if res:
+            raise FatalError(f"Reservation with name {name} already exists")
 
+        res_config = process_reservation(name, requester, duration)
 
-def _should_renew_ns(namespace, duration):
-    # if the ns is already reserved by us, don't re-reserve it if the requested duration is less
-    # than the expires_in time (in other words, if you have reserved an ns already that expires in
-    # 2 days you would not want to reset it to expire in 60 minutes)
-    if namespace.owned_by_me:
-        if not namespace.expires:
-            # we're not sure when this expires yet, let's not re-reserve it
-            log.warning("namespace owned by you but expires time unknown, not renewing")
-            return False
+        log.debug("processed reservation:\n%s", res_config)
 
-        expires_in_delta = namespace.expires - _utcnow()
-        expires_in_hrs = expires_in_delta.total_seconds() / 3600
-        if duration <= expires_in_hrs:
-            log.warning(
-                "namespace owned by you, expires in '%s' >= duration '%dh', not renewing",
-                _pretty_time_delta(expires_in_delta.total_seconds()),
-                duration,
+        try:
+            res_name = res_config["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            raise Exception(
+                "error parsing name of Reservation from processed template, "
+                "check Reservation template"
             )
-            return False
 
-    return True
+        apply_config(None, list_resource=res_config)
 
-
-def reserve_namespace(duration, retries, specific_namespace=None, attempt=0):
-    attempt = attempt + 1
-
-    ns_name = specific_namespace if specific_namespace else ""
-    log.info("attempt [%d] to reserve namespace %s", attempt, ns_name)
-
-    if specific_namespace:
-        log.debug("specific namespace requested: %s", ns_name)
-        # look up both available ns's and ns's owned by 'me' to allow for renewing reservation
-        available_namespaces = get_namespaces(available=True, mine=True)
-        available_namespaces = [ns for ns in available_namespaces if ns.name == specific_namespace]
+        ns_name = wait_on_reservation(res_name, timeout)
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        return None, err
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        return None, err
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        return None, err
+    except Exception as err:
+        log.exception("hit unexpected error: %s", err)
+        return None, err
     else:
-        # if a specific namespace was not requested, only look up available ones
-        available_namespaces = get_namespaces(available=True, mine=False)
+        log.info(
+            "namespace '%s' is reserved by '%s' for '%s'",
+            ns_name,
+            requester,
+            duration,
+        )
 
-    if not available_namespaces:
-        log.info("all namespaces currently unavailable")
-
-        if retries and attempt > retries:
-            log.error("maximum retries reached")
-            return None
-
-        log.info("waiting 60sec before retrying")
-        time.sleep(60)
-        return reserve_namespace(duration, retries, specific_namespace, attempt=attempt)
-
-    namespace = random.choice(available_namespaces)
-
-    if not _should_renew_ns(namespace, duration):
-        return namespace
-
-    requester_id = _reserve_ns_for_duration(namespace, duration)
-
-    # to avoid race conditions, wait and verify we still own this namespace
-    time.sleep(RESERVATION_DELAY_SEC)
-    namespace.refresh()
-    if str(namespace.requester) != str(requester_id):
-        log.warning("hit namespace reservation conflict")
-
-        if retries and attempt > retries:
-            log.error("maximum retries reached")
-            return None
-
-        return reserve_namespace(duration, retries, specific_namespace, attempt=attempt)
-
-    return namespace
+    return ns_name, None
 
 
 def release_namespace(namespace):
-    ns = Namespace(name=namespace)
-    ns.reserved = False
-    ns.requester = None
-    ns.requester_name = None
-    ns.ready = False
-    ns.update()
+    try:
+        res = get_reservation(namespace=namespace)
+        if res:
+            res_config = process_reservation(
+                res["metadata"]["name"],
+                res["spec"]["requester"],
+                "0s",  # on release set duration to 0s
+            )
+
+            apply_config(None, list_resource=res_config)
+            log.info("releasing namespace '%s'", namespace)
+        else:
+            raise FatalError("Reservation lookup failed")
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        return err
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        return err
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        return err
+    except Exception as err:
+        log.exception("hit unexpected error: %s", err)
+        return err
+
+    return None
+
+
+def extend_namespace(namespace, duration):
+    try:
+        res = get_reservation(namespace=namespace)
+        if res:
+            if res["status"]["state"] == "expired":
+                log.error(
+                    "The reservation for namespace %s has expired. "
+                    "Please reserve a new namespace", res["status"]["namespace"]
+                )
+                return None
+            res_config = process_reservation(
+                res["metadata"]["name"],
+                res["spec"]["requester"],
+                duration,
+            )
+
+            log.debug("processed reservation:\n%s", res_config)
+
+            apply_config(None, list_resource=res_config)
+        else:
+            raise FatalError("Reservation lookup failed")
+    except KeyboardInterrupt as err:
+        log.error("aborted by keyboard interrupt!")
+        return err
+    except TimedOutError as err:
+        log.error("hit timeout error: %s", err)
+        return err
+    except FatalError as err:
+        log.error("hit fatal error: %s", err)
+        return err
+    except Exception as err:
+        log.exception("hit unexpected error: %s", err)
+        return err
+
+    log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
+
+    return None
 
 
 def _delete_resources(namespace):
