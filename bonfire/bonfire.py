@@ -868,7 +868,12 @@ def _cmd_config_deploy(
 ):
     """Process app templates and deploy them to a cluster"""
     requested_ns = namespace
-    used_ns_reservation_system, ns = _get_target_namespace(duration, retries, requested_ns)
+    operator_reservation = get_reservation(namespace=requested_ns)
+
+    if not operator_reservation:
+        used_ns_reservation_system, ns = _get_target_namespace(duration, retries, requested_ns)
+    else:
+        used_ns_reservation_system, ns = False, requested_ns
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
