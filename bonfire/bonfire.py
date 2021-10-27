@@ -65,8 +65,6 @@ def _error(msg):
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
 def main(debug):
-    check_pypi()
-
     logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
     logging.basicConfig(
         format="%(asctime)s [%(levelname)8s] [%(threadName)20s] %(message)s",
@@ -83,6 +81,8 @@ def main(debug):
     logging.captureWarnings(True)
     if conf.ENV_FILE:
         log.debug("using env file: %s", conf.ENV_FILE)
+
+    check_pypi()
 
 
 @main.group()
