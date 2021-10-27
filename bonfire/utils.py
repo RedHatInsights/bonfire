@@ -435,7 +435,6 @@ def _compare_version(pypi_version):
 
     if my_version < pypi_version:
         log.info(
-            "\n"
             "there is a new bonfire version available! (yours: {}, available: {})"
             "\n"
             "upgrade with:\n"
@@ -479,7 +478,7 @@ def check_pypi():
     if not _ver_check_needed():
         return
 
-    log.info("\nChecking pypi for latest release...")
+    log.info("checking pypi for latest release...")
 
     pkg_data = {}
     try:
@@ -487,15 +486,15 @@ def check_pypi():
         response.raise_for_status()
         pkg_data = response.json()
     except requests.exceptions.Timeout:
-        log.error("Unable to reach pypi quickly, giving up.")
+        log.error("unable to reach pypi quickly, giving up.")
     except requests.exceptions.HTTPError as e:
-        log.error("Error response from pypi: ", e.errno, e.message)
+        log.error("error response from pypi: ", e.errno, e.message)
     except ValueError:
-        log.error("Response was not valid json, giving up.")
+        log.error("response was not valid json, giving up.")
 
     try:
         pypi_version = pkg_data["info"]["version"]
     except KeyError:
-        log.error("Unable to parse version info from pypi")
+        log.error("unable to parse version info from pypi")
     else:
         _compare_version(pypi_version)
