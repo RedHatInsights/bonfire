@@ -429,21 +429,21 @@ def _compare_version(pypi_version):
     try:
         my_version = StrictVersion(local_version)
     except ValueError:
-        print(f"Version {local_version} seems to be a dev version, assuming up-to-date")
+        log.info(f"version {local_version} seems to be a dev version, assuming up-to-date")
         my_version = StrictVersion("999.999.999")
         return
 
     if my_version < pypi_version:
-        print(
+        log.info(
             "\n"
-            "There is a new bonfire version available! (yours: {}, available: {})"
+            "there is a new bonfire version available! (yours: {}, available: {})"
             "\n"
-            "Upgrade with:\n"
+            "upgrade with:\n"
             f"    pip install --upgrade {PKG_NAME}"
             " ".format(my_version, pypi_version)
         )
     else:
-        print("Up-to-date!")
+        log.info("up-to-date!")
 
 
 def _update_ver_check_file():
@@ -479,7 +479,7 @@ def check_pypi():
     if not _ver_check_needed():
         return
 
-    print("\nChecking pypi for latest release...")
+    log.info("\nChecking pypi for latest release...")
 
     pkg_data = {}
     try:
@@ -487,16 +487,15 @@ def check_pypi():
         response.raise_for_status()
         pkg_data = response.json()
     except requests.exceptions.Timeout:
-        print("Unable to reach pypi quickly, giving up.")
+        log.error("Unable to reach pypi quickly, giving up.")
     except requests.exceptions.HTTPError as e:
-        print("Error response from pypi: ", e.errno, e.message)
+        log.error("Error response from pypi: ", e.errno, e.message)
     except ValueError:
-        print("Response was not valid json, giving up.")
+        log.error("Response was not valid json, giving up.")
 
     try:
         pypi_version = pkg_data["info"]["version"]
     except KeyError:
-        print("Unable to parse version info from pypi")
+        log.error("Unable to parse version info from pypi")
     else:
         _compare_version(pypi_version)
-    print("\n")
