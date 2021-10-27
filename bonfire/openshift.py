@@ -761,7 +761,9 @@ def wait_on_reservation(res_name, timeout):
     def _find_reservation():
         res = get_json("reservation", name=res_name)
         try:
-            return res["status"]["namespace"]
+            if res["status"]["namespace"]:
+                return res["status"]["namespace"]
+            return False
         except (KeyError, IndexError):
             return False
 
@@ -782,7 +784,7 @@ def check_for_existing_reservation(requester):
     all_res = get_json("reservation")
 
     for res in all_res["items"]:
-        if res["spec"]["requester"] == requester:
+        if res["spec"]["requester"] == requester and res["status"]["state"] == "active":
             return True
 
     return False

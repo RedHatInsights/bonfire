@@ -8,9 +8,10 @@ objects:
   kind: NamespaceReservation
   metadata:
     name: ${NAME}
-    extensionId: ${EXTENSIONID}
     labels:
       requester: ${REQUESTER}
+    annotations:
+      extensionId: ${EXTENSIONID}
   spec:
     duration: ${DURATION}
     requester: ${REQUESTER}
