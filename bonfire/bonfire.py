@@ -1246,6 +1246,12 @@ def _extend_reservation(name, namespace, requester, duration):
         msg = f"reservation extension failed: {str(err)}"
         _error(msg)
 
+    if not (name or namespace or requester):
+        _err_handler(
+            "To extend a reservation provide one of name, "
+            "namespace, or requester. See bonfire reservation extend -h"
+        )
+
     try:
         res = get_reservation(name, namespace, requester)
         if res:
@@ -1282,6 +1288,12 @@ def _delete_reservation(name, namespace, requester):
     def _err_handler(err):
         msg = f"reservation deletion failed: {str(err)}"
         _error(msg)
+
+    if not (name or namespace or requester):
+        _err_handler(
+            "To delete a reservation provide one of name, "
+            "namespace, or requester. See bonfire reservation delete -h"
+        )
 
     try:
         res = get_reservation(name, namespace, requester)
