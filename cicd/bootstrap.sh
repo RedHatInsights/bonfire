@@ -18,7 +18,7 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 pip install --upgrade pip 'setuptools<58' wheel
-pip install --upgrade 'crc-bonfire>=1.0.0'
+pip install --upgrade 'crc-bonfire>=2.17.1'
 
 # clone repo to download cicd scripts
 git clone https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
