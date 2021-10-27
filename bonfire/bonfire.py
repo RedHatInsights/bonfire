@@ -6,6 +6,12 @@ import logging
 import sys
 import warnings
 
+from importlib.metadata import version, PackageNotFoundError
+try:
+    __version__ = version("crc-bonfire")
+except PackageNotFoundError:
+    __version__ = "(unknown)"
+
 from tabulate import tabulate
 from wait_for import TimedOutError
 
@@ -1103,6 +1109,12 @@ def _cmd_deploy_iqe_cji(
             "pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace
         )
         click.echo(pod_name)
+
+
+@main.command("version")
+def _cmd_version():
+    """Print bonfire version"""
+    click.echo("bonfire version " + __version__)
 
 
 @config.command("write-default")
