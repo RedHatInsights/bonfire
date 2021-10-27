@@ -8,26 +8,14 @@ import subprocess
 
 from dotenv import load_dotenv
 
-from bonfire.utils import load_file, FatalError
+from bonfire.utils import load_file, get_config_path, FatalError
 
 log = logging.getLogger(__name__)
 
 
-def _get_config_path():
-    xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
-    if xdg_config_home:
-        config_home = Path(xdg_config_home)
-    else:
-        config_home = Path.home().joinpath(".config")
-
-    return config_home.joinpath("bonfire")
-
-
-DEFAULT_CONFIG_PATH = _get_config_path().joinpath("config.yaml")
-DEFAULT_ENV_PATH = _get_config_path().joinpath("env")
-DEFAULT_SECRETS_DIR = _get_config_path().joinpath("secrets")
-VER_CHECK_PATH = _get_config_path().joinpath("lastvercheck")
-VER_CHECK_TIME = 3600  # check every 1hr
+DEFAULT_CONFIG_PATH = get_config_path().joinpath("config.yaml")
+DEFAULT_ENV_PATH = get_config_path().joinpath("env")
+DEFAULT_SECRETS_DIR = get_config_path().joinpath("secrets")
 
 DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
     "bonfire", "resources/local-cluster-clowdenvironment.yaml"
