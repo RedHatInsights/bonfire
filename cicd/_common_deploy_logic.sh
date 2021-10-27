@@ -74,7 +74,7 @@ function teardown {
         set +e
         collect_k8s_artifacts
         if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
-            bonfire namespace release $NAMESPACE
+            bonfire namespace release $NAMESPACE -f
         fi
     fi
     set -e

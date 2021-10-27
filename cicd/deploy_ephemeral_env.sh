@@ -4,7 +4,7 @@ source ${CICD_ROOT}/_common_deploy_logic.sh
 # -> use this PR as the template ref when downloading configurations for this component
 # -> use this PR's newly built image in the deployed configurations
 set -x
-export NAMESPACE=$(bonfire namespace reserve)
+export NAMESPACE=$(bonfire namespace reserve -r ${APP_NAME}-pr-check -b)
 bonfire deploy \
     ${APP_NAME} \
     --source=appsre \
