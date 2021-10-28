@@ -435,11 +435,14 @@ def _compare_version(pypi_version):
 
     if my_version < pypi_version:
         log.info(
-            "there is a new bonfire version available! (yours: {}, available: {})"
-            "\n"
+            "new release found"
+            "\n\n"
+            "there is a new bonfire version available! "
+            f"(yours: {my_version}, available: {pypi_version})"
+            "\n\n"
             "upgrade with:\n"
             f"    pip install --upgrade {PKG_NAME}"
-            " ".format(my_version, pypi_version)
+            "\n"
         )
     else:
         log.info("up-to-date!")
