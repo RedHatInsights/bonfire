@@ -877,7 +877,16 @@ def _cmd_config_deploy(
 ):
     """Process app templates and deploy them to a cluster"""
     requested_ns = namespace
-    used_ns_reservation_system, ns = _get_target_namespace(duration, retries, requested_ns)
+
+    log.debug("checking if namespace has been reserved via ns operator...")
+    operator_reservation = get_reservation(namespace=requested_ns)
+
+    if not operator_reservation:
+        log.debug("no ns operator reservation found, using old ns reservation system")
+        used_ns_reservation_system, ns = _get_target_namespace(duration, retries, requested_ns)
+    else:
+        log.debug("found existing ns operator reservation")
+        used_ns_reservation_system, ns = False, requested_ns
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -1266,6 +1275,12 @@ def _extend_reservation(name, namespace, requester, duration):
         msg = f"reservation extension failed: {str(err)}"
         _error(msg)
 
+    if not (name or namespace or requester):
+        _err_handler(
+            "To extend a reservation provide one of name, "
+            "namespace, or requester. See 'bonfire reservation extend -h'"
+        )
+
     try:
         res = get_reservation(name, namespace, requester)
         if res:
@@ -1302,6 +1317,12 @@ def _delete_reservation(name, namespace, requester):
     def _err_handler(err):
         msg = f"reservation deletion failed: {str(err)}"
         _error(msg)
+
+    if not (name or namespace or requester):
+        _err_handler(
+            "To delete a reservation provide one of name, "
+            "namespace, or requester. See 'bonfire reservation delete -h'"
+        )
 
     try:
         res = get_reservation(name, namespace, requester)
