@@ -284,6 +284,10 @@ def _validate_resource_arguments(ctx, param, value):
         "remove_resources": "no_remove_resources",
         "no_remove_resources": "remove_resources",
     }
+    if any([val.startswith("-") for val in value]):
+        raise click.BadParameter(
+            "--remove-resources/--no-remove-resources requires a component name or keyword 'all'"
+        )
     if "all" in value and "all" in ctx.params.get(opposite_option[param.name], {}):
         raise click.BadParameter(
             "--remove-resources and --no-remove-resources can't be both set to 'all'"
