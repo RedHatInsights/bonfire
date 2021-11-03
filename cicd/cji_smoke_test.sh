@@ -5,9 +5,9 @@
 #IQE_CJI_TIMEOUT="10m" -- timeout value to pass to 'oc wait', should be slightly higher than expected test run time
 #IQE_MARKER_EXPRESSION="something AND something_else" -- pytest marker, can be "" if no filter desired
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
-#IQE_REQUIREMENTS="{'something','something_else'}" -- iqe requirements filter, can be "" if no filter desired
-#IQE_REQUIREMENTS_PRIORITY="{'something','something_else'}" -- iqe requirements filter, can be "" if no filter desired
-#IQE_TEST_IMPORTANCE="{'something','something_else'}" -- iqe requirements filter, can be "" if no filter desired
+#IQE_REQUIREMENTS="something,something_else" -- iqe requirements filter, can be "" if no filter desired
+#IQE_REQUIREMENTS_PRIORITY="something,something_else" -- iqe requirements filter, can be "" if no filter desired
+#IQE_TEST_IMPORTANCE="something,something_else" -- iqe requirements filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, usually set by 'deploy_ephemeral_env.sh'
 
 # In order for the deploy-iqe-cji to run correctly, we must set the marker and filter to "" if they
@@ -34,9 +34,9 @@ pod=$(
     --marker "$IQE_MARKER_EXPRESSION" \
     --filter "$IQE_FILTER_EXPRESSION" \
     --image-tag "${IQE_IMAGE_TAG}" \
-    --requirements "$IQE_REQUIREMENTS" \
-    --requirements-priority "$IQE_REQUIREMENTS_PRIORITY" \
-    --test-importance "$IQE_TEST_IMPORTANCE" \
+    --requirements $IQE_REQUIREMENTS \
+    --requirements-priority $IQE_REQUIREMENTS_PRIORITY \
+    --test-importance $IQE_TEST_IMPORTANCE \
     --env "clowder_smoke" \
     --cji-name $CJI_NAME \
     --namespace $NAMESPACE)
