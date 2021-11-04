@@ -639,7 +639,7 @@ def _list_namespaces(available, mine, output):
             data = {
                 "NAME": [ns.name for ns in namespaces],
                 "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
-                "READY": [str(ns.ready).lower() for ns in namespaces],
+                "RESERVABLE": [str(ns.ready).lower() for ns in namespaces],
                 "REQUESTER": [ns.requester_name for ns in namespaces],
                 "EXPIRES IN": [ns.expires_in for ns in namespaces],
             }
