@@ -23,3 +23,16 @@ pip install --upgrade 'crc-bonfire>=2.17.2'
 # clone repo to download cicd scripts
 git clone https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
+# check that unit_test.sh complies w/ best practices
+URL="https://github.com/RedHatInsights/bonfire/tree/master/cicd/examples"
+if test -f unit_test.sh; then
+  if grep 'exit $result' unit_test.sh; then
+    echo "unit_test.sh is calling 'exit' improperly, refer to examples at $URL"
+    exit 1
+  fi
+
+  if ! grep 'source .bonfire_venv/bin/activate' unit_test.sh; then
+    echo "unit_test.sh not returning to bonfire venv correctly, refer to examples at $URL"
+    exit 1
+  fi
+fi
