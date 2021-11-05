@@ -77,7 +77,7 @@ docker run -ti --rm \
     --entrypoint="/bin/sh" \
     --mount type=bind,source="$(pwd)"/artifacts,target=/artifacts \
     $MC_IMAGE \
-    "-c \"mc alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} && mc mirror --overwrite minio/${POD}-artifacts /artifacts/\""
+    -c "mc alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} && mc mirror --overwrite minio/${POD}-artifacts /artifacts/"
 
 echo "copied artifacts from iqe pod: "
 ls -l $WORKSPACE/artifacts
