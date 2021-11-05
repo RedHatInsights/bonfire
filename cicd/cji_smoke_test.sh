@@ -73,11 +73,13 @@ export MINIO_PORT=$LOCAL_SVC_PORT
 # Setup the minio client to auth to the local eph minio in the ns
 echo "Fetching artifacts from minio..."
 
-docker run -ti --rm --net=host \
+CONTAINER_ID=$(docker run -ti --net=host \
     --entrypoint="/bin/sh" \
-    --mount type=bind,source="$(pwd)"/artifacts,target=/artifacts \
     $MC_IMAGE \
     -c "mc --no-color alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} && mc --no-color mirror --overwrite minio/${POD}-artifacts /artifacts/"
+)
+docker cp $CONTAINER_ID:/artifacts/. $WORKSPACE/artifacts
+docker rm $CONTAINER_ID
 
 echo "copied artifacts from iqe pod: "
 ls -l $WORKSPACE/artifacts
