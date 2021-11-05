@@ -9,6 +9,8 @@
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
 #GIT_COMMIT="abcd123defg456"  # full git commit hash of the PR being tested
+#ARTIFACTS_DIR -- directory where test run artifacts are stored
+
 trap "teardown" EXIT ERR SIGINT SIGTERM
 
 set -e
@@ -16,7 +18,7 @@ set -e
 : ${COMPONENTS:=""}
 : ${COMPONENTS_W_RESOURCES:=""}
 : ${DEPLOY_TIMEOUT:="300"}
-K8S_ARTIFACTS_DIR="$WORKSPACE/artifacts/k8s_artifacts/"
+K8S_ARTIFACTS_DIR="$ARTIFACTS_DIR/k8s_artifacts/"
 START_TIME=$(date +%s)
 TEARDOWN_RAN=0
 

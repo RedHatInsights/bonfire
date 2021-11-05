@@ -6,6 +6,9 @@
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, can be set by 'deploy_ephemeral_env.sh'
 
+# Env vars set by 'bootstrap.sh':
+#ARTIFACTS_DIR -- directory where test run artifacts are stored
+
 IQE_POD_NAME="iqe-tests"
 
 # create a custom svc acct for the iqe pod to run with that has elevated permissions
@@ -26,7 +29,7 @@ python $CICD_ROOT/iqe_pod/create_iqe_pod.py $NAMESPACE \
 oc cp -n $NAMESPACE $CICD_ROOT/iqe_pod/iqe_runner.sh $IQE_POD_NAME:/iqe_venv/iqe_runner.sh
 oc exec $IQE_POD_NAME -n $NAMESPACE -- bash /iqe_venv/iqe_runner.sh
 
-oc cp -n $NAMESPACE $IQE_POD_NAME:artifacts/ $WORKSPACE/artifacts
+oc cp -n $NAMESPACE $IQE_POD_NAME:artifacts/ $ARTIFACTS_DIR
 
 echo "copied artifacts from iqe pod: "
-ls -l $WORKSPACE/artifacts
+ls -l $ARTIFACTS_DIR

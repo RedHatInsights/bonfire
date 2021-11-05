@@ -10,6 +10,9 @@
 #IQE_TEST_IMPORTANCE="{'something','something_else'}" -- iqe requirements filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, usually set by 'deploy_ephemeral_env.sh'
 
+# Env vars set by 'bootstrap.sh':
+#ARTIFACTS_DIR -- directory where test run artifacts are stored
+
 # In order for the deploy-iqe-cji to run correctly, we must set the marker and filter to "" if they
 # are not already set by caller
 # https://unix.stackexchange.com/questions/122845/using-a-b-for-variable-assignment-in-scripts/122848#122848
@@ -20,6 +23,10 @@
 : "${IQE_REQUIREMENTS_PRIORITY:='""'}"
 : "${IQE_TEST_IMPORTANCE:='""'}"
 
+# minio client is used to fetch test artifacts from minio in the ephemeral ns
+MC_IMAGE="quay.io/cloudservices/mc:latest"
+docker pull $MC_IMAGE
+
 CJI_NAME="$COMPONENT_NAME-smoke-tests"
 
 if [[ -z $IQE_CJI_TIMEOUT ]]; then
@@ -29,7 +36,7 @@ fi
 
 # Invoke the CJI using the options set via env vars
 set -x
-pod=$(
+POD=$(
     bonfire deploy-iqe-cji $COMPONENT_NAME \
     --marker "$IQE_MARKER_EXPRESSION" \
     --filter "$IQE_FILTER_EXPRESSION" \
@@ -43,18 +50,13 @@ pod=$(
 set +x
 
 # Pipe logs to background to keep them rolling in jenkins
-oc logs -n $NAMESPACE $pod -f &
+oc logs -n $NAMESPACE $POD -f &
 
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
 set -x
 oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
 set +x
-
-# Get the minio client
-# TODO: bake this into jenkins agent template
-curl https://dl.min.io/client/mc/release/linux-amd64/mc -o mc
-chmod +x mc
 
 # Set up port-forward for minio
 LOCAL_SVC_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
@@ -73,10 +75,17 @@ export MINIO_PORT=$LOCAL_SVC_PORT
 
 # Setup the minio client to auth to the local eph minio in the ns
 echo "Fetching artifacts from minio..."
-./mc alias set minio http://$MINIO_HOST:$MINIO_PORT $MINIO_ACCESS $MINIO_SECRET_KEY
 
-# "mirror" copies the entire artifacts dir from the pod and writes it to the jenkins node
-./mc mirror --overwrite minio/$pod-artifacts artifacts/
+CONTAINER_NAME="mc-${JOB_NAME}-${BUILD_NUMBER}"
+CMD="mkdir -p /artifacts &&
+mc --no-color --quiet alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} &&
+mc --no-color --quiet mirror --overwrite minio/${POD}-artifacts /artifacts/
+"
+set -x
+docker run -ti --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
+docker cp $CONTAINER_NAME:/artifacts/. $ARTIFACTS_DIR
+docker rm $CONTAINER_NAME
+set +x
 
 echo "copied artifacts from iqe pod: "
-ls -l $WORKSPACE/artifacts
+ls -l $ARTIFACTS_DIR
