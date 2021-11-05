@@ -12,8 +12,10 @@ export PGPASSWORD=$DATABASE_ADMIN_PASSWORD
 python3 -m venv app-venv
 . app-venv/bin/activate
 pip install --upgrade pip setuptools wheel pipenv tox psycopg2-binary
+set +e
 tox -r
 result=$?
+set -e
 
 # Evaluate the test result.
 
@@ -26,4 +28,9 @@ cat << EOF > $WORKSPACE/artifacts/junit-dummy.xml
 </testsuite>
 EOF
 
-exit $result
+if [ $result -ne 0 ]; then
+  echo '====================================='
+  echo '====  ✖ ERROR: UNIT TEST FAILED  ===='
+  echo '====================================='
+  exit 1
+fi

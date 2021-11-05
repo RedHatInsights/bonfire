@@ -9,8 +9,10 @@ export GOPATH=/var/gopath
 # If your app requires a 'cdappconfig.json' when running unit tests, create a dummy cdappconfig
 # that has appropraite values and.  Store this file in your git repo.  Example can be found here:
 # https://github.com/RedHatInsights/insights-ingress-go/blob/master/cdappconfig.json
+set +e
 ACG_CONFIG="$(pwd)/cdappconfig.json"  go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 result=$?
+set -e
 
 # Evaluate the test result.
 
@@ -23,4 +25,9 @@ cat << EOF > $WORKSPACE/artifacts/junit-dummy.xml
 </testsuite>
 EOF
 
-exit $result
+if [ $result -ne 0 ]; then
+  echo '====================================='
+  echo '====  ✖ ERROR: UNIT TEST FAILED  ===='
+  echo '====================================='
+  exit 1
+fi
