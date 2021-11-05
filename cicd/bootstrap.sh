@@ -4,7 +4,9 @@ set -e
 URL="https://github.com/RedHatInsights/bonfire/tree/master/cicd/examples"
 if test -f unit_test.sh; then
   if grep 'exit $result' unit_test.sh; then
-    echo "unit_test.sh is calling 'exit' improperly, refer to examples at $URL"
+    echo "----------------------------"
+    echo "ERROR: unit_test.sh is calling 'exit' improperly, refer to examples at $URL"
+    echo "----------------------------"
     exit 1
   fi
 fi
