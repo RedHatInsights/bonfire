@@ -76,7 +76,7 @@ echo "Fetching artifacts from minio..."
 CONTAINER_ID=$(docker run -ti --net=host \
     --entrypoint="/bin/sh" \
     $MC_IMAGE \
-    -c "mc --no-color alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} && mc --no-color mirror --overwrite minio/${POD}-artifacts /artifacts/"
+    -c "mkdir -p /artifacts && mc --no-color alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} && mc --no-color mirror --overwrite minio/${POD}-artifacts /artifacts/"
 )
 docker cp $CONTAINER_ID:/artifacts/. $WORKSPACE/artifacts
 docker rm $CONTAINER_ID
