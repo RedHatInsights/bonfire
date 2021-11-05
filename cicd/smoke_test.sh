@@ -6,6 +6,9 @@
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, can be set by 'deploy_ephemeral_env.sh'
 
+# Env vars set by 'bootstrap.sh':
+#ARTIFACTS_DIR -- directory where test run artifacts are stored
+
 IQE_POD_NAME="iqe-tests"
 
 # create a custom svc acct for the iqe pod to run with that has elevated permissions

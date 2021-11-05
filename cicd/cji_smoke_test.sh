@@ -10,6 +10,9 @@
 #IQE_TEST_IMPORTANCE="{'something','something_else'}" -- iqe requirements filter, can be "" if no filter desired
 #NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, usually set by 'deploy_ephemeral_env.sh'
 
+# Env vars set by 'bootstrap.sh':
+#ARTIFACTS_DIR -- directory where test run artifacts are stored
+
 # In order for the deploy-iqe-cji to run correctly, we must set the marker and filter to "" if they
 # are not already set by caller
 # https://unix.stackexchange.com/questions/122845/using-a-b-for-variable-assignment-in-scripts/122848#122848
@@ -75,12 +78,14 @@ echo "Fetching artifacts from minio..."
 
 CONTAINER_NAME="mc-${JOB_NAME}-${BUILD_NUMBER}"
 CMD="mkdir -p /artifacts &&
-mc --no-color alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} &&
-mc --no-color mirror --overwrite minio/${POD}-artifacts /artifacts/
+mc --no-color --quiet alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} &&
+mc --no-color --quiet mirror --overwrite minio/${POD}-artifacts /artifacts/
 "
+set -x
 docker run -ti --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
 docker cp $CONTAINER_NAME:/artifacts/. $ARTIFACTS_DIR
 docker rm $CONTAINER_NAME
+set +x
 
 echo "copied artifacts from iqe pod: "
 ls -l $ARTIFACTS_DIR

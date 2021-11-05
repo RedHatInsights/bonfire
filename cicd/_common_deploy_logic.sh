@@ -9,6 +9,8 @@
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
 #GIT_COMMIT="abcd123defg456"  # full git commit hash of the PR being tested
+#ARTIFACTS_DIR -- directory where test run artifacts are stored
+
 trap "teardown" EXIT ERR SIGINT SIGTERM
 
 set -e
