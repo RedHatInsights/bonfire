@@ -16,7 +16,7 @@ set -e
 : ${COMPONENTS:=""}
 : ${COMPONENTS_W_RESOURCES:=""}
 : ${DEPLOY_TIMEOUT:="300"}
-K8S_ARTIFACTS_DIR="$WORKSPACE/artifacts/k8s_artifacts/"
+K8S_ARTIFACTS_DIR="$ARTIFACTS_DIR/k8s_artifacts/"
 START_TIME=$(date +%s)
 TEARDOWN_RAN=0
 

@@ -79,8 +79,8 @@ mc --no-color alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS}
 mc --no-color mirror --overwrite minio/${POD}-artifacts /artifacts/
 "
 docker run -ti --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
-docker cp $CONTAINER_NAME:/artifacts/. $WORKSPACE/artifacts
+docker cp $CONTAINER_NAME:/artifacts/. $ARTIFACTS_DIR
 docker rm $CONTAINER_NAME
 
 echo "copied artifacts from iqe pod: "
-ls -l $WORKSPACE/artifacts
+ls -l $ARTIFACTS_DIR

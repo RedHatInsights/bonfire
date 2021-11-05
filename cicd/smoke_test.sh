@@ -26,7 +26,7 @@ python $CICD_ROOT/iqe_pod/create_iqe_pod.py $NAMESPACE \
 oc cp -n $NAMESPACE $CICD_ROOT/iqe_pod/iqe_runner.sh $IQE_POD_NAME:/iqe_venv/iqe_runner.sh
 oc exec $IQE_POD_NAME -n $NAMESPACE -- bash /iqe_venv/iqe_runner.sh
 
-oc cp -n $NAMESPACE $IQE_POD_NAME:artifacts/ $WORKSPACE/artifacts
+oc cp -n $NAMESPACE $IQE_POD_NAME:artifacts/ $ARTIFACTS_DIR
 
 echo "copied artifacts from iqe pod: "
-ls -l $WORKSPACE/artifacts
+ls -l $ARTIFACTS_DIR
