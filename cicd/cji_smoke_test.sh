@@ -82,7 +82,7 @@ mc --no-color --quiet alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO
 mc --no-color --quiet mirror --overwrite minio/${POD}-artifacts /artifacts/
 "
 set -x
-docker run -ti --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
+docker run -t --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
 docker cp $CONTAINER_NAME:/artifacts/. $ARTIFACTS_DIR
 docker rm $CONTAINER_NAME
 set +x
