@@ -27,7 +27,7 @@
 MC_IMAGE="quay.io/cloudservices/mc:latest"
 docker pull $MC_IMAGE
 
-CJI_NAME="$COMPONENT_NAME-smoke-tests"
+CJI_NAME="$COMPONENT_NAME"
 
 if [[ -z $IQE_CJI_TIMEOUT ]]; then
     echo "Error: no timeout set; export IQE_CJI_TIMEOUT before invoking cji_smoke_test.sh"
@@ -77,9 +77,10 @@ export MINIO_PORT=$LOCAL_SVC_PORT
 echo "Fetching artifacts from minio..."
 
 CONTAINER_NAME="mc-${JOB_NAME}-${BUILD_NUMBER}"
+BUCKET_NAME="${POD}-artifacts"
 CMD="mkdir -p /artifacts &&
 mc --no-color --quiet alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} &&
-mc --no-color --quiet mirror --overwrite minio/${POD}-artifacts /artifacts/
+mc --no-color --quiet mirror --overwrite minio/${BUCKET_NAME} /artifacts/
 "
 set -x
 docker run -t --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
