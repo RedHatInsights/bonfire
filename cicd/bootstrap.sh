@@ -19,6 +19,17 @@ export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build
 export BONFIRE_ROOT=${WORKSPACE}/bonfire
 export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
+
+# if this is a PR, use a different tag, since PR tags expire
+if [ ! -z "$ghprbPullId" ]; then
+  export IMAGE_TAG="pr-${ghprbPullId}-${IMAGE_TAG}"
+fi
+
+if [ ! -z "$gitlabMergeRequestIid" ]; then
+  export IMAGE_TAG="pr-${gitlabMergeRequestIid}-${IMAGE_TAG}"
+fi
+
+
 export GIT_COMMIT=$(git rev-parse HEAD)
 export ARTIFACTS_DIR="$WORKSPACE/artifacts"
 

@@ -24,7 +24,10 @@ function build {
         exit 1
     fi
 
-    echo "LABEL quay.expires-after=3d" >> $APP_ROOT/$DOCKERFILE  # tag expires in 3 days
+    # if this is a PR, set the tag to expire in 3 days
+    if [ ! -z "$ghprbPullId" ] || [ ! -z "$gitlabMergeRequestIid" ]; then
+        echo "LABEL quay.expires-after=3d" >> $APP_ROOT/$DOCKERFILE
+    fi
 
     if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
         # on RHEL7, use docker
