@@ -55,7 +55,7 @@ objects:
         mode: operator
       kafka:
         mode: operator
-        pvc: false
+        pvc: true
         # disable tls/auth for now until core apps are ready
         enableLegacyStrimzi: true
         cluster:
