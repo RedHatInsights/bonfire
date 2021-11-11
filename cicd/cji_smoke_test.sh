@@ -16,6 +16,8 @@
 # In order for the deploy-iqe-cji to run correctly, we must set the marker and filter to "" if they
 # are not already set by caller
 # https://unix.stackexchange.com/questions/122845/using-a-b-for-variable-assignment-in-scripts/122848#122848
+set -e
+
 : "${IQE_MARKER_EXPRESSION:='""'}"
 : "${IQE_FILTER_EXPRESSION:='""'}"
 : "${IQE_IMAGE_TAG:='""'}"
@@ -82,11 +84,22 @@ CMD="mkdir -p /artifacts &&
 mc --no-color --quiet alias set minio http://${MINIO_HOST}:${MINIO_PORT} ${MINIO_ACCESS} ${MINIO_SECRET_KEY} &&
 mc --no-color --quiet mirror --overwrite minio/${BUCKET_NAME} /artifacts/
 "
-set -x
-docker run -t --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
-docker cp $CONTAINER_NAME:/artifacts/. $ARTIFACTS_DIR
-docker rm $CONTAINER_NAME
-set +x
+
+run_mc () {
+    echo "running: docker run -t --net=host --name=$CONTAINER_NAME --entrypoint=\"/bin/sh\" $MC_IMAGE -c \"$CMD\""
+    set +e
+    docker run -t --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
+    RET_CODE=$?
+    docker cp $CONTAINER_NAME:/artifacts/. $ARTIFACTS_DIR
+    docker rm $CONTAINER_NAME
+    set -e
+    return $RET_CODE
+}
+
+# Add retry logic for intermittent minio connection failures
+for i in $(seq 1 5); do
+    run_mc && break || echo "WARNING: minio artifact copy failed, retrying in 5sec..."; sleep 5
+done
 
 echo "copied artifacts from iqe pod: "
 ls -l $ARTIFACTS_DIR
