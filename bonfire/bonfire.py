@@ -220,8 +220,8 @@ _timeout_option = [
         "-t",
         required=True,
         type=int,
-        default=300,
-        help="timeout in sec (default = 300) to wait for resources to be ready",
+        default=600,
+        help="timeout in sec (default = 600) to wait for resources to be ready",
     )
 ]
 
