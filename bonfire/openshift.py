@@ -477,12 +477,12 @@ class ResourceOwnerWaiter(ResourceWaiter):
                 self._update_observed_resources(item)
 
 
-def wait_for_ready(namespace, restype, name, timeout=300):
+def wait_for_ready(namespace, restype, name, timeout=600):
     waiter = ResourceWaiter(namespace, restype, name)
     return waiter.wait_for_ready(timeout)
 
 
-def wait_for_ready_threaded(waiters, timeout=300):
+def wait_for_ready_threaded(waiters, timeout=600):
     threads = [
         threading.Thread(target=waiter.wait_for_ready, daemon=True, args=(timeout,))
         for waiter in waiters
@@ -558,7 +558,7 @@ def _all_resources_ready(namespace, timeout):
     return wait_for_ready_threaded(waiters, timeout)
 
 
-def wait_for_all_resources(namespace, timeout=300):
+def wait_for_all_resources(namespace, timeout=600):
     # wrap the other wait_fors in 1 wait_for so overall timeout is honored
     # wait_for returns a tuple of the return code and the time taken
     wait_for(
@@ -569,7 +569,7 @@ def wait_for_all_resources(namespace, timeout=300):
     )
 
 
-def wait_for_db_resources(namespace, timeout=300):
+def wait_for_db_resources(namespace, timeout=600):
     clowdapps = get_json("clowdapp", namespace=namespace).get("items", [])
     if len(clowdapps) == 0:
         raise ValueError(f"no clowdapps found in ns '{namespace}', no DB's to wait for")
