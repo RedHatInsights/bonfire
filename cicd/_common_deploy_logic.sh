@@ -68,7 +68,7 @@ function teardown {
     if [ ! -z "$NAMESPACE" ]; then
         set +e
         collect_k8s_artifacts
-        if [ "${KEEP_NAMESPACE:+TRUE}" != "TRUE" ]; then
+        if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
             # release namespace if KEEP_NAMESPACE is unset or empty
             bonfire namespace release $NAMESPACE
         fi
