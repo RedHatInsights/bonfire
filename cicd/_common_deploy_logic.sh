@@ -5,6 +5,8 @@
 #COMPONENTS="component1 component2"  # specific components to deploy (optional, default: all)
 #COMPONENTS_W_RESOURCES="component1 component2"  # components which should preserve resource settings (optional, default: none)
 #DEPLOY_TIMEOUT="600"  # bonfire deployment timeout parameter in seconds
+#RELEASE_NAMESPACE="true"  # release namespace after PR check ends (default: true)
+
 
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
@@ -67,7 +69,9 @@ function teardown {
     if [ ! -z "$NAMESPACE" ]; then
         set +e
         collect_k8s_artifacts
-        bonfire namespace release $NAMESPACE
+        if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
+            bonfire namespace release $NAMESPACE
+        fi
     fi
     set -e
     TEARDOWN_RAN=1
