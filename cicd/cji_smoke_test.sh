@@ -98,9 +98,15 @@ run_mc () {
 }
 
 # Add retry logic for intermittent minio connection failures
+FINAL_RETCODE=1
 for i in $(seq 1 5); do
-    run_mc && break || echo "WARNING: minio artifact copy failed, retrying in 5sec..."; sleep 5
+    run_mc && FINAL_RETCODE=0 break || echo "WARNING: minio artifact copy failed, retrying in 5sec..."; sleep 5
 done
+
+if [ "$FINAL_RETCODE" -gt "0" ]; then
+    echo "ERROR: minio artifact copy failed"
+    exit 1
+fi
 
 echo "copied artifacts from iqe pod: "
 ls -l $ARTIFACTS_DIR
