@@ -5,7 +5,7 @@
 #COMPONENTS="component1 component2"  # specific components to deploy (optional, default: all)
 #COMPONENTS_W_RESOURCES="component1 component2"  # components which should preserve resource settings (optional, default: none)
 #DEPLOY_TIMEOUT="300"  # bonfire deployment timeout parameter in seconds
-#KEEP_NAMESPACE=TRUE  # keep namespace after PR check for time defaulty reserverd by bonfire (optional, default: unset)
+#RELEASE_NAMESPACE="true"  # release namespace after PR check ends (default: true)
 
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
