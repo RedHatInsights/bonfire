@@ -66,6 +66,9 @@ function collect_k8s_artifacts {
 
 function teardown {
     [ "$TEARDOWN_RAN" -ne "0" ] && return
+    echo "------------------------"
+    echo "----- TEARING DOWN -----"
+    echo "------------------------"
     if [ ! -z "$NAMESPACE" ]; then
         set +e
         collect_k8s_artifacts
