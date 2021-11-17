@@ -104,7 +104,7 @@ for i in $(seq 1 5); do
         MINIO_SUCCESS=true
         break
     else
-        if [ "$i" -lt "5"]; then
+        if [ "$i" -lt "5" ]; then
             echo "WARNING: minio artifact copy failed, retrying in 5sec..."
             sleep 5
         fi
