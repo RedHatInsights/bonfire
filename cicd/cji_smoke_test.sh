@@ -98,12 +98,20 @@ run_mc () {
 }
 
 # Add retry logic for intermittent minio connection failures
-FINAL_RETCODE=1
+MINIO_SUCCESS=false
 for i in $(seq 1 5); do
-    run_mc && FINAL_RETCODE=0 break || echo "WARNING: minio artifact copy failed, retrying in 5sec..."; sleep 5
+    if run_mc; then
+        MINIO_SUCCESS=true
+        break
+    else
+        if [ "$i" -lt "5"]; then
+            echo "WARNING: minio artifact copy failed, retrying in 5sec..."
+            sleep 5
+        fi
+    fi
 done
 
-if [ "$FINAL_RETCODE" -gt "0" ]; then
+if [ "$MINIO_SUCCESS" = false ]; then
     echo "ERROR: minio artifact copy failed"
     exit 1
 fi
