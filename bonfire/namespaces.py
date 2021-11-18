@@ -336,7 +336,8 @@ def extend_namespace(namespace, duration):
             if res["status"]["state"] == "expired":
                 log.error(
                     "The reservation for namespace %s has expired. "
-                    "Please reserve a new namespace", res["status"]["namespace"]
+                    "Please reserve a new namespace",
+                    res["status"]["namespace"],
                 )
                 return None
             res_config = process_reservation(
