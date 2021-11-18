@@ -756,6 +756,9 @@ def wait_on_reservation(res_name, timeout):
 
 
 def check_for_existing_reservation(requester):
+    if on_k8s():
+        return False
+
     log.info("Checking for existing reservations for '%s'", requester)
 
     all_res = get_json("reservation")
@@ -768,6 +771,9 @@ def check_for_existing_reservation(requester):
 
 
 def get_reservation(name=None, namespace=None, requester=None):
+    if on_k8s():
+        return False
+
     if name:
         res = get_json("reservation", name=name)
         return res if res else False
