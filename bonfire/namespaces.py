@@ -1,23 +1,14 @@
 import copy
 import datetime
 import logging
-import json
-import yaml
-import threading
 from wait_for import TimedOutError
 
-import bonfire.config as conf
-from bonfire.qontract import get_namespaces_for_env, get_secret_names_in_namespace
 from bonfire.openshift import (
     apply_config,
-    oc,
     on_k8s,
     get_all_namespaces,
     get_json,
     get_reservation,
-    copy_namespace_secrets,
-    process_template,
-    wait_for_all_resources,
     wait_on_reservation,
     whoami,
 )
@@ -25,27 +16,7 @@ from bonfire.processor import process_reservation
 from bonfire.utils import FatalError
 
 
-NS_RESERVED = "ephemeral-ns-reserved"
-NS_READY = "ephemeral-ns-ready"
-NS_REQUESTER = "ephemeral-ns-requester"
-NS_DURATION = "ephemeral-ns-duration"
-NS_EXPIRES = "ephemeral-ns-expires"
-NS_REQUESTER_NAME = "ephemeral-ns-requester-name"
-NS_REQUIRED_LABELS = [
-    NS_DURATION,
-    NS_EXPIRES,
-    NS_READY,
-    NS_REQUESTER,
-    NS_REQUESTER_NAME,
-    NS_RESERVED,
-]
-
-
-RESERVATION_DELAY_SEC = 5
-
 log = logging.getLogger(__name__)
-
-
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 
@@ -83,19 +54,18 @@ def _pretty_time_delta(seconds):
 
 class Namespace:
     def refresh(self):
-        self.__init__(namespace_data=get_json("namespace", self.name))
-        return self
+        self.data = get_json("namespace", self.name)
 
     def __init__(self, name=None, namespace_data=None):
-        if not namespace_data:
-            # we don't yet have the data for this namespace... load it
-            if not name:
-                raise ValueError('Namespace needs one of: "name", "namespace_data"')
-            self.name = name
-            self.refresh()
-            return
-
+        self.name = name
         self.data = copy.deepcopy(namespace_data)
+
+        if not self.data:
+            # we don't yet have the data for this namespace... load it
+            if not self.name:
+                raise ValueError('Namespace needs one of: "name", "namespace_data"')
+            self.refresh()
+
         self.name = self.data["metadata"]["name"]
 
         if "annotations" not in self.data["metadata"]:
@@ -153,9 +123,10 @@ class Namespace:
             f"available: {self.available})"
         )
 
+    @property
     def clowdapps(self):
         if not self.reserved:
-            self.clowdapps = None
+            return "none"
         else:
             clowd_apps = get_json("app", namespace=self.name)
             managed = len(clowd_apps["items"])
@@ -166,65 +137,7 @@ class Namespace:
                     if deployments["managedDeployments"] == deployments["readyDeployments"]:
                         ready += 1
 
-            self.clowdapps = f"{ready}/{managed}"
-
-    def update(self):
-        patch = []
-
-        if self._initialize_labels:
-            # prevent 'The  "" is invalid' error due to missing 'labels' path
-            patch.append({"op": "add", "path": "/metadata/labels", "value": {}})
-
-        patch.extend(
-            [
-                {
-                    "op": "replace",
-                    "path": f"/metadata/labels/{NS_RESERVED}",
-                    "value": str(self.reserved).lower(),
-                },
-                {
-                    "op": "replace",
-                    "path": f"/metadata/labels/{NS_READY}",
-                    "value": str(self.ready).lower(),
-                },
-                {
-                    "op": "replace",
-                    "path": f"/metadata/labels/{NS_REQUESTER}",
-                    "value": str(self.requester) if self.requester else None,
-                },
-                {
-                    "op": "replace",
-                    "path": f"/metadata/labels/{NS_DURATION}",
-                    "value": str(self.duration) if self.duration else None,
-                },
-                {
-                    "op": "replace",
-                    "path": f"/metadata/labels/{NS_EXPIRES}",
-                    # convert time format to one that can be used in a label
-                    "value": _fmt_time(self.expires),
-                },
-                {
-                    "op": "replace",
-                    "path": f"/metadata/labels/{NS_REQUESTER_NAME}",
-                    "value": str(self.requester_name) if self.requester_name else None,
-                },
-            ]
-        )
-
-        oc("patch", "namespace", self.name, type="json", p=json.dumps(patch))
-
-
-def _get_env_ready_status():
-    clowd_env_ready_for_ns = {}
-    clowd_envs = get_json("clowdenvironment")
-    for clowd_env in clowd_envs["items"]:
-        status = clowd_env.get("status", {})
-        target_ns = status.get("targetNamespace")
-        ready = status.get("ready", False)
-        clowd_env_ready_for_ns[target_ns] = ready
-        if not ready:
-            log.debug("found target ns '%s' with env status not ready", target_ns)
-    return clowd_env_ready_for_ns
+            return f"{ready}/{managed}"
 
 
 def get_namespaces(available=False, mine=False):
@@ -239,16 +152,12 @@ def get_namespaces(available=False, mine=False):
 
     log.debug("namespaces found:\n%s", "\n".join([str(n) for n in all_namespaces]))
 
-    # get clowd envs to ensure that ClowdEnvironment is ready for the namespaces
-    # env_ready_for_ns = _get_env_ready_status()
-
     ephemeral_namespaces = []
     for ns in all_namespaces:
         if not ns.is_reservable:
             continue
         get_all = not mine and not available
         if get_all or (mine and ns.owned_by_me) or (available and ns.available):
-            ns.clowdapps()
             ephemeral_namespaces.append(ns)
 
     return ephemeral_namespaces
@@ -367,191 +276,3 @@ def extend_namespace(namespace, duration):
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
 
     return None
-
-
-def _delete_resources(namespace):
-    # delete some of our own operator resources first
-    resources_to_delete = [
-        "cyndipipelines",  # delete this first to prevent hanging
-        "xjoinpipelines",
-        "clowdjobinvocations",
-        "clowdapps",
-    ]
-    for resource in resources_to_delete:
-        oc("delete", resource, "--all", n=namespace, timeout="60s")
-
-    # delete the ClowdEnvironment for this namespace
-    if get_json("clowdenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace)):
-        oc(
-            "delete",
-            "clowdenvironment",
-            conf.ENV_NAME_FORMAT.format(namespace=namespace),
-            timeout="60s",
-        )
-
-    # delete the FrontendEnvironment for this namespace
-    if get_json("frontendenvironment", conf.ENV_NAME_FORMAT.format(namespace=namespace)):
-        oc(
-            "delete",
-            "frontendenvironment",
-            conf.ENV_NAME_FORMAT.format(namespace=namespace),
-            timeout="60s",
-        )
-
-    # delete any other lingering specific resource types from the namespace
-    resources_to_delete = [
-        "ingresses",
-        "frontends",
-        "bundles",
-        "elasticsearches",
-        "horizontalpodautoscalers",
-        "kafkabridges",
-        "kafkaconnectors",
-        "kafkaconnects",
-        "kafkaconnects2is",
-        "kafkamirrormaker2s",
-        "kafkamirrormakers",
-        "kafkarebalances",
-        "kafkas",
-        "kafkatopics",
-        "kafkausers",
-        "deployments",
-        "deploymentconfigs",
-        "statefulsets",
-        "daemonsets",
-        "replicasets",
-        "cronjobs",
-        "jobs",
-        "services",
-        "routes",
-        "pods",
-        "secrets",
-        "configmaps",
-        "persistentvolumeclaims",
-    ]
-    for resource in resources_to_delete:
-        oc("delete", resource, "--all", n=namespace, timeout="60s")
-
-
-def add_base_resources(namespace, secret_names):
-    copy_namespace_secrets(conf.BASE_NAMESPACE_NAME, namespace, secret_names)
-
-    with open(conf.EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE) as fp:
-        template_data = yaml.safe_load(fp)
-
-    processed_template = process_template(
-        template_data,
-        params={
-            "ENV_NAME": conf.ENV_NAME_FORMAT.format(namespace=namespace),
-            "NAMESPACE": namespace,
-        },
-    )
-
-    oc("apply", f="-", _in=json.dumps(processed_template))
-
-    # wait for any deployed base resources to become 'ready'
-    wait_for_all_resources(namespace, timeout=conf.RECONCILE_TIMEOUT)
-
-
-def _reconcile_ns(ns, base_secret_names):
-    log.info("namespace '%s' - checking", ns.name)
-    update_needed = False
-
-    if ns.reserved and ns.expires:
-        # check if the reservation has expired
-        utcnow = _utcnow()
-        log.info("namespace '%s' - expires: %s, utcnow: %s", ns.name, ns.expires, utcnow)
-        if utcnow > ns.expires:
-            log.info("namespace '%s' - reservation expired, releasing", ns.name)
-            ns.reserved = False
-            ns.ready = False
-            ns.duration = None
-            ns.expires = None
-            ns.requester = None
-            ns.requester_name = None
-            _delete_resources(ns.name)
-            update_needed = True
-        log.info("namespace '%s' - not expired", ns.name)
-
-    if not ns.reserved and not ns.ready:
-        # check if any released namespaces need to be prepped
-        log.info("namespace '%s' - not reserved, but not 'ready', prepping", ns.name)
-        _delete_resources(ns.name)
-        try:
-            add_base_resources(ns.name, base_secret_names)
-        except TimedOutError:
-            # base resources failed to come up, don't mark it ready and try again next time...
-            log.error("namespace '%s' - timed out waiting for resources after prep", ns.name)
-        else:
-            ns.ready = True
-            ns.duration = None
-            ns.expires = None
-            ns.requester = None
-            ns.requester_name = None
-            update_needed = True
-
-    if ns.reserved and ns.duration and not ns.expires:
-        # this is a newly reserved namespace, set the expires time
-        log.info("namespace '%s' - setting expiration time", ns.name)
-        ns.expires = _utcnow() + datetime.timedelta(hours=ns.duration)
-        update_needed = True
-
-    if update_needed:
-        ns.update()
-
-    log.info("namespace '%s' - done", ns.name)
-
-
-def get_namespaces_for_reconciler():
-    """
-    Query app-interface to get list of namespaces the reconciler operates on.
-    """
-    ephemeral_namespace_names = get_namespaces_for_env(conf.EPHEMERAL_ENV_NAME)
-    log.debug(
-        "namespaces found for env '%s': %s", conf.EPHEMERAL_ENV_NAME, ephemeral_namespace_names
-    )
-    all_namespaces = get_json("project")["items"]
-    log.debug(
-        "all namespaces found on cluster: %s", [ns["metadata"]["name"] for ns in all_namespaces]
-    )
-    ephemeral_namespaces = []
-
-    # get clowd envs to ensure that ClowdEnvironment is ready for the namespaces
-    env_ready_for_ns = _get_env_ready_status()
-    for ns in all_namespaces:
-        ns_name = ns["metadata"]["name"]
-        if ns_name == conf.BASE_NAMESPACE_NAME:
-            log.debug("ns '%s' is base namespace, will not reconcile it")
-            continue
-        if ns_name not in ephemeral_namespace_names:
-            log.debug(
-                "ns '%s' is not a member of env '%s', will not reconcile it",
-                ns_name,
-                conf.EPHEMERAL_ENV_NAME,
-            )
-            continue
-        if not conf.RESERVABLE_NAMESPACE_REGEX.match(ns_name):
-            log.debug(
-                "ns '%s' does not match reservable namespace regex, will not reconcile it", ns_name
-            )
-            continue
-        ns = Namespace(namespace_data=ns)
-        ns.ready = ns.ready and env_ready_for_ns.get(ns.name, False)
-        ephemeral_namespaces.append(ns)
-
-    return ephemeral_namespaces
-
-
-def reconcile():
-    # run graphql queries outside of the threads since the client isn't natively thread-safe
-    namespaces = get_namespaces_for_reconciler()
-    base_secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
-
-    threads = []
-    for ns in namespaces:
-        t = threading.Thread(target=_reconcile_ns, args=(ns, base_secret_names))
-        t.name = ns.name
-        threads.append(t)
-        t.start()
-    for t in threads:
-        t.join()
