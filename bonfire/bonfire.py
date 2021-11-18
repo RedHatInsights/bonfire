@@ -13,16 +13,13 @@ import bonfire.config as conf
 from bonfire.qontract import get_apps_for_env, sub_refs, get_secret_names_in_namespace
 from bonfire.openshift import (
     apply_config,
-    get_all_namespaces,
     wait_for_all_resources,
     wait_for_db_resources,
     find_clowd_env_for_ns,
     wait_for_clowd_env_target_ns,
     wait_on_cji,
-    wait_on_reservation,
     get_reservation,
     check_for_existing_reservation,
-    oc,
     whoami,
 )
 from bonfire.utils import (
@@ -38,7 +35,6 @@ from bonfire.processor import (
     TemplateProcessor,
     process_clowd_env,
     process_iqe_cji,
-    process_reservation,
 )
 from bonfire.namespaces import (
     Namespace,
