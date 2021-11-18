@@ -556,7 +556,8 @@ def _list_namespaces(available, mine, output):
             data = {
                 "NAME": [ns.name for ns in namespaces],
                 "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
-                "STATUS": [str(ns.status).lower() for ns in namespaces],
+                "ENV STATUS": [str(ns.status).lower() for ns in namespaces],
+                "APPS READY": [ns.clowdapps for ns in namespaces],
                 "REQUESTER": [ns.requester for ns in namespaces],
                 "EXPIRES IN": [ns.expires_in for ns in namespaces],
             }

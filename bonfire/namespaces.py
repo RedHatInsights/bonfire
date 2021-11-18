@@ -153,6 +153,21 @@ class Namespace:
             f"available: {self.available})"
         )
 
+    def clowdapps(self):
+        if not self.reserved:
+            self.clowdapps = None
+        else:
+            clowd_apps = get_json("app", namespace=self.name)
+            managed = len(clowd_apps["items"])
+            ready = 0
+            for app in clowd_apps["items"]:
+                if "status" in app:
+                    deployments = app["status"]["deployments"]
+                    if deployments["managedDeployments"] == deployments["readyDeployments"]:
+                        ready += 1
+
+            self.clowdapps = f"{ready}/{managed}"
+
     def update(self):
         patch = []
 
@@ -233,6 +248,7 @@ def get_namespaces(available=False, mine=False):
             continue
         get_all = not mine and not available
         if get_all or (mine and ns.owned_by_me) or (available and ns.available):
+            ns.clowdapps()
             ephemeral_namespaces.append(ns)
 
     return ephemeral_namespaces
