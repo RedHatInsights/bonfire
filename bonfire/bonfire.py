@@ -576,6 +576,7 @@ def _list_namespaces(available, mine, output):
 @options(_timeout_option)
 def _cmd_namespace_reserve(bot, name, requester, duration, timeout):
     """Reserve an ephemeral namespace"""
+
     def _err_handler(err):
         msg = f"reservation failed: {str(err)}"
         _error(msg)
@@ -606,6 +607,7 @@ def _cmd_namespace_reserve(bot, name, requester, duration, timeout):
 )
 def _cmd_namespace_release(namespace, force):
     """Remove reservation from an ephemeral namespace"""
+
     def _err_handler(err):
         msg = f"reservation deletion failed: {str(err)}"
         _error(msg)
@@ -631,6 +633,7 @@ def _cmd_namespace_release(namespace, force):
 )
 def _cmd_namespace_extend(namespace, duration):
     """Extend a reservation of an ephemeral namespace"""
+
     def _err_handler(err):
         msg = f"reservation extension failed: {str(err)}"
         _error(msg)
