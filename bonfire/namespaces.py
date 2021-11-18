@@ -2,9 +2,6 @@ import copy
 import datetime
 import logging
 import json
-import random
-import time
-import uuid
 import yaml
 import threading
 from wait_for import TimedOutError
@@ -228,7 +225,7 @@ def get_namespaces(available=False, mine=False):
     log.debug("namespaces found:\n%s", "\n".join([str(n) for n in all_namespaces]))
 
     # get clowd envs to ensure that ClowdEnvironment is ready for the namespaces
-    env_ready_for_ns = _get_env_ready_status()
+    # env_ready_for_ns = _get_env_ready_status()
 
     ephemeral_namespaces = []
     for ns in all_namespaces:
