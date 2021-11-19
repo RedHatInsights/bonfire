@@ -565,7 +565,7 @@ def _list_namespaces(available, mine, output):
 @namespace.command("reserve")
 @options(_ns_reserve_options)
 @options(_timeout_option)
-def _cmd_namespace_reserve(bot, name, requester, duration, timeout):
+def _cmd_namespace_reserve(name, requester, duration, timeout):
     """Reserve an ephemeral namespace"""
 
     def _err_handler(err):
