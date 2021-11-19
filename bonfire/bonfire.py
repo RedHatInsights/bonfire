@@ -795,7 +795,7 @@ def _get_namespace(requested_ns_name, name, requester, duration, timeout):
             ns = Namespace(name=requested_ns_name)
             if not ns.owned_by_me:
                 _warn_if_not_owned_by_me()
-            if not ns.available:
+            if not ns.ready:
                 _warn_if_not_ready()
 
     else:
