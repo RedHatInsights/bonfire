@@ -774,7 +774,7 @@ def check_for_existing_reservation(requester):
 
 def get_reservation(name=None, namespace=None, requester=None):
     if on_k8s():
-        return False
+        return None
 
     if name:
         res = get_json("reservation", name=name)
@@ -788,11 +788,11 @@ def get_reservation(name=None, namespace=None, requester=None):
         all_res = get_json("reservation", label=f"requester={requester}")
         numRes = len(all_res["items"])
         if numRes == 0:
-            return False
+            return None
         elif numRes == 1:
             return all_res["items"][0]
         else:
             log.info("Multiple reservations found for requester '%s'. Aborting.", requester)
-            return False
+            return None
 
-    return False
+    return None

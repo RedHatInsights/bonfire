@@ -776,29 +776,40 @@ def _cmd_process(
     print(json.dumps(processed_templates, indent=2))
 
 
-def _get_namespace(namespace, name, requester, duration, timeout):
+def _get_namespace(requested_ns_name, name, requester, duration, timeout):
     requested_ns_name = namespace
-    log.debug("checking if namespace '%s' has been reserved via ns operator...", requested_ns_name)
-    operator_reservation = get_reservation(namespace=requested_ns_name)
+    reserved_new_ns = False
 
-    if not operator_reservation:
-        log.debug("no reservation found for this ns, checking if requester already has another...")
+    if requested_ns_name:
+        log.debug(
+            "checking if namespace '%s' has been reserved via ns operator...", requested_ns_name
+        )
+        operator_reservation = get_reservation(namespace=requested_ns_name)
+        if not operator_reservation:
+            _error(f"No valid reservation exists for namespace '{requested_ns_name}'")
+        else:
+            log.debug("found existing ns operator reservation")
+
+            if operator_reservation.get("status", {}).get("state") == "expired":
+                _error(f"Reservation has expired for namespace '{requested_ns_name}'")
+
+            ns = Namespace(name=requested_ns_name)
+            if not ns.owned_by_me:
+                _warn_if_not_owned_by_me()
+            if not ns.available:
+                _warn_if_not_ready()
+
+    else:
+        log.debug("checking if requester already has another namespace reserved...")
         requester = requester if requester else _get_requester()
         if check_for_existing_reservation(requester):
             _warn_of_existing(requester)
         ns, err = reserve_namespace(name, requester, duration, timeout)
         if err is not None:
-            _error(f"Error during namespace reservation. Error: {str(err)}")
-    else:
-        log.debug("found existing ns operator reservation")
-        ns = Namespace(name=requested_ns_name)
-        if not ns.owned_by_me:
-            _warn_if_not_owned_by_me()
-        if not ns.available:
-            _warn_if_not_ready()
+            _error(f"Error during namespace reservation. Error: {err}")
+        reserved_new_ns = True
 
-    # TODO: also return whether or not we reserved a namespace or if one already existed
-    return ns.name
+    return ns.name, reserved_new_ns
 
 
 @main.command("deploy")
@@ -854,9 +865,7 @@ def _cmd_config_deploy(
     secrets_dir,
 ):
     """Process app templates and deploy them to a cluster"""
-    ns = _get_namespace(namespace, name, requester, duration, timeout)
-    # TODO: determine whether we reserved a new ns here or not
-    requested_ns = False
+    ns, reserved_new_ns = _get_namespace(namespace, name, requester, duration, timeout)
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -875,7 +884,7 @@ def _cmd_config_deploy(
 
     def _err_handler(err):
         try:
-            if not no_release_on_fail and not requested_ns:
+            if not no_release_on_fail and reserved_new_ns:
                 # if we auto-reserved this ns, auto-release it on failure unless
                 # --no-release-on-fail was requested
                 log.info("releasing namespace '%s'", ns)
@@ -969,7 +978,7 @@ def _cmd_deploy_clowdenv(
     duration,
 ):
     """Process ClowdEnv template and deploy to a cluster"""
-    namespace = _get_namespace(namespace, name, requester, duration, timeout)
+    namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
 
     def _err_handler(err):
         msg = f"deploy failed: {str(err)}"
@@ -1066,7 +1075,7 @@ def _cmd_deploy_iqe_cji(
     duration,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
-    namespace = _get_namespace(namespace, name, requester, duration, timeout)
+    namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
 
     def _err_handler(err):
         msg = f"deploy failed: {str(err)}"
