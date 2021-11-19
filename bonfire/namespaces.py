@@ -118,10 +118,10 @@ class Namespace:
             return _pretty_time_delta(delta.total_seconds())
 
     @property
-    def owned_by_me(self):
+    def owned_by_me(self, requester):
         if on_k8s():
             return True
-        return self.requester == whoami()
+        return self.requester == requester
 
     @property
     def ready(self):

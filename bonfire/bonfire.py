@@ -793,7 +793,7 @@ def _get_namespace(requested_ns_name, name, requester, duration, timeout):
                 _error(f"Reservation has expired for namespace '{requested_ns_name}'")
 
             ns = Namespace(name=requested_ns_name)
-            if not ns.owned_by_me:
+            if not ns.owned_by_me(requester):
                 _warn_if_not_owned_by_me()
             if not ns.ready:
                 _warn_if_not_ready()
