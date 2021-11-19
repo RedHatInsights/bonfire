@@ -76,8 +76,8 @@ class Namespace:
         """
         return self.operator_ns
 
-    def refresh(self):
-        self.data = get_json("namespace", self.name)
+    def refresh(self, data):
+        self.data = data or get_json("namespace", self.name)
         self.name = self.data.get("metadata", {}).get("name")
 
         if "annotations" not in self.data["metadata"]:
@@ -96,14 +96,17 @@ class Namespace:
 
     def __init__(self, name=None, namespace_data=None):
         self.data = copy.deepcopy(namespace_data) or {}
-        self.name = name or self.data.get("metadata", {}).get("name")
+        self.name = name
         self.requester = None
         self.expires = None
 
         if not self.data and not self.name:
             raise ValueError('Namespace needs one of: "name", "namespace_data"')
 
-        self.refresh()
+        # if __init__ was called with only 'name', we will fetch the ns data,
+        # otherwise we will use the data passed to __init__ to populated
+        # this instance's properties
+        self.refresh(data=self.data)
 
     @property
     def expires_in(self):
