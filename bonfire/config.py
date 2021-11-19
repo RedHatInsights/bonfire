@@ -2,7 +2,6 @@ import logging
 import os
 from pathlib import Path
 from pkg_resources import resource_filename
-import re
 import shutil
 import subprocess
 
@@ -44,12 +43,14 @@ QONTRACT_USERNAME = os.getenv("QONTRACT_USERNAME", APP_INTERFACE_USERNAME or Non
 QONTRACT_PASSWORD = os.getenv("QONTRACT_PASSWORD", APP_INTERFACE_PASSWORD or None)
 QONTRACT_TOKEN = os.getenv("QONTRACT_TOKEN")
 
-# env vars that could modify behavior of the jenkins reconciler job
 BASE_NAMESPACE_NAME = os.getenv("BASE_NAMESPACE_NAME", "ephemeral-base")
-RESERVABLE_NAMESPACE_REGEX = re.compile(os.getenv("RESERVABLE_NAMESPACE_REGEX", r"ephemeral-\d+"))
 EPHEMERAL_ENV_NAME = os.getenv("EPHEMERAL_ENV_NAME", "insights-ephemeral")
-RECONCILE_TIMEOUT = os.getenv("RECONCILE_TIMEOUT", 600)
 ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")
+
+# can be used to set name of 'requester' on namespace reservations
+BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
+# set to true when bonfire is running via automation using a bot acct (not an end user)
+BONFIRE_BOT = os.getenv("BONFIRE_BOT")
 
 
 def write_default_config(outpath=None):

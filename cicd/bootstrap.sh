@@ -19,6 +19,8 @@ export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build
 export BONFIRE_ROOT=${WORKSPACE}/bonfire
 export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
+export BONFIRE_BOT="true"
+export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 
 # Set up docker cfg
 set -x
