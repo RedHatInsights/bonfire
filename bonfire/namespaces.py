@@ -53,29 +53,35 @@ def _pretty_time_delta(seconds):
 
 
 class Namespace:
+    @property
+    def annotations(self):
+        return self.data.get("metadata", "").get("annotations", {})
+
+    @property
+    def status(self):
+        return self.annotations.get("status", "false")
+
+    @property
+    def reserved(self):
+        return self.annotations.get("reserved", "false") == "true"
+
+    @property
+    def operator_ns(self):
+        return self.annotations.get("operator-ns", "false") == "true"
+
+    @property
+    def is_reservable(self):
+        """
+        Check whether a namespace was created by the namespace operator.
+        """
+        return self.operator_ns
+
     def refresh(self):
         self.data = get_json("namespace", self.name)
-
-    def __init__(self, name=None, namespace_data=None):
-        self.name = name
-        self.data = copy.deepcopy(namespace_data)
-
-        if not self.data:
-            # we don't yet have the data for this namespace... load it
-            if not self.name:
-                raise ValueError('Namespace needs one of: "name", "namespace_data"')
-            self.refresh()
-
-        self.name = self.data["metadata"]["name"]
+        self.name = self.data.get("metadata", {}).get("name")
 
         if "annotations" not in self.data["metadata"]:
             self.data["metadata"]["annotations"] = {}
-
-        self.annotations = self.data["metadata"]["annotations"]
-
-        self.reserved = self.annotations.get("reserved", "false") == "true"
-        self.status = self.annotations.get("status", "false")
-        self.operator_ns = self.annotations.get("operator-ns", "false") == "true"
 
         if self.reserved:
             res = get_reservation(namespace=self.name)
@@ -88,12 +94,16 @@ class Namespace:
             self.requester = None
             self.expires = None
 
-    @property
-    def is_reservable(self):
-        """
-        Check whether a namespace was created by the namespace operator.
-        """
-        return self.operator_ns
+    def __init__(self, name=None, namespace_data=None):
+        self.data = copy.deepcopy(namespace_data) or {}
+        self.name = name or self.data.get("metadata", {}).get("name")
+        self.requester = None
+        self.expires = None
+
+        if not self.data and not self.name:
+            raise ValueError('Namespace needs one of: "name", "namespace_data"')
+
+        self.refresh()
 
     @property
     def expires_in(self):
@@ -114,8 +124,12 @@ class Namespace:
         return self.requester == whoami()
 
     @property
+    def ready(self):
+        return self.status == "ready"
+
+    @property
     def available(self):
-        return not self.reserved and self.status == "ready"
+        return not self.reserved and self.ready
 
     def __str__(self):
         return (
@@ -205,7 +219,7 @@ def reserve_namespace(name, requester, duration, timeout):
             duration,
         )
 
-    return ns_name, None
+    return Namespace(name=ns_name), None
 
 
 def release_namespace(namespace):
