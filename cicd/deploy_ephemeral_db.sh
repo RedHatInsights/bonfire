@@ -8,7 +8,7 @@ source ${CICD_ROOT}/_common_deploy_logic.sh
 DB_DEPLOYMENT_NAME="${DB_DEPLOYMENT_NAME:-$COMPONENT_NAME-db}"
 
 # Deploy k8s resources for app without its dependencies
-NAMESPACE=$(bonfire namespace reserve -r ${APP_NAME}-pr-check -b)
+NAMESPACE=$(bonfire namespace reserve)
 # TODO: add code to bonfire to deploy an app if it is defined in 'sharedAppDbName' on the ClowdApp
 # TODO: add a bonfire command to deploy just an app's DB
 set -x

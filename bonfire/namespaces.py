@@ -3,6 +3,7 @@ import datetime
 import logging
 from wait_for import TimedOutError
 
+import bonfire.config as conf
 from bonfire.openshift import (
     apply_config,
     on_k8s,
@@ -76,6 +77,35 @@ class Namespace:
         """
         return self.operator_ns
 
+    @property
+    def expires_in(self):
+        if not self.expires:
+            # reconciler needs to set the time ...
+            return "TBD"
+        utcnow = _utcnow()
+        if self.expires < utcnow:
+            return "expired"
+        else:
+            delta = self.expires - utcnow
+            return _pretty_time_delta(delta.total_seconds())
+
+    @property
+    def owned_by_me(self):
+        if on_k8s():
+            return True
+        elif conf.BONFIRE_NS_REQUESTER:
+            return self.requester.lower() == conf.BONFIRE_NS_REQUESTER.lower()
+        else:
+            return self.requester == whoami()
+
+    @property
+    def ready(self):
+        return self.status == "ready"
+
+    @property
+    def available(self):
+        return not self.reserved and self.ready
+
     def refresh(self, data):
         self.data = data or get_json("namespace", self.name)
         self.name = self.data.get("metadata", {}).get("name")
@@ -107,32 +137,6 @@ class Namespace:
         # otherwise we will use the data passed to __init__ to populated
         # this instance's properties
         self.refresh(data=self.data)
-
-    @property
-    def expires_in(self):
-        if not self.expires:
-            # reconciler needs to set the time ...
-            return "TBD"
-        utcnow = _utcnow()
-        if self.expires < utcnow:
-            return "expired"
-        else:
-            delta = self.expires - utcnow
-            return _pretty_time_delta(delta.total_seconds())
-
-    @property
-    def owned_by_me(self):
-        if on_k8s():
-            return True
-        return self.requester == whoami()
-
-    @property
-    def ready(self):
-        return self.status == "ready"
-
-    @property
-    def available(self):
-        return not self.reserved and self.ready
 
     def __str__(self):
         return (
