@@ -99,38 +99,42 @@ def apps():
 
 
 def _confirm_or_abort(msg):
-    if not click.confirm(msg):
-        click.echo("Aborting")
-        sys.exit(0)
+    if conf.BONFIRE_BOT:
+        # these types of warnings shouldn't occur in automated runs, error out immediately
+        _error(msg)
+    else:
+        # have end user confirm if they want to proceed anyway
+        msg = "{msg}.  Continue anyway?"
+        if not click.confirm(msg):
+            click.echo("Aborting")
+            sys.exit(0)
 
 
 def _warn_if_not_owned_by_me():
-    _confirm_or_abort("Namespace currently reserved by someone else.  Continue anyway?")
+    _confirm_or_abort("Namespace currently reserved by someone else")
 
 
 def _warn_if_not_ready():
-    _confirm_or_abort("Namespace's environment is not currently ready.  Continue anyway?")
+    _confirm_or_abort("Namespace's environment is not currently ready")
 
 
 def _warn_before_delete():
-    _confirm_or_abort(
-        "Deleting your reservation will also delete the associated namespace. Proceed?"
-    )
+    _confirm_or_abort("Deleting this reservation will also delete the associated namespace")
 
 
 def _warn_of_existing(requester):
-    _confirm_or_abort(
-        f"Existing reservation(s) detected for requester '{requester}'. "
-        "Do you need to reserve an additional namespace?"
-    )
+    _confirm_or_abort(f"Existing reservation(s) detected for requester '{requester}'")
 
 
 def _get_requester():
-    try:
-        requester = whoami()
-    except Exception:
-        log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
-        requester = "bonfire"
+    if conf.BONFIRE_NS_REQUESTER:
+        requester = conf.BONFIRE_NS_REQUESTER
+    else:
+        try:
+            requester = whoami()
+        except Exception:
+            log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
+            requester = "bonfire"
     return requester
 
 
@@ -559,12 +563,6 @@ def _list_namespaces(available, mine, output):
 
 
 @namespace.command("reserve")
-@click.option(
-    "--bot",
-    "-b",
-    is_flag=True,
-    help="Use this flag to skip the duplicate reservation check (for automation)",
-)
 @options(_ns_reserve_options)
 @options(_timeout_option)
 def _cmd_namespace_reserve(bot, name, requester, duration, timeout):
@@ -577,9 +575,8 @@ def _cmd_namespace_reserve(bot, name, requester, duration, timeout):
     if requester is None:
         requester = _get_requester()
 
-    if not bot:
-        if check_for_existing_reservation(requester):
-            _warn_of_existing(requester)
+    if check_for_existing_reservation(requester):
+        _warn_of_existing(requester)
 
     ns, err = reserve_namespace(name, requester, duration, timeout)
 
@@ -793,8 +790,8 @@ def _get_namespace(requested_ns_name, name, requester, duration, timeout):
                 _error(f"Reservation has expired for namespace '{requested_ns_name}'")
 
             ns = Namespace(name=requested_ns_name)
-            # if not ns.owned_by_me():
-            #     _warn_if_not_owned_by_me()
+            if not ns.owned_by_me():
+                _warn_if_not_owned_by_me()
             if not ns.ready:
                 _warn_if_not_ready()
 
