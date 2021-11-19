@@ -777,7 +777,6 @@ def _cmd_process(
 
 
 def _get_namespace(requested_ns_name, name, requester, duration, timeout):
-    requested_ns_name = namespace
     reserved_new_ns = False
 
     if requested_ns_name:
