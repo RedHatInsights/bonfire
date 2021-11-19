@@ -581,12 +581,12 @@ def _cmd_namespace_reserve(bot, name, requester, duration, timeout):
         if check_for_existing_reservation(requester):
             _warn_of_existing(requester)
 
-    ns_name, err = reserve_namespace(name, requester, duration, timeout)
+    ns, err = reserve_namespace(name, requester, duration, timeout)
 
     if err is not None:
         _err_handler(err)
 
-    click.echo(ns_name)
+    click.echo(ns.name)
 
 
 @namespace.command("release")
