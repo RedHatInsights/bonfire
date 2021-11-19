@@ -42,8 +42,6 @@ from bonfire.namespaces import (
     extend_namespace,
     reserve_namespace,
     release_namespace,
-    add_base_resources,
-    reconcile,
 )
 from bonfire.secrets import import_secrets_from_dir
 
