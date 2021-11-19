@@ -10,7 +10,7 @@ from tabulate import tabulate
 from wait_for import TimedOutError
 
 import bonfire.config as conf
-from bonfire.qontract import get_apps_for_env, sub_refs, get_secret_names_in_namespace
+from bonfire.qontract import get_apps_for_env, sub_refs
 from bonfire.openshift import (
     apply_config,
     wait_for_all_resources,
@@ -98,31 +98,31 @@ def apps():
     pass
 
 
-def _warn_if_unsafe(namespace):
-    ns = Namespace(name=namespace)
-    if not ns.owned_by_me and not ns.available:
-        if not click.confirm(
-            "Namespace currently not ready or reserved by someone else.  Continue anyway?"
-        ):
-            click.echo("Aborting")
-            sys.exit(0)
+def _confirm_or_abort(msg):
+    if not click.confirm(msg):
+        click.echo("Aborting")
+        sys.exit(0)
+
+
+def _warn_if_not_owned_by_me():
+    _confirm_or_abort("Namespace currently reserved by someone else.  Continue anyway?")
+
+
+def _warn_if_not_ready():
+    _confirm_or_abort("Namespace's environment is not currently ready.  Continue anyway?")
 
 
 def _warn_before_delete():
-    if not click.confirm(
+    _confirm_or_abort(
         "Deleting your reservation will also delete the associated namespace. Proceed?"
-    ):
-        click.echo("Aborting")
-        sys.exit(0)
+    )
 
 
 def _warn_of_existing(requester):
-    if not click.confirm(
+    _confirm_or_abort(
         f"Existing reservation(s) detected for requester '{requester}'. "
         "Do you need to reserve an additional namespace?"
-    ):
-        click.echo("Aborting")
-        sys.exit(0)
+    )
 
 
 def _get_requester():
@@ -139,11 +139,6 @@ def _wait_on_namespace_resources(namespace, timeout, db_only=False):
         wait_for_db_resources(namespace, timeout)
     else:
         wait_for_all_resources(namespace, timeout)
-
-
-def _prepare_namespace(namespace):
-    base_secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
-    add_base_resources(namespace, base_secret_names)
 
 
 def _validate_reservation_duration(ctx, param, value):
@@ -660,19 +655,6 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
         _error("namespace wait timed out")
 
 
-@namespace.command("prepare", hidden=True)
-@click.argument("namespace", required=True, type=str)
-def _cmd_namespace_prepare(namespace):
-    """Copy base resources into specified namespace (for admin use only)"""
-    _prepare_namespace(namespace)
-
-
-@namespace.command("reconcile", hidden=True)
-def _cmd_namespace_reconcile():
-    """Run reconciler for namespace reservations (for admin use only)"""
-    reconcile()
-
-
 def _get_apps_config(source, target_env, ref_env, local_config_path):
     config = conf.load_config(local_config_path)
 
@@ -794,6 +776,31 @@ def _cmd_process(
     print(json.dumps(processed_templates, indent=2))
 
 
+def _get_namespace(namespace, name, requester, duration, timeout):
+    requested_ns_name = namespace
+    log.debug("checking if namespace '%s' has been reserved via ns operator...", requested_ns_name)
+    operator_reservation = get_reservation(namespace=requested_ns_name)
+
+    if not operator_reservation:
+        log.debug("no reservation found for this ns, checking if requester already has another...")
+        requester = requester if requester else _get_requester()
+        if check_for_existing_reservation(requester):
+            _warn_of_existing(requester)
+        ns, err = reserve_namespace(name, requester, duration, timeout)
+        if err is not None:
+            _error(f"Error during namespace reservation. Error: {str(err)}")
+    else:
+        log.debug("found existing ns operator reservation")
+        ns = Namespace(name=requested_ns_name)
+        if not ns.owned_by_me:
+            _warn_if_not_owned_by_me()
+        if not ns.available:
+            _warn_if_not_ready()
+
+    # TODO: also return whether or not we reserved a namespace or if one already existed
+    return ns.name
+
+
 @main.command("deploy")
 @options(_process_options)
 @click.option(
@@ -847,21 +854,9 @@ def _cmd_config_deploy(
     secrets_dir,
 ):
     """Process app templates and deploy them to a cluster"""
-    requested_ns = namespace
-    log.debug("checking if namespace has been reserved via ns operator...")
-    operator_reservation = get_reservation(namespace=requested_ns)
-
-    if not operator_reservation:
-        log.debug("no reservation found for this ns, checking if requester already has another...")
-        requester = requester if requester else _get_requester()
-        if check_for_existing_reservation(requester):
-            _warn_of_existing(requester)
-        ns, err = reserve_namespace(name, requester, duration, timeout)
-        if err is not None:
-            _error(f"Error during namespace reservation. Error: {str(err)}")
-    else:
-        log.debug("found existing ns operator reservation")
-        ns = requested_ns
+    ns = _get_namespace(namespace, name, requester, duration, timeout)
+    # TODO: determine whether we reserved a new ns here or not
+    requested_ns = False
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -959,12 +954,22 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file):
     help=("Import secrets from this directory (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)"),
     default=conf.DEFAULT_SECRETS_DIR,
 )
+@options(_ns_reserve_options)
 @options(_timeout_option)
 def _cmd_deploy_clowdenv(
-    namespace, quay_user, clowd_env, template_file, timeout, import_secrets, secrets_dir
+    namespace,
+    quay_user,
+    clowd_env,
+    template_file,
+    timeout,
+    import_secrets,
+    secrets_dir,
+    name,
+    requester,
+    duration,
 ):
     """Process ClowdEnv template and deploy to a cluster"""
-    _warn_if_unsafe(namespace)
+    namespace = _get_namespace(namespace, name, requester, duration, timeout)
 
     def _err_handler(err):
         msg = f"deploy failed: {str(err)}"
@@ -1040,6 +1045,7 @@ def _cmd_process_iqe_cji(
 @main.command("deploy-iqe-cji")
 @click.option("--namespace", "-n", help="Namespace to deploy to", type=str, required=True)
 @options(_iqe_cji_process_options)
+@options(_ns_reserve_options)
 @options(_timeout_option)
 def _cmd_deploy_iqe_cji(
     namespace,
@@ -1055,9 +1061,12 @@ def _cmd_deploy_iqe_cji(
     requirements,
     requirements_priority,
     test_importance,
+    name,
+    requester,
+    duration,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
-    # _warn_if_unsafe(namespace)
+    namespace = _get_namespace(namespace, name, requester, duration, timeout)
 
     def _err_handler(err):
         msg = f"deploy failed: {str(err)}"
