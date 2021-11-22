@@ -2,6 +2,7 @@ import base64
 import logging
 import click
 import json
+import os
 import sys
 import yaml
 
@@ -14,6 +15,7 @@ SECRET_NAME = "iqe-settings"
 
 
 def _get_base_pod_cfg():
+    iqe_image = os.getenv('IQE_IMAGE', "quay.io/cloudservices/iqe-tests:latest")
     return {
         "apiVersion": "v1",
         "kind": "Pod",
@@ -23,7 +25,7 @@ def _get_base_pod_cfg():
             "containers": [
                 {
                     "command": ["/bin/cat"],
-                    "image": "quay.io/cloudservices/iqe-tests:latest",
+                    "image": iqe_image,
                     "imagePullPolicy": "Always",
                     "name": "iqe-tests",
                     "resources": {
