@@ -8,6 +8,7 @@ import warnings
 
 from tabulate import tabulate
 from wait_for import TimedOutError
+from functools import wraps
 
 import bonfire.config as conf
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -57,6 +58,24 @@ def _error(msg):
     sys.exit(1)
 
 
+def click_exception_wrapper(command):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except KeyboardInterrupt as err:
+                _error(f"{command}: aborted by keyboard interrupt")
+            except TimedOutError as err:
+                _error(f"{command}: hit timeout error: {err}")
+            except FatalError as err:
+                _error(f"{command}: hit fatal error: {err}")
+            except Exception as err:
+                _error(f"{command}: hit unexpected error: {err}")
+        return wrapper
+    return decorator
+
+
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
 def main(debug):
@@ -104,7 +123,7 @@ def _confirm_or_abort(msg):
         _error(msg)
     else:
         # have end user confirm if they want to proceed anyway
-        msg = "{msg}.  Continue anyway?"
+        msg = f"{msg}.  Continue anyway?"
         if not click.confirm(msg):
             click.echo("Aborting")
             sys.exit(0)
@@ -565,12 +584,9 @@ def _list_namespaces(available, mine, output):
 @namespace.command("reserve")
 @options(_ns_reserve_options)
 @options(_timeout_option)
+@click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, timeout):
     """Reserve an ephemeral namespace"""
-
-    def _err_handler(err):
-        msg = f"reservation failed: {str(err)}"
-        _error(msg)
 
     if requester is None:
         requester = _get_requester()
@@ -578,10 +594,7 @@ def _cmd_namespace_reserve(name, requester, duration, timeout):
     if check_for_existing_reservation(requester):
         _warn_of_existing(requester)
 
-    ns, err = reserve_namespace(name, requester, duration, timeout)
-
-    if err is not None:
-        _err_handler(err)
+    ns = reserve_namespace(name, requester, duration, timeout)
 
     click.echo(ns.name)
 
@@ -595,20 +608,14 @@ def _cmd_namespace_reserve(name, requester, duration, timeout):
     default=False,
     help="Do not check if you own this namespace",
 )
+@click_exception_wrapper("namespace release")
 def _cmd_namespace_release(namespace, force):
     """Remove reservation from an ephemeral namespace"""
-
-    def _err_handler(err):
-        msg = f"reservation deletion failed: {str(err)}"
-        _error(msg)
 
     if not force:
         _warn_before_delete()
 
-    err = release_namespace(namespace)
-
-    if err is not None:
-        _err_handler(err)
+    release_namespace(namespace)
 
 
 @namespace.command("extend")
@@ -621,17 +628,11 @@ def _cmd_namespace_release(namespace, force):
     help="Amount of time to extend the reservation",
     callback=_validate_reservation_duration,
 )
+@click_exception_wrapper("namespace extend")
 def _cmd_namespace_extend(namespace, duration):
     """Extend a reservation of an ephemeral namespace"""
 
-    def _err_handler(err):
-        msg = f"reservation extension failed: {str(err)}"
-        _error(msg)
-
-    err = extend_namespace(namespace, duration)
-
-    if err is not None:
-        _err_handler(err)
+    extend_namespace(namespace, duration)
 
 
 @namespace.command("wait-on-resources")
