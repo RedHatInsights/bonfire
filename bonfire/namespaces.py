@@ -2,6 +2,7 @@ import copy
 import datetime
 import logging
 from wait_for import TimedOutError
+from functools import wraps
 
 import bonfire.config as conf
 from bonfire.openshift import (
@@ -51,6 +52,26 @@ def _pretty_time_delta(seconds):
         return "%dm%ds" % (minutes, seconds)
     else:
         return "%ds" % (seconds,)
+
+
+def exception_wrapper(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except KeyboardInterrupt as err:
+            log.error("aborted by keyboard interrupt!")
+            return None, err
+        except TimedOutError as err:
+            log.error("hit timeout error: %s", err)
+            return None, err
+        except FatalError as err:
+            log.error("hit fatal error: %s", err)
+            return None, err
+        except Exception as err:
+            log.exception("hit unexpected error: %s", err)
+            return None, err
+    return decorated
 
 
 class Namespace:
@@ -185,115 +206,71 @@ def get_namespaces(available=False, mine=False):
 
 
 def reserve_namespace(name, requester, duration, timeout):
+    res = get_reservation(name)
+    # Name should be unique on reservation creation.
+    if res:
+        raise FatalError(f"Reservation with name {name} already exists")
+
+    res_config = process_reservation(name, requester, duration)
+
+    log.debug("processed reservation:\n%s", res_config)
+
     try:
-        res = get_reservation(name)
-        # Name should be unique on reservation creation.
-        if res:
-            raise FatalError(f"Reservation with name {name} already exists")
-
-        res_config = process_reservation(name, requester, duration)
-
-        log.debug("processed reservation:\n%s", res_config)
-
-        try:
-            res_name = res_config["items"][0]["metadata"]["name"]
-        except (KeyError, IndexError):
-            raise Exception(
-                "error parsing name of Reservation from processed template, "
-                "check Reservation template"
-            )
-
-        apply_config(None, list_resource=res_config)
-
-        ns_name = wait_on_reservation(res_name, timeout)
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        return None, err
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        return None, err
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        return None, err
-    except Exception as err:
-        log.exception("hit unexpected error: %s", err)
-        return None, err
-    else:
-        log.info(
-            "namespace '%s' is reserved by '%s' for '%s'",
-            ns_name,
-            requester,
-            duration,
+        res_name = res_config["items"][0]["metadata"]["name"]
+    except (KeyError, IndexError):
+        raise Exception(
+            "error parsing name of Reservation from processed template, "
+            "check Reservation template"
         )
 
-    return Namespace(name=ns_name), None
+    apply_config(None, list_resource=res_config)
+
+    ns_name = wait_on_reservation(res_name, timeout)
+    log.info(
+        "namespace '%s' is reserved by '%s' for '%s'",
+        ns_name,
+        requester,
+        duration,
+    )
+
+    return Namespace(name=ns_name)
 
 
 def release_namespace(namespace):
-    try:
-        res = get_reservation(namespace=namespace)
-        if res:
-            res_config = process_reservation(
-                res["metadata"]["name"],
-                res["spec"]["requester"],
-                "0s",  # on release set duration to 0s
-            )
+    res = get_reservation(namespace=namespace)
+    if res:
+        res_config = process_reservation(
+            res["metadata"]["name"],
+            res["spec"]["requester"],
+            "0s",  # on release set duration to 0s
+        )
 
-            apply_config(None, list_resource=res_config)
-            log.info("releasing namespace '%s'", namespace)
-        else:
-            raise FatalError("Reservation lookup failed")
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        return err
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        return err
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        return err
-    except Exception as err:
-        log.exception("hit unexpected error: %s", err)
-        return err
-
-    return None
+        apply_config(None, list_resource=res_config)
+        log.info("releasing namespace '%s'", namespace)
+    else:
+        raise FatalError("Reservation lookup failed")
 
 
 def extend_namespace(namespace, duration):
-    try:
-        res = get_reservation(namespace=namespace)
-        if res:
-            if res["status"]["state"] == "expired":
-                log.error(
-                    "The reservation for namespace %s has expired. "
-                    "Please reserve a new namespace",
-                    res["status"]["namespace"],
-                )
-                return None
-            res_config = process_reservation(
-                res["metadata"]["name"],
-                res["spec"]["requester"],
-                duration,
+    res = get_reservation(namespace=namespace)
+    if res:
+        if res["status"]["state"] == "expired":
+            log.error(
+                "The reservation for namespace %s has expired. "
+                "Please reserve a new namespace",
+                res["status"]["namespace"],
             )
+            return None
+        res_config = process_reservation(
+            res["metadata"]["name"],
+            res["spec"]["requester"],
+            duration,
+        )
 
-            log.debug("processed reservation:\n%s", res_config)
+        log.debug("processed reservation:\n%s", res_config)
 
-            apply_config(None, list_resource=res_config)
-        else:
-            raise FatalError("Reservation lookup failed")
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        return err
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        return err
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        return err
-    except Exception as err:
-        log.exception("hit unexpected error: %s", err)
-        return err
+        apply_config(None, list_resource=res_config)
+    else:
+        raise FatalError("Reservation lookup failed")
 
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
-
-    return None
