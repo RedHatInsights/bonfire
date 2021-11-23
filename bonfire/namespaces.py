@@ -2,7 +2,6 @@ import copy
 import datetime
 import logging
 from wait_for import TimedOutError
-from functools import wraps
 
 import bonfire.config as conf
 from bonfire.openshift import (
@@ -52,26 +51,6 @@ def _pretty_time_delta(seconds):
         return "%dm%ds" % (minutes, seconds)
     else:
         return "%ds" % (seconds,)
-
-
-def exception_wrapper(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except KeyboardInterrupt as err:
-            log.error("aborted by keyboard interrupt!")
-            return None, err
-        except TimedOutError as err:
-            log.error("hit timeout error: %s", err)
-            return None, err
-        except FatalError as err:
-            log.error("hit fatal error: %s", err)
-            return None, err
-        except Exception as err:
-            log.exception("hit unexpected error: %s", err)
-            return None, err
-    return decorated
 
 
 class Namespace:
