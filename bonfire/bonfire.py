@@ -21,6 +21,7 @@ from bonfire.openshift import (
     get_reservation,
     check_for_existing_reservation,
     whoami,
+    has_ns_operator,
 )
 from bonfire.utils import (
     FatalError,
@@ -104,7 +105,7 @@ def _confirm_or_abort(msg):
         _error(msg)
     else:
         # have end user confirm if they want to proceed anyway
-        msg = "{msg}.  Continue anyway?"
+        msg = f"{msg}.  Continue anyway?"
         if not click.confirm(msg):
             click.echo("Aborting")
             sys.exit(0)
@@ -123,7 +124,10 @@ def _warn_before_delete():
 
 
 def _warn_of_existing(requester):
-    _confirm_or_abort(f"Existing reservation(s) detected for requester '{requester}'")
+    _confirm_or_abort(
+        f"Existing reservation(s) found for requester '{requester}', "
+        "consider re-using the existing namespace"
+    )
 
 
 def _get_requester():
@@ -530,10 +534,11 @@ def options(options_list):
 @options(_ns_list_options)
 def _list_namespaces(available, mine, output):
     """Get list of ephemeral namespaces"""
-    namespaces = get_namespaces(available=available, mine=mine)
-    if not available and not mine and not namespaces:
+    if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
-    elif not namespaces:
+
+    namespaces = get_namespaces(available=available, mine=mine)
+    if not namespaces:
         if output == "json":
             click.echo("{}")
         else:
@@ -567,6 +572,8 @@ def _list_namespaces(available, mine, output):
 @options(_timeout_option)
 def _cmd_namespace_reserve(name, requester, duration, timeout):
     """Reserve an ephemeral namespace"""
+    if not has_ns_operator():
+        _error(NO_RESERVATION_SYS)
 
     def _err_handler(err):
         msg = f"reservation failed: {str(err)}"
@@ -597,6 +604,8 @@ def _cmd_namespace_reserve(name, requester, duration, timeout):
 )
 def _cmd_namespace_release(namespace, force):
     """Remove reservation from an ephemeral namespace"""
+    if not has_ns_operator():
+        _error(NO_RESERVATION_SYS)
 
     def _err_handler(err):
         msg = f"reservation deletion failed: {str(err)}"
@@ -623,6 +632,8 @@ def _cmd_namespace_release(namespace, force):
 )
 def _cmd_namespace_extend(namespace, duration):
     """Extend a reservation of an ephemeral namespace"""
+    if not has_ns_operator():
+        _error(NO_RESERVATION_SYS)
 
     def _err_handler(err):
         msg = f"reservation extension failed: {str(err)}"
@@ -776,34 +787,41 @@ def _cmd_process(
 def _get_namespace(requested_ns_name, name, requester, duration, timeout):
     reserved_new_ns = False
 
-    if requested_ns_name:
-        log.debug(
-            "checking if namespace '%s' has been reserved via ns operator...", requested_ns_name
-        )
-        operator_reservation = get_reservation(namespace=requested_ns_name)
-        if not operator_reservation:
-            _error(f"No valid reservation exists for namespace '{requested_ns_name}'")
-        else:
-            log.debug("found existing ns operator reservation")
-
-            if operator_reservation.get("status", {}).get("state") == "expired":
-                _error(f"Reservation has expired for namespace '{requested_ns_name}'")
-
+    if not has_ns_operator():
+        if requested_ns_name:
             ns = Namespace(name=requested_ns_name)
-            if not ns.owned_by_me:
-                _warn_if_not_owned_by_me()
-            if not ns.ready:
-                _warn_if_not_ready()
+        else:
+            _error(f"{NO_RESERVATION_SYS}. Use '-n' to provide a specific target namespace")
 
     else:
-        log.debug("checking if requester already has another namespace reserved...")
-        requester = requester if requester else _get_requester()
-        if check_for_existing_reservation(requester):
-            _warn_of_existing(requester)
-        ns, err = reserve_namespace(name, requester, duration, timeout)
-        if err is not None:
-            _error(f"Error during namespace reservation. Error: {err}")
-        reserved_new_ns = True
+        if requested_ns_name:
+            log.debug(
+                "checking if namespace '%s' has been reserved via ns operator...", requested_ns_name
+            )
+            operator_reservation = get_reservation(namespace=requested_ns_name)
+            if not operator_reservation:
+                _error(f"Namespace '{requested_ns_name}' has not been reserved yet")
+            else:
+                log.debug("found existing ns operator reservation")
+
+                if operator_reservation.get("status", {}).get("state") == "expired":
+                    _error(f"Reservation has expired for namespace '{requested_ns_name}'")
+
+                ns = Namespace(name=requested_ns_name)
+                if not ns.owned_by_me:
+                    _warn_if_not_owned_by_me()
+                if not ns.ready:
+                    _warn_if_not_ready()
+
+        else:
+            log.debug("checking if requester already has another namespace reserved...")
+            requester = requester if requester else _get_requester()
+            if check_for_existing_reservation(requester):
+                _warn_of_existing(requester)
+            ns, err = reserve_namespace(name, requester, duration, timeout)
+            if err is not None:
+                _error(f"Error during namespace reservation. Error: {err}")
+            reserved_new_ns = True
 
     return ns.name, reserved_new_ns
 

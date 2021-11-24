@@ -51,6 +51,13 @@ def get_api_resources():
     return resources
 
 
+def has_ns_operator():
+    for res in get_api_resources():
+        if res["name"] == "namespacereservation" and res["apigroup"] == "cloud.redhat.com":
+            return True
+    return False
+
+
 def parse_restype(string):
     """
     Given a resource type or its shortcut, return the full resource type name.
@@ -758,7 +765,7 @@ def wait_on_reservation(res_name, timeout):
 
 
 def check_for_existing_reservation(requester):
-    if on_k8s():
+    if not has_ns_operator():
         return False
 
     log.info("Checking for existing reservations for '%s'", requester)
@@ -773,7 +780,7 @@ def check_for_existing_reservation(requester):
 
 
 def get_reservation(name=None, namespace=None, requester=None):
-    if on_k8s():
+    if not has_ns_operator():
         return None
 
     if name:
