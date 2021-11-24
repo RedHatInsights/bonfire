@@ -821,9 +821,7 @@ def _get_namespace(requested_ns_name, name, requester, duration, timeout):
             requester = requester if requester else _get_requester()
             if check_for_existing_reservation(requester):
                 _warn_of_existing(requester)
-            ns, err = reserve_namespace(name, requester, duration, timeout)
-            if err is not None:
-                _error(f"Error during namespace reservation. Error: {err}")
+            ns = reserve_namespace(name, requester, duration, timeout)
             reserved_new_ns = True
 
     return ns.name, reserved_new_ns
