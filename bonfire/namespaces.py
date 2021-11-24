@@ -1,7 +1,6 @@
 import copy
 import datetime
 import logging
-from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.openshift import (
@@ -235,8 +234,7 @@ def extend_namespace(namespace, duration):
     if res:
         if res["status"]["state"] == "expired":
             log.error(
-                "The reservation for namespace %s has expired. "
-                "Please reserve a new namespace",
+                "The reservation for namespace %s has expired. Please reserve a new namespace",
                 res["status"]["namespace"],
             )
             return None

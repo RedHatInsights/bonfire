@@ -65,7 +65,7 @@ def click_exception_wrapper(command):
         def wrapper(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
-            except KeyboardInterrupt as err:
+            except KeyboardInterrupt:
                 _error(f"{command}: aborted by keyboard interrupt")
             except TimedOutError as err:
                 _error(f"{command}: hit timeout error: {err}")
@@ -73,7 +73,9 @@ def click_exception_wrapper(command):
                 _error(f"{command}: hit fatal error: {err}")
             except Exception as err:
                 _error(f"{command}: hit unexpected error: {err}")
+
         return wrapper
+
     return decorator
 
 
