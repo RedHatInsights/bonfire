@@ -905,7 +905,9 @@ def _cmd_config_deploy(
                 log.info("releasing namespace '%s'", ns)
                 release_namespace(ns)
         finally:
-            msg = f"deploy failed: {str(err)}"
+            msg = "deploy failed"
+            if str(err):
+                msg += f": {str(err)}"
             _error(msg)
 
     try:
@@ -980,6 +982,7 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file):
 )
 @options(_ns_reserve_options)
 @options(_timeout_option)
+@click_exception_wrapper("deploy-env")
 def _cmd_deploy_clowdenv(
     namespace,
     quay_user,
@@ -995,43 +998,26 @@ def _cmd_deploy_clowdenv(
     """Process ClowdEnv template and deploy to a cluster"""
     namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
 
-    def _err_handler(err):
-        msg = f"deploy failed: {str(err)}"
-        _error(msg)
+    if import_secrets:
+        import_secrets_from_dir(secrets_dir)
 
-    try:
-        if import_secrets:
-            import_secrets_from_dir(secrets_dir)
+    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
 
-        clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
+    log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
 
-        log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
+    apply_config(None, clowd_env_config)
 
-        apply_config(None, clowd_env_config)
+    if not namespace:
+        # wait for Clowder to tell us what target namespace it created
+        namespace = wait_for_clowd_env_target_ns(clowd_env)
 
-        if not namespace:
-            # wait for Clowder to tell us what target namespace it created
-            namespace = wait_for_clowd_env_target_ns(clowd_env)
+    log.info("waiting on resources for max of %dsec...", timeout)
+    _wait_on_namespace_resources(namespace, timeout)
 
-        log.info("waiting on resources for max of %dsec...", timeout)
-        _wait_on_namespace_resources(namespace, timeout)
+    clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
 
-        clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
-    else:
-        log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
-        click.echo(namespace)
+    log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
+    click.echo(namespace)
 
 
 @main.command("process-iqe-cji")
@@ -1071,6 +1057,7 @@ def _cmd_process_iqe_cji(
 @options(_iqe_cji_process_options)
 @options(_ns_reserve_options)
 @options(_timeout_option)
+@click_exception_wrapper("deploy-iqe-cji")
 def _cmd_deploy_iqe_cji(
     namespace,
     clowd_app_name,
@@ -1092,53 +1079,33 @@ def _cmd_deploy_iqe_cji(
     """Process IQE CJI template, apply it, and wait for it to start running."""
     namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
 
-    def _err_handler(err):
-        msg = f"deploy failed: {str(err)}"
-        _error(msg)
+    cji_config = process_iqe_cji(
+        clowd_app_name,
+        debug,
+        marker,
+        filter,
+        env,
+        image_tag,
+        cji_name,
+        template_file,
+        requirements,
+        requirements_priority,
+        test_importance,
+    )
+
+    log.debug("processed CJI config:\n%s", cji_config)
 
     try:
-        cji_config = process_iqe_cji(
-            clowd_app_name,
-            debug,
-            marker,
-            filter,
-            env,
-            image_tag,
-            cji_name,
-            template_file,
-            requirements,
-            requirements_priority,
-            test_importance,
-        )
+        cji_name = cji_config["items"][0]["metadata"]["name"]
+    except (KeyError, IndexError):
+        raise Exception("error parsing name of CJI from processed template, check CJI template")
 
-        log.debug("processed CJI config:\n%s", cji_config)
+    apply_config(namespace, cji_config)
 
-        try:
-            cji_name = cji_config["items"][0]["metadata"]["name"]
-        except (KeyError, IndexError):
-            raise Exception("error parsing name of CJI from processed template, check CJI template")
-
-        apply_config(namespace, cji_config)
-
-        log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
-        pod_name = wait_on_cji(namespace, cji_name, timeout)
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
-    else:
-        log.info(
-            "pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace
-        )
-        click.echo(pod_name)
+    log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
+    pod_name = wait_on_cji(namespace, cji_name, timeout)
+    log.info("pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace)
+    click.echo(pod_name)
 
 
 @main.command("version")
