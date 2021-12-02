@@ -23,6 +23,7 @@ from bonfire.openshift import (
     check_for_existing_reservation,
     whoami,
     has_ns_operator,
+    has_clowder,
 )
 from bonfire.utils import (
     FatalError,
@@ -880,6 +881,9 @@ def _cmd_config_deploy(
     secrets_dir,
 ):
     """Process app templates and deploy them to a cluster"""
+    if not has_clowder():
+        _error("cluster does not have clowder operator installed")
+
     ns, reserved_new_ns = _get_namespace(namespace, name, requester, duration, timeout)
 
     if import_secrets:
@@ -996,6 +1000,9 @@ def _cmd_deploy_clowdenv(
     duration,
 ):
     """Process ClowdEnv template and deploy to a cluster"""
+    if not has_clowder():
+        _error("cluster does not have clowder operator installed")
+
     namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
 
     if import_secrets:
@@ -1077,6 +1084,9 @@ def _cmd_deploy_iqe_cji(
     duration,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
+    if not has_clowder():
+        _error("cluster does not have clowder operator installed")
+
     namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
 
     cji_config = process_iqe_cji(
