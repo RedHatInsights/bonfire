@@ -18,6 +18,8 @@
 
 set -e
 
+DOCKER_CONF="$PWD/.docker"
+
 function build {
     if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
         echo "ERROR: No $DOCKERFILE found"
@@ -38,13 +40,31 @@ function build {
     fi
 }
 
-function docker_build {
-    DOCKER_CONF="$PWD/.docker"
+function login {
+    if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
+        # on RHEL7, use docker
+        docker_login
+    else
+        # on RHEL8 or anything else, use podman
+        podman_login
+    fi
+}
+
+function docker_login {
     mkdir -p "$DOCKER_CONF"
     set -x
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
     set +x
+}
+
+function podman_login {
+    AUTH_CONF_DIR="$(pwd)/.podman"
+    mkdir -p $AUTH_CONF_DIR
+    export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
+}
+
+function docker_build {
     if [ "$CACHE_FROM_LATEST_IMAGE" == "true" ]; then
         echo "Attempting to build image using cache"
         {
@@ -69,9 +89,6 @@ function docker_build {
 }
 
 function podman_build {
-    AUTH_CONF_DIR="$(pwd)/.podman"
-    mkdir -p $AUTH_CONF_DIR
-    export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
     set -x
     podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
@@ -93,6 +110,9 @@ if [[ -z "$RH_REGISTRY_USER" || -z "$RH_REGISTRY_TOKEN" ]]; then
     echo "RH_REGISTRY_USER and RH_REGISTRY_TOKEN must be set"
     exit 1
 fi
+
+# Login to registry with podman/docker
+login
 
 if [[ $IMAGE == quay.io/* ]]; then
     # if using quay, check to see if this tag already exists
