@@ -51,7 +51,8 @@ function login {
 }
 
 function docker_login {
-    mkdir -p "$DOCKER_CONF"
+    rm -fr "$DOCKER_CONF"
+    mkdir "$DOCKER_CONF"
     set -x
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
@@ -60,7 +61,8 @@ function docker_login {
 
 function podman_login {
     AUTH_CONF_DIR="$(pwd)/.podman"
-    mkdir -p $AUTH_CONF_DIR
+    rm -fr $AUTH_CONF_DIR
+    mkdir $AUTH_CONF_DIR
     export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
 }
 
