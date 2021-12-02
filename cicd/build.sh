@@ -18,7 +18,7 @@
 
 set -e
 
-DOCKER_CONF="$PWD/.docker"
+export DOCKER_CONF="$PWD/.docker"
 
 function build {
     if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
@@ -66,6 +66,8 @@ function podman_login {
     rm -fr $AUTH_CONF_DIR
     mkdir $AUTH_CONF_DIR
     export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
+    podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
+    podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
 }
 
 function docker_build {
@@ -94,8 +96,6 @@ function docker_build {
 
 function podman_build {
     set -x
-    podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
-    podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
     podman build -f $APP_ROOT/$DOCKERFILE -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT
     podman push "${IMAGE}:${IMAGE_TAG}"
     set +x
