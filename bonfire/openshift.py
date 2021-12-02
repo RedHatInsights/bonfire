@@ -58,6 +58,13 @@ def has_ns_operator():
     return False
 
 
+def has_clowder():
+    for res in get_api_resources():
+        if res["name"] == "clowdapp" and res["apigroup"] == "cloud.redhat.com":
+            return True
+    return False
+
+
 def parse_restype(string):
     """
     Given a resource type or its shortcut, return the full resource type name.
