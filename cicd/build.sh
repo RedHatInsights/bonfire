@@ -53,6 +53,8 @@ function login {
 function docker_login {
     rm -fr "$DOCKER_CONF"
     mkdir "$DOCKER_CONF"
+    docker --config="$DOCKER_CONF" logout quay.io || echo "non-fatal error on docker logout, ignoring..."
+    docker --config="$DOCKER_CONF" logout registry.redhat.io || echo "non-fatal error on docker logout, ignoring..."
     set -x
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
