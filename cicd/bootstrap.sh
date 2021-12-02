@@ -20,6 +20,15 @@ export BONFIRE_ROOT=${WORKSPACE}/bonfire
 export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 
+# Set up docker cfg
+export DOCKER_CONF="$WORKSPACE/.docker"
+mkdir -p "$DOCKER_CONF"
+
+# Set up podman cfg
+AUTH_CONF_DIR="$WORKSPACE/.podman"
+mkdir -p $AUTH_CONF_DIR
+export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
+
 # if this is a PR, use a different tag, since PR tags expire
 if [ ! -z "$ghprbPullId" ]; then
   export IMAGE_TAG="pr-${ghprbPullId}-${IMAGE_TAG}"

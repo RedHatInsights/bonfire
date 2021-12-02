@@ -8,6 +8,8 @@
 # Env vars set by bootstrap.sh:
 #IMAGE_TAG="abcd123" -- image tag to push to
 #APP_ROOT="/path/to/app/root" -- path to the cloned app repo
+#DOCKER_CONF -- docker config dir
+#REGISTRY_AUTH_FILE -- podman auth config json file location
 
 # Env vars normally supplied by CI environment:
 #QUAY_USER
@@ -17,8 +19,6 @@
 #RH_REGISTRY_TOKEN
 
 set -e
-
-export DOCKER_CONF="$PWD/.docker"
 
 function build {
     if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
@@ -51,10 +51,6 @@ function login {
 }
 
 function docker_login {
-    rm -fr "$DOCKER_CONF"
-    mkdir "$DOCKER_CONF"
-    docker --config="$DOCKER_CONF" logout quay.io || echo "non-fatal error on docker logout, ignoring..."
-    docker --config="$DOCKER_CONF" logout registry.redhat.io || echo "non-fatal error on docker logout, ignoring..."
     set -x
     docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
@@ -62,10 +58,6 @@ function docker_login {
 }
 
 function podman_login {
-    AUTH_CONF_DIR="$(pwd)/.podman"
-    rm -fr $AUTH_CONF_DIR
-    mkdir $AUTH_CONF_DIR
-    export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
     podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
     podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
 }
