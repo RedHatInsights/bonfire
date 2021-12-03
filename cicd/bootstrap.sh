@@ -21,6 +21,7 @@ export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 
 # Set up docker cfg
+set +x
 export DOCKER_CONF="$WORKSPACE/.docker"
 mkdir -p "$DOCKER_CONF"
 
@@ -28,6 +29,7 @@ mkdir -p "$DOCKER_CONF"
 AUTH_CONF_DIR="$WORKSPACE/.podman"
 mkdir -p $AUTH_CONF_DIR
 export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
+set -x
 
 # if this is a PR, use a different tag, since PR tags expire
 if [ ! -z "$ghprbPullId" ]; then
