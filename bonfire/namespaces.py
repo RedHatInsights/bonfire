@@ -145,7 +145,7 @@ class Namespace:
 
     @property
     def clowdapps(self):
-        if not self.reserved:
+        if not self.reserved or not self.ready:
             return "none"
         else:
             clowd_apps = get_json("app", namespace=self.name)
