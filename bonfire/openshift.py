@@ -20,7 +20,6 @@ log = logging.getLogger(__name__)
 @functools.lru_cache(maxsize=None, typed=False)
 def get_api_resources():
     output = oc("api-resources", verbs="list", _silent=True).strip()
-    log.info("Output from oc api-resources: ", output)
     if not output:
         log.info("oc api-resources came back empty")
         return []
@@ -50,6 +49,7 @@ def get_api_resources():
             "kind": line[kind_start:].strip() or None,
         }
         resources.append(resource)
+    print(resources)
     return resources
 
 
