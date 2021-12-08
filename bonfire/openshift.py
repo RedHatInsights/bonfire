@@ -49,13 +49,13 @@ def get_api_resources():
             "kind": line[kind_start:].strip() or None,
         }
         resources.append(resource)
-    print(resources)
     return resources
 
 
 def has_ns_operator():
     log.info("Checking api-resources...")
     for res in get_api_resources():
+        log.info("name: %s / group: %s", res["name"], res["apigroup"])
         if res["name"] == "namespacereservation" and res["apigroup"] == "cloud.redhat.com":
             return True
     return False
