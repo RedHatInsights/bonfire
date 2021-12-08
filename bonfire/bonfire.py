@@ -595,6 +595,7 @@ def _list_namespaces(available, mine, output):
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, timeout):
     """Reserve an ephemeral namespace"""
+    log.info("Attempting to reserve a namespace...")
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
 
