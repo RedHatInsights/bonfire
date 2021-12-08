@@ -20,7 +20,9 @@ log = logging.getLogger(__name__)
 @functools.lru_cache(maxsize=None, typed=False)
 def get_api_resources():
     output = oc("api-resources", verbs="list", _silent=True).strip()
+    log.info("Output from oc api-resources: ", output)
     if not output:
+        log.info("oc api-resources came back empty")
         return []
 
     lines = output.split("\n")
@@ -52,6 +54,7 @@ def get_api_resources():
 
 
 def has_ns_operator():
+    log.info("Checking api-resources...")
     for res in get_api_resources():
         if res["name"] == "namespacereservation" and res["apigroup"] == "cloud.redhat.com":
             return True
