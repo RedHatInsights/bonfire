@@ -55,7 +55,7 @@ def get_api_resources():
 def has_ns_operator():
     for res in get_api_resources():
         name = res["name"]
-        apigroup = res["apigroup"].split("/")[0]
+        apigroup = str(res["apigroup"]).split("/")[0]
         if name == "namespacereservation" and apigroup == "cloud.redhat.com":
             return True
     return False
@@ -64,7 +64,7 @@ def has_ns_operator():
 def has_clowder():
     for res in get_api_resources():
         name = res["name"]
-        apigroup = res["apigroup"].split("/")[0]
+        apigroup = str(res["apigroup"]).split("/")[0]
         if name == "clowdapp" and apigroup == "cloud.redhat.com":
             return True
     return False
