@@ -44,7 +44,7 @@ def get_api_resources():
         resource = {
             "name": line[name_start:name_end].strip().rstrip("s") or None,
             "shortnames": shortnames.split(",") if shortnames else [],
-            "apigroup": line[apigroup_start:apigroup_end].strip() or None,
+            "apigroup": line[apigroup_start:apigroup_end].strip() or "",
             "namespaced": line[namespaced_start:namespaced_end].strip() == "true",
             "kind": line[kind_start:].strip() or None,
         }
