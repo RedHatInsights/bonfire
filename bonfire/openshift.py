@@ -779,12 +779,7 @@ def wait_on_reservation(res_name, timeout):
 
     def _find_reservation():
         res = get_json("reservation", name=res_name)
-        try:
-            if res["status"]["namespace"]:
-                return res["status"]["namespace"]
-            return False
-        except (KeyError, IndexError):
-            return False
+        return res.get("status", {}).get("namespace", False)
 
     ns_name, elapsed = wait_for(
         _find_reservation,
@@ -803,7 +798,8 @@ def check_for_existing_reservation(requester):
     all_res = get_json("reservation")
 
     for res in all_res["items"]:
-        if res["spec"]["requester"] == requester and res["status"]["state"] == "active":
+        res_state = res.get("status", {}).get("state") == "active"
+        if res["spec"]["requester"] == requester and res_state == "active":
             return True
 
     return False
@@ -819,7 +815,7 @@ def get_reservation(name=None, namespace=None, requester=None):
     elif namespace:
         all_res = get_json("reservation")
         for res in all_res["items"]:
-            if res["status"]["namespace"] == namespace:
+            if res.get("status", {}).get("namespace") == namespace:
                 return res
     elif requester:
         all_res = get_json("reservation", label=f"requester={requester}")
