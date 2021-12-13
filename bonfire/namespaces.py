@@ -114,7 +114,7 @@ class Namespace:
 
         if self.reserved:
             res = get_reservation(namespace=self.name)
-            if res:
+            if res and res.get("status"):
                 self.requester = res["spec"]["requester"]
                 self.expires = _parse_time(res["status"]["expiration"])
             else:
@@ -232,7 +232,7 @@ def release_namespace(namespace):
 def extend_namespace(namespace, duration):
     res = get_reservation(namespace=namespace)
     if res:
-        if res["status"]["state"] == "expired":
+        if res.get("status", {}).get("state") == "expired":
             log.error(
                 "The reservation for namespace %s has expired. Please reserve a new namespace",
                 res["status"]["namespace"],

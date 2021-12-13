@@ -73,6 +73,7 @@ def click_exception_wrapper(command):
             except FatalError as err:
                 _error(f"{command}: hit fatal error: {err}")
             except Exception as err:
+                log.exception("hit unexpected error")
                 _error(f"{command}: hit unexpected error: {err}")
 
         return wrapper
