@@ -780,7 +780,7 @@ def check_for_existing_reservation(requester):
     all_res = get_json("reservation")
 
     for res in all_res["items"]:
-        res_state = res.get("status", {}).get("state") == "active"
+        res_state = res.get("status", {}).get("state")
         if res["spec"]["requester"] == requester and res_state == "active":
             return True
 
