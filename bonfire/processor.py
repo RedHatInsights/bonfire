@@ -416,6 +416,8 @@ class TemplateProcessor:
         # override any specific parameters on this component if requested
         self._sub_params(component_name, params)
 
+        log.debug("parameters for component '%s': %s", component_name, params)
+
         new_items = process_template(template, params)["items"]
 
         # override the tags for all occurences of an image if requested

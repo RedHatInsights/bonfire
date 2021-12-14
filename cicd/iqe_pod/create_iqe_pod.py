@@ -15,7 +15,7 @@ SECRET_NAME = "iqe-settings"
 
 
 def _get_base_pod_cfg():
-    iqe_image = os.getenv('IQE_IMAGE', "quay.io/cloudservices/iqe-tests:latest")
+    iqe_image = os.getenv("IQE_IMAGE", "quay.io/cloudservices/iqe-tests:latest")
     return {
         "apiVersion": "v1",
         "kind": "Pod",
