@@ -9,6 +9,7 @@ from bonfire.openshift import (
     get_all_namespaces,
     get_json,
     get_reservation,
+    get_all_reservations,
     wait_on_reservation,
     whoami,
 )
@@ -55,7 +56,7 @@ def _pretty_time_delta(seconds):
 class Namespace:
     @property
     def annotations(self):
-        return self.data.get("metadata", "").get("annotations", {})
+        return self._data.get("metadata", "").get("annotations", {})
 
     @property
     def status(self):
@@ -105,37 +106,41 @@ class Namespace:
     def available(self):
         return not self.reserved and self.ready
 
-    def refresh(self, data):
-        self.data = data or get_json("namespace", self.name)
-        self.name = self.data.get("metadata", {}).get("name")
+    def refresh(self, namespace_data=None, reservation_data=None, clowdapps_data=None):
+        self._data = copy.deepcopy(namespace_data) or {}
+        self._reservation = copy.deepcopy(reservation_data) or {}
+        self._clowdapps = copy.deepcopy(clowdapps_data) or []
 
-        if "annotations" not in self.data["metadata"]:
-            self.data["metadata"]["annotations"] = {}
+        self._data = namespace_data or get_json("namespace", self.name)
+        self.name = self._data.get("metadata", {}).get("name")
+
+        if "annotations" not in self._data["metadata"]:
+            self._data["metadata"]["annotations"] = {}
 
         if self.reserved:
-            res = get_reservation(namespace=self.name)
-            if res and res.get("status"):
+            res = self.reservation  # note: using 'reservation' property defined below
+            if res:
                 self.requester = res["spec"]["requester"]
                 self.expires = _parse_time(res["status"]["expiration"])
-            else:
-                log.error("Could not retrieve reservation details for ns: %s", self.name)
         else:
             self.requester = None
             self.expires = None
 
-    def __init__(self, name=None, namespace_data=None):
-        self.data = copy.deepcopy(namespace_data) or {}
+    def __init__(self, name=None, namespace_data=None, reservation_data=None, clowdapps_data=None):
+        self._data = {}
+        self._reservation = {}
+        self._clowdapps = []
         self.name = name
         self.requester = None
         self.expires = None
 
-        if not self.data and not self.name:
+        if not namespace_data and not name:
             raise ValueError('Namespace needs one of: "name", "namespace_data"')
 
         # if __init__ was called with only 'name', we will fetch the ns data,
-        # otherwise we will use the data passed to __init__ to populated
+        # otherwise we will use the data passed to __init__ to populate
         # this instance's properties
-        self.refresh(data=self.data)
+        self.refresh(namespace_data, reservation_data, clowdapps_data)
 
     def __str__(self):
         return (
@@ -144,20 +149,32 @@ class Namespace:
         )
 
     @property
+    def reservation(self):
+        if not self._reservation:
+            self._reservation = get_reservation(namespace=self.name)
+
+        if not self._reservation or not self._reservation.get("status"):
+            self._reservation = None
+            log.error("Could not retrieve reservation details for ns: %s", self.name)
+
+        return self._reservation
+
+    @property
     def clowdapps(self):
         if not self.reserved or not self.ready:
             return "none"
-        else:
-            clowd_apps = get_json("app", namespace=self.name)
-            managed = len(clowd_apps["items"])
-            ready = 0
-            for app in clowd_apps["items"]:
-                if "status" in app:
-                    deployments = app["status"]["deployments"]
-                    if deployments["managedDeployments"] == deployments["readyDeployments"]:
-                        ready += 1
+        if not self._clowdapps:
+            self._clowdapps = get_json("app", namespace=self.name).get("items", [])
 
-            return f"{ready}/{managed}"
+        managed = len(self._clowdapps)
+        ready = 0
+        for app in self._clowdapps:
+            if "status" in app:
+                deployments = app["status"]["deployments"]
+                if deployments["managedDeployments"] == deployments["readyDeployments"]:
+                    ready += 1
+
+        return f"{ready}/{managed}"
 
 
 def get_namespaces(available=False, mine=False):
@@ -168,12 +185,31 @@ def get_namespaces(available=False, mine=False):
     mine (bool) -- return only namespaces owned by current user
     """
     log.debug("get_namespaces(available=%s, mine=%s)", available, mine)
-    all_namespaces = [Namespace(namespace_data=ns) for ns in get_all_namespaces()]
+    all_namespaces = get_all_namespaces()
+    all_clowdapps = get_json("clowdapp", "--all-namespaces").get("items", [])
+    all_res = get_all_reservations()
 
-    log.debug("namespaces found:\n%s", "\n".join([str(n) for n in all_namespaces]))
+    # build a list containing the ns data, reservation data, and clowdapp
+    # data pertaining to each ns
+    all_ns_kwargs = []
+    for ns in all_namespaces:
+        ns_name = ns["metadata"]["name"]
+        clowdapps_data = [
+            app for app in all_clowdapps if app.get("metadata").get("namespace") == ns_name
+        ] or None
+        reservation_data = [
+            res for res in all_res if res.get("status", {}).get("namespace") == ns_name
+        ]
+        kwargs = {
+            "namespace_data": ns,
+            "clowdapps_data": clowdapps_data,
+            "reservation_data": reservation_data[0] if reservation_data else None,
+        }
+        all_ns_kwargs.append(kwargs)
 
     ephemeral_namespaces = []
-    for ns in all_namespaces:
+    for ns_kwargs in all_ns_kwargs:
+        ns = Namespace(**ns_kwargs)
         if not ns.is_reservable:
             continue
         get_all = not mine and not available
