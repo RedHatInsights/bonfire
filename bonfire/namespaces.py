@@ -195,14 +195,14 @@ def get_namespaces(available=False, mine=False):
     for ns in all_namespaces:
         ns_name = ns["metadata"]["name"]
         clowdapps_data = [
-            app for app in all_clowdapps if app.get("metadata").get("namespace") == ns_name
-        ] or None
+            app for app in all_clowdapps if app.get("metadata", {}).get("namespace") == ns_name
+        ]
         reservation_data = [
             res for res in all_res if res.get("status", {}).get("namespace") == ns_name
         ]
         kwargs = {
             "namespace_data": ns,
-            "clowdapps_data": clowdapps_data,
+            "clowdapps_data": clowdapps_data or None,
             "reservation_data": reservation_data[0] if reservation_data else None,
         }
         all_ns_kwargs.append(kwargs)
