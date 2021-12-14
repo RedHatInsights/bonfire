@@ -270,6 +270,7 @@ _CHECKABLE_RESOURCES = [
     "daemonset",
     "clowdapp",
     "clowdenvironment",
+    "clowdjobinvocation",
     "kafka",
     "kafkaconnect",
     "pod",
@@ -310,6 +311,19 @@ def _get_name_for_kind(kind):
         if r["kind"].lower() == kind.lower():
             return r["name"]
     raise ValueError(f"unable to find resource name for kind '{kind}'")
+
+
+def _check_status_condition(status, expected_type, expected_value):
+    conditions = status.get("conditions", [])
+    expected_type = str(expected_type).lower()
+    expected_value = str(expected_value).lower()
+
+    for c in conditions:
+        status_value = str(c.get("status")).lower()
+        status_type = str(c.get("type")).lower()
+        if status_value == expected_value and status_type == expected_type:
+            return True
+    return False
 
 
 def _check_status_for_restype(restype, json_data):
@@ -360,13 +374,17 @@ def _check_status_for_restype(restype, json_data):
             return True
 
     elif restype in ("clowdenvironment", "clowdapp"):
-        return str(status.get("ready")).lower() == "true"
+        return _check_status_condition(
+            status, "DeploymentsReady", "true"
+        ) and _check_status_condition(status, "ReconciliationSuccessful", "true")
+
+    elif restype == "clowdjobinvocation":
+        return _check_status_condition(
+            status, "JobInvocationComplete", "true"
+        ) and _check_status_condition(status, "ReconciliationSuccessful", "true")
 
     elif restype in ("kafka", "kafkaconnect"):
-        conditions = status.get("conditions", [])
-        for c in conditions:
-            if str(c.get("status")).lower() == "true" and c.get("type").lower() == "ready":
-                return True
+        return _check_status_condition(status, "ready", "true")
 
 
 def _get_resource_info(item):
