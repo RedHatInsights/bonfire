@@ -797,15 +797,19 @@ def wait_on_reservation(res_name, timeout):
     return ns_name
 
 
+def get_all_reservations():
+    if not has_ns_operator():
+        return []
+    return get_json("reservation").get("items", [])
+
+
 def check_for_existing_reservation(requester):
     if not has_ns_operator():
         return False
 
     log.info("Checking for existing reservations for '%s'", requester)
 
-    all_res = get_json("reservation")
-
-    for res in all_res["items"]:
+    for res in get_all_reservations():
         res_state = res.get("status", {}).get("state")
         if res["spec"]["requester"] == requester and res_state == "active":
             return True
@@ -821,17 +825,16 @@ def get_reservation(name=None, namespace=None, requester=None):
         res = get_json("reservation", name=name)
         return res if res else False
     elif namespace:
-        all_res = get_json("reservation")
-        for res in all_res["items"]:
+        for res in get_all_reservations():
             if res.get("status", {}).get("namespace") == namespace:
                 return res
     elif requester:
-        all_res = get_json("reservation", label=f"requester={requester}")
-        numRes = len(all_res["items"])
+        requester_res = get_json("reservation", label=f"requester={requester}")
+        numRes = len(requester_res.get("items", []))
         if numRes == 0:
             return None
         elif numRes == 1:
-            return all_res["items"][0]
+            return requester_res["items"][0]
         else:
             log.info("Multiple reservations found for requester '%s'. Aborting.", requester)
             return None
