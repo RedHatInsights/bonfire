@@ -107,9 +107,9 @@ class Namespace:
         return not self.reserved and self.ready
 
     def refresh(self, namespace_data=None, reservation_data=None, clowdapps_data=None):
-        self._data = copy.deepcopy(namespace_data) or {}
-        self._reservation = copy.deepcopy(reservation_data) or {}
-        self._clowdapps = copy.deepcopy(clowdapps_data) or []
+        self._data = copy.deepcopy(namespace_data)
+        self._reservation = copy.deepcopy(reservation_data)
+        self._clowdapps = copy.deepcopy(clowdapps_data)
 
         self._data = namespace_data or get_json("namespace", self.name)
         self.name = self._data.get("metadata", {}).get("name")
@@ -127,10 +127,10 @@ class Namespace:
             self.expires = None
 
     def __init__(self, name=None, namespace_data=None, reservation_data=None, clowdapps_data=None):
-        self._data = {}
-        self._reservation = {}
-        self._clowdapps = []
         self.name = name
+        self._data = namespace_data  # if empty/None, we will fetch data
+        self._reservation = reservation_data  # if None, we will fetch data
+        self._clowdapps = clowdapps_data  # if None, we will fetch data
         self.requester = None
         self.expires = None
 
@@ -150,12 +150,13 @@ class Namespace:
 
     @property
     def reservation(self):
-        if not self._reservation:
+        if self._reservation is None:
+            log.debug("fetching reservation for ns '%s'", self.name)
             self._reservation = get_reservation(namespace=self.name)
 
         if not self._reservation or not self._reservation.get("status"):
             self._reservation = None
-            log.error("Could not retrieve reservation details for ns: %s", self.name)
+            log.warning("could not retrieve reservation details for ns: %s", self.name)
 
         return self._reservation
 
@@ -163,7 +164,8 @@ class Namespace:
     def clowdapps(self):
         if not self.reserved or not self.ready:
             return "none"
-        if not self._clowdapps:
+        if self._clowdapps is None:
+            log.debug("fetching clowdapps for ns %s", self.name)
             self._clowdapps = get_json("app", namespace=self.name).get("items", [])
 
         managed = len(self._clowdapps)
@@ -192,6 +194,7 @@ def get_namespaces(available=False, mine=False):
     # build a list containing the ns data, reservation data, and clowdapp
     # data pertaining to each ns
     all_ns_kwargs = []
+
     for ns in all_namespaces:
         ns_name = ns["metadata"]["name"]
         clowdapps_data = [
@@ -200,10 +203,12 @@ def get_namespaces(available=False, mine=False):
         reservation_data = [
             res for res in all_res if res.get("status", {}).get("namespace") == ns_name
         ]
+        # ensure a non-None value is passed in for these kwargs since we have already
+        # pre-fetched the data
         kwargs = {
             "namespace_data": ns,
-            "clowdapps_data": clowdapps_data or None,
-            "reservation_data": reservation_data[0] if reservation_data else None,
+            "clowdapps_data": clowdapps_data,
+            "reservation_data": reservation_data[0] if reservation_data else {},
         }
         all_ns_kwargs.append(kwargs)
 

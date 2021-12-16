@@ -561,6 +561,7 @@ def _list_namespaces(available, mine, output):
         _error(NO_RESERVATION_SYS)
 
     namespaces = get_namespaces(available=available, mine=mine)
+
     if not namespaces:
         if output == "json":
             click.echo("{}")
