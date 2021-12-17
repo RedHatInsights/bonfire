@@ -274,6 +274,8 @@ _CHECKABLE_RESOURCES = [
     "kafka",
     "kafkaconnect",
     "pod",
+    "cyndipipeline",
+    "xjoinpipeline",
 ]
 
 
@@ -385,6 +387,12 @@ def _check_status_for_restype(restype, json_data):
 
     elif restype in ("kafka", "kafkaconnect"):
         return _check_status_condition(status, "ready", "true")
+
+    elif restype == "cyndipipeline":
+        return _check_status_condition(status, "valid", "true") and status.get("activeTableName")
+
+    elif restype == "xjoinpipeline":
+        return _check_status_condition(status, "valid", "true") and status.get("activeIndexName")
 
 
 def _get_resource_info(item):
