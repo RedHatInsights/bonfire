@@ -23,11 +23,13 @@ export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 # Set up docker cfg
 set -x
 export DOCKER_CONF="$WORKSPACE/.docker"
-mkdir -p "$DOCKER_CONF"
+rm -fr $DOCKER_CONF
+mkdir $DOCKER_CONF
 
 # Set up podman cfg
 AUTH_CONF_DIR="$WORKSPACE/.podman"
-mkdir -p $AUTH_CONF_DIR
+rm -fr $AUTH_CONF_DIR
+mkdir $AUTH_CONF_DIR
 export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
 set +x
 
