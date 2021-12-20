@@ -52,8 +52,8 @@ function login {
 
 function docker_login {
     set -x
-    docker --config="$DOCKER_CONF" login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
-    docker --config="$DOCKER_CONF" login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
+    docker login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
+    docker login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
     set +x
 }
 
@@ -67,22 +67,22 @@ function docker_build {
         echo "Attempting to build image using cache"
         {
             set -x
-            docker --config="$DOCKER_CONF" pull "${IMAGE}" &&
-            docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}"
+            docker pull "${IMAGE}" &&
+            docker build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}"
             set +x
         } || {
             echo "Build from cache failed, attempting build without cache"
             set -x
-            docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+            docker build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
             set +x
         }
     else
         set -x
-        docker --config="$DOCKER_CONF" build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+        docker build -t "${IMAGE}:${IMAGE_TAG}" $APP_ROOT -f $APP_ROOT/$DOCKERFILE
         set +x
     fi
     set -x
-    docker --config="$DOCKER_CONF" push "${IMAGE}:${IMAGE_TAG}"
+    docker push "${IMAGE}:${IMAGE_TAG}"
     set +x
 }
 
