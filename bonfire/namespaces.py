@@ -14,7 +14,7 @@ from bonfire.openshift import (
     whoami,
 )
 from bonfire.processor import process_reservation
-from bonfire.utils import FatalError
+from bonfire.utils import FatalError, hms_to_seconds
 
 
 log = logging.getLogger(__name__)
@@ -279,10 +279,14 @@ def extend_namespace(namespace, duration):
                 res["status"]["namespace"],
             )
             return None
+
+        prev_duration = hms_to_seconds(res["spec"]["duration"])
+        new_duration = prev_duration + hms_to_seconds(duration)
+
         res_config = process_reservation(
             res["metadata"]["name"],
             res["spec"]["requester"],
-            duration,
+            _pretty_time_delta(new_duration),
         )
 
         log.debug("processed reservation:\n%s", res_config)
