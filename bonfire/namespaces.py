@@ -53,6 +53,19 @@ def _pretty_time_delta(seconds):
         return "%ds" % (seconds,)
 
 
+def _duration_fmt(seconds):
+    # https://gist.github.com/thatalextaylor/7408395
+    seconds = int(seconds)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    if hours > 0:
+        return "%dh%dm%ds" % (hours, minutes, seconds)
+    elif minutes > 0:
+        return "%dm%ds" % (minutes, seconds)
+    else:
+        return "%ds" % (seconds,)
+
+
 class Namespace:
     @property
     def annotations(self):
@@ -286,7 +299,7 @@ def extend_namespace(namespace, duration):
         res_config = process_reservation(
             res["metadata"]["name"],
             res["spec"]["requester"],
-            _pretty_time_delta(new_duration),
+            _duration_fmt(new_duration),
         )
 
         log.debug("processed reservation:\n%s", res_config)
