@@ -10,8 +10,6 @@ objects:
     name: ${NAME}
     labels:
       requester: ${REQUESTER}
-    annotations:
-      extensionId: ${EXTENSIONID}
   spec:
     duration: ${DURATION}
     requester: ${REQUESTER}
@@ -23,7 +21,3 @@ parameters:
   required: true
 - name: NAME
   required: true
-- name: EXTENSIONID
-  description: ID used to indicate a new extension of an existing reservation
-  generate: expression
-  from: "[a-zA-Z0-9]{10}"
