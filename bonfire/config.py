@@ -78,14 +78,11 @@ def load_config(config_path=None):
         if not config_path.exists():
             raise FatalError(f"provided config file path '{str(config_path)}' does not exist")
     else:
-        # no user-provided path, check default locations
-        config_path = Path("config.yaml")
+        log.debug("using default config path: %s", DEFAULT_CONFIG_PATH)
+        config_path = DEFAULT_CONFIG_PATH
         if not config_path.exists():
-            log.debug("./config.yaml not found, using default path: %s", DEFAULT_CONFIG_PATH)
-            config_path = DEFAULT_CONFIG_PATH
-            if not config_path.exists():
-                write_default_config()
-                log.info("default config not found, creating")
+            log.info("default config not found, creating")
+            write_default_config()
 
     log.info("using local config file: %s", str(config_path.absolute()))
     local_config_data = load_file(config_path)
