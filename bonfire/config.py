@@ -26,7 +26,7 @@ DEFAULT_IQE_CJI_TEMPLATE = resource_filename("bonfire", "resources/default-iqe-c
 DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yaml")
 DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservation-template.yaml")
 
-LOCAL_GRAPHQL_URL = "http://localhost:4000/graphql"
+DEFAULT_GRAPHQL_URL = "https://app-interface.apps.appsrep05ue1.zqxk.p1.openshiftapps.com"
 
 ENV_FILE = str(DEFAULT_ENV_PATH.absolute()) if DEFAULT_ENV_PATH.exists() else ""
 load_dotenv(ENV_FILE)
@@ -37,7 +37,7 @@ APP_INTERFACE_USERNAME = os.getenv("APP_INTERFACE_USERNAME")
 APP_INTERFACE_PASSWORD = os.getenv("APP_INTERFACE_PASSWORD")
 QONTRACT_BASE_URL = os.getenv(
     "QONTRACT_BASE_URL",
-    f"https://{APP_INTERFACE_BASE_URL}/graphql" if APP_INTERFACE_BASE_URL else LOCAL_GRAPHQL_URL,
+    f"https://{APP_INTERFACE_BASE_URL}/graphql" if APP_INTERFACE_BASE_URL else DEFAULT_GRAPHQL_URL,
 )
 QONTRACT_USERNAME = os.getenv("QONTRACT_USERNAME", APP_INTERFACE_USERNAME or None)
 QONTRACT_PASSWORD = os.getenv("QONTRACT_PASSWORD", APP_INTERFACE_PASSWORD or None)
