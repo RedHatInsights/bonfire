@@ -84,7 +84,7 @@ def load_config(config_path=None):
             log.info("default config not found, creating")
             write_default_config()
 
-    log.info("using local config file: %s", str(config_path.absolute()))
+    log.info("reading config from: %s", str(config_path.absolute()))
     local_config_data = load_file(config_path)
 
     return local_config_data
