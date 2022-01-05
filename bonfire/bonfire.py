@@ -316,9 +316,9 @@ _app_source_options = [
     click.option(
         "--source",
         "-s",
-        help=f"Configuration source to use when fetching app templates (default: {LOCAL_SRC})",
-        type=click.Choice([LOCAL_SRC, APP_SRE_SRC], case_sensitive=False),
-        default=LOCAL_SRC,
+        help=f"Configuration source to use when fetching app templates (default: {APP_SRE_SRC})",
+        type=click.Choice([APP_SRE_SRC, LOCAL_SRC], case_sensitive=False),
+        default=APP_SRE_SRC,
     ),
     click.option(
         "--local-config-path",
