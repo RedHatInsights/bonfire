@@ -227,6 +227,11 @@ def _process_env_parameters(parameters):
             for var in found:
                 if var in parameters:
                     parameters[key] = parameters[key].replace("${" + var + "}", parameters[var])
+                    log.debug(
+                        "parameter %s found and replaced with %s",
+                        var,
+                        parameters[var],
+                    )
 
 
 def _add_component(apps, env, app_name, saas_file, resource_template, target, defined_multiple):
