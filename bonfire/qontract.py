@@ -1,6 +1,7 @@
 import json
 import copy
 import logging
+import re
 from urllib.parse import urlparse
 
 from gql import gql
@@ -218,6 +219,16 @@ def _add_component_if_priority_higher(
         )
 
 
+def _process_env_parameters(parameters):
+    """Process variable reference in place, e.g. KAFKA_URL='${KAFKA_HOST}:9092'"""
+    for key, val in parameters.items():
+        if isinstance(val, str):
+            found = re.findall(r"\$\{([^$]+)\}", val)
+            for var in found:
+                if var in parameters:
+                    parameters[key] = parameters[key].replace("${" + var + "}", parameters[var])
+
+
 def _add_component(apps, env, app_name, saas_file, resource_template, target, defined_multiple):
     component_name = resource_template["name"]
     env_name = env["name"]
@@ -244,6 +255,7 @@ def _add_component(apps, env, app_name, saas_file, resource_template, target, de
     p.update(_to_dict(saas_file["parameters"]))
     p.update(_to_dict(resource_template["parameters"]))
     p.update(_to_dict(target["parameters"]))
+    _process_env_parameters(p)
 
     component = {
         "name": component_name,
