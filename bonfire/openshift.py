@@ -664,12 +664,16 @@ def copy_namespace_secrets(src_namespace, dst_namespace, secret_names):
         )
 
 
-def process_template(template_data, params):
+def process_template(template_data, params, local=True):
     valid_pnames = set(p["name"] for p in template_data.get("parameters", []))
     param_str = " ".join(f"-p {k}='{v}'" for k, v in params.items() if k in valid_pnames)
+    local_str = str(local).lower()
+
+    cmd = f"oc process --local={local_str} --ignore-unknown-parameters -o json -f - {param_str}"
+    log.debug("running: %s", cmd)
 
     proc = Popen(
-        f"oc process --local --ignore-unknown-parameters -o json -f - {param_str}",
+        cmd,
         shell=True,
         stdin=PIPE,
         stdout=PIPE,

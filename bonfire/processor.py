@@ -54,7 +54,7 @@ def _set_replicas(items):
             log.debug("set replicas to '1' on ClowdApp '%s'", i["metadata"]["name"])
 
 
-def process_clowd_env(target_ns, quay_user, env_name, template_path):
+def process_clowd_env(target_ns, quay_user, env_name, template_path, local=True):
     log.info("processing ClowdEnvironment")
 
     env_template_path = Path(template_path if template_path else conf.DEFAULT_CLOWDENV_TEMPLATE)
@@ -73,7 +73,7 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path):
     if target_ns:
         params["NAMESPACE"] = target_ns
 
-    processed_template = process_template(template_data, params=params)
+    processed_template = process_template(template_data, params=params, local=local)
 
     if not processed_template.get("items"):
         raise FatalError("Processed ClowdEnvironment template has no items")
@@ -93,6 +93,7 @@ def process_iqe_cji(
     requirements="",
     requirements_priority="",
     test_importance="",
+    local=True,
 ):
     log.info("processing IQE ClowdJobInvocation")
 
@@ -120,7 +121,7 @@ def process_iqe_cji(
     params["REQUIREMENTS_PRIORITY"] = json.dumps(requirements_priority)
     params["TEST_IMPORTANCE"] = json.dumps(test_importance)
 
-    processed_template = process_template(template_data, params=params)
+    processed_template = process_template(template_data, params=params, local=local)
 
     if not processed_template.get("items"):
         raise FatalError("Processed CJI template has no items")
@@ -319,6 +320,7 @@ class TemplateProcessor:
         no_remove_resources,
         single_replicas,
         component_filter,
+        local,
     ):
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
@@ -331,6 +333,7 @@ class TemplateProcessor:
         self.no_remove_resources = no_remove_resources
         self.single_replicas = single_replicas
         self.component_filter = component_filter
+        self.local = local
 
         self._validate()
 
@@ -418,7 +421,7 @@ class TemplateProcessor:
 
         log.debug("parameters for component '%s': %s", component_name, params)
 
-        new_items = process_template(template, params)["items"]
+        new_items = process_template(template, params, self.local)["items"]
 
         # override the tags for all occurences of an image if requested
         new_items = self._sub_image_tags(new_items)
