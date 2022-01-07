@@ -26,7 +26,7 @@ DEFAULT_IQE_CJI_TEMPLATE = resource_filename("bonfire", "resources/default-iqe-c
 DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yaml")
 DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservation-template.yaml")
 
-DEFAULT_GRAPHQL_URL = "https://app-interface.apps.appsrep05ue1.zqxk.p1.openshiftapps.com"
+DEFAULT_GRAPHQL_URL = "https://app-interface.apps.appsrep05ue1.zqxk.p1.openshiftapps.com/graphql"
 
 ENV_FILE = str(DEFAULT_ENV_PATH.absolute()) if DEFAULT_ENV_PATH.exists() else ""
 load_dotenv(ENV_FILE)
