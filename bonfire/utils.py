@@ -151,6 +151,7 @@ class RepoFile:
         self._alternate_refs = {
             "master": ["main", "stable"],
         }
+        self._session = requests.Session()
 
     @classmethod
     def from_config(cls, d):
@@ -249,13 +250,13 @@ class RepoFile:
 
     def _get_gl_commit_hash(self):
         group, project = self.org, self.repo
-        response = requests.get(
+        response = self._session.get(
             GL_PROJECTS_URL.format(type="groups", group=group), verify=self._gl_certfile
         )
         if response.status_code == 404:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
             # use a different path
-            response = requests.get(
+            response = self._session.get(
                 GL_PROJECTS_URL.format(type="users", group=group), verify=self._gl_certfile
             )
         response.raise_for_status()
@@ -270,7 +271,7 @@ class RepoFile:
             raise FatalError("gitlab project ID not found for {self.org}/{self.repo}")
 
         def get_ref_func(ref):
-            return requests.get(
+            return self._session.get(
                 GL_BRANCH_URL.format(id=project_id, branch=ref), verify=self._gl_certfile
             )
 
@@ -284,7 +285,7 @@ class RepoFile:
             commit = self._get_gl_commit_hash()
 
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
-        response = requests.get(url, verify=self._gl_certfile)
+        response = self._session.get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             log.warning(
                 "http response 404 for url %s, checking for template in current working dir...", url
@@ -297,7 +298,7 @@ class RepoFile:
 
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
-            return requests.get(
+            return self._session.get(
                 GH_BRANCH_URL.format(
                     org=self.org,
                     repo=self.repo,
@@ -316,7 +317,7 @@ class RepoFile:
             commit = self._get_gh_commit_hash()
 
         url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
-        response = requests.get(url)
+        response = self._session.get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
             log.warning(
                 "http response 404 for url %s, checking for template in current working dir...", url
