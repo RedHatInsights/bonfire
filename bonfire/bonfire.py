@@ -8,22 +8,22 @@ import warnings
 
 from tabulate import tabulate
 from wait_for import TimedOutError
+from functools import wraps
 
 import bonfire.config as conf
-from bonfire.qontract import get_apps_for_env, sub_refs, get_secret_names_in_namespace
+from bonfire.qontract import get_apps_for_env, sub_refs
 from bonfire.openshift import (
     apply_config,
-    get_all_namespaces,
     wait_for_all_resources,
     wait_for_db_resources,
     find_clowd_env_for_ns,
     wait_for_clowd_env_target_ns,
     wait_on_cji,
-    wait_on_reservation,
     get_reservation,
     check_for_existing_reservation,
-    oc,
     whoami,
+    has_ns_operator,
+    has_clowder,
 )
 from bonfire.utils import (
     FatalError,
@@ -38,15 +38,13 @@ from bonfire.processor import (
     TemplateProcessor,
     process_clowd_env,
     process_iqe_cji,
-    process_reservation,
 )
 from bonfire.namespaces import (
     Namespace,
     get_namespaces,
+    extend_namespace,
     reserve_namespace,
     release_namespace,
-    add_base_resources,
-    reconcile,
 )
 from bonfire.secrets import import_secrets_from_dir
 
@@ -60,6 +58,27 @@ NO_RESERVATION_SYS = "this cluster does not use a namespace reservation system"
 def _error(msg):
     click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
+
+
+def click_exception_wrapper(command):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except KeyboardInterrupt:
+                _error(f"{command}: aborted by keyboard interrupt")
+            except TimedOutError as err:
+                _error(f"{command}: hit timeout error: {err}")
+            except FatalError as err:
+                _error(f"{command}: hit fatal error: {err}")
+            except Exception as err:
+                log.exception("hit unexpected error")
+                _error(f"{command}: hit unexpected error: {err}")
+
+        return wrapper
+
+    return decorator
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -103,84 +122,47 @@ def apps():
     pass
 
 
-@main.group()
-def reservation():
-    """ALPHA: Perform operations related to the NamespaceReservation CRD"""
-    pass
-
-
-def _warn_if_unsafe(namespace):
-    ns = Namespace(name=namespace)
-    if not ns.owned_by_me and not ns.available:
-        if not click.confirm(
-            "Namespace currently not ready or reserved by someone else.  Continue anyway?"
-        ):
+def _confirm_or_abort(msg):
+    if conf.BONFIRE_BOT:
+        # these types of warnings shouldn't occur in automated runs, error out immediately
+        _error(msg)
+    else:
+        # have end user confirm if they want to proceed anyway
+        msg = f"{msg}.  Continue anyway?"
+        if not click.confirm(msg):
             click.echo("Aborting")
             sys.exit(0)
 
 
+def _warn_if_not_owned_by_me():
+    _confirm_or_abort("Namespace currently reserved by someone else")
+
+
+def _warn_if_not_ready():
+    _confirm_or_abort("Namespace's environment is not currently ready")
+
+
 def _warn_before_delete():
-    if not click.confirm(
-        "Deleting your reservation will also delete the associated namespace. Proceed?"
-    ):
-        click.echo("Aborting")
-        sys.exit(0)
+    _confirm_or_abort("Deleting this reservation will also delete the associated namespace")
 
 
 def _warn_of_existing(requester):
-    if not click.confirm(
-        f"Existing reservation(s) detected for requester '{requester}'. "
-        "Do you need to reserve an additional namespace?"
-    ):
-        click.echo("Aborting")
-        sys.exit(0)
-
-
-def _reserve_namespace(duration, retries, namespace):
-    log.info(
-        "reserving ephemeral namespace%s...",
-        f" '{namespace}'" if namespace else "",
+    _confirm_or_abort(
+        f"Existing reservation(s) found for requester '{requester}', "
+        "consider re-using the existing namespace"
     )
 
-    if namespace:
-        _warn_if_unsafe(namespace)
 
-    ns = reserve_namespace(duration, retries, namespace)
-    if not ns:
-        _error("unable to reserve namespace")
-
-    return ns
-
-
-def _get_target_namespace(duration, retries, namespace=None):
-    """Determine the namespace to deploy to.
-
-    Use ns reservation system if on a cluster that has reservable namespaces. Otherwise the user
-    must specify a namespace with '--namespace' and we assume they have ownership of it.
-
-    Returns tuple of:
-    (bool indicating whether ns reservation system was used, namespace name)
-    """
-    # check if we're on a cluster that has reservable namespaces
-    reservable_namespaces = get_namespaces()
-    if reservable_namespaces:
-        ns = _reserve_namespace(duration, retries, namespace)
-        return (True, ns.name)
+def _get_requester():
+    if conf.BONFIRE_NS_REQUESTER:
+        requester = conf.BONFIRE_NS_REQUESTER
     else:
-        # we're not, user has to namespace to deploy to
-        if not namespace:
-            _error(NO_RESERVATION_SYS + ".  Use -n/--namespace to specify target namespace")
-
-        # make sure ns exists on the cluster
-        cluster_namespaces = get_all_namespaces()
-        for cluster_ns in cluster_namespaces:
-            if cluster_ns["metadata"]["name"] == namespace:
-                ns = namespace
-                break
-        else:
-            _error(f"namespace '{namespace}' not found on cluster")
-
-        return (False, ns)
+        try:
+            requester = whoami()
+        except Exception:
+            log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
+            requester = "bonfire"
+    return requester
 
 
 def _wait_on_namespace_resources(namespace, timeout, db_only=False):
@@ -190,29 +172,62 @@ def _wait_on_namespace_resources(namespace, timeout, db_only=False):
         wait_for_all_resources(namespace, timeout)
 
 
-def _prepare_namespace(namespace):
-    base_secret_names = get_secret_names_in_namespace(conf.BASE_NAMESPACE_NAME)
-    add_base_resources(namespace, base_secret_names)
+def _validate_reservation_duration(ctx, param, value):
+    try:
+        return validate_time_string(value)
+    except ValueError:
+        raise click.BadParameter("expecting h/m/s string. Ex: '1h30m'")
 
 
 _ns_reserve_options = [
     click.option(
-        "--duration",
-        "-d",
-        required=False,
-        type=int,
-        default=1,
-        help="duration of reservation in hrs (default: 1)",
+        "--name",
+        type=str,
+        default=None,
+        help="Identifier for the reservation",
     ),
     click.option(
-        "--retries",
+        "--requester",
         "-r",
-        required=False,
-        type=int,
-        default=0,
-        help="how many times to retry namespace reserve before giving up (default: infinite)",
+        type=str,
+        default=None,
+        help="Name of the user requesting a reservation",
+    ),
+    click.option(
+        "--duration",
+        "-d",
+        type=str,
+        default="1h",
+        help="Duration of the reservation",
+        callback=_validate_reservation_duration,
     ),
 ]
+
+
+_ns_list_options = [
+    click.option(
+        "--available",
+        "-a",
+        is_flag=True,
+        default=False,
+        help="show only un-reserved/ready namespaces",
+    ),
+    click.option(
+        "--mine",
+        "-m",
+        is_flag=True,
+        default=False,
+        help="show only namespaces reserved in your name",
+    ),
+    click.option(
+        "--output",
+        "-o",
+        default="cli",
+        help="which output format to return the data in",
+        type=click.Choice(["cli", "json"], case_sensitive=False),
+    ),
+]
+
 
 _timeout_option = [
     click.option(
@@ -297,20 +312,13 @@ def _validate_resource_arguments(ctx, param, value):
     return value
 
 
-def _validate_reservation_duration(ctx, param, value):
-    try:
-        return validate_time_string(value)
-    except ValueError:
-        raise click.BadParameter("expecting h/m/s string. Ex: '1h30m'")
-
-
 _app_source_options = [
     click.option(
         "--source",
         "-s",
-        help=f"Configuration source to use when fetching app templates (default: {LOCAL_SRC})",
-        type=click.Choice([LOCAL_SRC, APP_SRE_SRC], case_sensitive=False),
-        default=LOCAL_SRC,
+        help=f"Configuration source to use when fetching app templates (default: {APP_SRE_SRC})",
+        type=click.Choice([APP_SRE_SRC, LOCAL_SRC], case_sensitive=False),
+        default=APP_SRE_SRC,
     ),
     click.option(
         "--local-config-path",
@@ -533,53 +541,6 @@ _iqe_cji_process_options = [
     ),
 ]
 
-_reservation_process_options = [
-    click.option(
-        "--name",
-        type=str,
-        default=None,
-        help="Identifier for the reservation",
-    ),
-    click.option(
-        "--requester",
-        "-r",
-        type=str,
-        default=None,
-        help="Name of the user requesting a reservation",
-    ),
-    click.option(
-        "--duration",
-        "-d",
-        type=str,
-        default="1h",
-        help="Duration of the reservation",
-        callback=_validate_reservation_duration,
-    ),
-]
-
-_reservation_lookup_options = [
-    click.option(
-        "--name",
-        type=str,
-        default=None,
-        help="Identifier for the reservation",
-    ),
-    click.option(
-        "--requester",
-        "-r",
-        type=str,
-        default=None,
-        help="Name of the user requesting a reservation",
-    ),
-    click.option(
-        "--namespace",
-        "-n",
-        type=str,
-        default=None,
-        help="Namespace for the reservation",
-    ),
-]
-
 
 def options(options_list):
     """Click decorator used to set a list of click options on a command."""
@@ -593,33 +554,15 @@ def options(options_list):
 
 
 @namespace.command("list")
-@click.option(
-    "--available",
-    "-a",
-    is_flag=True,
-    default=False,
-    help="show only un-reserved/ready namespaces",
-)
-@click.option(
-    "--mine",
-    "-m",
-    is_flag=True,
-    default=False,
-    help="show only namespaces reserved in your name",
-)
-@click.option(
-    "--output",
-    "-o",
-    default="cli",
-    help="which output format to return the data in",
-    type=click.Choice(["cli", "json"], case_sensitive=False),
-)
+@options(_ns_list_options)
 def _list_namespaces(available, mine, output):
     """Get list of ephemeral namespaces"""
-    namespaces = get_namespaces(available=available, mine=mine)
-    if not available and not mine and not namespaces:
+    if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
-    elif not namespaces:
+
+    namespaces = get_namespaces(available=available, mine=mine)
+
+    if not namespaces:
         if output == "json":
             click.echo("{}")
         else:
@@ -630,8 +573,8 @@ def _list_namespaces(available, mine, output):
             for ns in namespaces:
                 data[ns.name] = {
                     "reserved": ns.reserved,
-                    "ready": ns.ready,
-                    "requester": ns.requester_name,
+                    "status": ns.status,
+                    "requester": ns.requester,
                     "expires_in": ns.expires_in,
                 }
             click.echo(json.dumps(data, indent=2))
@@ -639,8 +582,9 @@ def _list_namespaces(available, mine, output):
             data = {
                 "NAME": [ns.name for ns in namespaces],
                 "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
-                "RESERVABLE": [str(ns.ready).lower() for ns in namespaces],
-                "REQUESTER": [ns.requester_name for ns in namespaces],
+                "ENV STATUS": [str(ns.status).lower() for ns in namespaces],
+                "APPS READY": [ns.clowdapps for ns in namespaces],
+                "REQUESTER": [ns.requester for ns in namespaces],
                 "EXPIRES IN": [ns.expires_in for ns in namespaces],
             }
             tabulated = tabulate(data, headers="keys")
@@ -649,12 +593,22 @@ def _list_namespaces(available, mine, output):
 
 @namespace.command("reserve")
 @options(_ns_reserve_options)
-@click.argument("namespace", required=False, type=str)
-def _cmd_namespace_reserve(duration, retries, namespace):
-    """Reserve an ephemeral namespace (specific or random)"""
-    if not get_namespaces():
+@options(_timeout_option)
+@click_exception_wrapper("namespace reserve")
+def _cmd_namespace_reserve(name, requester, duration, timeout):
+    """Reserve an ephemeral namespace"""
+    log.info("Attempting to reserve a namespace...")
+    if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
-    ns = _reserve_namespace(duration, retries, namespace)
+
+    if requester is None:
+        requester = _get_requester()
+
+    if check_for_existing_reservation(requester):
+        _warn_of_existing(requester)
+
+    ns = reserve_namespace(name, requester, duration, timeout)
+
     click.echo(ns.name)
 
 
@@ -667,13 +621,35 @@ def _cmd_namespace_reserve(duration, retries, namespace):
     default=False,
     help="Do not check if you own this namespace",
 )
+@click_exception_wrapper("namespace release")
 def _cmd_namespace_release(namespace, force):
     """Remove reservation from an ephemeral namespace"""
-    if not get_namespaces():
+    if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
+
     if not force:
-        _warn_if_unsafe(namespace)
+        _warn_before_delete()
+
     release_namespace(namespace)
+
+
+@namespace.command("extend")
+@click.argument("namespace", required=True, type=str)
+@click.option(
+    "--duration",
+    "-d",
+    type=str,
+    default="1h",
+    help="Amount of time to extend the reservation",
+    callback=_validate_reservation_duration,
+)
+@click_exception_wrapper("namespace extend")
+def _cmd_namespace_extend(namespace, duration):
+    """Extend a reservation of an ephemeral namespace"""
+    if not has_ns_operator():
+        _error(NO_RESERVATION_SYS)
+
+    extend_namespace(namespace, duration)
 
 
 @namespace.command("wait-on-resources")
@@ -692,19 +668,6 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     except TimedOutError as err:
         log.error("Hit timeout error: %s", err)
         _error("namespace wait timed out")
-
-
-@namespace.command("prepare", hidden=True)
-@click.argument("namespace", required=True, type=str)
-def _cmd_namespace_prepare(namespace):
-    """Copy base resources into specified namespace (for admin use only)"""
-    _prepare_namespace(namespace)
-
-
-@namespace.command("reconcile", hidden=True)
-def _cmd_namespace_reconcile():
-    """Run reconciler for namespace reservations (for admin use only)"""
-    reconcile()
 
 
 def _get_apps_config(source, target_env, ref_env, local_config_path):
@@ -828,6 +791,46 @@ def _cmd_process(
     print(json.dumps(processed_templates, indent=2))
 
 
+def _get_namespace(requested_ns_name, name, requester, duration, timeout):
+    reserved_new_ns = False
+
+    if not has_ns_operator():
+        if requested_ns_name:
+            ns = Namespace(name=requested_ns_name)
+        else:
+            _error(f"{NO_RESERVATION_SYS}. Use '-n' to provide a specific target namespace")
+
+    else:
+        if requested_ns_name:
+            log.debug(
+                "checking if namespace '%s' has been reserved via ns operator...", requested_ns_name
+            )
+            operator_reservation = get_reservation(namespace=requested_ns_name)
+            if not operator_reservation:
+                _error(f"Namespace '{requested_ns_name}' has not been reserved yet")
+            else:
+                log.debug("found existing ns operator reservation")
+
+                if operator_reservation.get("status", {}).get("state") == "expired":
+                    _error(f"Reservation has expired for namespace '{requested_ns_name}'")
+
+                ns = Namespace(name=requested_ns_name)
+                if not ns.owned_by_me:
+                    _warn_if_not_owned_by_me()
+                if not ns.ready:
+                    _warn_if_not_ready()
+
+        else:
+            log.debug("checking if requester already has another namespace reserved...")
+            requester = requester if requester else _get_requester()
+            if check_for_existing_reservation(requester):
+                _warn_of_existing(requester)
+            ns = reserve_namespace(name, requester, duration, timeout)
+            reserved_new_ns = True
+
+    return ns.name, reserved_new_ns
+
+
 @main.command("deploy")
 @options(_process_options)
 @click.option(
@@ -871,8 +874,9 @@ def _cmd_config_deploy(
     no_remove_resources,
     single_replicas,
     namespace,
+    name,
+    requester,
     duration,
-    retries,
     timeout,
     no_release_on_fail,
     component_filter,
@@ -880,17 +884,10 @@ def _cmd_config_deploy(
     secrets_dir,
 ):
     """Process app templates and deploy them to a cluster"""
-    requested_ns = namespace
+    if not has_clowder():
+        _error("cluster does not have clowder operator installed")
 
-    log.debug("checking if namespace has been reserved via ns operator...")
-    operator_reservation = get_reservation(namespace=requested_ns)
-
-    if not operator_reservation:
-        log.debug("no ns operator reservation found, using old ns reservation system")
-        used_ns_reservation_system, ns = _get_target_namespace(duration, retries, requested_ns)
-    else:
-        log.debug("found existing ns operator reservation")
-        used_ns_reservation_system, ns = False, requested_ns
+    ns, reserved_new_ns = _get_namespace(namespace, name, requester, duration, timeout)
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -909,13 +906,15 @@ def _cmd_config_deploy(
 
     def _err_handler(err):
         try:
-            if not no_release_on_fail and not requested_ns and used_ns_reservation_system:
+            if not no_release_on_fail and reserved_new_ns:
                 # if we auto-reserved this ns, auto-release it on failure unless
                 # --no-release-on-fail was requested
                 log.info("releasing namespace '%s'", ns)
                 release_namespace(ns)
         finally:
-            msg = f"deploy failed: {str(err)}"
+            msg = "deploy failed"
+            if str(err):
+                msg += f": {str(err)}"
             _error(msg)
 
     try:
@@ -988,50 +987,47 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file):
     help=("Import secrets from this directory (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)"),
     default=conf.DEFAULT_SECRETS_DIR,
 )
+@options(_ns_reserve_options)
 @options(_timeout_option)
+@click_exception_wrapper("deploy-env")
 def _cmd_deploy_clowdenv(
-    namespace, quay_user, clowd_env, template_file, timeout, import_secrets, secrets_dir
+    namespace,
+    quay_user,
+    clowd_env,
+    template_file,
+    timeout,
+    import_secrets,
+    secrets_dir,
+    name,
+    requester,
+    duration,
 ):
     """Process ClowdEnv template and deploy to a cluster"""
-    _warn_if_unsafe(namespace)
+    if not has_clowder():
+        _error("cluster does not have clowder operator installed")
 
-    def _err_handler(err):
-        msg = f"deploy failed: {str(err)}"
-        _error(msg)
+    namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
 
-    try:
-        if import_secrets:
-            import_secrets_from_dir(secrets_dir)
+    if import_secrets:
+        import_secrets_from_dir(secrets_dir)
 
-        clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
+    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
 
-        log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
+    log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
 
-        apply_config(None, clowd_env_config)
+    apply_config(None, clowd_env_config)
 
-        if not namespace:
-            # wait for Clowder to tell us what target namespace it created
-            namespace = wait_for_clowd_env_target_ns(clowd_env)
+    if not namespace:
+        # wait for Clowder to tell us what target namespace it created
+        namespace = wait_for_clowd_env_target_ns(clowd_env)
 
-        log.info("waiting on resources for max of %dsec...", timeout)
-        _wait_on_namespace_resources(namespace, timeout)
+    log.info("waiting on resources for max of %dsec...", timeout)
+    _wait_on_namespace_resources(namespace, timeout)
 
-        clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
-    else:
-        log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
-        click.echo(namespace)
+    clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
+
+    log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
+    click.echo(namespace)
 
 
 @main.command("process-iqe-cji")
@@ -1069,7 +1065,9 @@ def _cmd_process_iqe_cji(
 @main.command("deploy-iqe-cji")
 @click.option("--namespace", "-n", help="Namespace to deploy to", type=str, required=True)
 @options(_iqe_cji_process_options)
+@options(_ns_reserve_options)
 @options(_timeout_option)
+@click_exception_wrapper("deploy-iqe-cji")
 def _cmd_deploy_iqe_cji(
     namespace,
     clowd_app_name,
@@ -1084,57 +1082,43 @@ def _cmd_deploy_iqe_cji(
     requirements,
     requirements_priority,
     test_importance,
+    name,
+    requester,
+    duration,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
-    _warn_if_unsafe(namespace)
+    if not has_clowder():
+        _error("cluster does not have clowder operator installed")
 
-    def _err_handler(err):
-        msg = f"deploy failed: {str(err)}"
-        _error(msg)
+    namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
+
+    cji_config = process_iqe_cji(
+        clowd_app_name,
+        debug,
+        marker,
+        filter,
+        env,
+        image_tag,
+        cji_name,
+        template_file,
+        requirements,
+        requirements_priority,
+        test_importance,
+    )
+
+    log.debug("processed CJI config:\n%s", cji_config)
 
     try:
-        cji_config = process_iqe_cji(
-            clowd_app_name,
-            debug,
-            marker,
-            filter,
-            env,
-            image_tag,
-            cji_name,
-            template_file,
-            requirements,
-            requirements_priority,
-            test_importance,
-        )
+        cji_name = cji_config["items"][0]["metadata"]["name"]
+    except (KeyError, IndexError):
+        raise Exception("error parsing name of CJI from processed template, check CJI template")
 
-        log.debug("processed CJI config:\n%s", cji_config)
+    apply_config(namespace, cji_config)
 
-        try:
-            cji_name = cji_config["items"][0]["metadata"]["name"]
-        except (KeyError, IndexError):
-            raise Exception("error parsing name of CJI from processed template, check CJI template")
-
-        apply_config(namespace, cji_config)
-
-        log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
-        pod_name = wait_on_cji(namespace, cji_name, timeout)
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
-    else:
-        log.info(
-            "pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace
-        )
-        click.echo(pod_name)
+    log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
+    pod_name = wait_on_cji(namespace, cji_name, timeout)
+    log.info("pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace)
+    click.echo(pod_name)
 
 
 @main.command("version")
@@ -1201,203 +1185,6 @@ def _cmd_apps_what_depends_on(
     apps = _get_apps_config(source, target_env, None, local_config_path)
     found = find_what_depends_on(apps, component)
     print("\n".join(found) or f"no apps depending on {component} found")
-
-
-@reservation.command("create")
-@click.option(
-    "--bot",
-    "-b",
-    is_flag=True,
-    help="Use this flag to skip the duplicate reservation check (for automation)",
-)
-@options(_reservation_process_options)
-@options(_timeout_option)
-def _create_new_reservation(bot, name, requester, duration, timeout):
-    def _err_handler(err):
-        msg = f"reservation failed: {str(err)}"
-        _error(msg)
-
-    try:
-        res = get_reservation(name)
-        # Name should be unique on reservation creation.
-        if res:
-            raise FatalError(f"Reservation with name {name} already exists")
-
-        res_config = process_reservation(name, requester, duration)
-
-        log.debug("processed reservation:\n%s", res_config)
-
-        if not bot:
-            if check_for_existing_reservation(res_config["items"][0]["spec"]["requester"]):
-                _warn_of_existing(res_config["items"][0]["spec"]["requester"])
-
-        try:
-            res_name = res_config["items"][0]["metadata"]["name"]
-        except (KeyError, IndexError):
-            raise Exception(
-                "error parsing name of Reservation from processed template, "
-                "check Reservation template"
-            )
-
-        apply_config(None, list_resource=res_config)
-
-        ns_name = wait_on_reservation(res_name, timeout)
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
-    else:
-        log.info(
-            "namespace '%s' is reserved by '%s' for '%s'",
-            ns_name,
-            res_config["items"][0]["spec"]["requester"],
-            duration,
-        )
-        click.echo(ns_name)
-
-
-@reservation.command("extend")
-@click.option(
-    "--duration",
-    "-d",
-    type=str,
-    default="1h",
-    help="Amount of time to extend the reservation",
-    callback=_validate_reservation_duration,
-)
-@options(_reservation_lookup_options)
-def _extend_reservation(name, namespace, requester, duration):
-    def _err_handler(err):
-        msg = f"reservation extension failed: {str(err)}"
-        _error(msg)
-
-    if not (name or namespace or requester):
-        _err_handler(
-            "To extend a reservation provide one of name, "
-            "namespace, or requester. See 'bonfire reservation extend -h'"
-        )
-
-    try:
-        res = get_reservation(name, namespace, requester)
-        if res:
-            res_config = process_reservation(
-                res["metadata"]["name"],
-                res["spec"]["requester"],
-                duration,
-            )
-
-            log.debug("processed reservation:\n%s", res_config)
-
-            apply_config(None, list_resource=res_config)
-        else:
-            raise FatalError("Reservation lookup failed")
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
-    else:
-        log.info("reservation '%s' extended by '%s'", res["metadata"]["name"], duration)
-
-
-@reservation.command("delete")
-@options(_reservation_lookup_options)
-def _delete_reservation(name, namespace, requester):
-    def _err_handler(err):
-        msg = f"reservation deletion failed: {str(err)}"
-        _error(msg)
-
-    if not (name or namespace or requester):
-        _err_handler(
-            "To delete a reservation provide one of name, "
-            "namespace, or requester. See 'bonfire reservation delete -h'"
-        )
-
-    try:
-        res = get_reservation(name, namespace, requester)
-        if res:
-            _warn_before_delete()
-            res_name = res["metadata"]["name"]
-            log.info("deleting reservation '%s'", res_name)
-            oc("delete", "reservation", res_name)
-            log.info("reservation '%s' deleted", res_name)
-        else:
-            raise FatalError("Reservation lookup failed")
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
-
-
-@reservation.command("list")
-@click.option(
-    "--mine",
-    "-m",
-    is_flag=True,
-    help="Return reservations belonging to the result of oc whoami",
-)
-@click.option(
-    "--requester",
-    "-r",
-    type=str,
-    default=None,
-    help="Return reservations belonging to the provided requester",
-)
-def _list_reservations(mine, requester):
-    def _err_handler(err):
-        msg = f"reservation listing failed: {str(err)}"
-        _error(msg)
-
-    try:
-        if mine:
-            try:
-                requester = whoami()
-            except Exception:
-                log.info(
-                    "whoami returned an error - getting reservations for 'bonfire'"
-                )  # minikube
-                requester = "bonfire"
-            oc("get", "reservation", "--selector", f"requester={requester}")
-        else:
-            if requester:
-                oc("get", "reservation", "--selector", f"requester={requester}")
-            else:
-                oc("get", "reservation")
-    except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
-        _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
 
 
 def main_with_handler():

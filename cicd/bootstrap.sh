@@ -19,6 +19,8 @@ export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build
 export BONFIRE_ROOT=${WORKSPACE}/bonfire
 export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
+export BONFIRE_BOT="true"
+export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 
 # Set up docker cfg
 set -x
@@ -56,7 +58,13 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 pip install --upgrade pip 'setuptools<58' wheel
-pip install --upgrade 'crc-bonfire>=2.17.2'
+# pip install --upgrade 'crc-bonfire>=2.17.2'
+
+# TEMP FOR TESTING: pip install use-ns-operator branch of bonfire
+pip install --upgrade 'git+https://github.com/RedHatInsights/bonfire.git@use-ns-operator'
 
 # clone repo to download cicd scripts
-git clone https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+
+# TEMP FOR TESTING: pull use-ns-operator branch
+git clone --branch use-ns-operator https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+

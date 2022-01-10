@@ -8,7 +8,6 @@ objects:
   kind: NamespaceReservation
   metadata:
     name: ${NAME}
-    extensionId: ${EXTENSIONID}
     labels:
       requester: ${REQUESTER}
   spec:
@@ -22,7 +21,3 @@ parameters:
   required: true
 - name: NAME
   required: true
-- name: EXTENSIONID
-  description: ID used to indicate a new extension of an existing reservation
-  generate: expression
-  from: "[a-zA-Z0-9]{10}"
