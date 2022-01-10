@@ -58,13 +58,8 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 pip install --upgrade pip 'setuptools<58' wheel
-# pip install --upgrade 'crc-bonfire>=2.17.2'
-
-# TEMP FOR TESTING: pip install use-ns-operator branch of bonfire
-pip install --upgrade 'git+https://github.com/RedHatInsights/bonfire.git@use-ns-operator'
+pip install --upgrade crc-bonfire
 
 # clone repo to download cicd scripts
-
-# TEMP FOR TESTING: pull use-ns-operator branch
-git clone --branch use-ns-operator https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
