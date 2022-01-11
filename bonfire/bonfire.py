@@ -54,6 +54,13 @@ APP_SRE_SRC = "appsre"
 LOCAL_SRC = "local"
 NO_RESERVATION_SYS = "this cluster does not use a namespace reservation system"
 
+_local_option = click.option(
+    "--local",
+    help="Whether 'oc process' uses --local=true or --local=false (default: true)",
+    type=bool,
+    default=True,
+)
+
 
 def _error(msg):
     click.echo(f"ERROR: {msg}", err=True)
@@ -201,6 +208,7 @@ _ns_reserve_options = [
         help="Duration of the reservation",
         callback=_validate_reservation_duration,
     ),
+    _local_option,
 ]
 
 
@@ -340,7 +348,6 @@ _app_source_options = [
     ),
 ]
 
-
 _process_options = [
     click.argument(
         "app_names",
@@ -426,6 +433,7 @@ _process_options = [
         type=str,
         multiple=True,
     ),
+    _local_option,
 ]
 
 
@@ -459,6 +467,7 @@ _clowdenv_process_options = [
         type=str,
         default=None,
     ),
+    _local_option,
 ]
 
 
@@ -538,6 +547,7 @@ _iqe_cji_process_options = [
         type=str,
         default="",
     ),
+    _local_option,
 ]
 
 
@@ -594,7 +604,7 @@ def _list_namespaces(available, mine, output):
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("namespace reserve")
-def _cmd_namespace_reserve(name, requester, duration, timeout):
+def _cmd_namespace_reserve(name, requester, duration, timeout, local):
     """Reserve an ephemeral namespace"""
     log.info("Attempting to reserve a namespace...")
     if not has_ns_operator():
@@ -606,7 +616,7 @@ def _cmd_namespace_reserve(name, requester, duration, timeout):
     if check_for_existing_reservation(requester):
         _warn_of_existing(requester)
 
-    ns = reserve_namespace(name, requester, duration, timeout)
+    ns = reserve_namespace(name, requester, duration, timeout, local)
 
     click.echo(ns.name)
 
@@ -620,8 +630,9 @@ def _cmd_namespace_reserve(name, requester, duration, timeout):
     default=False,
     help="Do not check if you own this namespace",
 )
+@options([_local_option])
 @click_exception_wrapper("namespace release")
-def _cmd_namespace_release(namespace, force):
+def _cmd_namespace_release(namespace, force, local):
     """Remove reservation from an ephemeral namespace"""
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
@@ -629,7 +640,7 @@ def _cmd_namespace_release(namespace, force):
     if not force:
         _warn_before_delete()
 
-    release_namespace(namespace)
+    release_namespace(namespace, local)
 
 
 @namespace.command("extend")
@@ -642,13 +653,14 @@ def _cmd_namespace_release(namespace, force):
     help="Amount of time to extend the reservation",
     callback=_validate_reservation_duration,
 )
+@options([_local_option])
 @click_exception_wrapper("namespace extend")
-def _cmd_namespace_extend(namespace, duration):
+def _cmd_namespace_extend(namespace, duration, local):
     """Extend a reservation of an ephemeral namespace"""
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
 
-    extend_namespace(namespace, duration)
+    extend_namespace(namespace, duration, local)
 
 
 @namespace.command("wait-on-resources")
@@ -724,6 +736,7 @@ def _process(
     no_remove_resources,
     single_replicas,
     component_filter,
+    local,
 ):
     apps_config = _get_apps_config(source, target_env, ref_env, local_config_path)
 
@@ -739,6 +752,7 @@ def _process(
         no_remove_resources,
         single_replicas,
         component_filter,
+        local,
     )
     return processor.process()
 
@@ -767,6 +781,7 @@ def _cmd_process(
     no_remove_resources,
     single_replicas,
     component_filter,
+    local,
 ):
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
@@ -786,11 +801,12 @@ def _cmd_process(
         no_remove_resources,
         single_replicas,
         component_filter,
+        local,
     )
     print(json.dumps(processed_templates, indent=2))
 
 
-def _get_namespace(requested_ns_name, name, requester, duration, timeout):
+def _get_namespace(requested_ns_name, name, requester, duration, timeout, local):
     reserved_new_ns = False
 
     if not has_ns_operator():
@@ -824,7 +840,7 @@ def _get_namespace(requested_ns_name, name, requester, duration, timeout):
             requester = requester if requester else _get_requester()
             if check_for_existing_reservation(requester):
                 _warn_of_existing(requester)
-            ns = reserve_namespace(name, requester, duration, timeout)
+            ns = reserve_namespace(name, requester, duration, timeout, local)
             reserved_new_ns = True
 
     return ns.name, reserved_new_ns
@@ -881,12 +897,13 @@ def _cmd_config_deploy(
     component_filter,
     import_secrets,
     secrets_dir,
+    local,
 ):
     """Process app templates and deploy them to a cluster"""
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    ns, reserved_new_ns = _get_namespace(namespace, name, requester, duration, timeout)
+    ns, reserved_new_ns = _get_namespace(namespace, name, requester, duration, timeout, local)
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -933,6 +950,7 @@ def _cmd_config_deploy(
             no_remove_resources,
             single_replicas,
             component_filter,
+            local,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
@@ -959,16 +977,16 @@ def _cmd_config_deploy(
         click.echo(ns)
 
 
-def _process_clowdenv(target_namespace, quay_user, env_name, template_file):
+def _process_clowdenv(target_namespace, quay_user, env_name, template_file, local):
     env_name = _get_env_name(target_namespace, env_name)
-    return process_clowd_env(target_namespace, quay_user, env_name, template_file)
+    return process_clowd_env(target_namespace, quay_user, env_name, template_file, local)
 
 
 @main.command("process-env")
 @options(_clowdenv_process_options)
-def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file):
+def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local):
     """Process ClowdEnv template and print output"""
-    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
+    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
     print(json.dumps(clowd_env_config, indent=2))
 
 
@@ -1000,17 +1018,18 @@ def _cmd_deploy_clowdenv(
     name,
     requester,
     duration,
+    local,
 ):
     """Process ClowdEnv template and deploy to a cluster"""
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
+    namespace, _ = _get_namespace(namespace, name, requester, duration, timeout, local)
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
 
-    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file)
+    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
 
     log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
 
@@ -1043,6 +1062,7 @@ def _cmd_process_iqe_cji(
     requirements,
     requirements_priority,
     test_importance,
+    local,
 ):
     """Process IQE ClowdJobInvocation template and print output"""
     cji_config = process_iqe_cji(
@@ -1057,6 +1077,7 @@ def _cmd_process_iqe_cji(
         requirements,
         requirements_priority,
         test_importance,
+        local,
     )
     print(json.dumps(cji_config, indent=2))
 
@@ -1084,12 +1105,13 @@ def _cmd_deploy_iqe_cji(
     name,
     requester,
     duration,
+    local,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, duration, timeout)
+    namespace, _ = _get_namespace(namespace, name, requester, duration, timeout, local)
 
     cji_config = process_iqe_cji(
         clowd_app_name,
@@ -1103,6 +1125,7 @@ def _cmd_deploy_iqe_cji(
         requirements,
         requirements_priority,
         test_importance,
+        local,
     )
 
     log.debug("processed CJI config:\n%s", cji_config)
