@@ -470,7 +470,6 @@ _iqe_cji_process_options = [
     ),
     click.option(
         "--debug-pod",
-        "-d",
         "debug",
         help="Set debug mode on IQE pod",
         default=False,
