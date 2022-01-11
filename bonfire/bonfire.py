@@ -630,8 +630,9 @@ def _cmd_namespace_reserve(name, requester, duration, timeout, local):
     default=False,
     help="Do not check if you own this namespace",
 )
+@options([_local_option])
 @click_exception_wrapper("namespace release")
-def _cmd_namespace_release(namespace, force):
+def _cmd_namespace_release(namespace, force, local):
     """Remove reservation from an ephemeral namespace"""
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
@@ -639,7 +640,7 @@ def _cmd_namespace_release(namespace, force):
     if not force:
         _warn_before_delete()
 
-    release_namespace(namespace)
+    release_namespace(namespace, local)
 
 
 @namespace.command("extend")
@@ -652,13 +653,14 @@ def _cmd_namespace_release(namespace, force):
     help="Amount of time to extend the reservation",
     callback=_validate_reservation_duration,
 )
+@options([_local_option])
 @click_exception_wrapper("namespace extend")
-def _cmd_namespace_extend(namespace, duration):
+def _cmd_namespace_extend(namespace, duration, local):
     """Extend a reservation of an ephemeral namespace"""
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
 
-    extend_namespace(namespace, duration)
+    extend_namespace(namespace, duration, local)
 
 
 @namespace.command("wait-on-resources")

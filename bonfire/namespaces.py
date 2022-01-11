@@ -237,13 +237,13 @@ def get_namespaces(available=False, mine=False):
     return ephemeral_namespaces
 
 
-def reserve_namespace(name, requester, duration, timeout, local):
+def reserve_namespace(name, requester, duration, timeout, local=True):
     res = get_reservation(name)
     # Name should be unique on reservation creation.
     if res:
         raise FatalError(f"Reservation with name {name} already exists")
 
-    res_config = process_reservation(name, requester, duration, local)
+    res_config = process_reservation(name, requester, duration, local=local)
 
     log.debug("processed reservation:\n%s", res_config)
 
@@ -268,13 +268,14 @@ def reserve_namespace(name, requester, duration, timeout, local):
     return Namespace(name=ns_name)
 
 
-def release_namespace(namespace):
+def release_namespace(namespace, local=True):
     res = get_reservation(namespace=namespace)
     if res:
         res_config = process_reservation(
             res["metadata"]["name"],
             res["spec"]["requester"],
             "0s",  # on release set duration to 0s
+            local=local,
         )
 
         apply_config(None, list_resource=res_config)
@@ -283,7 +284,7 @@ def release_namespace(namespace):
         raise FatalError("Reservation lookup failed")
 
 
-def extend_namespace(namespace, duration):
+def extend_namespace(namespace, duration, local=True):
     res = get_reservation(namespace=namespace)
     if res:
         if res.get("status", {}).get("state") == "expired":
@@ -300,6 +301,7 @@ def extend_namespace(namespace, duration):
             res["metadata"]["name"],
             res["spec"]["requester"],
             _duration_fmt(new_duration),
+            local=local,
         )
 
         log.debug("processed reservation:\n%s", res_config)
