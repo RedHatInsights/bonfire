@@ -26,10 +26,11 @@ TEARDOWN_RAN=0
 
 # adapted from https://stackoverflow.com/a/62475429
 # get all events that were emitted at a time greater than $START_TIME, sort by time, and tabulate
-function get_oc_events {
+function get_oc_events() {
+    local ns=$1
     {
         echo $'TIME\tNAMESPACE\tTYPE\tREASON\tOBJECT\tSOURCE\tMESSAGE';
-        oc get events -n $NAMESPACE -o json "$@" | jq -r --argjson start_time "$START_TIME" \
+        oc get events -n $ns -o json "$@" | jq -r --argjson start_time "$START_TIME" \
             '.items |
             map(. + {t: (.eventTime//.lastTimestamp)}) |
             [ .[] | select(.t | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 > $start_time) ] |
@@ -39,30 +40,32 @@ function get_oc_events {
     } | column -s $'\t' -t > $K8S_ARTIFACTS_DIR/oc_events.txt
 }
 
-function get_pod_logs {
-    LOGS_DIR="$K8S_ARTIFACTS_DIR/logs"
+function get_pod_logs() {
+    local ns=$1
+    LOGS_DIR="$K8S_ARTIFACTS_DIR/$ns/logs"
     mkdir -p $LOGS_DIR
     # get array of pod_name:container1,container2,..,containerN for all containers in all pods
-    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $NAMESPACE -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
+    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $ns -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
     for pc in ${PODS_CONTAINERS[@]}; do
         # https://stackoverflow.com/a/4444841
         POD=${pc%%:*}
         CONTAINERS=${pc#*:}
         for container in ${CONTAINERS//,/ }; do
-            oc logs $POD -c $container -n $NAMESPACE > $LOGS_DIR/${POD}_${container}.log || continue
-            oc logs $POD -c $container --previous -n $NAMESPACE > $LOGS_DIR/${POD}_${container}-previous.log || continue
+            oc logs $POD -c $container -n $ns > $LOGS_DIR/${POD}_${container}.log || continue
+            oc logs $POD -c $container --previous -n $ns > $LOGS_DIR/${POD}_${container}-previous.log || continue
         done
     done
 }
 
-function collect_k8s_artifacts {
-    mkdir -p $K8S_ARTIFACTS_DIR
-    get_pod_logs
-    get_oc_events
-    oc get all -n $NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_all.yaml
-    oc get clowdapp -n $NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdapp.yaml
-    oc get clowdenvironment env-$NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdenvironment.yaml
-    oc get clowdjobinvocation -n $NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdjobinvocation.yaml
+function collect_k8s_artifacts() {
+    local ns=$1
+    mkdir -p $K8S_ARTIFACTS_DIR/$ns
+    get_pod_logs $ns
+    get_oc_events $ns
+    oc get all -n $ns -o yaml > $K8S_ARTIFACTS_DIR/oc_get_all.yaml
+    oc get clowdapp -n $ns -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdapp.yaml
+    oc get clowdenvironment env-$ns -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdenvironment.yaml
+    oc get clowdjobinvocation -n $ns -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdjobinvocation.yaml
 }
 
 function teardown {
@@ -70,14 +73,17 @@ function teardown {
     echo "------------------------"
     echo "----- TEARING DOWN -----"
     echo "------------------------"
-    if [ ! -z "$NAMESPACE" ]; then
-        set +e
-        collect_k8s_artifacts
-        if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
-            bonfire namespace release $NAMESPACE -f
+    local ns
+    for ns in ("$DB_NAMESPACE" "$SMOKE_NAMESPACE"); do
+        if [ ! -z "$ns" ]; then
+            set +e
+            collect_k8s_artifacts $ns
+            if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
+                bonfire namespace release $NAMESPACE -f
+            fi
+            set -e
         fi
-    fi
-    set -e
+    done
     TEARDOWN_RAN=1
 }
 
