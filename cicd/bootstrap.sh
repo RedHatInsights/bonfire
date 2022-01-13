@@ -61,5 +61,5 @@ pip install --upgrade pip 'setuptools<58' wheel
 pip install --upgrade crc-bonfire
 
 # clone repo to download cicd scripts
-git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+git clone --branch tear_down_both_namespaces https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
