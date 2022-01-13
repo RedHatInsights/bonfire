@@ -264,6 +264,8 @@ def reserve_namespace(name, requester, duration, timeout, local=True):
         requester,
         duration,
     )
+    if not ns_name:
+        raise FatalError("Reservation of namespace failed.")
 
     return Namespace(name=ns_name)
 
