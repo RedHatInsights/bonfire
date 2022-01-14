@@ -791,7 +791,7 @@ def wait_on_reservation(res_name, timeout):
 
     def _find_reservation():
         res = get_json("reservation", name=res_name)
-        return res.get("status", {}).get("namespace", False)
+        return res.get("status", {}).get("namespace", False) or False
 
     ns_name, elapsed = wait_for(
         _find_reservation,
