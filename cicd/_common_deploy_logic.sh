@@ -74,7 +74,8 @@ function teardown {
     echo "----- TEARING DOWN -----"
     echo "------------------------"
     local ns
-    for ns in ("$DB_NAMESPACE" "$SMOKE_NAMESPACE"); do
+    TEARDOWN_NAMESPACES="$DB_NAMESPACE $SMOKE_NAMESPACE"
+    for ns in $TEARDOWN_NAMESPACES; do
         if [ ! -z "$ns" ]; then
             set +e
             collect_k8s_artifacts $ns
