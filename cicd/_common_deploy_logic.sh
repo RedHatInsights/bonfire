@@ -28,6 +28,8 @@ TEARDOWN_RAN=0
 # get all events that were emitted at a time greater than $START_TIME, sort by time, and tabulate
 function get_oc_events() {
     local ns=$1
+    DIR="$K8S_ARTIFACTS_DIR/$ns"
+    mkdir -p $DIR
     {
         echo $'TIME\tNAMESPACE\tTYPE\tREASON\tOBJECT\tSOURCE\tMESSAGE';
         oc get events -n $ns -o json "$@" | jq -r --argjson start_time "$START_TIME" \
@@ -37,7 +39,7 @@ function get_oc_events() {
             sort_by(.t)[] |
             [.t, .metadata.namespace, .type, .reason, .involvedObject.kind + "/" + .involvedObject.name, .source.component + "," + (.source.host//"-"), .message] |
             @tsv'
-    } | column -s $'\t' -t > $K8S_ARTIFACTS_DIR/oc_events.txt
+    } | column -s $'\t' -t > $DIR/oc_events.txt
 }
 
 function get_pod_logs() {
@@ -59,13 +61,14 @@ function get_pod_logs() {
 
 function collect_k8s_artifacts() {
     local ns=$1
-    mkdir -p $K8S_ARTIFACTS_DIR/$ns
+    DIR=$K8S_ARTIFACTS_DIR/$ns
+    mkdir -p $DIR
     get_pod_logs $ns
     get_oc_events $ns
-    oc get all -n $ns -o yaml > $K8S_ARTIFACTS_DIR/oc_get_all.yaml
-    oc get clowdapp -n $ns -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdapp.yaml
-    oc get clowdenvironment env-$ns -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdenvironment.yaml
-    oc get clowdjobinvocation -n $ns -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdjobinvocation.yaml
+    oc get all -n $ns -o yaml > $DIR/oc_get_all.yaml
+    oc get clowdapp -n $ns -o yaml > $DIR/oc_get_clowdapp.yaml
+    oc get clowdenvironment env-$ns -o yaml > $DIR/oc_get_clowdenvironment.yaml
+    oc get clowdjobinvocation -n $ns -o yaml > $DIR/oc_get_clowdjobinvocation.yaml
 }
 
 function teardown {
