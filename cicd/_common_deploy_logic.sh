@@ -74,16 +74,15 @@ function teardown {
     echo "----- TEARING DOWN -----"
     echo "------------------------"
     local ns
-    TEARDOWN_NAMESPACES="$DB_NAMESPACE $SMOKE_NAMESPACE"
-    for ns in $TEARDOWN_NAMESPACES; do
-        if [ ! -z "$ns" ]; then
-            set +e
-            collect_k8s_artifacts $ns
-            if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
-                bonfire namespace release $NAMESPACE -f
-            fi
-            set -e
+    RESERVED_NAMESPACES="$DB_NAMESPACE $SMOKE_NAMESPACE"
+    for ns in $RESERVED_NAMESPACES; do
+        echo "Running teardown for ns: $ns"
+        set +e
+        collect_k8s_artifacts $ns
+        if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
+            bonfire namespace release $ns -f
         fi
+        set -e
     done
     TEARDOWN_RAN=1
 }
