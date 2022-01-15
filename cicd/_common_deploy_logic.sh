@@ -21,48 +21,37 @@ set -e
 : ${COMPONENTS_W_RESOURCES:=""}
 : ${DEPLOY_TIMEOUT:="600"}
 K8S_ARTIFACTS_DIR="$ARTIFACTS_DIR/k8s_artifacts/"
-START_TIME=$(date +%s)
 TEARDOWN_RAN=0
 
-# adapted from https://stackoverflow.com/a/62475429
-# get all events that were emitted at a time greater than $START_TIME, sort by time, and tabulate
-function get_oc_events {
-    {
-        echo $'TIME\tNAMESPACE\tTYPE\tREASON\tOBJECT\tSOURCE\tMESSAGE';
-        oc get events -n $NAMESPACE -o json "$@" | jq -r --argjson start_time "$START_TIME" \
-            '.items |
-            map(. + {t: (.eventTime//.lastTimestamp)}) |
-            [ .[] | select(.t | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601 > $start_time) ] |
-            sort_by(.t)[] |
-            [.t, .metadata.namespace, .type, .reason, .involvedObject.kind + "/" + .involvedObject.name, .source.component + "," + (.source.host//"-"), .message] |
-            @tsv'
-    } | column -s $'\t' -t > $K8S_ARTIFACTS_DIR/oc_events.txt
-}
-
-function get_pod_logs {
-    LOGS_DIR="$K8S_ARTIFACTS_DIR/logs"
+function get_pod_logs() {
+    local ns=$1
+    LOGS_DIR="$K8S_ARTIFACTS_DIR/$ns/logs"
     mkdir -p $LOGS_DIR
     # get array of pod_name:container1,container2,..,containerN for all containers in all pods
-    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $NAMESPACE -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
+    echo "Collecting container logs..."
+    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $ns -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
     for pc in ${PODS_CONTAINERS[@]}; do
         # https://stackoverflow.com/a/4444841
         POD=${pc%%:*}
         CONTAINERS=${pc#*:}
         for container in ${CONTAINERS//,/ }; do
-            oc logs $POD -c $container -n $NAMESPACE > $LOGS_DIR/${POD}_${container}.log || continue
-            oc logs $POD -c $container --previous -n $NAMESPACE > $LOGS_DIR/${POD}_${container}-previous.log || continue
+            oc logs $POD -c $container -n $ns > $LOGS_DIR/${POD}_${container}.log 2> /dev/null || continue
+            oc logs $POD -c $container --previous -n $ns > $LOGS_DIR/${POD}_${container}-previous.log 2> /dev/null || continue
         done
     done
 }
 
-function collect_k8s_artifacts {
-    mkdir -p $K8S_ARTIFACTS_DIR
-    get_pod_logs
-    get_oc_events
-    oc get all -n $NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_all.yaml
-    oc get clowdapp -n $NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdapp.yaml
-    oc get clowdenvironment env-$NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdenvironment.yaml
-    oc get clowdjobinvocation -n $NAMESPACE -o yaml > $K8S_ARTIFACTS_DIR/oc_get_clowdjobinvocation.yaml
+function collect_k8s_artifacts() {
+    local ns=$1
+    DIR="$K8S_ARTIFACTS_DIR/$ns"
+    mkdir -p $DIR
+    get_pod_logs $ns
+    echo "Collecting events and k8s configs..."
+    oc get events -n $ns --sort-by='.lastTimestamp' > $DIR/oc_get_events.txt
+    oc get all -n $ns -o yaml > $DIR/oc_get_all.yaml
+    oc get clowdapp -n $ns -o yaml > $DIR/oc_get_clowdapp.yaml
+    oc get clowdenvironment env-$ns -o yaml > $DIR/oc_get_clowdenvironment.yaml
+    oc get clowdjobinvocation -n $ns -o yaml > $DIR/oc_get_clowdjobinvocation.yaml
 }
 
 function teardown {
@@ -70,14 +59,18 @@ function teardown {
     echo "------------------------"
     echo "----- TEARING DOWN -----"
     echo "------------------------"
-    if [ ! -z "$NAMESPACE" ]; then
+    local ns
+    RESERVED_NAMESPACES="$DB_NAMESPACE $SMOKE_NAMESPACE"
+    for ns in $RESERVED_NAMESPACES; do
+        echo "Running teardown for ns: $ns"
         set +e
-        collect_k8s_artifacts
+        collect_k8s_artifacts $ns
         if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
-            bonfire namespace release $NAMESPACE -f
+            echo "Releasing namespace reservation"
+            bonfire namespace release $ns -f
         fi
-    fi
-    set -e
+        set -e
+    done
     TEARDOWN_RAN=1
 }
 
