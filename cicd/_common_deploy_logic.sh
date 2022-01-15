@@ -28,6 +28,7 @@ function get_pod_logs() {
     LOGS_DIR="$K8S_ARTIFACTS_DIR/$ns/logs"
     mkdir -p $LOGS_DIR
     # get array of pod_name:container1,container2,..,containerN for all containers in all pods
+    echo "Collecting container logs..."
     PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $ns -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
     for pc in ${PODS_CONTAINERS[@]}; do
         # https://stackoverflow.com/a/4444841
@@ -42,10 +43,11 @@ function get_pod_logs() {
 
 function collect_k8s_artifacts() {
     local ns=$1
-    DIR=$K8S_ARTIFACTS_DIR/$ns
+    DIR="$K8S_ARTIFACTS_DIR/$ns"
     mkdir -p $DIR
     get_pod_logs $ns
-    oc get events --sort-by='.lastTimestamp' > $DIR/oc_get_events.yaml
+    echo "Collecting events and k8s configs..."
+    oc get events -n $ns --sort-by='.lastTimestamp' > $DIR/oc_get_events.txt
     oc get all -n $ns -o yaml > $DIR/oc_get_all.yaml
     oc get clowdapp -n $ns -o yaml > $DIR/oc_get_clowdapp.yaml
     oc get clowdenvironment env-$ns -o yaml > $DIR/oc_get_clowdenvironment.yaml
@@ -64,6 +66,7 @@ function teardown {
         set +e
         collect_k8s_artifacts $ns
         if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
+            echo "Releasing namespace reservation"
             bonfire namespace release $ns -f
         fi
         set -e
