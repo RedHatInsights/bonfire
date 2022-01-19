@@ -331,10 +331,7 @@ _app_source_options = [
     click.option(
         "--local-config-path",
         "-c",
-        help=(
-            "File to use for local config (default: first try ./config.yaml, then "
-            "$XDG_CONFIG_HOME/bonfire/config.yaml)"
-        ),
+        help="File to use for local config (default: $XDG_CONFIG_HOME/bonfire/config.yaml)",
         default=None,
     ),
     click.option(
