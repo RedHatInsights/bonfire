@@ -60,8 +60,13 @@ function teardown {
     echo "----- TEARING DOWN -----"
     echo "------------------------"
     local ns
-    RESERVED_NAMESPACES="$DB_NAMESPACE $SMOKE_NAMESPACE"
-    for ns in $RESERVED_NAMESPACES; do
+
+    # run teardown on all namespaces possibly reserved in this run
+    RESERVED_NAMESPACES=("${NAMESPACE}" "${DB_NAMESPACE}" "${SMOKE_NAMESPACE}")
+    # remove duplicates (https://stackoverflow.com/a/13648438)
+    UNIQUE_NAMESPACES=($(echo "${RESERVED_NAMESPACES[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+
+    for ns in ${UNIQUE_NAMESPACES[@]}; do
         echo "Running teardown for ns: $ns"
         set +e
         collect_k8s_artifacts $ns
