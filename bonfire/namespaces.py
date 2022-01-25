@@ -286,7 +286,10 @@ def release_reservation(name=None, namespace=None, local=True):
         )
 
         apply_config(None, list_resource=res_config)
-        log.info("releasing namespace '%s'", namespace)
+        msg = f"releasing reservation '{name}'"
+        if namespace:
+            msg += " namespace '{namespace}'"
+        log.info(msg)
     else:
         raise FatalError("Reservation lookup failed")
 
