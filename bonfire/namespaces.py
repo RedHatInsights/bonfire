@@ -278,6 +278,7 @@ def reserve_namespace(name, requester, duration, timeout, local=True):
 def release_reservation(name=None, namespace=None, local=True):
     res = get_reservation(name=name, namespace=namespace)
     if res:
+        res_name = res["metadata"]["name"]
         res_config = process_reservation(
             res["metadata"]["name"],
             res["spec"]["requester"],
@@ -286,7 +287,7 @@ def release_reservation(name=None, namespace=None, local=True):
         )
 
         apply_config(None, list_resource=res_config)
-        msg = f"releasing reservation '{name}'"
+        msg = f"releasing reservation '{res_name}'"
         if namespace:
             msg += f" namespace '{namespace}'"
         log.info(msg)

@@ -625,7 +625,7 @@ def _cmd_namespace_reserve(name, requester, duration, timeout, local):
     "--force",
     is_flag=True,
     default=False,
-    help="Do not check if you own this namespace",
+    help="Do not ask for confirmation",
 )
 @options([_local_option])
 @click_exception_wrapper("namespace release")
@@ -636,6 +636,9 @@ def _cmd_namespace_release(namespace, force, local):
 
     if not force:
         _warn_before_delete()
+        ns = Namespace(name=namespace)
+        if not ns.owned_by_me:
+            _warn_if_not_owned_by_me()
 
     release_reservation(namespace=namespace, local=local)
 
