@@ -260,10 +260,10 @@ def reserve_namespace(name, requester, duration, timeout, local=True):
 
     try:
         ns_name = wait_on_reservation(res_name, timeout)
-    except (TimedOutError):
-        log.info("Timedout waiting for namespace. Reservation canceled.")
+    except TimedOutError:
+        log.info("timeout waiting for namespace. Cancelling reservation.")
         release_reservation(name=res_name)
-        raise TimedOutError
+        raise
 
     log.info(
         "namespace '%s' is reserved by '%s' for '%s'",
