@@ -44,7 +44,7 @@ from bonfire.namespaces import (
     get_namespaces,
     extend_namespace,
     reserve_namespace,
-    release_namespace,
+    release_reservation,
 )
 from bonfire.secrets import import_secrets_from_dir
 
@@ -637,7 +637,7 @@ def _cmd_namespace_release(namespace, force, local):
     if not force:
         _warn_before_delete()
 
-    release_namespace(namespace, local)
+    release_reservation(namespace=namespace, local=local)
 
 
 @namespace.command("extend")
@@ -923,7 +923,7 @@ def _cmd_config_deploy(
                 # if we auto-reserved this ns, auto-release it on failure unless
                 # --no-release-on-fail was requested
                 log.info("releasing namespace '%s'", ns)
-                release_namespace(ns)
+                release_reservation(namespace=ns)
         finally:
             msg = "deploy failed"
             if str(err):

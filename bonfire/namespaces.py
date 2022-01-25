@@ -15,6 +15,7 @@ from bonfire.openshift import (
 )
 from bonfire.processor import process_reservation
 from bonfire.utils import FatalError, hms_to_seconds
+from wait_for import TimedOutError
 
 
 log = logging.getLogger(__name__)
@@ -257,21 +258,25 @@ def reserve_namespace(name, requester, duration, timeout, local=True):
 
     apply_config(None, list_resource=res_config)
 
-    ns_name = wait_on_reservation(res_name, timeout)
+    try:
+        ns_name = wait_on_reservation(res_name, timeout)
+    except TimedOutError:
+        log.info("timeout waiting for namespace. Cancelling reservation.")
+        release_reservation(name=res_name)
+        raise
+
     log.info(
         "namespace '%s' is reserved by '%s' for '%s'",
         ns_name,
         requester,
         duration,
     )
-    if not ns_name:
-        raise FatalError("Reservation of namespace failed.")
 
     return Namespace(name=ns_name)
 
 
-def release_namespace(namespace, local=True):
-    res = get_reservation(namespace=namespace)
+def release_reservation(name=None, namespace=None, local=True):
+    res = get_reservation(name=name, namespace=namespace)
     if res:
         res_config = process_reservation(
             res["metadata"]["name"],
@@ -281,7 +286,10 @@ def release_namespace(namespace, local=True):
         )
 
         apply_config(None, list_resource=res_config)
-        log.info("releasing namespace '%s'", namespace)
+        msg = f"releasing reservation '{name}'"
+        if namespace:
+            msg += f" namespace '{namespace}'"
+        log.info(msg)
     else:
         raise FatalError("Reservation lookup failed")
 
