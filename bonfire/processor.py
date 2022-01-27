@@ -449,7 +449,10 @@ class TemplateProcessor:
                     break
 
             if frontend_found and not self.frontends:
-                log.info("ignoring component %s, user opted to disable frontend deployments")
+                log.info(
+                    "ignoring component %s, user opted to disable frontend deployments",
+                    component_name,
+                )
                 new_items = []
 
             if new_items:

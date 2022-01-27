@@ -744,7 +744,7 @@ def _process(
     single_replicas,
     component_filter,
     local,
-    frontends
+    frontends,
 ):
     apps_config = _get_apps_config(source, target_env, ref_env, local_config_path)
 
