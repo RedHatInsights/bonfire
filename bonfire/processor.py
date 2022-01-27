@@ -316,6 +316,7 @@ class TemplateProcessor:
         single_replicas,
         component_filter,
         local,
+        frontends,
     ):
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
@@ -329,6 +330,7 @@ class TemplateProcessor:
         self.single_replicas = single_replicas
         self.component_filter = component_filter
         self.local = local
+        self.frontends = frontends
 
         self._validate()
 
@@ -436,13 +438,33 @@ class TemplateProcessor:
         if component_name not in self.processed_components:
             log.info("processing component %s", component_name)
             new_items = self._get_component_items(component_name)
-            self.k8s_list["items"].extend(new_items)
 
-            self.processed_components.add(component_name)
+            # ignore frontends if we're not supposed to deploy them
+            frontend_found = False
+            for item in new_items:
+                kind = item.get("kind").lower()
+                ver = item.get("apiVersion").lower()
+                if kind == "frontend" and ver.startswith("cloud.redhat.com"):
+                    frontend_found = True
+                    break
 
-            if self.get_dependencies:
-                # recursively process components to add config for dependent apps to self.k8s_list
-                self._add_dependencies_to_config(component_name, new_items)
+            if frontend_found and not self.frontends:
+                log.info("ignoring component %s, user opted to disable frontend deployments")
+                new_items = []
+
+            if new_items:
+                self.k8s_list["items"].extend(new_items)
+                self.processed_components.add(component_name)
+
+                if frontend_found and "frontend-configs" not in self.processed_components:
+                    log.info(
+                        "found a Frontend resource, auto-adding frontend-configs as dependency"
+                    )
+                    self._process_component("frontend-configs")
+
+                if self.get_dependencies:
+                    # recursively process components to add config for dependent apps to self.k8s_list
+                    self._add_dependencies_to_config(component_name, new_items)
         else:
             log.debug("component %s already processed", component_name)
 

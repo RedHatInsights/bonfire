@@ -430,6 +430,13 @@ _process_options = [
         type=str,
         multiple=True,
     ),
+    click.option(
+        "--frontends",
+        "-F",
+        help="Deploy frontends (default: false)",
+        type=bool,
+        default=False,
+    ),
     _local_option,
 ]
 
@@ -737,6 +744,7 @@ def _process(
     single_replicas,
     component_filter,
     local,
+    frontends
 ):
     apps_config = _get_apps_config(source, target_env, ref_env, local_config_path)
 
@@ -753,6 +761,7 @@ def _process(
         single_replicas,
         component_filter,
         local,
+        frontends,
     )
     return processor.process()
 
@@ -782,6 +791,7 @@ def _cmd_process(
     single_replicas,
     component_filter,
     local,
+    frontends,
 ):
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
@@ -802,6 +812,7 @@ def _cmd_process(
         single_replicas,
         component_filter,
         local,
+        frontends,
     )
     print(json.dumps(processed_templates, indent=2))
 
@@ -898,6 +909,7 @@ def _cmd_config_deploy(
     import_secrets,
     secrets_dir,
     local,
+    frontends,
 ):
     """Process app templates and deploy them to a cluster"""
     if not has_clowder():
@@ -951,6 +963,7 @@ def _cmd_config_deploy(
             single_replicas,
             component_filter,
             local,
+            frontends,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
