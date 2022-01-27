@@ -466,7 +466,7 @@ class TemplateProcessor:
                     self._process_component("frontend-configs")
 
                 if self.get_dependencies:
-                    # recursively process components to add config for dependent apps to self.k8s_list
+                    # recursively process to add config for dependent apps to self.k8s_list
                     self._add_dependencies_to_config(component_name, new_items)
         else:
             log.debug("component %s already processed", component_name)
