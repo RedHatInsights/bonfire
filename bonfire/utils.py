@@ -174,11 +174,15 @@ class RepoFile:
 
     def fetch(self):
         if self.host == "local":
-            return self._fetch_local()
+            result = self._fetch_local()
         if self.host == "github":
-            return self._fetch_github()
+            result = self._fetch_github()
         if self.host == "gitlab":
-            return self._fetch_gitlab()
+            result = self._fetch_gitlab()
+
+        self._session.close()
+
+        return result
 
     @cached_property
     def _gl_certfile(self):
