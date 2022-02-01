@@ -54,6 +54,19 @@ def _set_replicas(items):
             log.debug("set replicas to '1' on ClowdApp '%s'", i["metadata"]["name"])
 
 
+def _check_for_disabled(items):
+    for item in items:
+        kind = item.get("kind", "").lower()
+        name = item.get("metadata", {}).get("name")
+        if kind in ["clowdapp", "clowdenvironment"]:
+            if item.get("spec", {}).get("disabled"):
+                log.warning(
+                    "%s/%s has 'disabled: true' configured, Clowder will ignore it",
+                    kind,
+                    name,
+                )
+
+
 def process_clowd_env(target_ns, quay_user, env_name, template_path, local=True):
     log.info("processing ClowdEnvironment")
 
@@ -77,6 +90,8 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path, local=True)
 
     if not processed_template.get("items"):
         raise FatalError("Processed ClowdEnvironment template has no items")
+
+    _check_for_disabled(processed_template["items"])
 
     return processed_template
 
@@ -429,8 +444,11 @@ class TemplateProcessor:
             and component_name not in self.no_remove_resources
         ):
             _remove_resource_config(new_items)
+
         if self.single_replicas:
             _set_replicas(new_items)
+
+        _check_for_disabled(new_items)
 
         return new_items
 
