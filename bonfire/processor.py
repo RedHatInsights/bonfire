@@ -40,18 +40,16 @@ def _set_replicas(items):
         if i["kind"] != "ClowdApp":
             continue
 
-        updated = False
-        for d in i["spec"].get("deployments", []):
-            if "minReplicas" in d["podSpec"] and d["podSpec"]["minReplicas"] > 1:
-                d["podSpec"]["minReplicas"] = 1
-                updated = True
-        for p in i["spec"].get("pods", []):
-            if "minReplicas" in p and p["minReplicas"] > 1:
-                p["minReplicas"] = 1
-                updated = True
-
-        if updated:
-            log.debug("set replicas to '1' on ClowdApp '%s'", i["metadata"]["name"])
+        app_name = i.get("metadata", {}).get("name")
+        # 'pods' is a legacy field in the ClowdApp spec
+        deployments = i["spec"].get("deployments", []) or i["spec"].get("pods", [])
+        for d in deployments:
+            dep_name = d.get("name")
+            if "minReplicas" in d and d["minReplicas"] > 1:
+                d["minReplicas"] = 1
+                log.debug(
+                    "set minReplicas to '1' on ClowdApp '%s' deployment '%s'", app_name, dep_name
+                )
 
 
 def _check_for_disabled(items):
