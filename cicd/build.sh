@@ -4,6 +4,7 @@
 #IMAGE="quay.io/myorg/myapp" -- docker image URI to push to
 #DOCKERFILE=Dockerfile.custom  -- dockerfile to use (optional)
 #CACHE_FROM_LATEST_IMAGE=true  -- build image from cache from latest image (optional)
+: ${QUAY_EXPIRE_TIME:="3d"}  # sets a time to expire from when the image is built
 
 # Env vars set by bootstrap.sh:
 #IMAGE_TAG="abcd123" -- image tag to push to
@@ -28,7 +29,7 @@ function build {
 
     # if this is a PR, set the tag to expire in 3 days
     if [ ! -z "$ghprbPullId" ] || [ ! -z "$gitlabMergeRequestIid" ]; then
-        echo "LABEL quay.expires-after=3d" >> $APP_ROOT/$DOCKERFILE
+        echo "LABEL quay.expires-after=${QUAY_EXPIRE_TIME}" >> $APP_ROOT/$DOCKERFILE
     fi
 
     if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
