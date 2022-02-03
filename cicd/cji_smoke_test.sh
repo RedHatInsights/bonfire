@@ -39,7 +39,7 @@ fi
 # Invoke the CJI using the options set via env vars
 set -x
 POD=$(
-    bonfire deploy-iqe-cji $COMPONENT_NAME \
+    bonfire deploy-iqe-cji $APP_NAME \
     --marker "$IQE_MARKER_EXPRESSION" \
     --filter "$IQE_FILTER_EXPRESSION" \
     --image-tag "${IQE_IMAGE_TAG}" \
