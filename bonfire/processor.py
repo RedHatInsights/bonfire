@@ -320,6 +320,7 @@ class TemplateProcessor:
         apps_config,
         app_names,
         get_dependencies,
+        optional_deps_method,
         image_tag_overrides,
         template_ref_overrides,
         param_overrides,
@@ -334,6 +335,7 @@ class TemplateProcessor:
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
         self.get_dependencies = get_dependencies
+        self.optional_deps_method = optional_deps_method
         self.image_tag_overrides = image_tag_overrides
         self.template_ref_overrides = template_ref_overrides
         self.param_overrides = param_overrides
