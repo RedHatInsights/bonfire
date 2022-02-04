@@ -344,7 +344,7 @@ class RepoFile:
             return commit, fp.read()
 
 
-def get_dependencies(items):
+def get_dependencies(items, include_optional=True):
     """
     Returns dict of clowdapp_name: set of dependencies found for any ClowdApps in 'items'
 
@@ -357,10 +357,14 @@ def get_dependencies(items):
     for clowdapp in clowdapp_items:
         name = clowdapp["metadata"]["name"]
         dependencies = {d for d in clowdapp["spec"].get("dependencies", [])}
-        optional_dependencies = {d for d in clowdapp["spec"].get("optionalDependencies", [])}
-        combined = dependencies.union(optional_dependencies)
+        log.debug("clowdapp '%s' has dependencies: %s", name, list(dependencies))
+
+        optional_deps = set()
+        if include_optional:
+            optional_deps = {d for d in clowdapp["spec"].get("optionalDependencies", [])}
+            log.debug("clowdapp '%s' has optionalDependencies: %s", name, list(optional_deps))
+        combined = dependencies.union(optional_deps)
         deps_for_app[name] = combined
-        log.debug("found clowdapp '%s' with dependencies: %s", name, list(combined))
 
     return deps_for_app
 
@@ -381,7 +385,7 @@ def find_what_depends_on(apps_config, clowdapp_name):
             template = yaml.safe_load(template_content)
             items = template.get("objects", [])
 
-            dependencies = get_dependencies(items)
+            dependencies = get_dependencies(items, include_optional=True)
 
             for name, deps in dependencies.items():
                 # check if the name of the ClowdApp is set with a parameter
