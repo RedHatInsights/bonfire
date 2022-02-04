@@ -452,21 +452,76 @@ class TemplateProcessor:
 
         return new_items
 
-    def _process_component(self, component_name):
+    @staticmethod
+    def _frontend_found(items):
+        frontend_found = False
+        for item in items:
+            kind = item.get("kind").lower()
+            ver = item.get("apiVersion").lower()
+            if kind == "frontend" and ver.startswith("cloud.redhat.com"):
+                frontend_found = True
+                break
+        return frontend_found
+
+    def _add_dependencies_to_config(self, component_name, app_name, new_items, in_recursion):
+        dependencies = set()
+
+        fetch_optional_deps = False
+        if self.optional_deps_method == "all":
+            fetch_optional_deps = True
+            log.debug("parsing optionalDependencies for component '%s'", component_name)
+        if (
+            self.optional_deps_method == "hybrid"
+            and not in_recursion
+            and app_name in self.requested_app_names
+        ):
+            # in hybrid mode, only fetch optionalDependencies on a ClowdApp if it was part of
+            # an app group that the user specifically requested to deploy on the CLI
+            #
+            # 'in_recursion' is used to help us determine if we're currently parsing dependencies
+            # for an app group the user requested on the CLI, or if we've arrived at this code path
+            # via parsing of the original app's dependencies/optionalDependencies
+            fetch_optional_deps = True
+            log.debug(
+                "parsing optionalDependencies for component '%s' (in app group '%s')",
+                component_name,
+                app_name,
+            )
+
+        if not fetch_optional_deps:
+            log.debug(
+                "ignoring optionalDependencies found on component '%s'",
+                component_name,
+            )
+
+        dependencies_for_app = utils_get_dependencies(
+            new_items, include_optional=fetch_optional_deps
+        )
+        for _, deps in dependencies_for_app.items():
+            dependencies = dependencies.union(deps)
+
+        # filter out ones we've already processed before
+        dependencies = [d for d in dependencies if d not in self.processed_components]
+
+        log.debug("dependencies not previously processed: %s", dependencies)
+        if dependencies:
+            for component_name in dependencies:
+                self._process_component(component_name, app_name, in_recursion=True)
+
+    def _handle_dependencies(self, component_name, app_name, new_items, in_recursion):
+        if self._frontend_found(new_items) and "frontend-configs" not in self.processed_components:
+            log.info("found a Frontend resource, auto-adding frontend-configs as dependency")
+            self._process_component("frontend-configs", app_name, in_recursion)
+
+        self._add_dependencies_to_config(component_name, app_name, new_items, in_recursion)
+
+    def _process_component(self, component_name, app_name, in_recursion):
         if component_name not in self.processed_components:
             log.info("processing component %s", component_name)
             new_items = self._get_component_items(component_name)
 
             # ignore frontends if we're not supposed to deploy them
-            frontend_found = False
-            for item in new_items:
-                kind = item.get("kind").lower()
-                ver = item.get("apiVersion").lower()
-                if kind == "frontend" and ver.startswith("cloud.redhat.com"):
-                    frontend_found = True
-                    break
-
-            if frontend_found and not self.frontends:
+            if self._frontend_found(new_items) and not self.frontends:
                 log.info(
                     "ignoring component %s, user opted to disable frontend deployments",
                     component_name,
@@ -477,30 +532,11 @@ class TemplateProcessor:
                 self.k8s_list["items"].extend(new_items)
                 self.processed_components.add(component_name)
 
-                if frontend_found and "frontend-configs" not in self.processed_components:
-                    log.info(
-                        "found a Frontend resource, auto-adding frontend-configs as dependency"
-                    )
-                    self._process_component("frontend-configs")
-
                 if self.get_dependencies:
                     # recursively process to add config for dependent apps to self.k8s_list
-                    self._add_dependencies_to_config(component_name, new_items)
+                    self._handle_dependencies(component_name, app_name, new_items, in_recursion)
         else:
             log.debug("component %s already processed", component_name)
-
-    def _add_dependencies_to_config(self, component_name, new_items):
-        dependencies = set()
-        for _, deps in utils_get_dependencies(new_items).items():
-            dependencies = dependencies.union(deps)
-
-        # filter out ones we've already processed before
-        dependencies = [d for d in dependencies if d not in self.processed_components]
-
-        if dependencies:
-            log.info("dependencies not previously processed: %s", dependencies)
-            for component_name in dependencies:
-                self._process_component(component_name)
 
     def _process_app(self, app_name):
         log.info("processing app '%s'", app_name)
@@ -513,7 +549,7 @@ class TemplateProcessor:
                     "skipping component '%s', not found in --component filter", component_name
                 )
                 continue
-            self._process_component(component_name)
+            self._process_component(component_name, app_name, in_recursion=False)
 
     def process(self, app_names=None):
         if not app_names:
