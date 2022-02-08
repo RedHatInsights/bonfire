@@ -344,27 +344,24 @@ class RepoFile:
             return commit, fp.read()
 
 
-def get_dependencies(items, include_optional=True):
+def get_dependencies(items, optional=False):
     """
     Returns dict of clowdapp_name: set of dependencies found for any ClowdApps in 'items'
 
+    if optional=True, returns set of optionalDependencies
+
     'items' is a list of k8s resources found in a template
     """
+    key = "optionalDependencies" if optional else "dependencies"
     clowdapp_items = [item for item in items if item.get("kind").lower() == "clowdapp"]
 
     deps_for_app = dict()
 
     for clowdapp in clowdapp_items:
         name = clowdapp["metadata"]["name"]
-        dependencies = {d for d in clowdapp["spec"].get("dependencies", [])}
-        log.debug("clowdapp '%s' has dependencies: %s", name, list(dependencies))
-
-        optional_deps = set()
-        if include_optional:
-            optional_deps = {d for d in clowdapp["spec"].get("optionalDependencies", [])}
-            log.debug("clowdapp '%s' has optionalDependencies: %s", name, list(optional_deps))
-        combined = dependencies.union(optional_deps)
-        deps_for_app[name] = combined
+        dependencies = {d for d in clowdapp["spec"].get(key, [])}
+        log.debug("clowdapp '%s' has %s: %s", name, key, list(dependencies))
+        deps_for_app[name] = dependencies
 
     return deps_for_app
 
@@ -385,7 +382,8 @@ def find_what_depends_on(apps_config, clowdapp_name):
             template = yaml.safe_load(template_content)
             items = template.get("objects", [])
 
-            dependencies = get_dependencies(items, include_optional=True)
+            dependencies = get_dependencies(items)
+            dependencies = dependencies.union(get_dependencies(items, optional=True))
 
             for name, deps in dependencies.items():
                 # check if the name of the ClowdApp is set with a parameter

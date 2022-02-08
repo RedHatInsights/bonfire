@@ -175,6 +175,14 @@ def process_reservation(name, requester, duration, template_path=None, local=Tru
     return processed_template
 
 
+class ProcessedComponent:
+    def __init__(self, name, items, deps_handled=False, optional_deps_handled=False):
+        self.name = name
+        self.items = items
+        self.deps_handled = deps_handled
+        self.optional_deps_handled = optional_deps_handled
+
+
 class TemplateProcessor:
     @staticmethod
     def _parse_app_names(app_names):
@@ -356,7 +364,7 @@ class TemplateProcessor:
             "items": [],
         }
 
-        self.processed_components = set()
+        self.processed_components = {}
 
     def _get_app_config(self, app_name):
         if app_name not in self.apps_config:
@@ -463,9 +471,7 @@ class TemplateProcessor:
                 break
         return frontend_found
 
-    def _add_dependencies_to_config(self, component_name, app_name, new_items, in_recursion):
-        dependencies = set()
-
+    def _should_fetch_optional_deps(self, app_name, component_name, in_recursion):
         fetch_optional_deps = False
         if self.optional_deps_method == "all":
             fetch_optional_deps = True
@@ -483,60 +489,75 @@ class TemplateProcessor:
             # via parsing of the original app's dependencies/optionalDependencies
             fetch_optional_deps = True
             log.debug(
-                "parsing optionalDependencies for component '%s' (in app group '%s')",
+                "parsing optionalDependencies for component '%s' (a member of app group '%s')",
                 component_name,
                 app_name,
             )
 
         if not fetch_optional_deps:
             log.debug(
-                "ignoring optionalDependencies found on component '%s'",
+                "ignoring optionalDependencies for component '%s'",
                 component_name,
             )
 
-        dependencies_for_app = utils_get_dependencies(
-            new_items, include_optional=fetch_optional_deps
-        )
-        for _, deps in dependencies_for_app.items():
-            dependencies = dependencies.union(deps)
+        return fetch_optional_deps
 
-        # filter out ones we've already processed before
-        dependencies = [d for d in dependencies if d not in self.processed_components]
+    def _add_dependencies_to_config(self, app_name, processed_component, in_recursion):
+        component_name = processed_component.name
+        items = processed_component.items
 
-        log.debug("dependencies not previously processed: %s", dependencies)
-        if dependencies:
-            for component_name in dependencies:
-                self._process_component(component_name, app_name, in_recursion=True)
+        all_dependencies = set()
 
-    def _handle_dependencies(self, component_name, app_name, new_items, in_recursion):
-        if self._frontend_found(new_items) and "frontend-configs" not in self.processed_components:
+        if processed_component.deps_handled:
+            log.debug("already handled dependencies for component '%s'", component_name)
+        else:
+            dependencies_for_app = utils_get_dependencies(items)
+            for _, deps in dependencies_for_app.items():
+                all_dependencies = all_dependencies.union(deps)
+            processed_component.deps_handled = True
+
+        if processed_component.optional_deps_handled:
+            log.debug("already handled optionalDependencies for component '%s'", component_name)
+        elif self._should_fetch_optional_deps(app_name, component_name, in_recursion):
+            dependencies_for_app = utils_get_dependencies(items, optional=True)
+            for _, deps in dependencies_for_app.items():
+                all_dependencies = all_dependencies.union(deps)
+            processed_component.optional_deps_handled = True
+
+        for component_name in all_dependencies:
+            self._process_component(component_name, app_name, in_recursion=True)
+
+    def _handle_dependencies(self, app_name, processed_component, in_recursion):
+        items = processed_component.items
+        if self._frontend_found(items) and "frontend-configs" not in self.processed_components:
             log.info("found a Frontend resource, auto-adding frontend-configs as dependency")
             self._process_component("frontend-configs", app_name, in_recursion)
 
-        self._add_dependencies_to_config(component_name, app_name, new_items, in_recursion)
+        self._add_dependencies_to_config(app_name, processed_component, in_recursion)
 
     def _process_component(self, component_name, app_name, in_recursion):
-        if component_name not in self.processed_components:
+        if component_name in self.processed_components:
+            log.debug("template already processed for component '%s'", component_name)
+            processed_component = self.processed_components[component_name]
+        else:
             log.info("processing component %s", component_name)
-            new_items = self._get_component_items(component_name)
+            items = self._get_component_items(component_name)
 
             # ignore frontends if we're not supposed to deploy them
-            if self._frontend_found(new_items) and not self.frontends:
+            if self._frontend_found(items) and not self.frontends:
                 log.info(
                     "ignoring component %s, user opted to disable frontend deployments",
                     component_name,
                 )
-                new_items = []
+                items = []
 
-            if new_items:
-                self.k8s_list["items"].extend(new_items)
-                self.processed_components.add(component_name)
+            self.k8s_list["items"].extend(items)
+            processed_component = ProcessedComponent(component_name, items)
+            self.processed_components[component_name] = processed_component
 
-                if self.get_dependencies:
-                    # recursively process to add config for dependent apps to self.k8s_list
-                    self._handle_dependencies(component_name, app_name, new_items, in_recursion)
-        else:
-            log.debug("component %s already processed", component_name)
+        if self.get_dependencies:
+            # recursively process to add config for dependent apps to self.k8s_list
+            self._handle_dependencies(app_name, processed_component, in_recursion)
 
     def _process_app(self, app_name):
         log.info("processing app '%s'", app_name)
