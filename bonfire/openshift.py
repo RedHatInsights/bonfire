@@ -408,10 +408,16 @@ def _check_status_for_restype(restype, json_data):
         return _check_status_condition(status, "ready", "true")
 
     elif restype == "cyndipipeline":
-        return _check_status_condition(status, "valid", "true") and status.get("activeTableName")
+        return (
+            _check_status_condition(status, "valid", "true")
+            and status.get("activeTableName") is not None
+        )
 
     elif restype == "xjoinpipeline":
-        return _check_status_condition(status, "valid", "true") and status.get("activeIndexName")
+        return (
+            _check_status_condition(status, "valid", "true")
+            and status.get("activeIndexName") is not None
+        )
 
 
 class Resource:
@@ -462,6 +468,37 @@ class Resource:
     def ready(self):
         return _check_status_for_restype(self.restype, self.data)
 
+    @property
+    def status_conditions(self):
+        status_conditions = []
+        conditions = self.data.get("status", {}).get("conditions", [])
+        for c in conditions:
+            status_value = c.get("status")
+            status_type = c.get("type")
+            txt = f"{status_type}: {status_value}"
+
+            status_msg = c.get("message")
+            status_reason = c.get("reason")
+            msg = status_msg or status_reason
+            if msg:
+                txt += f" ({msg})"
+
+            status_conditions.append(txt)
+        return status_conditions
+
+
+def _get_details(resources):
+    details = []
+    for r in resources:
+        if not r.ready:
+            detail_msg = f"\n  * {r.key} not ready"
+            if r.status_conditions:
+                detail_msg += ", status conditions:\n{}".format(
+                    "\n".join([f"    - {s}" for s in r.status_conditions])
+                )
+            details.append(detail_msg)
+    return details
+
 
 class ResourceWaiter:
     def __init__(self, namespace, restype, name):
@@ -470,6 +507,7 @@ class ResourceWaiter:
         self.name = name.lower()
         self.observed_resources = dict()
         self.key = f"{self.restype}/{self.name}"
+        self.resource = None
         self._time_last_logged = None
         self._time_remaining = None
 
@@ -480,8 +518,8 @@ class ResourceWaiter:
 
     def _observe(self, resource):
         key = resource.key
-        if resource.key in self.observed_resources:
-            already_observed_resource = self.observed_resources[resource.key]
+        if key in self.observed_resources:
+            already_observed_resource = self.observed_resources[key]
             if already_observed_resource.ready:
                 # so we don't keep logging 'resource is ready!' every time we loop
                 return
@@ -491,9 +529,9 @@ class ResourceWaiter:
             log.info("[%s] resource is ready!", key)
 
     def check_ready(self):
-        resource = Resource(self.restype, self.name, self.namespace)
-        if resource.get_json():
-            self._observe(resource)
+        self.resource = Resource(self.restype, self.name, self.namespace)
+        if self.resource.get_json():
+            self._observe(self.resource)
             return all([r.ready is True for _, r in self.observed_resources.items()])
         return False
 
@@ -529,21 +567,23 @@ class ResourceWaiter:
             if reraise:
                 raise
         except (TimeoutException, TimedOutError):
-            log.error("[%s] timed out waiting for resource to be ready", self.key)
+            # log a "bulleted list" of the not ready resources and their status conditions
+            msg = f"[{self.key}] timed out waiting for resource to be ready"
+            details = _get_details([r for _, r in self.observed_resources.items()])
+            if details:
+                msg += ", details: {}\n".format("\n".join(details))
+            log.error(msg)
+
             if reraise:
                 raise
         return False
 
 
 class ResourceOwnerWaiter(ResourceWaiter):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._resource = None
-
     def _update_observed_resources(self, resource):
         for owner_ref in resource.data["metadata"].get("ownerReferences", []):
             restype_matches = owner_ref["kind"].lower() == self.restype
-            owner_uid_matches = owner_ref["uid"] == self._resource.uid
+            owner_uid_matches = owner_ref["uid"] == self.resource.uid
             if restype_matches and owner_uid_matches:
                 # this resource is owned by "self"
                 if resource.key in self.observed_resources:
@@ -566,7 +606,6 @@ class ResourceOwnerWaiter(ResourceWaiter):
 
     def _observe(self, resource):
         super()._observe(resource)
-        self._resource = resource
         for restype in _available_checkable_resources():
             response = get_json(restype, namespace=self.namespace)
             for item in response.get("items", []):
@@ -790,7 +829,7 @@ def get_all_namespaces():
 
 
 def wait_on_cji(namespace, cji_name, timeout):
-    # first wait for job associated with this CJI to appear
+    # wait for job associated with this CJI to appear
     log.info("waiting for Job to appear owned by CJI '%s'", cji_name)
 
     def _find_job():
@@ -800,9 +839,15 @@ def wait_on_cji(namespace, cji_name, timeout):
         except (KeyError, IndexError):
             return False
 
-    job_name, elapsed = wait_for(
-        _find_job, num_sec=timeout, message=f"wait for Job to appear owned by CJI '{cji_name}'"
-    )
+    cji = Resource("clowdjobinvocation", cji_name, namespace)
+    try:
+        job_name, elapsed = wait_for(
+            _find_job, num_sec=timeout, message=f"wait for Job to appear owned by CJI '{cji_name}'"
+        )
+    except TimedOutError:
+        if not cji.ready:
+            log.error("[%s] not ready, details: %s\n", cji.key, "\n".join(_get_details([cji])))
+        raise
 
     log.info(
         "found Job '%s' created by CJI '%s', now waiting for pod to appear", job_name, cji_name
