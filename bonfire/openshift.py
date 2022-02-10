@@ -414,12 +414,53 @@ def _check_status_for_restype(restype, json_data):
         return _check_status_condition(status, "valid", "true") and status.get("activeIndexName")
 
 
-def _get_resource_info(item):
-    kind = item["kind"].lower()
-    restype = _get_name_for_kind(kind)
-    name = item["metadata"]["name"]
-    key = f"{restype}/{name}"
-    return kind, restype, name, key
+class Resource:
+    def __init__(self, restype=None, name=None, namespace=None, data=None):
+        if not data and not (restype and name):
+            raise ValueError("Resource must be instantiated with restype/name or data")
+
+        self._restype = restype
+        self._name = name
+        self._namespace = namespace
+        self._data = data
+
+    def get_json(self):
+        self._data = get_json(self._restype, name=self._name, namespace=self._namespace)
+        return self._data
+
+    @property
+    def data(self):
+        if not self._data:
+            self.get_json()
+        return self._data
+
+    @property
+    def kind(self):
+        return self.data["kind"].lower()
+
+    @property
+    def restype(self):
+        return _get_name_for_kind(self.kind)
+
+    @property
+    def name(self):
+        return self.data["metadata"]["name"]
+
+    @property
+    def namespace(self):
+        return self.data["metadata"]["namespace"]
+
+    @property
+    def key(self):
+        return f"{self.restype}/{self.name}"
+
+    @property
+    def uid(self):
+        return self.data["metadata"]["uid"]
+
+    @property
+    def ready(self):
+        return _check_status_for_restype(self.restype, self.data)
 
 
 class ResourceWaiter:
@@ -438,21 +479,19 @@ class ResourceWaiter:
                 f"unable to check status of '{self.restype}' resources on this cluster"
             )
 
-    def _observe(self, item):
-        _, restype, _, key = _get_resource_info(item)
-        if key not in self.observed_resources:
-            self.observed_resources[key] = {"ready": False}
-        if not self.observed_resources[key]["ready"]:
-            if _check_status_for_restype(restype, item):
-                log.info("[%s] resource is ready!", key)
-                self.observed_resources[key]["ready"] = True
+    def _observe(self, resource):
+        key = resource.key
+        self.observed_resources[key] = resource
+
+        if resource.ready:
+            log.info("[%s] resource is ready!", key)
 
     def check_ready(self):
-        response = get_json(self.restype, name=self.name, namespace=self.namespace)
-        if response:
-            self._uid = response["metadata"]["uid"]
-            self._observe(response)
-            return all([r["ready"] is True for _, r in self.observed_resources.items()])
+        resource = Resource(self.restype, self.name, self.namespace)
+        if resource.get_json():
+            self._uid = resource.uid
+            self._observe(resource)
+            return all([r.ready is True for _, r in self.observed_resources.items()])
         return False
 
     def _check_with_periodic_log(self):
@@ -494,32 +533,29 @@ class ResourceWaiter:
 
 
 class ResourceOwnerWaiter(ResourceWaiter):
-    def _update_observed_resources(self, item):
-        for owner_ref in item["metadata"].get("ownerReferences", []):
+    def _update_observed_resources(self, resource):
+        for owner_ref in resource.data["metadata"].get("ownerReferences", []):
             restype_matches = owner_ref["kind"].lower() == self.restype
             owner_uid_matches = owner_ref["uid"] == self._uid
             if restype_matches and owner_uid_matches:
-                _, restype, _, resource_key = _get_resource_info(item)
-                if resource_key not in self.observed_resources:
-                    self.observed_resources[resource_key] = {"ready": False}
+                if resource.key not in self.observed_resources:
                     log.info(
                         "[%s] found owned resource %s",
                         self.key,
-                        resource_key,
+                        resource.key,
                     )
 
+                self.observed_resources[resource.key] = resource
                 # check if ready state has transitioned for this resource
-                if not self.observed_resources[resource_key]["ready"]:
-                    if _check_status_for_restype(restype, item):
-                        log.info("[%s] owned resource %s is ready!", self.key, resource_key)
-                        self.observed_resources[resource_key]["ready"] = True
+                if resource.ready:
+                    log.info("[%s] owned resource %s is ready!", self.key, resource.key)
 
-    def _observe(self, item):
-        super()._observe(item)
+    def _observe(self, resource):
+        super()._observe(resource)
         for restype in _available_checkable_resources():
             response = get_json(restype, namespace=self.namespace)
             for item in response.get("items", []):
-                self._update_observed_resources(item)
+                self._update_observed_resources(Resource(data=item))
 
 
 def wait_for_ready(namespace, restype, name, timeout=600):
@@ -595,9 +631,9 @@ def _all_resources_ready(namespace, timeout):
     for restype in _resources_for_ns_wait():
         response = get_json(restype, namespace=namespace)
         for item in response.get("items", []):
-            _, restype, name, resource_key = _get_resource_info(item)
-            if resource_key not in already_waited_on:
-                waiter = ResourceWaiter(namespace, restype, name)
+            resource = Resource(data=item)
+            if resource.key not in already_waited_on:
+                waiter = ResourceWaiter(resource.namespace, resource.restype, resource.name)
                 waiters.append(waiter)
 
     return wait_for_ready_threaded(waiters, timeout)
