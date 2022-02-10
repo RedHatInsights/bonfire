@@ -469,7 +469,6 @@ class ResourceWaiter:
         self.restype = parse_restype(restype)
         self.name = name.lower()
         self.observed_resources = dict()
-        self._uid = None
         self.key = f"{self.restype}/{self.name}"
         self._time_last_logged = None
         self._time_remaining = None
@@ -481,15 +480,19 @@ class ResourceWaiter:
 
     def _observe(self, resource):
         key = resource.key
-        self.observed_resources[key] = resource
+        if resource.key in self.observed_resources:
+            already_observed_resource = self.observed_resources[resource.key]
+            if already_observed_resource.ready:
+                # so we don't keep logging 'resource is ready!' every time we loop
+                return
 
+        self.observed_resources[key] = resource
         if resource.ready:
             log.info("[%s] resource is ready!", key)
 
     def check_ready(self):
         resource = Resource(self.restype, self.name, self.namespace)
         if resource.get_json():
-            self._uid = resource.uid
             self._observe(resource)
             return all([r.ready is True for _, r in self.observed_resources.items()])
         return False
@@ -533,17 +536,28 @@ class ResourceWaiter:
 
 
 class ResourceOwnerWaiter(ResourceWaiter):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._resource = None
+
     def _update_observed_resources(self, resource):
         for owner_ref in resource.data["metadata"].get("ownerReferences", []):
             restype_matches = owner_ref["kind"].lower() == self.restype
-            owner_uid_matches = owner_ref["uid"] == self._uid
+            owner_uid_matches = owner_ref["uid"] == self._resource.uid
             if restype_matches and owner_uid_matches:
-                if resource.key not in self.observed_resources:
-                    log.info(
-                        "[%s] found owned resource %s",
-                        self.key,
-                        resource.key,
-                    )
+                # this resource is owned by "self"
+                if resource.key in self.observed_resources:
+                    already_observed_resource = self.observed_resources[resource.key]
+                    if already_observed_resource.ready:
+                        # so we don't keep logging 'resource is ready!' every time we loop
+                        return
+                else:
+                    if not resource.ready:
+                        log.info(
+                            "[%s] found owned resource %s, not yet ready",
+                            self.key,
+                            resource.key,
+                        )
 
                 self.observed_resources[resource.key] = resource
                 # check if ready state has transitioned for this resource
@@ -552,6 +566,7 @@ class ResourceOwnerWaiter(ResourceWaiter):
 
     def _observe(self, resource):
         super()._observe(resource)
+        self._resource = resource
         for restype in _available_checkable_resources():
             response = get_json(restype, namespace=self.namespace)
             for item in response.get("items", []):
@@ -577,7 +592,7 @@ def wait_for_ready_threaded(waiters, timeout=600):
     all_failed_resources = set()
     for waiter in waiters:
         waiter_failed_resources = [
-            key for key, val in waiter.observed_resources.items() if val["ready"] is False
+            k for k, r in waiter.observed_resources.items() if r.ready is False
         ]
         for failed_resource in waiter_failed_resources:
             all_failed_resources.add(failed_resource)
