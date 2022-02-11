@@ -677,6 +677,8 @@ def wait_for_ready_threaded(waiters, timeout=600):
     if all_failed_resources:
         log.info("some resources failed to become ready: %s", ", ".join(all_failed_resources))
         return False
+
+    log.info("all resources being monitored have now reached 'ready' state")
     return True
 
 
