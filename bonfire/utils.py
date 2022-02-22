@@ -130,7 +130,12 @@ def validate_time_string(time):
     valid_time = re.compile(r"^((\d+)h)?((\d+)m)?((\d+)s)?$")
     if not valid_time.match(time):
         raise ValueError(
-            f"invalid format for duration '{time}', must match: r'{valid_time.pattern}'"
+            f"invalid format for duration '{time}', expecting h/m/s string. Ex: '1h30m'"
+        )
+    seconds = hms_to_seconds(time)
+    if seconds > 1209600:  # 14 days
+        raise ValueError(
+            f"invalid duration '{time}', must be less than 14 days"
         )
     return time
 

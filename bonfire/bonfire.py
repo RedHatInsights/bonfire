@@ -182,8 +182,8 @@ def _wait_on_namespace_resources(namespace, timeout, db_only=False):
 def _validate_reservation_duration(ctx, param, value):
     try:
         return validate_time_string(value)
-    except ValueError:
-        raise click.BadParameter("expecting h/m/s string. Ex: '1h30m'")
+    except ValueError as err:
+        raise click.BadParameter(err)
 
 
 _ns_reserve_options = [
