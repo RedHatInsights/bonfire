@@ -541,6 +541,7 @@ class ResourceWaiter:
         self.observed_resources = dict()
         self.key = f"{self.restype}/{self.name}"
         self.resource = None
+        self.timed_out = False
         self._time_last_logged = None
         self._time_remaining = None
 
@@ -618,8 +619,12 @@ class ResourceWaiter:
         return False
 
     def wait_for_ready(self, timeout, reraise=False):
+        self.timed_out = False
         self._time_last_logged = time.time()
         self._time_remaining = timeout
+
+        # we can loop with a much smaller delay if using a ResourceWatcher thread
+        delay = 0.1 if self.watcher else 5
 
         try:
             # check for ready initially, only wait_for if we need to
@@ -629,7 +634,7 @@ class ResourceWaiter:
                 wait_for(
                     self._check_with_periodic_log,
                     message=f"wait for {self.key} to be 'ready'",
-                    delay=5,
+                    delay=delay,
                     timeout=timeout,
                 )
             return True
@@ -638,12 +643,15 @@ class ResourceWaiter:
             if reraise:
                 raise
         except (TimeoutException, TimedOutError):
-            # log a "bulleted list" of the not ready resources and their status conditions
-            msg = f"[{self.key}] timed out waiting for resource to be ready"
-            details = _get_details([r for _, r in self.observed_resources.items()])
-            if details:
-                msg += ", details: {}\n".format("\n".join(details))
-            log.error(msg)
+            # check one last time and error out if its still not ready
+            if not self.check_ready():
+                self.timed_out = True
+                # log a "bulleted list" of the not ready resources and their status conditions
+                msg = f"[{self.key}] timed out waiting for resource to be ready"
+                details = _get_details([r for _, r in self.observed_resources.items()])
+                if details:
+                    msg += ", details: {}\n".format("\n".join(details))
+                log.error(msg)
 
             if reraise:
                 raise
@@ -666,19 +674,13 @@ def wait_for_ready_threaded(waiters, timeout=600):
     for thread in threads:
         thread.join()
 
-    all_failed_resources = set()
-    for waiter in waiters:
-        waiter_failed_resources = [
-            k for k, r in waiter.observed_resources.items() if r.ready is False
-        ]
-        for failed_resource in waiter_failed_resources:
-            all_failed_resources.add(failed_resource)
+    timed_out_resources = [w.key for w in waiters if w.timed_out]
 
-    if all_failed_resources:
-        log.info("some resources failed to become ready: %s", ", ".join(all_failed_resources))
+    if timed_out_resources:
+        log.info("some resources failed to become ready: %s", ", ".join(timed_out_resources))
         return False
 
-    log.info("all resources being monitored have now reached 'ready' state")
+    log.info("all resources being monitored reached 'ready' state")
     return True
 
 
