@@ -61,19 +61,28 @@ oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAM
 set +x
 
 # Set up port-forward for minio
+set -x
 LOCAL_SVC_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
 oc port-forward svc/env-$NAMESPACE-minio $LOCAL_SVC_PORT:9000 -n $NAMESPACE &
+set +x
 sleep 5
 PORT_FORWARD_PID=$!
 
 # Get the secret from the env
+set -x
 oc get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq -r '.data' > minio-creds.json
+set +x
 
 # Grab the needed creds from the secret
 export MINIO_ACCESS=$(jq -r .accessKey < minio-creds.json | base64 -d)
 export MINIO_SECRET_KEY=$(jq -r .secretKey < minio-creds.json | base64 -d)
 export MINIO_HOST=localhost
 export MINIO_PORT=$LOCAL_SVC_PORT
+
+if [ -z "$MINIO_ACCESS" ] || [ -z "$MINIO_SECRET_KEY" ] || -z "$MINIO_PORT"]; then
+    echo "Failed to fetch minio connection info when running 'oc' commands"
+    exit 1
+fi
 
 # Setup the minio client to auth to the local eph minio in the ns
 echo "Fetching artifacts from minio..."
