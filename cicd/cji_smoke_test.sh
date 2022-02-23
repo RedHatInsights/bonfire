@@ -79,7 +79,7 @@ export MINIO_SECRET_KEY=$(jq -r .secretKey < minio-creds.json | base64 -d)
 export MINIO_HOST=localhost
 export MINIO_PORT=$LOCAL_SVC_PORT
 
-if [ -z "$MINIO_ACCESS" ] || [ -z "$MINIO_SECRET_KEY" ] || -z "$MINIO_PORT"]; then
+if [ -z "$MINIO_ACCESS" ] || [ -z "$MINIO_SECRET_KEY" ] || [ -z "$MINIO_PORT" ]; then
     echo "Failed to fetch minio connection info when running 'oc' commands"
     exit 1
 fi
