@@ -559,39 +559,55 @@ class ResourceWaiter:
             owner_uid_matches = owner_ref["uid"] == self.resource.uid
             if restype_matches and owner_uid_matches:
                 # this resource is owned by "self"
+                previously_observed = False
+                previously_ready = False
                 if resource.key in self.observed_resources:
-                    already_observed_resource = self.observed_resources[resource.key]
-                    if already_observed_resource.ready:
-                        # so we don't keep logging 'resource is ready!' every time we loop
-                        return
-                else:
-                    if not resource.ready:
-                        log.info(
-                            "[%s] found owned resource %s, not yet ready",
-                            self.key,
-                            resource.key,
-                        )
+                    # so we don't keep logging on every loop
+                    previously_observed = True
+                    previous_resource = self.observed_resources[resource.key]
+                    previously_ready = True if previous_resource.ready else False
 
+                # update our records for this resource
                 self.observed_resources[resource.key] = resource
+
+                if not previously_observed and not resource.ready:
+                    log.info(
+                        "[%s] found owned resource %s, not yet ready",
+                        self.key,
+                        resource.key,
+                    )
+
                 # check if ready state has transitioned for this resource
-                if resource.ready:
+                if not previously_ready and resource.ready:
                     log.info("[%s] owned resource %s is ready!", self.key, resource.key)
 
     def _observe(self, resource):
         key = resource.key
-        if key in self.observed_resources:
-            already_observed_resource = self.observed_resources[key]
-            if already_observed_resource.ready:
-                # so we don't keep logging 'resource is ready!' every time we loop
-                return
 
+        previously_ready = False
+        if key in self.observed_resources:
+            previous_resource = self.observed_resources[key]
+            if previous_resource.ready:
+                # so we don't keep logging on every loop
+                previously_ready = True
+
+        # update our records for this resource
         self.observed_resources[key] = resource
 
         if self.watch_owned:
             for _, r in self.watcher.resources.items():
                 self._check_owned_resources(r)
 
-        if resource.ready:
+            # check to see if any of the owned resources we were previously watching are now no
+            # longer present in the ResourceWatcher
+            disappeared_resources = {
+                key for key in self.observed_resources if key not in self.watcher.resources
+            }
+            for key in disappeared_resources:
+                log.info("[%s] resource has disappeared, no longer monitoring it", key)
+                del self.observed_resources[key]
+
+        if not previously_ready and resource.ready:
             log.info("[%s] resource is ready!", key)
 
     def check_ready(self):
