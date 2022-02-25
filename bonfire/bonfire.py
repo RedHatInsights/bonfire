@@ -302,21 +302,28 @@ def _validate_set_image_tag(ctx, param, value):
         raise click.BadParameter("format must be '<image uri>=<tag>'")
 
 
-def _validate_resource_arguments(ctx, param, value):
+def _validate_opposing_opts(ctx, param, value):
     opposite_option = {
         "remove_resources": "no_remove_resources",
         "no_remove_resources": "remove_resources",
+        "remove_dependencies": "no_remove_dependencies",
+        "no_remove_dependencies": "remove_dependencies",
     }
+    opposite_option_value = ctx.params.get(opposite_option[param.name], "")
+
     if any([val.startswith("-") for val in value]):
+        raise click.BadParameter("requires a component name or keyword 'all'")
+    if "all" in value and "all" in opposite_option_value:
         raise click.BadParameter(
-            "--remove-resources/--no-remove-resources requires a component name or keyword 'all'"
+            f"'{param.opts[0]}' and its opposite option can't be both set to 'all'"
         )
-    if "all" in value and "all" in ctx.params.get(opposite_option[param.name], {}):
-        raise click.BadParameter(
-            "--remove-resources and --no-remove-resources can't be both set to 'all'"
-        )
-    if param.name == "remove_resources" and not value:
+
+    # default values
+    if param.name == "remove_resources" and not value and not opposite_option_value:
         value = ("all",)
+    if param.name == "no_remove_dependencies" and not value and not opposite_option_value:
+        value = ("all",)
+
     return value
 
 
@@ -405,7 +412,7 @@ _process_options = [
         ),
         type=str,
         multiple=True,
-        callback=_validate_resource_arguments,
+        callback=_validate_opposing_opts,
     ),
     click.option(
         "--no-remove-resources",
@@ -415,7 +422,27 @@ _process_options = [
         ),
         type=str,
         multiple=True,
-        callback=_validate_resource_arguments,
+        callback=_validate_opposing_opts,
+    ),
+    click.option(
+        "--remove-dependencies",
+        help=(
+            "Remove dependencies/optionalDependencies on ClowdApp configs "
+            "for specific components (default: none)"
+        ),
+        type=str,
+        multiple=True,
+        callback=_validate_opposing_opts,
+    ),
+    click.option(
+        "--no-remove-dependencies",
+        help=(
+            "Don't remove dependencies/optionalDependencies on ClowdApp configs "
+            "for specific components (default: all)"
+        ),
+        type=str,
+        multiple=True,
+        callback=_validate_opposing_opts,
     ),
     click.option(
         "--single-replicas/--no-single-replicas",
@@ -741,6 +768,8 @@ def _process(
     local_config_path,
     remove_resources,
     no_remove_resources,
+    remove_dependencies,
+    no_remove_dependencies,
     single_replicas,
     component_filter,
     local,
@@ -758,6 +787,8 @@ def _process(
         clowd_env,
         remove_resources,
         no_remove_resources,
+        remove_dependencies,
+        no_remove_dependencies,
         single_replicas,
         component_filter,
         local,
@@ -788,6 +819,8 @@ def _cmd_process(
     local_config_path,
     remove_resources,
     no_remove_resources,
+    remove_dependencies,
+    no_remove_dependencies,
     single_replicas,
     component_filter,
     local,
@@ -809,6 +842,8 @@ def _cmd_process(
         local_config_path,
         remove_resources,
         no_remove_resources,
+        remove_dependencies,
+        no_remove_dependencies,
         single_replicas,
         component_filter,
         local,
@@ -898,6 +933,8 @@ def _cmd_config_deploy(
     local_config_path,
     remove_resources,
     no_remove_resources,
+    remove_dependencies,
+    no_remove_dependencies,
     single_replicas,
     namespace,
     name,
@@ -960,6 +997,8 @@ def _cmd_config_deploy(
             local_config_path,
             remove_resources,
             no_remove_resources,
+            remove_dependencies,
+            no_remove_dependencies,
             single_replicas,
             component_filter,
             local,
