@@ -459,16 +459,19 @@ class TemplateProcessor:
         # override the tags for all occurences of an image if requested
         new_items = self._sub_image_tags(new_items)
 
+        remove_all_resources = "all" in self.remove_resources or not self.remove_resources
+        remove_all_dependencies = "all" in self.remove_dependencies
+
         if (
             "all" not in self.no_remove_resources
-            and ("all" in self.remove_resources or component_name in self.remove_resources)
+            and (remove_all_resources or component_name in self.remove_resources)
             and component_name not in self.no_remove_resources
         ):
             _remove_resource_config(new_items)
 
         if (
             "all" not in self.no_remove_dependencies
-            and ("all" in self.remove_dependencies or component_name in self.remove_dependencies)
+            and (remove_all_dependencies or component_name in self.remove_dependencies)
             and component_name not in self.no_remove_dependencies
         ):
             _remove_dependency_config(new_items)
