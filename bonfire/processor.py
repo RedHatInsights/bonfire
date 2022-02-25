@@ -35,6 +35,19 @@ def _remove_resource_config(items):
             log.debug("removed resources from ClowdApp '%s'", i["metadata"]["name"])
 
 
+def _remove_dependency_config(items):
+    for i in items:
+        if i["kind"] != "ClowdApp":
+            continue
+
+        if i["spec"].get("dependencies"):
+            del i["spec"]["dependencies"]
+            log.debug("removed dependencies from ClowdApp '%s'", i["metadata"]["name"])
+        if i["spec"].get("optionalDependencies"):
+            del i["spec"]["optionalDependencies"]
+            log.debug("removed optionalDependencies from ClowdApp '%s'", i["metadata"]["name"])
+
+
 def _set_replicas(items):
     for i in items:
         if i["kind"] != "ClowdApp":
@@ -313,6 +326,12 @@ class TemplateProcessor:
         self._validate_component_options(
             all_components, self.no_remove_resources, "--no-remove-resources"
         )
+        self._validate_component_options(
+            all_components, self.remove_dependencies, "--remove-dependencies"
+        )
+        self._validate_component_options(
+            all_components, self.no_remove_dependencies, "--no-remove-dependencies"
+        )
         self._validate_component_options(all_components, self.component_filter, "--component")
 
     def __init__(
@@ -326,6 +345,8 @@ class TemplateProcessor:
         clowd_env,
         remove_resources,
         no_remove_resources,
+        remove_dependencies,
+        no_remove_dependencies,
         single_replicas,
         component_filter,
         local,
@@ -340,6 +361,8 @@ class TemplateProcessor:
         self.clowd_env = clowd_env
         self.remove_resources = remove_resources
         self.no_remove_resources = no_remove_resources
+        self.remove_dependencies = remove_dependencies
+        self.no_remove_dependencies = no_remove_dependencies
         self.single_replicas = single_replicas
         self.component_filter = component_filter
         self.local = local
@@ -442,6 +465,13 @@ class TemplateProcessor:
             and component_name not in self.no_remove_resources
         ):
             _remove_resource_config(new_items)
+
+        if (
+            "all" not in self.no_remove_dependencies
+            and ("all" in self.remove_dependencies or component_name in self.remove_dependencies)
+            and component_name not in self.no_remove_dependencies
+        ):
+            _remove_dependency_config(new_items)
 
         if self.single_replicas:
             _set_replicas(new_items)
