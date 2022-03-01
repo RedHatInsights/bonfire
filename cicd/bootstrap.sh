@@ -66,8 +66,8 @@ rm -fr $BONFIRE_ROOT
 # for testing:
 git clone --branch retry_errors_in_sh https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
-# Override the 'oc' command to add a retry mechanism
-oc() {
+# Func that adds a retry mechanism to 'oc' command calls
+retry_oc() {
   retries=3
   backoff=3
   attempt=0
