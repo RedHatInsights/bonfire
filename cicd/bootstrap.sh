@@ -67,13 +67,13 @@ rm -fr $BONFIRE_ROOT
 git clone --branch retry_errors_in_sh https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Func that adds a retry mechanism to 'oc' command calls
-retry_oc() {
+oc() {
   retries=3
   backoff=3
   attempt=0
   while true; do
     attempt=$((attempt+1))
-    oc "$@" && exit 0  # exit here if 'oc' completes successfully
+    oc "$@" && return 0  # exit here if 'oc' completes successfully
 
     if [ "$attempt" -lt $retries ]; then
       sleep_time=$(($attempt*$backoff))
@@ -85,5 +85,5 @@ retry_oc() {
   done
 
   echo "oc command failed, gave up after $retries tries"
-  exit 1
+  return 1
 }
