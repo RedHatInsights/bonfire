@@ -6,7 +6,7 @@ attempt=0
 while true; do
     attempt=$((attempt+1))
     echo "attempting"
-    oc "$@" && exit 0  # substitute your command here
+    oc "$@" && exit 0  # exit here if 'oc' completes successfully
 
     if [ "$attempt" -lt $retries ]; then
        sleep_time=$(($attempt*$backoff))
