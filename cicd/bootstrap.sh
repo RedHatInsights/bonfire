@@ -67,5 +67,7 @@ rm -fr $BONFIRE_ROOT
 git clone --branch retry_errors_in_sh https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Override the 'oc' command to use our "oc_with_retry" helper
+set -x
 chmod +x $CICD_ROOT/oc_with_retry.sh
 alias oc="$CICD_ROOT/oc_with_retry.sh"
+set +x
