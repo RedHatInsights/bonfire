@@ -87,7 +87,3 @@ oc() {
   echo "oc command failed, gave up after $retries tries"
   exit 1
 }
-
-set -x
-export -f oc
-set +x
