@@ -62,7 +62,9 @@ pip install --upgrade crc-bonfire
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
-git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+#git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+# for testing:
+git clone --branch retry_errors_in_sh https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Override the 'oc' command to use our "oc_with_retry" helper
 chmod +x $CICD_ROOT/oc_with_retry.sh
