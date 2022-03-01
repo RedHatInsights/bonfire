@@ -90,6 +90,10 @@ def _conflicts_found(err_lines):
     return any("error from server (conflict)" in line.lower() for line in err_lines)
 
 
+def _io_error_found(err_lines):
+    return any("i/o timeout" in line.lower() for line in err_lines)
+
+
 def _get_logging_args(args, kwargs):
     # Format the cmd args/kwargs for log printing before the command is run
     cmd_args = " ".join([str(arg) for arg in args if arg is not None])
@@ -111,6 +115,7 @@ def _exec_oc(*args, **kwargs):
     _silent = kwargs.pop("_silent", False)
     _ignore_immutable = kwargs.pop("_ignore_immutable", True)
     _retry_conflicts = kwargs.pop("_retry_conflicts", True)
+    _retry_io_errors = kwargs.pop("_retry_io_errors", True)
     _stdout_log_prefix = kwargs.pop("_stdout_log_prefix", " |stdout| ")
     _stderr_log_prefix = kwargs.pop("_stderr_log_prefix", " |stderr| ")
 
@@ -133,7 +138,9 @@ def _exec_oc(*args, **kwargs):
         out_lines.append(line)
 
     retries = 3
+    backoff = 3
     last_err = None
+
     for count in range(1, retries + 1):
         cmd = sh.oc(*args, **kwargs, _tee=True, _out=_out_line_handler, _err=_err_line_handler)
         if not _silent:
@@ -168,12 +175,24 @@ def _exec_oc(*args, **kwargs):
                 log.warning("Ignoring immutable field errors")
                 break
             elif _retry_conflicts and _conflicts_found(err_lines):
+                sleep_time = count * backoff
                 log.warning(
-                    "Hit resource conflict, retrying in 1 sec (attempt %d/%d)",
+                    "Hit resource conflict, retrying in %d sec (attempt %d/%d)",
+                    sleep_time,
                     count,
                     retries,
                 )
-                time.sleep(1)
+                time.sleep(sleep_time)
+                continue
+            elif _retry_io_errors and _io_error_found(err_lines):
+                sleep_time = count * backoff
+                log.warning(
+                    "Hit i/o error, retrying in %d sec (attempt %d/%d)",
+                    sleep_time,
+                    count,
+                    retries,
+                )
+                time.sleep(sleep_time)
                 continue
 
             # Bail if not
@@ -192,6 +211,7 @@ def oc(*args, **kwargs):
         _silent: don't print command or resulting stdout (default False)
         _ignore_immutable: ignore errors related to immutable objects (default True)
         _retry_conflicts: retry commands if a conflict error is hit
+        _retry_io_errors: retry commands if i/o error is hit
         _stdout_log_prefix: prefix this string to stdout log output (default " |stdout| ")
         _stderr_log_prefix: prefix this string to stderr log output (default " |stderr| ")
 
@@ -200,7 +220,7 @@ def oc(*args, **kwargs):
         command output (str) if command succeeds
     """
     _ignore_errors = kwargs.pop("_ignore_errors", False)
-    # The _silent/_ignore_immutable/_retry_conflicts kwargs are passed on so don't pop them yet
+    # The _silent/_ignore_immutable/_retry_* kwargs are passed on so don't pop them yet
 
     try:
         return _exec_oc(*args, **kwargs)
