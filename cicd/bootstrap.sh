@@ -68,25 +68,24 @@ git clone --branch retry_errors_in_sh https://github.com/RedHatInsights/bonfire.
 
 # Override the 'oc' command to add a retry mechanism
 oc() {
-    retries=3
-    backoff=3
-    attempt=0
-    while true; do
-        attempt=$((attempt+1))
-        echo "attempting"
-        oc "$@" && exit 0  # exit here if 'oc' completes successfully
+  retries=3
+  backoff=3
+  attempt=0
+  while true; do
+    attempt=$((attempt+1))
+    oc "$@" && exit 0  # exit here if 'oc' completes successfully
 
-        if [ "$attempt" -lt $retries ]; then
-          sleep_time=$(($attempt*$backoff))
-          echo "oc command hit error (attempt $attempt/$retries), retrying in $sleep_time sec"
-          sleep $sleep_time
-        else
-            break
-        fi
-    done
+    if [ "$attempt" -lt $retries ]; then
+      sleep_time=$(($attempt*$backoff))
+      echo "oc command hit error (attempt $attempt/$retries), retrying in $sleep_time sec"
+      sleep $sleep_time
+    else
+      break
+    fi
+  done
 
-    echo "oc command failed, gave up after $retries tries"
-    exit 1
+  echo "oc command failed, gave up after $retries tries"
+  exit 1
 }
 
 set -x
