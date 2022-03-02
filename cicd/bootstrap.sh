@@ -66,14 +66,21 @@ rm -fr $BONFIRE_ROOT
 # for testing:
 git clone --branch retry_errors_in_sh https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
-# Func that adds a retry mechanism to 'oc' command calls
+# Add a retry mechanism to 'oc' command calls
+real_oc=$(which oc)
+
+if [ -z "$real_oc" ]; then
+  echo "ERROR: unable to locate 'oc' command on PATH"
+  exit 1
+fi
+
 oc() {
   retries=3
   backoff=3
   attempt=0
   while true; do
     attempt=$((attempt+1))
-    oc "$@" && return 0  # exit here if 'oc' completes successfully
+    $real_oc "$@" && return 0  # exit here if 'oc' completes successfully
 
     if [ "$attempt" -lt $retries ]; then
       sleep_time=$(($attempt*$backoff))
