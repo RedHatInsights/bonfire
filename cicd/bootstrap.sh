@@ -13,9 +13,6 @@ if test -f unit_test.sh; then
   fi
 fi
 
-# log in to ephemeral cluster
-oc login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
-
 export APP_ROOT=$(pwd)
 export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build's workspace
 export BONFIRE_ROOT=${WORKSPACE}/bonfire
@@ -67,7 +64,7 @@ rm -fr $BONFIRE_ROOT
 git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Add a retry mechanism to 'oc' command calls
-oc() {
+oc_wrapper() {
   # hide all the extra stuff we're doing in here if user called 'set -x' before 'oc'
   # to make debugging log output easier
   # https://stackoverflow.com/a/50668339
@@ -102,3 +99,6 @@ oc() {
   echo "oc command failed, gave up after $retries tries"
   return 1
 }
+
+# log in to ephemeral cluster
+oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
