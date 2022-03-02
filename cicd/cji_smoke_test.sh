@@ -57,8 +57,6 @@ oc logs -n $NAMESPACE $POD -f &
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
 set -x
-# temp: intentionally break this for a test
-oc get somethingthatdoesnotexist
 oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
 set +x
 
