@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 
 # check that unit_test.sh complies w/ best practices
@@ -67,17 +69,25 @@ rm -fr $BONFIRE_ROOT
 git clone --branch retry_errors_in_sh https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Add a retry mechanism to 'oc' command calls
-real_oc=$(which oc)
-
-if [ -z "$real_oc" ]; then
-  echo "ERROR: unable to locate 'oc' command on PATH"
-  exit 1
-fi
-
 oc() {
+  # hide all the extra stuff we're doing in here if user called 'set -x' before 'oc'
+  # to make debugging log output easier
+  # https://stackoverflow.com/a/50668339
+  if [ -o xtrace ]; then
+      set +x
+      trap 'set -x' RETURN
+  fi
+
+  real_oc=$(which oc)
   retries=3
   backoff=3
   attempt=0
+
+  if [ -z "$real_oc" ]; then
+    echo "ERROR: unable to locate 'oc' command on PATH"
+    return 1
+  fi
+
   while true; do
     attempt=$((attempt+1))
     $real_oc "$@" && return 0  # exit here if 'oc' completes successfully
