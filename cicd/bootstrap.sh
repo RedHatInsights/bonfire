@@ -61,8 +61,7 @@ pip install --upgrade crc-bonfire
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
-#git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
-git clone --branch switch_to_separate_func https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Add a retry mechanism to 'oc' command calls
 oc_wrapper() {
