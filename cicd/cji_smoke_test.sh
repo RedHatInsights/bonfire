@@ -52,25 +52,25 @@ POD=$(
 set +x
 
 # Pipe logs to background to keep them rolling in jenkins
-oc logs -n $NAMESPACE $POD -f &
+oc_wrapper logs -n $NAMESPACE $POD -f &
 
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
 set -x
-oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
+oc_wrapper wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
 set +x
 
 # Set up port-forward for minio
 set -x
 LOCAL_SVC_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
-oc port-forward svc/env-$NAMESPACE-minio $LOCAL_SVC_PORT:9000 -n $NAMESPACE &
+oc_wrapper port-forward svc/env-$NAMESPACE-minio $LOCAL_SVC_PORT:9000 -n $NAMESPACE &
 set +x
 sleep 5
 PORT_FORWARD_PID=$!
 
 # Get the secret from the env
 set -x
-oc get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq -r '.data' > minio-creds.json
+oc_wrapper get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq -r '.data' > minio-creds.json
 set +x
 
 # Grab the needed creds from the secret
