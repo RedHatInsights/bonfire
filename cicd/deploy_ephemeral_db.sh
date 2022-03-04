@@ -23,17 +23,17 @@ bonfire process \
     --namespace $NAMESPACE \
     --remove-dependencies all \
     $COMPONENTS_ARG \
-    $COMPONENTS_RESOURCES_ARG | oc_wrapper apply -f - -n $NAMESPACE
+    $COMPONENTS_RESOURCES_ARG | oc apply -f - -n $NAMESPACE
 
 bonfire namespace wait-on-resources $NAMESPACE --db-only
 
 # Set up port-forward for DB
 LOCAL_DB_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
-oc_wrapper port-forward svc/$DB_DEPLOYMENT_NAME $LOCAL_DB_PORT:5432 -n $NAMESPACE &
+oc port-forward svc/$DB_DEPLOYMENT_NAME $LOCAL_DB_PORT:5432 -n $NAMESPACE &
 PORT_FORWARD_PID=$!
 
 # Store database access info to env vars
-oc_wrapper get secret $COMPONENT_NAME -o json -n $NAMESPACE | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
+oc get secret $COMPONENT_NAME -o json -n $NAMESPACE | jq -r '.data["cdappconfig.json"]' | base64 -d | jq .database > db-creds.json
 set +x
 
 export DATABASE_NAME=$(jq -r .name < db-creds.json)
