@@ -79,7 +79,7 @@ oc_wrapper() {
   attempt=0
 
   if [ -z "$real_oc" ]; then
-    echo "ERROR: unable to locate 'oc' command on PATH"
+    echo "ERROR: unable to locate 'oc' command on PATH" >&2
     return 1
   fi
 
@@ -89,14 +89,14 @@ oc_wrapper() {
 
     if [ "$attempt" -lt $retries ]; then
       sleep_time=$(($attempt*$backoff))
-      echo "oc command hit error (attempt $attempt/$retries), retrying in $sleep_time sec"
+      echo "oc command hit error (attempt $attempt/$retries), retrying in $sleep_time sec" >&2
       sleep $sleep_time
     else
       break
     fi
   done
 
-  echo "oc command failed, gave up after $retries tries"
+  echo "oc command failed, gave up after $retries tries" >&2
   return 1
 }
 
