@@ -20,7 +20,7 @@ set -e
 : ${COMPONENTS:=""}
 : ${COMPONENTS_W_RESOURCES:=""}
 : ${DEPLOY_TIMEOUT:="600"}
-K8S_ARTIFACTS_DIR="$ARTIFACTS_DIR/k8s_artifacts/"
+K8S_ARTIFACTS_DIR="$ARTIFACTS_DIR/k8s_artifacts"
 TEARDOWN_RAN=0
 
 function get_pod_logs() {
