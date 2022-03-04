@@ -29,14 +29,14 @@ function get_pod_logs() {
     mkdir -p $LOGS_DIR
     # get array of pod_name:container1,container2,..,containerN for all containers in all pods
     echo "Collecting container logs..."
-    PODS_CONTAINERS=($(oc_wrapper get pods --ignore-not-found=true -n $ns -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
+    PODS_CONTAINERS=($(oc get pods --ignore-not-found=true -n $ns -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
     for pc in ${PODS_CONTAINERS[@]}; do
         # https://stackoverflow.com/a/4444841
         POD=${pc%%:*}
         CONTAINERS=${pc#*:}
         for container in ${CONTAINERS//,/ }; do
-            oc_wrapper logs $POD -c $container -n $ns > $LOGS_DIR/${POD}_${container}.log 2> /dev/null || continue
-            oc_wrapper logs $POD -c $container --previous -n $ns > $LOGS_DIR/${POD}_${container}-previous.log 2> /dev/null || continue
+            oc logs $POD -c $container -n $ns > $LOGS_DIR/${POD}_${container}.log 2> /dev/null || continue
+            oc logs $POD -c $container --previous -n $ns > $LOGS_DIR/${POD}_${container}-previous.log 2> /dev/null || continue
         done
     done
 }
@@ -47,11 +47,11 @@ function collect_k8s_artifacts() {
     mkdir -p $DIR
     get_pod_logs $ns
     echo "Collecting events and k8s configs..."
-    oc_wrapper get events -n $ns --sort-by='.lastTimestamp' > $DIR/oc_get_events.txt
-    oc_wrapper get all -n $ns -o yaml > $DIR/oc_get_all.yaml
-    oc_wrapper get clowdapp -n $ns -o yaml > $DIR/oc_get_clowdapp.yaml
-    oc_wrapper get clowdenvironment env-$ns -o yaml > $DIR/oc_get_clowdenvironment.yaml
-    oc_wrapper get clowdjobinvocation -n $ns -o yaml > $DIR/oc_get_clowdjobinvocation.yaml
+    oc get events -n $ns --sort-by='.lastTimestamp' > $DIR/oc_get_events.txt
+    oc get all -n $ns -o yaml > $DIR/oc_get_all.yaml
+    oc get clowdapp -n $ns -o yaml > $DIR/oc_get_clowdapp.yaml
+    oc get clowdenvironment env-$ns -o yaml > $DIR/oc_get_clowdenvironment.yaml
+    oc get clowdjobinvocation -n $ns -o yaml > $DIR/oc_get_clowdjobinvocation.yaml
 }
 
 function teardown {
