@@ -85,7 +85,7 @@ oc_wrapper() {
 
   while true; do
     attempt=$((attempt+1))
-    $real_oc "$@" && return 0  # exit here if 'oc' completes successfully
+    $real_oc $@ && return 0  # exit here if 'oc' completes successfully
 
     if [ "$attempt" -lt $retries ]; then
       sleep_time=$(($attempt*$backoff))
