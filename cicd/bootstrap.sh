@@ -101,4 +101,4 @@ oc_wrapper() {
 }
 
 # log in to ephemeral cluster
-oc login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
+oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
