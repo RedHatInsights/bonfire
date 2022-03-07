@@ -21,8 +21,8 @@ export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 export BONFIRE_BOT="true"
 export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 
-# Set up docker cfg
 set -x
+# Set up docker cfg
 export DOCKER_CONF="$WORKSPACE/.docker"
 rm -fr $DOCKER_CONF
 mkdir $DOCKER_CONF
@@ -32,10 +32,8 @@ AUTH_CONF_DIR="$WORKSPACE/.podman"
 rm -fr $AUTH_CONF_DIR
 mkdir $AUTH_CONF_DIR
 export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
-set +x
 
 # Set up kube cfg
-set -x
 export KUBECONFIG_DIR="$WORKSPACE/.kube"
 export KUBECONFIG="$KUBECONFIG_DIR/config"
 rm -fr $KUBECONFIG_DIR
