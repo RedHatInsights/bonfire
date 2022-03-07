@@ -34,6 +34,14 @@ mkdir $AUTH_CONF_DIR
 export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
 set +x
 
+# Set up kube cfg
+set -x
+export KUBECONFIG_DIR="$WORKSPACE/.kube"
+export KUBECONFIG="$KUBECONFIG_DIR/config"
+rm -fr $KUBECONFIG_DIR
+mkdir $KUBECONFIG_DIR
+set +x
+
 # if this is a PR, use a different tag, since PR tags expire
 if [ ! -z "$ghprbPullId" ]; then
   export IMAGE_TAG="pr-${ghprbPullId}-${IMAGE_TAG}"
