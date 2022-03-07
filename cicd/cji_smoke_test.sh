@@ -60,6 +60,9 @@ set -x
 oc_wrapper wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
 set +x
 
+# Log in again -- perhaps this will fix the intermittent 'service account lost permissions' error?
+oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
+
 # Set up port-forward for minio
 set -x
 LOCAL_SVC_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
