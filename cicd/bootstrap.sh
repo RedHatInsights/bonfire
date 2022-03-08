@@ -63,20 +63,14 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 pip install --upgrade pip 'setuptools<58' wheel
-pip install --upgrade crc-bonfire
+pip install --upgrade git+https://github.com/RedHatInsights/bonfire.git@python_oc_wrapper
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
-echo "before clone"
-
 git clone --branch python_oc_wrapper https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
-echo "past clone"
-
-set -exv
 # Gives access to helper commands such as "oc_wrapper"
 export PATH=$PATH:${CICD_ROOT}/bin
 
 # log in to ephemeral cluster
-echo "running login"
 oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
