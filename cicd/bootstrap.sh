@@ -67,11 +67,16 @@ pip install --upgrade crc-bonfire
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
+echo "before clone"
+
 git clone --branch python_oc_wrapper https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+
+echo "past clone"
 
 set -exv
 # Gives access to helper commands such as "oc_wrapper"
 export PATH=$PATH:${CICD_ROOT}/bin
 
 # log in to ephemeral cluster
+echo "running login"
 oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
