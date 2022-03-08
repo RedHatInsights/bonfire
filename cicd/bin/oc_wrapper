@@ -11,7 +11,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     args = sys.argv[1:]
     try:
-        print(oc(*args, _silent=True))
+        oc(*args, _silent=True, _print=True)
     except ErrorReturnCode as err:
-        print(err.stderr, file=sys.stderr)
         sys.exit(err.exit_code)

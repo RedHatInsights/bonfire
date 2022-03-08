@@ -4,6 +4,7 @@ import logging
 import re
 import threading
 import time
+import sys
 
 import sh
 from sh import ErrorReturnCode, TimeoutException
@@ -112,27 +113,32 @@ def _get_logging_args(args, kwargs):
 
 
 def _exec_oc(*args, **kwargs):
+    _print = kwargs.pop("_print", False)
     _silent = kwargs.pop("_silent", False)
     _ignore_immutable = kwargs.pop("_ignore_immutable", True)
     _retry_conflicts = kwargs.pop("_retry_conflicts", True)
     _retry_io_errors = kwargs.pop("_retry_io_errors", True)
     _stdout_log_prefix = kwargs.pop("_stdout_log_prefix", " |stdout| ")
     _stderr_log_prefix = kwargs.pop("_stderr_log_prefix", " |stderr| ")
-
     kwargs["_bg"] = True
     kwargs["_bg_exc"] = False
 
+    # define stdout/stderr callback funcs
     err_lines = []
     out_lines = []
 
     def _err_line_handler(line, _, process):
         threading.current_thread().name = f"pid-{process.pid}"
+        if _print:
+            print(line.rstrip(), file=sys.stderr)
         if not _silent:
             log.info("%s%s", _stderr_log_prefix, line.rstrip())
         err_lines.append(line)
 
     def _out_line_handler(line, _, process):
         threading.current_thread().name = f"pid-{process.pid}"
+        if _print:
+            print(line.rstrip())
         if not _silent:
             log.info("%s%s", _stdout_log_prefix, line.rstrip())
         out_lines.append(line)
@@ -208,7 +214,8 @@ def oc(*args, **kwargs):
 
     Optional kwargs:
         _ignore_errors: if ErrorReturnCode is hit, don't re-raise it (default False)
-        _silent: don't print command or resulting stdout (default False)
+        _silent: don't log command or resulting output (default False)
+        _print: print stdout/stderr output directly to stdout/stderr (default False)
         _ignore_immutable: ignore errors related to immutable objects (default True)
         _retry_conflicts: retry commands if a conflict error is hit
         _retry_io_errors: retry commands if i/o error is hit
