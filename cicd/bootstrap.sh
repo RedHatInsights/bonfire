@@ -69,42 +69,8 @@ pip install --upgrade crc-bonfire
 rm -fr $BONFIRE_ROOT
 git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
-# Add a retry mechanism to 'oc' command calls
-oc_wrapper() {
-  # hide all the extra stuff we're doing in here if user called 'set -x' before 'oc'
-  # to make debugging log output easier
-  # https://stackoverflow.com/a/50668339
-  if [ -o xtrace ]; then
-      set +x
-      trap 'set -x' RETURN
-  fi
-
-  real_oc=$(which oc)
-  retries=3
-  backoff=3
-  attempt=0
-
-  if [ -z "$real_oc" ]; then
-    echo "ERROR: unable to locate 'oc' command on PATH" >&2
-    return 1
-  fi
-
-  while true; do
-    attempt=$((attempt+1))
-    $real_oc $@ && return 0  # exit here if 'oc' completes successfully
-
-    if [ "$attempt" -lt $retries ]; then
-      sleep_time=$(($attempt*$backoff))
-      echo "oc command hit error (attempt $attempt/$retries), retrying in $sleep_time sec" >&2
-      sleep $sleep_time
-    else
-      break
-    fi
-  done
-
-  echo "oc command failed, gave up after $retries tries" >&2
-  return 1
-}
+# Gives access to helper commands such as "oc_wrapper"
+export PATH=$PATH:${CICD_ROOT}/bin
 
 # log in to ephemeral cluster
 oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER

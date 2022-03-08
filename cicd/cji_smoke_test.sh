@@ -57,7 +57,7 @@ oc_wrapper logs -n $NAMESPACE $POD -f &
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
 set -x
-oc wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
+oc_wrapper wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
 set +x
 
 # Log in again -- perhaps this will fix the intermittent 'service account lost permissions' error?

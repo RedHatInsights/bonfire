@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+
+import sys
+import logging
+
+from sh import ErrorReturnCode
+from bonfire.openshift import oc
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    args = sys.argv[1:]
+    try:
+        print(oc(*args, _silent=True))
+    except ErrorReturnCode as err:
+        print(err.stderr, file=sys.stderr)
+        sys.exit(err.exit_code)
