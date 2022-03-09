@@ -13,6 +13,8 @@
 #GIT_COMMIT="abcd123defg456"  # full git commit hash of the PR being tested
 #ARTIFACTS_DIR -- directory where test run artifacts are stored
 
+add_cicd_bin_to_path
+
 trap "teardown" EXIT ERR SIGINT SIGTERM
 
 set -e
@@ -55,6 +57,8 @@ function collect_k8s_artifacts() {
 }
 
 function teardown {
+    add_cicd_bin_to_path
+
     set +x
     [ "$TEARDOWN_RAN" -ne "0" ] && return
     echo "------------------------"

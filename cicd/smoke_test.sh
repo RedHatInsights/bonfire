@@ -11,6 +11,8 @@
 
 IQE_POD_NAME="iqe-tests"
 
+add_cicd_bin_to_path
+
 # create a custom svc acct for the iqe pod to run with that has elevated permissions
 SA=$(oc_wrapper get -n $NAMESPACE sa iqe --ignore-not-found -o jsonpath='{.metadata.name}')
 if [ -z "$SA" ]; then

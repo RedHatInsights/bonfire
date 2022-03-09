@@ -70,7 +70,11 @@ rm -fr $BONFIRE_ROOT
 git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Gives access to helper commands such as "oc_wrapper"
-export PATH=$PATH:${CICD_ROOT}/bin
+add_cicd_bin_to_path() {
+  if ! command -v oc_wrapper ; then export PATH=$PATH:${CICD_ROOT}; fi
+}
+
+add_cicd_bin_to_path
 
 # log in to ephemeral cluster
 oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
