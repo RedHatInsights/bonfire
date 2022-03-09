@@ -63,11 +63,11 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 pip install --upgrade pip 'setuptools<58' wheel
-pip install --upgrade git+https://github.com/RedHatInsights/bonfire.git@python_oc_wrapper
+pip install --upgrade 'crc-bonfire>=3.6.0'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
-git clone --branch python_oc_wrapper https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Gives access to helper commands such as "oc_wrapper"
 export PATH=$PATH:${CICD_ROOT}/bin
