@@ -71,7 +71,7 @@ git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE
 
 # Gives access to helper commands such as "oc_wrapper"
 add_cicd_bin_to_path() {
-  if ! command -v oc_wrapper ; then export PATH=$PATH:${CICD_ROOT}; fi
+  if ! command -v oc_wrapper; then export PATH=$PATH:${CICD_ROOT}/bin; fi
 }
 
 add_cicd_bin_to_path
