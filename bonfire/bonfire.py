@@ -378,7 +378,7 @@ _process_options = [
         "-p",
         help=(
             "Override parameter for a component using format "
-            "'<app>/<component>/<parameter name>=<value>"
+            "'<component>/<parameter name>=<value>'"
         ),
         multiple=True,
         callback=_validate_set_parameter,
