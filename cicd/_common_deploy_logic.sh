@@ -15,7 +15,15 @@
 
 add_cicd_bin_to_path
 
-trap "teardown" EXIT ERR SIGINT SIGTERM
+function trap_proxy {
+# https://stackoverflow.com/questions/9256644/identifying-received-signal-name-in-bash
+    func="$1" ; shift
+    for sig ; do
+        trap "$func $sig" "$sig"
+    done
+}
+
+trap_proxy teardown EXIT ERR SIGINT SIGTERM
 
 set -e
 
@@ -59,6 +67,9 @@ function collect_k8s_artifacts() {
 }
 
 function teardown {
+
+    local CAPTURED_SIGNAL="$1"
+
     add_cicd_bin_to_path
 
     set +x
@@ -68,6 +79,8 @@ function teardown {
     echo "------------------------"
     local ns
 
+    echo "Tear down operation triggered by signal: $CAPTURED_SIGNAL"
+
     # run teardown on all namespaces possibly reserved in this run
     RESERVED_NAMESPACES=("${NAMESPACE}" "${DB_NAMESPACE}" "${SMOKE_NAMESPACE}")
     # remove duplicates (https://stackoverflow.com/a/13648438)
@@ -76,7 +89,14 @@ function teardown {
     for ns in ${UNIQUE_NAMESPACES[@]}; do
         echo "Running teardown for ns: $ns"
         set +e
-        collect_k8s_artifacts $ns
+
+        if [ "$CAPTURED_SIGNAL" == "EXIT" ] && check_junit_files "${ARTIFACTS_DIR}/junit-*.xml"; then
+            echo "No errors or failures detected on JUnit reports, skipping K8s artifacts collection"
+        else
+            echo "Errors or failures detected, collecting K8s artifacts"
+            collect_k8s_artifacts $ns
+        fi
+
         if [ "${RELEASE_NAMESPACE:-true}" != "false" ]; then
             echo "Releasing namespace reservation"
             bonfire namespace release $ns -f
