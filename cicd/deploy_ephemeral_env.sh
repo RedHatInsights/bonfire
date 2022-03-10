@@ -14,7 +14,7 @@ SMOKE_NAMESPACE=$NAMESPACE  # track which namespace was used here for 'teardown'
 bonfire deploy \
     ${APP_NAME} \
     --source=appsre \
-    --ref-env insights-stage \
+    --ref-env ${REF_ENV} \
     --set-template-ref ${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag ${IMAGE}=${IMAGE_TAG} \
     --namespace ${NAMESPACE} \

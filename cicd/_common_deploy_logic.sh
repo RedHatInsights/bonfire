@@ -6,7 +6,7 @@
 #COMPONENTS_W_RESOURCES="component1 component2"  # components which should preserve resource settings (optional, default: none)
 #DEPLOY_TIMEOUT="600"  # bonfire deployment timeout parameter in seconds
 #RELEASE_NAMESPACE="true"  # release namespace after PR check ends (default: true)
-
+#REF_ENV="insights-production"  # name of bonfire reference environment (default: insights-production)
 
 # Env vars set by 'bootstrap.sh':
 #IMAGE_TAG="abcd123"  # image tag for the PR being tested
@@ -22,6 +22,8 @@ set -e
 : ${COMPONENTS:=""}
 : ${COMPONENTS_W_RESOURCES:=""}
 : ${DEPLOY_TIMEOUT:="600"}
+: ${REF_ENV:="insights-production"}
+
 K8S_ARTIFACTS_DIR="$ARTIFACTS_DIR/k8s_artifacts"
 TEARDOWN_RAN=0
 

@@ -17,7 +17,7 @@ set -x
 bonfire process \
     $APP_NAME \
     --source=appsre \
-    --ref-env insights-stage \
+    --ref-env ${REF_ENV} \
     --set-template-ref ${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag $IMAGE=$IMAGE_TAG \
     --namespace $NAMESPACE \
