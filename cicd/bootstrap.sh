@@ -67,7 +67,7 @@ pip install --upgrade 'crc-bonfire>=3.6.1'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
-git clone --branch change_ref_env https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Gives access to helper commands such as "oc_wrapper"
 add_cicd_bin_to_path() {
