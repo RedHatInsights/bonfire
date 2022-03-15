@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+
+import logging
+import sys
+
+from glob import iglob
+from xml.etree.ElementTree import ParseError
+
+from junitparser import JUnitXml
+
+
+def errors_or_failures_found(junit_report):
+    for test_suite in junit_report:
+        if test_suite.errors or test_suite.failures:
+            return True
+    return False
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
+    if len(sys.argv) == 1:
+        raise SystemExit(f"usage: {sys.argv[0]} <file path/glob expression>")
+
+    glob_path = sys.argv[1]
+    report_paths = list(iglob(glob_path))
+
+    if report_paths:
+        junit_xml = JUnitXml()
+        for report_path in report_paths:
+            try:
+                junit_xml += JUnitXml.fromfile(report_path)
+            except ParseError as parse_error:
+                raise SystemExit(f"file {report_path} hit XML parse error: {parse_error}")
+
+        if errors_or_failures_found(junit_xml):
+            sys.exit(1)
+    else:
+        raise SystemExit(f"no junit artifacts found for '{report_paths}'")
