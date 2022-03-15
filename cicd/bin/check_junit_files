@@ -17,14 +17,12 @@ def errors_or_failures_found(junit_report):
 
 
 if __name__ == "__main__":
-
     logging.basicConfig(level=logging.INFO)
 
     if len(sys.argv) == 1:
-        raise SystemExit("you need to provide a JUnit reports glob expression")
+        raise SystemExit(f"usage: {sys.argv[0]} <file path/glob expression>")
 
     glob_path = sys.argv[1]
-
     report_paths = list(iglob(glob_path))
 
     if report_paths:
@@ -33,10 +31,9 @@ if __name__ == "__main__":
             try:
                 junit_xml += JUnitXml.fromfile(report_path)
             except ParseError as parse_error:
-                raise SystemExit(f"File {report_path} cannot be parsed as a JUnit test report!")
+                raise SystemExit(f"file {report_path} hit XML parse error: {parse_error}")
 
         if errors_or_failures_found(junit_xml):
             sys.exit(1)
     else:
-        raise SystemExit("No artifacts found")
-
+        raise SystemExit(f"no junit artifacts found for '{report_paths}'")
