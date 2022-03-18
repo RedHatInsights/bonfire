@@ -119,6 +119,7 @@ def process_iqe_cji(
     requirements="",
     requirements_priority="",
     test_importance="",
+    plugins="",
     local=True,
 ):
     log.info("processing IQE ClowdJobInvocation")
@@ -141,6 +142,7 @@ def process_iqe_cji(
     params["FILTER"] = filter
     params["ENV_NAME"] = env
     params["IMAGE_TAG"] = image_tag
+    params["PLUGINS"] = plugins
     params["NAME"] = cji_name or f"iqe-{str(uuid.uuid4()).split('-')[0]}"
     params["APP_NAME"] = clowd_app_name
     params["REQUIREMENTS"] = json.dumps(requirements)
