@@ -7,6 +7,7 @@ import traceback
 import uuid
 
 from pathlib import Path
+from sh import ErrorReturnCode
 
 import bonfire.config as conf
 from bonfire.openshift import process_template, whoami
@@ -14,6 +15,15 @@ from bonfire.utils import RepoFile, FatalError
 from bonfire.utils import get_dependencies as utils_get_dependencies
 
 log = logging.getLogger(__name__)
+
+
+def _process_template(*args, **kwargs):
+    # run process_template with prettier error handling
+    try:
+        processed_template = process_template(*args, **kwargs)
+    except ErrorReturnCode as err:
+        raise FatalError(f"'oc process' command failed: {err.stderr}")
+    return processed_template
 
 
 def _remove_resource_config(items):
@@ -97,7 +107,7 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path, local=True)
     if target_ns:
         params["NAMESPACE"] = target_ns
 
-    processed_template = process_template(template_data, params=params, local=local)
+    processed_template = _process_template(template_data, params=params, local=local)
 
     if not processed_template.get("items"):
         raise FatalError("Processed ClowdEnvironment template has no items")
@@ -149,7 +159,7 @@ def process_iqe_cji(
     params["REQUIREMENTS_PRIORITY"] = json.dumps(requirements_priority)
     params["TEST_IMPORTANCE"] = json.dumps(test_importance)
 
-    processed_template = process_template(template_data, params=params, local=local)
+    processed_template = _process_template(template_data, params=params, local=local)
 
     if not processed_template.get("items"):
         raise FatalError("Processed CJI template has no items")
@@ -182,7 +192,7 @@ def process_reservation(name, requester, duration, template_path=None, local=Tru
 
     params["REQUESTER"] = requester
 
-    processed_template = process_template(template_data, params=params, local=local)
+    processed_template = _process_template(template_data, params=params, local=local)
 
     if not processed_template.get("items"):
         raise FatalError("Processed Reservation template has no items")
@@ -456,7 +466,7 @@ class TemplateProcessor:
 
         log.debug("parameters for component '%s': %s", component_name, params)
 
-        new_items = process_template(template, params, self.local)["items"]
+        new_items = _process_template(template, params, self.local)["items"]
 
         # override the tags for all occurences of an image if requested
         new_items = self._sub_image_tags(new_items)
