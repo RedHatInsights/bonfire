@@ -4,12 +4,11 @@ import logging
 import re
 import threading
 import time
+import shlex
 import sys
 
 import sh
 from sh import ErrorReturnCode, TimeoutException
-from subprocess import PIPE
-from subprocess import Popen
 
 from ocviapy import export
 from wait_for import wait_for, TimedOutError
@@ -861,17 +860,11 @@ def process_template(template_data, params, local=True):
     param_str = " ".join(f"-p {k}='{v}'" for k, v in params.items() if k in valid_pnames)
     local_str = str(local).lower()
 
-    cmd = f"oc process --local={local_str} --ignore-unknown-parameters -o json -f - {param_str}"
-    log.debug("running: %s", cmd)
+    args = f"process --local={local_str} --ignore-unknown-parameters -o json -f - {param_str}"
 
-    proc = Popen(
-        cmd,
-        shell=True,
-        stdin=PIPE,
-        stdout=PIPE,
-    )
-    stdout, stderr = proc.communicate(json.dumps(template_data).encode("utf-8"))
-    return json.loads(stdout.decode("utf-8"))
+    output = oc(shlex.split(args), _silent=True, _in=json.dumps(template_data))
+
+    return json.loads(str(output))
 
 
 def find_clowd_env_for_ns(ns):
