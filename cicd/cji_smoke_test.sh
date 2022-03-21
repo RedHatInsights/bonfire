@@ -24,6 +24,8 @@ set -e
 : "${IQE_REQUIREMENTS:='""'}"
 : "${IQE_REQUIREMENTS_PRIORITY:='""'}"
 : "${IQE_TEST_IMPORTANCE:='""'}"
+: "${IQE_PLUGINS:='""'}"
+
 
 # minio client is used to fetch test artifacts from minio in the ephemeral ns
 MC_IMAGE="quay.io/cloudservices/mc:latest"
@@ -46,6 +48,7 @@ POD=$(
     --requirements "$IQE_REQUIREMENTS" \
     --requirements-priority "$IQE_REQUIREMENTS_PRIORITY" \
     --test-importance "$IQE_TEST_IMPORTANCE" \
+    --plugins "$IQE_PLUGINS" \
     --env "clowder_smoke" \
     --cji-name $CJI_NAME \
     --namespace $NAMESPACE)

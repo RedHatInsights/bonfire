@@ -16,6 +16,7 @@ objects:
         imageTag: ${IMAGE_TAG}
         marker: ${MARKER}
         filter: ${FILTER}
+        plugins: ${PLUGINS}
         dynaconfEnvName: ${ENV_NAME}
         requirements: ${{REQUIREMENTS}}
         requirementsPriority: ${{REQUIREMENTS_PRIORITY}}
@@ -43,3 +44,5 @@ parameters:
   value: "[]"
 - name: TEST_IMPORTANCE
   value: "[]"
+- name: PLUGINS
+  value: ""
