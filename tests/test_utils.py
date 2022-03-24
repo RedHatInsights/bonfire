@@ -1,4 +1,5 @@
 import pytest
+
 from bonfire.utils import (
     validate_time_string,
     hms_to_seconds
@@ -20,6 +21,10 @@ from bonfire.utils import (
             "1h20s",
             "1h20s"
         ),
+        (
+            "2h15m32s",
+            "2h15m32s"
+        )
     ]
 )
 def test_validate_time_string(time: str, expected: str):
@@ -43,6 +48,10 @@ def test_validate_time_string(time: str, expected: str):
             "65s",
             65
         ),
+        (
+            "1h30m",
+            5400
+        )
     ]
 )
 def test_hms_to_seconds(seconds: str, expected: int):
