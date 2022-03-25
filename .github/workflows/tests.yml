@@ -72,7 +72,7 @@ jobs:
 
       - name: Twine checks
         run: |
-          python -m pip install pip twine setuptools wheel --upgrade
-          python setup.py sdist bdist_wheel
-          ls -l dist
+          python -m pip install --upgrade build
+          python -m build
+          ls -l build
           python -m twine check dist/*
