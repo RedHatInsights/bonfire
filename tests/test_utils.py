@@ -1,11 +1,50 @@
 import pytest
 
 from bonfire.utils import (
+    split_equals,
     validate_time_string,
-    hms_to_seconds
+    get_version,
+    hms_to_seconds,
 )
 
 
+@pytest.mark.parametrize(
+    "list_of_str, expected",
+    [
+        (
+            ["t1=test1", "t2=test2"],
+            {"t1":"test1", "t2":"test2"}
+        ),
+        (
+            ["company=redhat", "team=Dev Prod"],
+            {"company":"redhat", "team":"Dev Prod"}
+        ),
+    ]
+)
+def test_split_equals_pass(list_of_str, expected):
+    result = split_equals(list_of_str)
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "list_of_str, expected",
+    [
+        (
+            ["t1 = test1", "t2 = test2"],
+            {"t1":"test1", "t2":"test2"}
+        ),
+        (
+            ["t1 test1", "t2 test2"],
+            {"t1":"test1", "t2":"test2"}
+        ),
+    ]
+)
+def test_split_equals_fail(list_of_str, expected):
+    with pytest.raises(Exception):
+        result = split_equals(list_of_str)
+
+    
 @pytest.mark.parametrize(
     "time, expected",
     [
@@ -24,13 +63,19 @@ from bonfire.utils import (
         (
             "2h15m32s",
             "2h15m32s"
-        )
+        ),
     ]
 )
 def test_validate_time_string(time: str, expected: str):
     result = validate_time_string(time)
 
     assert result == expected
+
+
+def test_get_version():
+    result = get_version()
+
+    assert result != "0.0.0"
 
 
 @pytest.mark.parametrize(
@@ -51,7 +96,7 @@ def test_validate_time_string(time: str, expected: str):
         (
             "1h30m",
             5400
-        )
+        ),
     ]
 )
 def test_hms_to_seconds(seconds: str, expected: int):
