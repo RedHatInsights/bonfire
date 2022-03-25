@@ -1,11 +1,31 @@
 import pytest
 
 from bonfire.utils import (
+    RepoFile,
     split_equals,
     validate_time_string,
     get_version,
     hms_to_seconds,
+    RepoFile
 )
+
+
+@pytest.mark.parametrize(
+    "host, org, repo, path, expected",
+    [
+        (
+            "github", "redhatinsights", "bonfire", "README.md", ""
+        ),
+        # (
+        #     "gitlab", "service", "app-interface", "README.md", ""
+        # )
+    ]
+)
+def test_fetch(host: str, org: str, repo: str, path: str, expected: str):
+    rf = RepoFile(host, org, repo, path)
+    result = rf.fetch()
+    
+    assert result != expected
 
 
 @pytest.mark.parametrize(
@@ -28,41 +48,35 @@ def test_split_equals_pass(list_of_str, expected):
 
 
 @pytest.mark.parametrize(
-    "list_of_str, expected",
+    "list_of_str",
     [
         (
             ["t1 = test1", "t2 = test2"],
-            {"t1":"test1", "t2":"test2"}
         ),
         (
             ["t1 test1", "t2 test2"],
-            {"t1":"test1", "t2":"test2"}
         ),
     ]
 )
-def test_split_equals_fail(list_of_str, expected):
+def test_split_equals_fail(list_of_str: list):
     with pytest.raises(Exception):
-        result = split_equals(list_of_str)
+        split_equals(list_of_str)
 
     
 @pytest.mark.parametrize(
     "time, expected",
     [
         (
-            "30m",
-            "30m"
+            "30m", "30m"
         ),
         (
-            "1h45m",
-            "1h45m"
+            "1h45m", "1h45m"
         ),
         (
-            "1h20s",
-            "1h20s"
+            "1h20s", "1h20s"
         ),
         (
-            "2h15m32s",
-            "2h15m32s"
+            "2h15m32s", "2h15m32s"
         ),
     ]
 )
@@ -82,20 +96,16 @@ def test_get_version():
     "seconds, expected",
     [
         (
-            "1h",
-            3600,
+            "1h", 3600
         ),
         (
-            "45m",
-            2700
+            "45m", 2700
         ),
         (
-            "65s",
-            65
+            "65s", 65
         ),
         (
-            "1h30m",
-            5400
+            "1h30m", 5400
         ),
     ]
 )
