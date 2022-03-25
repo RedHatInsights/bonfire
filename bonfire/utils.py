@@ -135,6 +135,8 @@ def validate_time_string(time):
     seconds = hms_to_seconds(time)
     if seconds > 1209600:  # 14 days
         raise ValueError(f"invalid duration '{time}', must be less than 14 days")
+    elif seconds < 1800:   # 30 mins
+        raise ValueError(f"invalid duration '{time}', must be more than 30 mins")
     return time
 
 
