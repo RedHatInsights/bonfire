@@ -63,7 +63,7 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 pip install --upgrade pip 'setuptools<58' wheel
-pip install --upgrade 'crc-bonfire==3.8.1'  # pin to 3.8.1 for now because 'resources' has gone missing
+pip install --upgrade 'crc-bonfire>=3.8.6'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
