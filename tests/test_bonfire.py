@@ -1,49 +1,37 @@
 import click
 from click.testing import CliRunner
 import pytest
-from mock import patch
+from mock import patch, Mock
 
-from bonfire.bonfire import (
-    _validate_reservation_duration,
-    _cmd_namespace_reserve,
-    _ns_reserve_options,
-    namespace
-)
-
-from bonfire.openshift import (
-    process_template,
-    has_ns_operator,
-    get_api_resources
-)
+from bonfire import bonfire
+from bonfire import openshift
 
 
 @pytest.mark.parametrize(
     "name, expected",
     [
         (
-            "test_name_1", "test_name_1"
+            "namespacereservation", "ephemeral-namespace-test-1"
         ),
         (
-            "test_name_2", "test_name_2"
+            "namespacereservation", "ephemeral-namespace-test-2"
         ),
     ]
 )
-@patch('bonfire.openshift.get_api_resources')
-@patch('bonfire.openshift.has_ns_operator')
-@patch('bonfire.openshift.process_template')
-@patch('bonfire.namespaces.reserve_namespace')
-def test_ns_reserve_options_name(mock_reserve_namespace,
-                                mock_process_template,
-                                mock_has_ns_operator,
-                                mock_get_api_resources,
-                                name,
-                                expected):
-    mock_get_api_resources.return_value = ""
-    mock_has_ns_operator.return_value = True
-    mock_process_template.return_value = ""
-    mock_reserve_namespace.return_value = expected
+def test_ns_reserve_options_name(mocker, name, expected):
+    ns = Mock()
+    ns.name=expected
+    mocker.patch('bonfire.bonfire.has_ns_operator', return_value=True)
+    mocker.patch('bonfire.openshift.has_ns_operator', return_value=True)
+    mocker.patch('bonfire.openshift.get_api_resources', return_value={"name": name})
+    #mocker.patch('bonfire.bonfire.reserve_namespace', return_value={"name": expected})
+    mocker.patch('bonfire.openshift.check_for_existing_reservation', return_value=True)
+    mocker.patch('bonfire.openshift.parse_restype', return_value="")
+    mocker.patch('bonfire.openshift.get_json', return_value="")
+    mocker.patch('bonfire.openshift.get_all_reservations', return_value="")
+    mocker.patch('bonfire.bonfire.reserve_namespace', return_value=ns)
     
     runner = CliRunner()
-    result = runner.invoke(namespace, ["reserve", "--name", name])
-    print(result.output)
-    assert result.output == mock_reserve_namespace()
+    result = runner.invoke(bonfire.namespace, ["reserve", "--name", name])
+
+    assert result.output.rstrip() == expected
