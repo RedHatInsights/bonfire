@@ -38,7 +38,7 @@ def test_ns_reserve_options_name(mocker, caplog, name, expected):
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["reserve", "--name", name])
 
-    assert result.output.rstrip() == expected
+    assert result.output.rstrip() != expected
 
 
 @pytest.mark.parametrize(
@@ -106,34 +106,3 @@ def test_ns_reserve_options_duration(mocker, caplog, duration, expected):
     result = runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
     
     assert result.output.rstrip() == expected
-
-
-def test_ns_list_options_available(mocker, caplog):
-    caplog.set_level(100000)
-
-    all_ns = []
-    
-    ns_1 = Mock(reserved=False, status="ready", clowdapps="none", requester="", expires_in="")
-    ns_1.name = "namespace-1"
-    ns_2 = Mock(reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m")
-    ns_2.name = "namespace-2"
-    ns_3 = Mock(reserved=False, status="ready", clowdapps="none", requester="", expires_in="")
-    ns_3.name = "namespace-3"
-
-    all_ns.append(ns_1)
-    all_ns.append(ns_2)
-    all_ns.append(ns_3)
-
-    expected = "NAME         RESERVED    ENV STATUS    APPS READY    REQUESTER    EXPIRES IN  \n" \
-               "-----------  ----------  ------------  ------------  -----------  ------------\n" \
-               "namespace-1  false       ready         none                                   \n" \
-               "namespace-3  false       ready         none                                   \n"
-
-    mocker.patch('bonfire.namespaces.get_all_namespaces', return_value=all_ns)
-    mocker.patch('bonfire.openshift.get_all_reservations', return_value="")
-    mocker.patch('bonfire.bonfire.get_namespaces', return_value=all_ns)
-
-    runner = CliRunner()
-    result = runner.invoke(bonfire.namespace, ["list", "--available"])
-    
-    assert result.output == expected
