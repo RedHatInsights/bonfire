@@ -4,7 +4,6 @@ from click.testing import CliRunner
 import pytest
 from mock import patch, Mock
 from tabulate import tabulate
-import json
 
 from bonfire import bonfire
 from bonfire import openshift
@@ -93,3 +92,35 @@ def test_ns_reserve_options_duration(mocker, caplog, duration, expected):
     result = runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
 
     assert result.output.rstrip() == expected
+
+
+def test_ns_list_options_available(mocker, caplog):
+    caplog.set_level(100000)
+
+    all_ns = []
+
+    ns_1 = Mock(reserved=False, status="ready", clowdapps="none", requester="", expires_in="")
+    ns_1.name = "namespace-1"
+
+    ns_2 = Mock(reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m")
+    ns_2.name = "namespace-2"
+    
+    ns_3 = Mock(reserved=False, status="ready", clowdapps="none", requester="", expires_in="")
+    ns_3.name = "namespace-3"
+
+    all_ns.append(ns_1)
+    all_ns.append(ns_2)
+    all_ns.append(ns_3)
+
+    mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=all_ns)
+    mocker.patch("bonfire.openshift.get_all_reservations", return_value="")
+    mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_ns)
+
+    runner = CliRunner()
+    result = runner.invoke(bonfire.namespace, ["list", "--available"])
+
+    assert "namespace-1" in result.output
+    assert "namespace-2" not in result.output
+    assert "namespace-3" in result.output
+    assert "user-1" not in result.output
+    assert "31m" not in result.output
