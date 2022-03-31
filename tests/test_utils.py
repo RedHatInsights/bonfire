@@ -1,12 +1,10 @@
 import pytest
 
 from bonfire.utils import (
-    RepoFile,
     split_equals,
     validate_time_string,
     get_version,
-    hms_to_seconds,
-    RepoFile
+    hms_to_seconds
 )
 
 
