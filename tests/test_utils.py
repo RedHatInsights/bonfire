@@ -11,24 +11,6 @@ from bonfire.utils import (
 
 
 @pytest.mark.parametrize(
-    "host, org, repo, path, expected",
-    [
-        (
-            "github", "redhatinsights", "bonfire", "README.md", ""
-        ),
-        # (
-        #     "gitlab", "service", "app-interface", "README.md", ""
-        # )
-    ]
-)
-def test_fetch(host: str, org: str, repo: str, path: str, expected: str):
-    rf = RepoFile(host, org, repo, path)
-    result = rf.fetch()
-    
-    assert result != expected
-
-
-@pytest.mark.parametrize(
     "list_of_str, expected",
     [
         (
