@@ -1,7 +1,6 @@
 import pytest
-import click
 from click.testing import CliRunner
-from mock import patch, Mock
+from mock import Mock
 
 from bonfire import bonfire
 
