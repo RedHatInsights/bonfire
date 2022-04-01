@@ -13,11 +13,11 @@ from bonfire.utils import (
     [
         (
             ["t1=test1", "t2=test2"],
-            {"t1":"test1", "t2":"test2"}
+            {"t1": "test1", "t2": "test2"}
         ),
         (
             ["company=redhat", "team=Dev Prod"],
-            {"company":"redhat", "team":"Dev Prod"}
+            {"company": "redhat", "team": "Dev Prod"}
         ),
     ]
 )
@@ -42,7 +42,7 @@ def test_split_equals_fail(list_of_str: list):
     with pytest.raises(Exception):
         split_equals(list_of_str)
 
-    
+
 @pytest.mark.parametrize(
     "time, expected",
     [
