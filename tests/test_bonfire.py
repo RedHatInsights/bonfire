@@ -80,20 +80,26 @@ def test_ns_reserve_options_duration(mocker, duration, expected):
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
-    
+
     assert result.output.rstrip() == expected
 
 
 def test_ns_list_option(mocker):
     all_namespaces = []
 
-    namespace_1 = Mock(reserved=False, status="ready", clowdapps="none", requester="user-2", expires_in="2h")
+    namespace_1 = Mock(
+        reserved=False, status="ready", clowdapps="none", requester="user-2", expires_in="2h"
+    )
     namespace_1.name = "namespace-1"
 
-    namespace_2 = Mock(reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m")
+    namespace_2 = Mock(
+        reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m"
+    )
     namespace_2.name = "namespace-2"
 
-    namespace_3 = Mock(reserved=False, status="ready", clowdapps="none", requester="user-3", expires_in="6h")
+    namespace_3 = Mock(
+        reserved=False, status="ready", clowdapps="none", requester="user-3", expires_in="6h"
+    )
     namespace_3.name = "namespace-3"
 
     all_namespaces.append(namespace_1)
@@ -122,16 +128,24 @@ def test_ns_list_options_available(mocker):
     all_namespaces = []
     all_reservations = []
 
-    namespace_1 = Mock(reserved=False, status="ready", clowdapps="none", requester=None, expires_in=None)
+    namespace_1 = Mock(
+        reserved=False, status="ready", clowdapps="none", requester=None, expires_in=None
+    )
     namespace_1.name = "namespace-1"
 
-    namespace_2 = Mock(reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m")
+    namespace_2 = Mock(
+        reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m"
+    )
     namespace_2.name = "namespace-2"
 
-    namespace_3 = Mock(reserved=True, status="ready", clowdapps="none", requester=None, expires_in=None)
+    namespace_3 = Mock(
+        reserved=True, status="ready", clowdapps="none", requester=None, expires_in=None
+    )
     namespace_3.name = "namespace-3"
 
-    namespace_4 = Mock(reserved=True, status="ready", clowdapps="none", requester="user-2", expires_in="1h")
+    namespace_4 = Mock(
+        reserved=True, status="ready", clowdapps="none", requester="user-2", expires_in="1h"
+    )
     namespace_4.name = "namespace-4"
 
     all_namespaces.append(namespace_1)
