@@ -87,13 +87,19 @@ def test_ns_reserve_options_duration(mocker, duration, expected):
 def test_ns_list_options(mocker):
     all_namespaces = []
 
-    ephemeral_namespace_1 = Mock(reserved=False, status="ready", clowdapps="none", requester="user-2", expires_in="2h")
+    ephemeral_namespace_1 = Mock(
+        reserved=False, status="ready", clowdapps="none", requester="user-2", expires_in="2h"
+    )
     ephemeral_namespace_1.name = "namespace-1"
 
-    ephemeral_namespace_2 = Mock(reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m")
+    ephemeral_namespace_2 = Mock(
+        reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m"
+    )
     ephemeral_namespace_2.name = "namespace-2"
 
-    ephemeral_namespace_3 = Mock(reserved=False, status="ready", clowdapps="none", requester="user-3", expires_in="6h")
+    ephemeral_namespace_3 = Mock(
+        reserved=False, status="ready", clowdapps="none", requester="user-3", expires_in="6h"
+    )
     ephemeral_namespace_3.name = "namespace-3"
 
     all_namespaces.append(ephemeral_namespace_1)
@@ -118,3 +124,28 @@ def test_ns_list_options(mocker):
     assert "31m" in result.output
     assert "2h" in result.output
     assert "6h" in result.output
+
+
+@pytest.mark.parametrize(
+    "duration, extend, expected",
+    [
+        (60, None, "2h"),
+        #("30m", "45m", "1h15m"),
+        #("3h", "30m", "1h30m"),
+    ],
+)
+def test_ns_extend_duration(mocker, caplog, duration: int, extend, expected):
+    all_namespaces = []
+
+    ephemeral_namespace_1 = Mock(reserved=False, status="ready", clowdapps="none", requester=None, expires_in=None)
+    ephemeral_namespace_1.name = "namespace-1"
+
+    ephemeral_namespace_2 = Mock(reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m")
+    ephemeral_namespace_2.name = "namespace-2"
+
+    ephemeral_namespace_3 = Mock(reserved=False, status="ready", clowdapps="none", requester=None, expires_in=None)
+    ephemeral_namespace_3.name = "namespace-3"
+
+    all_namespaces.append(ephemeral_namespace_1)
+    all_namespaces.append(ephemeral_namespace_2)
+    all_namespaces.append(ephemeral_namespace_3)
