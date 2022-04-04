@@ -12,9 +12,7 @@ from bonfire import bonfire
         ("namespacereservation", "ephemeral-namespace-test-2"),
     ],
 )
-def test_ns_reserve_options_name(mocker, caplog, name, expected):
-    caplog.set_level(100000)
-
+def test_ns_reserve_options_name(mocker, name, expected):
     ns = Mock()
     ns.name = expected
 
@@ -40,9 +38,7 @@ def test_ns_reserve_options_name(mocker, caplog, name, expected):
         ("user2", "user2"),
     ],
 )
-def test_ns_reserve_options_requester(mocker, caplog, user, expected):
-    caplog.set_level(100000)
-
+def test_ns_reserve_options_requester(mocker, user, expected):
     ns = Mock()
     ns.name = expected
 
@@ -69,9 +65,7 @@ def test_ns_reserve_options_requester(mocker, caplog, user, expected):
         ("30m", "30m"),
     ],
 )
-def test_ns_reserve_options_duration(mocker, caplog, duration, expected):
-    caplog.set_level(100000)
-
+def test_ns_reserve_options_duration(mocker, duration, expected):
     ns = Mock()
     ns.name = expected
 
@@ -88,3 +82,39 @@ def test_ns_reserve_options_duration(mocker, caplog, duration, expected):
     result = runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
 
     assert result.output.rstrip() == expected
+
+
+def test_ns_list_options(mocker):
+    all_namespaces = []
+
+    ephemeral_namespace_1 = Mock(reserved=False, status="ready", clowdapps="none", requester="user-2", expires_in="2h")
+    ephemeral_namespace_1.name = "namespace-1"
+
+    ephemeral_namespace_2 = Mock(reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m")
+    ephemeral_namespace_2.name = "namespace-2"
+
+    ephemeral_namespace_3 = Mock(reserved=False, status="ready", clowdapps="none", requester="user-3", expires_in="6h")
+    ephemeral_namespace_3.name = "namespace-3"
+
+    all_namespaces.append(ephemeral_namespace_1)
+    all_namespaces.append(ephemeral_namespace_2)
+    all_namespaces.append(ephemeral_namespace_3)
+
+    mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=all_namespaces)
+    mocker.patch("bonfire.openshift.get_all_reservations", return_value="")
+    mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_namespaces)
+
+    runner = CliRunner()
+    result = runner.invoke(bonfire.namespace, ["list"])
+
+    print(result.output)
+
+    assert "namespace-1" in result.output
+    assert "namespace-2" in result.output
+    assert "namespace-3" in result.output
+    assert "user-1" in result.output
+    assert "user-2" in result.output
+    assert "user-3" in result.output
+    assert "31m" in result.output
+    assert "2h" in result.output
+    assert "6h" in result.output
