@@ -33,6 +33,9 @@ rm -fr $AUTH_CONF_DIR
 mkdir $AUTH_CONF_DIR
 export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
 
+# Do a docker login so our later 'docker pull' calls have an auth file created
+docker login quay.io/cloudservices
+
 # Set up kube cfg
 export KUBECONFIG_DIR="$WORKSPACE/.kube"
 export KUBECONFIG="$KUBECONFIG_DIR/config"
