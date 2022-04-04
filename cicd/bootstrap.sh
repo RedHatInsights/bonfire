@@ -28,12 +28,13 @@ rm -fr $DOCKER_CONF
 mkdir $DOCKER_CONF
 
 # Set up podman cfg
-AUTH_CONF_DIR="$WORKSPACE/.podman"
-rm -fr $AUTH_CONF_DIR
-mkdir $AUTH_CONF_DIR
-export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
+# No longer neeed due to podman now using the DOCKER_CONF
+#AUTH_CONF_DIR="$WORKSPACE/.podman"
+#rm -fr $AUTH_CONF_DIR
+#mkdir $AUTH_CONF_DIR
+#export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
 
-# Do a docker login so our later 'docker pull' calls have an auth file created
+# Do a docker login to ensure our later 'docker pull' calls have an auth file created
 docker login quay.io/cloudservices
 
 # Set up kube cfg
