@@ -11,12 +11,15 @@ gql==3.0.0a6
 graphql-core==3.1.5
 idna==3.2
 kubernetes==17.17.0
+mock==4.0.3
 multidict==4.7.6
 oauthlib==3.1.1
 ocviapy==0.3.5
 parsedatetime==2.6
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
+pytest==7.1.1
+pytest-mock==3.7.0
 python-dateutil==2.8.2
 python-dotenv==0.19.0
 PyYAML==5.4.1
