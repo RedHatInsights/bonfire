@@ -29,7 +29,8 @@ set -e
 
 # minio client is used to fetch test artifacts from minio in the ephemeral ns
 MC_IMAGE="quay.io/cloudservices/mc:latest"
-docker pull $MC_IMAGE
+echo "Running: docker pull ${MC_IMAGE}"
+docker pull ${MC_IMAGE}
 
 CJI_NAME="$COMPONENT_NAME"
 
