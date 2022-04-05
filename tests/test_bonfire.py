@@ -108,6 +108,8 @@ def test_ns_list_option(mocker):
 
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=all_namespaces)
     mocker.patch("bonfire.openshift.get_all_reservations", return_value="")
+    mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
+    mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
     mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_namespaces)
 
     runner = CliRunner()
@@ -158,6 +160,8 @@ def test_ns_list_options_available(mocker):
 
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=all_namespaces)
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=all_reservations)
+    mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
+    mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
     mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_reservations)
 
     runner = CliRunner()
