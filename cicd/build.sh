@@ -9,17 +9,10 @@
 # Env vars set by bootstrap.sh:
 #IMAGE_TAG="abcd123" -- image tag to push to
 #APP_ROOT="/path/to/app/root" -- path to the cloned app repo
-#DOCKER_CONF -- docker config dir
-#REGISTRY_AUTH_FILE -- podman auth config json file location
-
-# Env vars normally supplied by CI environment:
-#QUAY_USER
-#QUAY_TOKEN
-#QUAY_API_TOKEN
-#RH_REGISTRY_USER
-#RH_REGISTRY_TOKEN
 
 set -e
+
+source ${CICD_ROOT}/_common_container_logic.sh
 
 function build {
     if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
@@ -39,28 +32,6 @@ function build {
         # on RHEL8 or anything else, use podman
         podman_build
     fi
-}
-
-function login {
-    if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
-        # on RHEL7, use docker
-        docker_login
-    else
-        # on RHEL8 or anything else, use podman
-        podman_login
-    fi
-}
-
-function docker_login {
-    set -x
-    docker login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
-    docker login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
-    set +x
-}
-
-function podman_login {
-    podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
-    podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
 }
 
 function docker_build {
@@ -97,16 +68,6 @@ function podman_build {
 
 : ${DOCKERFILE:="Dockerfile"}
 : ${CACHE_FROM_LATEST_IMAGE:="false"}
-
-if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
-    echo "QUAY_USER and QUAY_TOKEN must be set"
-    exit 1
-fi
-
-if [[ -z "$RH_REGISTRY_USER" || -z "$RH_REGISTRY_TOKEN" ]]; then
-    echo "RH_REGISTRY_USER and RH_REGISTRY_TOKEN must be set"
-    exit 1
-fi
 
 # Login to registry with podman/docker
 login
