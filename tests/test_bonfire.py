@@ -165,7 +165,7 @@ def test_ns_list_options_available(mocker):
     mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_reservations)
 
     runner = CliRunner()
-    result = runner.invoke(bonfire.namespace, ["list", "--available"])
+    result = runner.invoke(bonfire.namespace, ["list", "--mine"])
 
     assert "namespace-1" in result.output
     assert "namespace-2" not in result.output
@@ -175,3 +175,58 @@ def test_ns_list_options_available(mocker):
     assert "user-2" not in result.output
     assert "31m" not in result.output
     assert "1h" not in result.output
+
+
+def test_ns_list_options_mine(mocker):
+    all_namespaces = []
+    all_reservations = []
+
+    namespace_1 = Mock(
+        reserved=False, status="ready", clowdapps="none", requester="user-3", expires_in="34m"
+    )
+    namespace_1.name = "namespace-1"
+
+    namespace_2 = Mock(
+        reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="31m"
+    )
+    namespace_2.name = "namespace-2"
+
+    namespace_3 = Mock(
+        reserved=True, status="ready", clowdapps="none", requester="user-1", expires_in="4h32m"
+    )
+    namespace_3.name = "namespace-3"
+
+    namespace_4 = Mock(
+        reserved=True, status="ready", clowdapps="none", requester="user-2", expires_in="1h"
+    )
+    namespace_4.name = "namespace-4"
+
+    all_namespaces.append(namespace_1)
+    all_namespaces.append(namespace_2)
+    all_namespaces.append(namespace_3)
+    all_namespaces.append(namespace_4)
+
+    all_reservations.append(namespace_2)
+    all_reservations.append(namespace_3)
+
+    mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=all_namespaces)
+    mocker.patch("bonfire.namespaces.get_all_reservations", return_value=all_reservations)
+    mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
+    mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
+    mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_reservations)
+
+    runner = CliRunner()
+    result = runner.invoke(bonfire.namespace, ["list", "--mine"])
+
+    assert "namespace-1" not in result.output
+    assert "namespace-2" in result.output
+    assert "namespace-3" in result.output
+    assert "namespace-4" not in result.output
+    assert "user-1" in result.output
+    assert "user-2" not in result.output
+    assert "user-3" not in result.output
+    assert "31m" in result.output
+    assert "34m" not in result.output
+    assert "1h" not in result.output
+    assert "4h32m" in result.output
+    
