@@ -23,19 +23,16 @@ export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 
 set -x
 # Set up docker cfg
-export DOCKER_CONF="$WORKSPACE/.docker"
-rm -fr $DOCKER_CONF
-mkdir $DOCKER_CONF
+export DOCKER_CONFIG="$WORKSPACE/.docker"
+rm -fr $DOCKER_CONFIG
+mkdir $DOCKER_CONFIG
 
 # Set up podman cfg
-# No longer neeed due to podman now using the DOCKER_CONF
+# No longer needed due to podman now using the DOCKER_CONFIG
 #AUTH_CONF_DIR="$WORKSPACE/.podman"
 #rm -fr $AUTH_CONF_DIR
 #mkdir $AUTH_CONF_DIR
 #export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
-
-# Do a docker login to ensure our later 'docker pull' calls have an auth file created
-docker login quay.io/cloudservices
 
 # Set up kube cfg
 export KUBECONFIG_DIR="$WORKSPACE/.kube"
@@ -72,6 +69,10 @@ pip install --upgrade 'crc-bonfire>=3.8.6'
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
 git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+
+# Do a docker login to ensure our later 'docker pull' calls have an auth file created
+source ${CICD_ROOT}/_common_container_logic.sh
+login
 
 # Gives access to helper commands such as "oc_wrapper"
 add_cicd_bin_to_path() {
