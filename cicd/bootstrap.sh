@@ -15,7 +15,7 @@ fi
 
 export APP_ROOT=$(pwd)
 export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build's workspace
-export BONFIRE_ROOT=${WORKSPACE}/bonfire
+export BONFIRE_ROOT=${WORKSPACE}/.bonfire
 export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 export BONFIRE_BOT="true"
