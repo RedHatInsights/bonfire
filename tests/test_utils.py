@@ -21,7 +21,7 @@ from bonfire.utils import (
         ),
     ]
 )
-def test_split_equals_pass(list_of_str, expected):
+def test_split_equals_pass(list_of_str: str, expected: str):
     result = split_equals(list_of_str)
 
     assert result == expected

@@ -12,7 +12,7 @@ from bonfire import bonfire
         ("namespacereservation", "ephemeral-namespace-test-2"),
     ],
 )
-def test_ns_reserve_options_name(mocker, name, expected):
+def test_ns_reserve_options_name(mocker, name: str, expected: str):
     ns = Mock()
     ns.name = expected
 
@@ -38,7 +38,7 @@ def test_ns_reserve_options_name(mocker, name, expected):
         ("user2", "user2"),
     ],
 )
-def test_ns_reserve_options_requester(mocker, user, expected):
+def test_ns_reserve_options_requester(mocker, user: str, expected: str):
     ns = Mock()
     ns.name = expected
 
@@ -65,7 +65,7 @@ def test_ns_reserve_options_requester(mocker, user, expected):
         ("30m", "30m"),
     ],
 )
-def test_ns_reserve_options_duration(mocker, duration, expected):
+def test_ns_reserve_options_duration(mocker, duration: str, expected: str):
     ns = Mock()
     ns.name = expected
 
@@ -229,3 +229,4 @@ def test_ns_list_options_mine(mocker):
     assert "34m" not in result.output
     assert "1h" not in result.output
     assert "4h32m" in result.output
+    
