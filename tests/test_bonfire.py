@@ -106,7 +106,6 @@ def test_ns_list_option(mocker):
     all_namespaces.append(namespace_2)
     all_namespaces.append(namespace_3)
 
-    mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=all_namespaces)
     mocker.patch("bonfire.openshift.get_all_reservations", return_value="")
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
@@ -158,7 +157,6 @@ def test_ns_list_options_available(mocker):
     all_reservations.append(namespace_1)
     all_reservations.append(namespace_3)
 
-    mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=all_namespaces)
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=all_reservations)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
@@ -209,7 +207,6 @@ def test_ns_list_options_mine(mocker):
     all_reservations.append(namespace_2)
     all_reservations.append(namespace_3)
 
-    #mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=all_namespaces)
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=all_reservations)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
