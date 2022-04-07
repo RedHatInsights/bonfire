@@ -226,4 +226,3 @@ def test_ns_list_options_mine(mocker):
     assert "34m" not in result.output
     assert "1h" not in result.output
     assert "4h32m" in result.output
-    
