@@ -15,7 +15,7 @@ fi
 
 export APP_ROOT=$(pwd)
 export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build's workspace
-export BONFIRE_ROOT=${WORKSPACE}/bonfire
+export BONFIRE_ROOT=${WORKSPACE}/.bonfire
 export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 export BONFIRE_BOT="true"
@@ -64,7 +64,7 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 pip install --upgrade pip 'setuptools<58' wheel
-pip install --upgrade 'crc-bonfire>=3.8.6'
+pip install --upgrade 'crc-bonfire>=4.0.0'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
