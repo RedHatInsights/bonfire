@@ -32,56 +32,54 @@ def test_ns_reserve_options_name(mocker, name: str, expected: str):
 
 
 @pytest.mark.parametrize(
-    "user, expected",
+    "user",
     [
-        ("user1", "user1"),
-        ("user2", "user2"),
+        ("user1"),
+        ("user2"),
     ],
 )
-def test_ns_reserve_options_requester(mocker, user: str, expected: str):
-    ns = Mock()
-    ns.name = expected
-
+def test_ns_reserve_options_requester(mocker, user: str):
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
-    mocker.patch("bonfire.openshift.has_ns_operator", return_value=True)
+    mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
     mocker.patch("bonfire.openshift.get_api_resources", return_value={"name": user})
-    mocker.patch("bonfire.openshift.check_for_existing_reservation", return_value=True)
+    mocker.patch("bonfire.namespaces.apply_config")
+    mocker.patch("bonfire.openshift.has_ns_operator", return_value=True)
     mocker.patch("bonfire.openshift.parse_restype", return_value="")
-    mocker.patch("bonfire.openshift.get_json", return_value="")
-    mocker.patch("bonfire.openshift.get_all_reservations", return_value="")
-    mocker.patch("bonfire.bonfire.reserve_namespace", return_value=ns)
+    mocker.patch("bonfire.openshift._exec_oc")
+    mocker.patch("bonfire.namespaces.wait_on_reservation", return_value=user)
+
+    mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
     runner = CliRunner()
-    result = runner.invoke(bonfire.namespace, ["reserve", "--requester", user])
-
-    assert result.output.rstrip() == expected
+    runner.invoke(bonfire.namespace, ["reserve", "--requester", user])
+    
+    mock_process_reservation.assert_called_with(None, user, '1h', local=True)
 
 
 @pytest.mark.parametrize(
-    "duration, expected",
+    "duration",
     [
-        ("1h", "1h"),
-        (None, "1h"),
-        ("30m", "30m"),
+        ("1h"),
+        (None),
+        ("30m"),
     ],
 )
-def test_ns_reserve_options_duration(mocker, duration: str, expected: str):
-    ns = Mock()
-    ns.name = expected
-
+def test_ns_reserve_options_duration(mocker, duration: str):
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
+    mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
+    mocker.patch("bonfire.openshift.get_api_resources", return_value={"name": "user-1"})
+    mocker.patch("bonfire.namespaces.apply_config")
     mocker.patch("bonfire.openshift.has_ns_operator", return_value=True)
-    mocker.patch("bonfire.openshift.get_api_resources", return_value={"name": duration})
-    mocker.patch("bonfire.openshift.check_for_existing_reservation", return_value=True)
     mocker.patch("bonfire.openshift.parse_restype", return_value="")
-    mocker.patch("bonfire.openshift.get_json", return_value="")
-    mocker.patch("bonfire.openshift.get_all_reservations", return_value="")
-    mocker.patch("bonfire.bonfire.reserve_namespace", return_value=ns)
+    mocker.patch("bonfire.openshift._exec_oc")
+    mocker.patch("bonfire.namespaces.wait_on_reservation", return_value="user-1")
+    
+    mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
     runner = CliRunner()
-    result = runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
-
-    assert result.output.rstrip() == expected
+    runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
+    
+    mock_process_reservation.assert_called_with(None, 'user-1', duration, local=True)
 
 
 def test_ns_list_option(mocker):
@@ -163,7 +161,7 @@ def test_ns_list_options_available(mocker):
     mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_reservations)
 
     runner = CliRunner()
-    result = runner.invoke(bonfire.namespace, ["list", "--mine"])
+    result = runner.invoke(bonfire.namespace, ["list", "--available"])
 
     assert "namespace-1" in result.output
     assert "namespace-2" not in result.output
