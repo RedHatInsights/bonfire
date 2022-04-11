@@ -112,16 +112,10 @@ def test_ns_list_option(mocker):
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list"])
 
-    assert "namespace-1" in result.output
-    assert "namespace-2" in result.output
-    assert "namespace-3" in result.output
-    assert "user-1" in result.output
-    assert "user-2" in result.output
-    assert "user-3" in result.output
-    assert "31m" in result.output
-    assert "2h" in result.output
-    assert "6h" in result.output
-
+    assert "namespace-1  false       ready         none          user-2       2h" in result.output
+    assert "namespace-2  true        ready         none          user-1       31m" in result.output
+    assert "namespace-3  false       ready         none          user-3       6h" in result.output
+    assert "namespace-4  false       ready         none          user-4       30m" not in result.output
 
 def test_ns_list_options_available(mocker):
     all_namespaces = []
