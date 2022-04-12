@@ -16,6 +16,8 @@ then
   done
 
   # post the comment
+  # set +e so that if this POST fails, the entire run will not fail
+  set +e
   curl \
     -X POST \
     -H "Accept: application/vnd.github.v3+json" \
@@ -23,6 +25,7 @@ then
     -H "Content-Type: application/json; charset=utf-8" \
     ${GITHUB_API_URL}/repos/${ghprbGhRepository}/issues/${ghprbPullId}/comments \
     -d "{\"body\":\"$message\"}"
+  set -e
 fi
 
 echo "end of posting test results"
