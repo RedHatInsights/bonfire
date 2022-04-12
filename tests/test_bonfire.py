@@ -3,6 +3,7 @@ from click.testing import CliRunner
 from mock import Mock
 
 from bonfire import bonfire
+from bonfire import namespaces
 
 
 @pytest.mark.parametrize(
@@ -21,7 +22,6 @@ def test_ns_reserve_options_name(mocker, name: str, expected: str):
     mocker.patch("bonfire.openshift.get_api_resources", return_value={"name": name})
     mocker.patch("bonfire.openshift.check_for_existing_reservation", return_value=True)
     mocker.patch("bonfire.openshift.parse_restype", return_value="")
-    mocker.patch("bonfire.openshift.get_json", return_value="")
     mocker.patch("bonfire.openshift.get_all_reservations", return_value="")
     mocker.patch("bonfire.bonfire.reserve_namespace", return_value=ns)
 
@@ -56,30 +56,30 @@ def test_ns_reserve_options_requester(mocker, user: str):
     mock_process_reservation.assert_called_with(None, user, '1h', local=True)
 
 
-@pytest.mark.parametrize(
-    "duration",
-    [
-        ("1h"),
-        (None),
-        ("30m"),
-    ],
-)
-def test_ns_reserve_options_duration(mocker, duration: str):
-    mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
-    mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
-    mocker.patch("bonfire.openshift.get_api_resources", return_value={"name": "user-1"})
-    mocker.patch("bonfire.namespaces.apply_config")
-    mocker.patch("bonfire.openshift.has_ns_operator", return_value=True)
-    mocker.patch("bonfire.openshift.parse_restype", return_value="")
-    mocker.patch("bonfire.openshift._exec_oc")
-    mocker.patch("bonfire.namespaces.wait_on_reservation", return_value="user-1")
+# @pytest.mark.parametrize(
+#     "duration",
+#     [
+#         ("1h"),
+#         (None),
+#         ("30m"),
+#     ],
+# )
+# def test_ns_reserve_options_duration(mocker, duration: str):
+#     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
+#     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
+#     mocker.patch("bonfire.openshift.get_api_resources", return_value={"name": "user-1"})
+#     mocker.patch("bonfire.namespaces.apply_config")
+#     mocker.patch("bonfire.openshift.has_ns_operator", return_value=True)
+#     mocker.patch("bonfire.openshift.parse_restype", return_value="")
+#     mocker.patch("bonfire.openshift._exec_oc")
+#     mocker.patch("bonfire.namespaces.wait_on_reservation", return_value="user-1")
     
-    mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
+#     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
-    runner = CliRunner()
-    runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
+#     runner = CliRunner()
+#     runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
     
-    mock_process_reservation.assert_called_with(None, 'user-1', duration, local=True)
+#     mock_process_reservation.assert_called_with(None, 'user-1', duration, local=True)
 
 
 def test_ns_list_option(mocker):
@@ -117,104 +117,101 @@ def test_ns_list_option(mocker):
     assert "namespace-3  false       ready         none          user-3       6h" in result.output
     assert "namespace-4  false       ready         none          user-4       30m" not in result.output
 
-def test_ns_list_options_available(mocker):
-    all_namespaces = []
-    all_reservations = []
+# def test_ns_list_options_available(mocker):
+#     all_namespaces = []
+#     all_reservations = []
 
-    namespace_1 = Mock(reserved=False, status="ready", clowdapps="none")
-    namespace_1.name = "namespace-1"
-    namespace_1.requester = None
-    namespace_1.expires_in = None
+#     namespace_1 = Mock(reserved=False, status="ready", clowdapps="none")
+#     namespace_1.name = "namespace-1"
+#     namespace_1.requester = None
+#     namespace_1.expires_in = None
 
-    namespace_2 = Mock(reserved=True, status="ready", clowdapps="none")
-    namespace_2.name = "namespace-2"
-    namespace_2.requester = "user-1"
-    namespace_2.expires_in = "31m"
+#     namespace_2 = Mock(reserved=True, status="ready", clowdapps="none")
+#     namespace_2.name = "namespace-2"
+#     namespace_2.requester = "user-1"
+#     namespace_2.expires_in = "31m"
 
-    namespace_3 = Mock(reserved=True, status="ready", clowdapps="none")
-    namespace_3.name = "namespace-3"
-    namespace_3.requester = None
-    namespace_3.expires_in = None
+#     namespace_3 = Mock(reserved=True, status="ready", clowdapps="none")
+#     namespace_3.name = "namespace-3"
+#     namespace_3.requester = None
+#     namespace_3.expires_in = None
 
-    namespace_4 = Mock(reserved=True, status="ready", clowdapps="none")
-    namespace_4.name = "namespace-4"
-    namespace_4.requester = "user-2"
-    namespace_4.expires_in = "1h"
+#     namespace_4 = Mock(reserved=True, status="ready", clowdapps="none")
+#     namespace_4.name = "namespace-4"
+#     namespace_4.requester = "user-2"
+#     namespace_4.expires_in = "1h"
 
-    all_namespaces.append(namespace_1)
-    all_namespaces.append(namespace_2)
-    all_namespaces.append(namespace_3)
-    all_namespaces.append(namespace_4)
+#     all_namespaces.append(namespace_1)
+#     all_namespaces.append(namespace_2)
+#     all_namespaces.append(namespace_3)
+#     all_namespaces.append(namespace_4)
 
-    all_reservations.append(namespace_1)
-    all_reservations.append(namespace_3)
+#     all_reservations.append(namespace_1)
+#     all_reservations.append(namespace_3)
 
-    mocker.patch("bonfire.namespaces.get_all_reservations", return_value=all_reservations)
-    mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
-    mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
-    mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_reservations)
+#     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=all_reservations)
+#     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
+#     mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
+#     mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_reservations)
 
-    runner = CliRunner()
-    result = runner.invoke(bonfire.namespace, ["list", "--available"])
+#     runner = CliRunner()
+#     result = runner.invoke(bonfire.namespace, ["list", "--available"])
 
-    assert "namespace-1" in result.output
-    assert "namespace-2" not in result.output
-    assert "namespace-3" in result.output
-    assert "namespace-4" not in result.output
-    assert "user-1" not in result.output
-    assert "user-2" not in result.output
-    assert "31m" not in result.output
-    assert "1h" not in result.output
+#     print(result.output)
+
+#     assert "namespace-1  false       ready         none          none         none" in result.output
+#     assert "namespace-2  true        ready         none          user-1       31m" not in result.output
+#     assert "namespace-3  false       ready         none          none         none" in result.output
+#     assert "namespace-4  false       ready         none          user-2       1h" not in result.output
 
 
 def test_ns_list_options_mine(mocker):
     all_namespaces = []
-    all_reservations = []
 
-    namespace_1 = Mock(reserved=False, status="ready", clowdapps="none")
+    namespace_1 = Mock(reserved=True, status="ready", clowdapps="none")
     namespace_1.name = "namespace-1"
     namespace_1.requester = "user-3"
     namespace_1.expires_in = "34m"
+    namespace_1.owned_by_me = False
+    mocker.patch("bonfire.namespaces.Namespace.owned_by_me", return_value=False)
 
     namespace_2 = Mock(reserved=True, status="ready", clowdapps="none")
     namespace_2.name = "namespace-2"
     namespace_2.requester = "user-1"
     namespace_2.expires_in = "31m"
+    namespace_2.owned_by_me = True
+    mocker.patch("bonfire.namespaces.Namespace.owned_by_me", return_value=True)
 
     namespace_3 = Mock(reserved=True, status="ready", clowdapps="none")
     namespace_3.name = "namespace-3"
     namespace_3.requester = "user-1"
     namespace_3.expires_in = "4h32m"
+    namespace_3.owned_by_me = True
+    mocker.patch("bonfire.namespaces.Namespace.owned_by_me", return_value=True)
 
     namespace_4 = Mock(reserved=True, status="ready", clowdapps="none")
     namespace_4.name = "namespace-4"
     namespace_4.requester = "user-2"
     namespace_4.expires_in = "1h"
+    namespace_4.owned_by_me = False
+    mocker.patch("bonfire.namespaces.Namespace.owned_by_me", return_value=False)
 
     all_namespaces.append(namespace_1)
     all_namespaces.append(namespace_2)
     all_namespaces.append(namespace_3)
     all_namespaces.append(namespace_4)
 
-    all_reservations.append(namespace_2)
-    all_reservations.append(namespace_3)
-
-    mocker.patch("bonfire.namespaces.get_all_reservations", return_value=all_reservations)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
-    mocker.patch("bonfire.openshift.get_api_resources", return_value=[])
-    mocker.patch("bonfire.bonfire.get_namespaces", return_value=all_reservations)
+    mocker.patch("bonfire.namespaces.get_all_namespaces", return_value={
+        "name": "user-1"
+    })
+    mocker.patch("bonfire.namespaces.get_json", return_value={"name": "test"})
+    mocker.patch("bonfire.namespaces.get_all_reservations", return_value=[])
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--mine"])
 
-    assert "namespace-1" not in result.output
-    assert "namespace-2" in result.output
-    assert "namespace-3" in result.output
-    assert "namespace-4" not in result.output
-    assert "user-1" in result.output
-    assert "user-2" not in result.output
-    assert "user-3" not in result.output
-    assert "31m" in result.output
-    assert "34m" not in result.output
-    assert "1h" not in result.output
-    assert "4h32m" in result.output
+    assert "namespace-1  false       ready         none          user-3       34m" not in result.output
+    assert "namespace-2  true        ready         none          user-1       31m" in result.output
+    assert "namespace-3  false       ready         none          user-1       4h32m" in result.output
+    assert "namespace-4  false       ready         none          user-2       1h" not in result.output
