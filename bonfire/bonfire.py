@@ -9,6 +9,7 @@ import warnings
 from tabulate import tabulate
 from wait_for import TimedOutError
 from functools import wraps
+from importlib_metadata import entry_points
 
 import bonfire.config as conf
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -1286,6 +1287,12 @@ def _cmd_apps_what_depends_on(
 
 
 def main_with_handler():
+    try:
+        eps = entry_points()
+        for ep in eps.get("bonfire.click_commands"):
+            main.add_command(ep.load())
+    except Exception as err:
+        _error(f"module could not be loaded for click_command '{ep.name}' {err}")
     try:
         main()
     except FatalError as err:
