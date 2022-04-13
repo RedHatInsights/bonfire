@@ -1,0 +1,74 @@
+{
+    "items": [
+        {
+            "metadata": {
+                "name": "namespace-1",
+                "namespace": "namspace-1",
+                "annotations": {
+                    "status": "false",
+                    "operator-ns": "true",
+                    "reserved": "true"
+                }
+            },
+            "status": {
+                "namespace": "namespace-1"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2",
+                "namespace": "namspace-2",
+                "annotations": {
+                    "status": "false",
+                    "operator-ns": "true",
+                    "reserved": "true"
+                }
+            },
+            "status": {
+                "namespace": "namespace-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-3",
+                "namespace": "namspace-3",
+                "annotations": {
+                    "status": "ready",
+                    "operator-ns": "true",
+                    "reserved": "false,"
+                }
+            },
+            "status": {
+                "namespace": "namespace-3"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-4",
+                "namespace": "namspace-4",
+                "annotations": {
+                    "status": "ready",
+                    "operator-ns": "true",
+                    "reserved": "false,"
+                }
+            },
+            "status": {
+                "namespace": "namespace-4"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-5",
+                "namespace": "namespace-5",
+                "annotations": {
+                    "status": "false",
+                    "operator-ns": "true",
+                    "reserved": "true"
+                }
+            },
+            "status": {
+                "namespace": "namespace-5"
+            }
+        }
+    ]
+}
