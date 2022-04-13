@@ -39,7 +39,7 @@ def test_split_equals_pass(list_of_str: str, expected: str):
     ]
 )
 def test_split_equals_fail(list_of_str: list):
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         split_equals(list_of_str)
 
 
