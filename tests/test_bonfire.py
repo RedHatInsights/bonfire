@@ -1,9 +1,6 @@
 import pytest
 from click.testing import CliRunner
-from mock import Mock
 import json
-
-#from data import data
 
 from bonfire import bonfire
 
@@ -70,8 +67,8 @@ def test_ns_reserve_options_requester(mocker, requester: str):
     "duration",
     [
         ("1h"),
-        #(None),
-        #("30m"),
+        (None),
+        ("30m"),
     ],
 )
 def test_ns_reserve_options_duration(mocker, duration: str):
@@ -85,7 +82,10 @@ def test_ns_reserve_options_duration(mocker, duration: str):
     runner = CliRunner()
     runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
 
-    mock_process_reservation.assert_called_once_with(None, "user-3", duration, local=True)
+    if duration:
+        mock_process_reservation.assert_called_once_with(None, "user-3", duration, local=True)
+    else:
+        mock_process_reservation.assert_called_once_with(None, "user-3", "1h", local=True)
 
 
 def test_ns_list_option(mocker):
@@ -99,13 +99,13 @@ def test_ns_list_option(mocker):
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list"])
 
-    print(result.output)
+    actual = ' '.join(result.output.split())
 
-    assert ' '.join(["namespace-1", "true", "false", "none", "user-1"]) in ' '.join(result.output.split())
-    assert ' '.join(["namespace-2",  "true", "false", "none", "user-2"]) in ' '.join(result.output.split())
-    assert ' '.join(["namespace-3",  "false", "ready", "none"]) in ' '.join(result.output.split())
-    assert ' '.join(["namespace-4",  "false", "ready", "none"]) in ' '.join(result.output.split())
-    assert ' '.join(["namespace-5",  "true", "false", "none", "user-5"]) in ' '.join(result.output.split())
+    assert ' '.join(["namespace-1", "true", "false", "none", "user-1"]) in actual
+    assert ' '.join(["namespace-2",  "true", "false", "none", "user-2"]) in actual
+    assert ' '.join(["namespace-3",  "false", "ready", "none"]) in actual
+    assert ' '.join(["namespace-4",  "false", "ready", "none"]) in actual
+    assert ' '.join(["namespace-5",  "true", "false", "none", "user-5"]) in actual
 
 
 def test_ns_list_options_available(mocker):
@@ -119,13 +119,13 @@ def test_ns_list_options_available(mocker):
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--available"])
 
-    print(result.output)
+    actual = ' '.join(result.output.split())
 
-    assert ' '.join(["namespace-1", "true", "false", "none", "user-1"]) not in ' '.join(result.output.split())
-    assert ' '.join(["namespace-2",  "true", "false", "none", "user-2"]) not in ' '.join(result.output.split())
-    assert ' '.join(["namespace-3",  "false", "ready", "none"]) in ' '.join(result.output.split())
-    assert ' '.join(["namespace-4",  "false", "ready", "none"]) in ' '.join(result.output.split())
-    assert ' '.join(["namespace-5",  "true", "false", "none", "user-5"]) not in ' '.join(result.output.split())
+    assert ' '.join(["namespace-1", "true", "false", "none", "user-1"]) not in actual
+    assert ' '.join(["namespace-2",  "true", "false", "none", "user-2"]) not in actual
+    assert ' '.join(["namespace-3",  "false", "ready", "none"]) in actual
+    assert ' '.join(["namespace-4",  "false", "ready", "none"]) in actual
+    assert ' '.join(["namespace-5",  "true", "false", "none", "user-5"]) not in actual
 
 
 def test_ns_list_option_mine(mocker):
@@ -139,10 +139,10 @@ def test_ns_list_option_mine(mocker):
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--mine"])
 
-    print(result.output)
+    actual = ' '.join(result.output.split())
 
-    assert ' '.join(["namespace-1", "true", "false", "none", "user-1"]) in ' '.join(result.output.split())
-    assert ' '.join(["namespace-2",  "true", "false", "none", "user-2"]) not in ' '.join(result.output.split())
-    assert ' '.join(["namespace-3",  "false", "false", "none"]) not in ' '.join(result.output.split())
-    assert ' '.join(["namespace-4",  "false", "false", "none"]) not in ' '.join(result.output.split())
-    assert ' '.join(["namespace-5",  "true", "false", "none", "user-5"]) not in ' '.join(result.output.split())
+    assert ' '.join(["namespace-1", "true", "false", "none", "user-1"]) in actual
+    assert ' '.join(["namespace-2",  "true", "false", "none", "user-2"]) not in actual
+    assert ' '.join(["namespace-3",  "false", "ready", "none"]) not in actual
+    assert ' '.join(["namespace-4",  "false", "ready", "none"]) not in actual
+    assert ' '.join(["namespace-5",  "true", "false", "none", "user-5"]) not in actual
