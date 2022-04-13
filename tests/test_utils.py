@@ -38,7 +38,7 @@ def test_split_equals_pass(list_of_str: str, expected: str):
         ),
     ]
 )
-def test_split_equals_fail(list_of_str: list):
+def test_split_equals_raises_error(list_of_str: list):
     with pytest.raises(ValueError):
         split_equals(list_of_str)
 
@@ -64,6 +64,25 @@ def test_validate_time_string(time: str, expected: str):
     result = validate_time_string(time)
 
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "time",
+    [
+        (
+            "5m"
+        ),
+        (
+            "480h"
+        ),
+        (
+            "130"
+        )
+    ]
+)
+def test_validate_time_raises_error(time: str):
+    with pytest.raises(ValueError):
+        validate_time_string(time)
 
 
 def test_get_version():
