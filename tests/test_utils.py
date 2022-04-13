@@ -16,8 +16,8 @@ from bonfire.utils import (
             {"t1": "test1", "t2": "test2"}
         ),
         (
-            ["company=redhat", "team=Dev Prod"],
-            {"company": "redhat", "team": "Dev Prod"}
+            ["t3=test3", "t4=test4"],
+            {"t3": "test3", "t4": "test4"}
         ),
     ]
 )
