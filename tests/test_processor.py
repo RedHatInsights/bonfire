@@ -132,6 +132,8 @@ def processor():
         clowd_env="some_env",
         remove_resources=["all"],
         no_remove_resources=[],
+        remove_dependencies=[],
+        no_remove_dependencies=["all"],
         single_replicas=True,
         component_filter=[],
         local=True,
