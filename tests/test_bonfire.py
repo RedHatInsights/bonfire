@@ -1,24 +1,23 @@
 import pytest
 from click.testing import CliRunner
+from pathlib import Path
 import json
 
 from bonfire import bonfire
 
 
-namespace_data = {}
-reservation_data = {}
+DATA_PATH = Path(__file__).parent.joinpath("data")
 
-with open("data/namespace_data.json", 'r') as namespace_data_file:
-    namespace_data = json.load(namespace_data_file)
+@pytest.fixture(scope="module")
+def namespace_list() -> list:
+    with open(DATA_PATH.joinpath("namespace_data.json"), 'r') as namespace_data_file:
+        return json.load(namespace_data_file)["items"]
 
-with open("data/reservation_data.json", 'r') as reservation_data_file:
-    reservation_data = json.load(reservation_data_file)
 
-namespace_list = namespace_data["items"]
-reservation_list = reservation_data["items"]
-
-namespace_data_file.close()
-reservation_data_file.close()
+@pytest.fixture(scope="module")
+def reservation_list() -> list:
+    with open(DATA_PATH.joinpath("reservation_data.json"), 'r') as reservation_data_file:
+        return json.load(reservation_data_file)["items"]
 
 
 @pytest.mark.parametrize(
@@ -88,7 +87,7 @@ def test_ns_reserve_options_duration(mocker, duration: str):
         mock_process_reservation.assert_called_once_with(None, "user-3", "1h", local=True)
 
 
-def test_ns_list_option(mocker):
+def test_ns_list_option(mocker, namespace_list: list, reservation_list: list):
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=namespace_list)
     mocker.patch("bonfire.namespaces.get_json", return_value={})
@@ -108,7 +107,7 @@ def test_ns_list_option(mocker):
     assert ' '.join(["namespace-5",  "true", "false", "none", "user-5"]) in actual
 
 
-def test_ns_list_options_available(mocker):
+def test_ns_list_options_available(mocker, namespace_list: list, reservation_list: list):
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=namespace_list)
     mocker.patch("bonfire.namespaces.get_json", return_value={})
@@ -128,7 +127,7 @@ def test_ns_list_options_available(mocker):
     assert ' '.join(["namespace-5",  "true", "false", "none", "user-5"]) not in actual
 
 
-def test_ns_list_option_mine(mocker):
+def test_ns_list_option_mine(mocker, namespace_list: list, reservation_list: list):
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=namespace_list)
     mocker.patch("bonfire.namespaces.get_json", return_value={})
