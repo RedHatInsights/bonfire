@@ -1,0 +1,43 @@
+{
+    "items": [
+        {
+            "metadata": {
+                "name": "namespace-1"
+            },
+            "status": {
+                "namespace": "namespace-1",
+                "state": "active",
+                "expiration": "2024-04-13T22:00:00Z"
+            },
+            "spec": {
+                "requester": "user-1"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-2"
+            },
+            "status": {
+                "namespace": "namespace-2",
+                "state": "active",
+                "expiration": "2024-04-29T22:00:00Z"
+            },
+            "spec": {
+                "requester": "user-2"
+            }
+        },
+        {
+            "metadata": {
+                "name": "namespace-5"
+            },
+            "status": {
+                "namespace": "namespace-5",
+                "state": "active",
+                "expiration": "2024-04-19T16:30:00Z"
+            },
+            "spec": {
+                "requester": "user-5"
+            }
+        }
+    ]
+}
