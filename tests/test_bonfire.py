@@ -33,6 +33,7 @@ def test_ns_reserve_options_name(mocker, name: str):
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
     mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
+    mocker.patch("bonfire.openshift.process_template", return_value={})
 
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
@@ -54,6 +55,7 @@ def test_ns_reserve_options_requester(mocker, requester: str):
     mocker.patch("bonfire.bonfire._get_requester", return_value=requester)
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
     mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
+    mocker.patch("bonfire.openshift.process_template", return_value={})
 
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
@@ -76,6 +78,7 @@ def test_ns_reserve_options_duration(mocker, duration: str):
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
     mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
+    mocker.patch("bonfire.openshift.process_template", return_value={})
 
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
@@ -95,6 +98,7 @@ def test_ns_list_option(mocker, namespace_list: list, reservation_list: list):
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
+    mocker.patch("bonfire.openshift.process_template", return_value={})
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list"])
@@ -115,6 +119,7 @@ def test_ns_list_options_available(mocker, namespace_list: list, reservation_lis
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
+    mocker.patch("bonfire.openshift.process_template", return_value={})
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--available"])
@@ -135,6 +140,7 @@ def test_ns_list_option_mine(mocker, namespace_list: list, reservation_list: lis
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
+    mocker.patch("bonfire.openshift.process_template", return_value={})
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--mine"])
