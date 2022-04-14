@@ -8,6 +8,7 @@ from bonfire import bonfire
 
 DATA_PATH = Path(__file__).parent.joinpath("data")
 
+
 @pytest.fixture(scope="module")
 def namespace_list() -> list:
     with open(DATA_PATH.joinpath("namespace_data.json"), 'r') as namespace_data_file:
