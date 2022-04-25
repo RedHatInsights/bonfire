@@ -80,8 +80,9 @@ if [[ $IMAGE == quay.io/* ]]; then
         curl -Ls -H "Authorization: Bearer $QUAY_API_TOKEN" \
         "https://quay.io/api/v1/repository/$QUAY_REPO/tag/?specificTag=$IMAGE_TAG" \
     )
-    TAGS_LENGTH=$(echo $RESPONSE | jq '.tags | length')
-    if [[ "$TAGS_LENGTH" -gt 0 ]]; then
+    # find all non-expired tags
+    VALID_TAGS_LENGTH=$(echo $RESPONSE | jq '[ .tags[] | select(.end_ts == null) ] | length')
+    if [[ "$VALID_TAGS_LENGTH" -gt 0 ]]; then
         echo "$IMAGE:$IMAGE_TAG already present in quay, not rebuilding"
     else
         # image does not yet exist, build and push it
