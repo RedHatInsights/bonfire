@@ -192,8 +192,8 @@ class Namespace:
         managed = len(self._clowdapps)
         ready = 0
         for app in self._clowdapps:
-            if "env-status" in app:
-                deployments = app["env-status"]["deployments"]
+            if "status" in app:
+                deployments = app["status"]["deployments"]
                 if deployments["managedDeployments"] == deployments["readyDeployments"]:
                     ready += 1
 
@@ -307,7 +307,7 @@ def release_reservation(name=None, namespace=None, pool=None, local=True):
 def extend_namespace(namespace, duration, local=True):
     res = get_reservation(namespace=namespace)
     if res:
-        if res.get("env-status", {}).get("state") == "expired":
+        if res.get("status", {}).get("state") == "expired":
             log.error(
                 "The reservation for namespace %s has expired. Please reserve a new namespace",
                 res["env-status"]["namespace"],
