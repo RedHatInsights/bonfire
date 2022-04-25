@@ -1,3 +1,4 @@
+from __future__ import annotations
 import functools
 import json
 import logging
@@ -258,7 +259,7 @@ def apply_config(namespace, list_resource):
         oc("apply", "-f", "-", "-n", namespace, _in=json.dumps(list_resource))
 
 
-def get_json(restype, name=None, label=None, namespace=None):
+def get_json(restype, name=None, label=None, namespace=None) -> dict:
     """
     Run 'oc get' for a given resource type/name/label and return the json output.
 
@@ -914,12 +915,12 @@ def on_k8s():
     return True
 
 
-def get_all_namespaces():
+def get_all_namespaces() -> list:
     if not on_k8s():
-        all_namespaces = get_json("project")["items"]
+        all_namespaces = get_json("project", label="operator-ns")["items"]
     else:
-        all_namespaces = get_json("namespace")["items"]
-
+        all_namespaces = get_json("namespace", label="operator-ns")["items"]
+    
     return all_namespaces
 
 
