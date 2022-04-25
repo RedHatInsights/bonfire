@@ -73,6 +73,10 @@ class Namespace:
         return self._data.get("metadata", "").get("annotations", {})
 
     @property
+    def labels(self):
+        return self._data.get("metadata", "").get("labels", {})
+
+    @property
     def status(self):
         return self.annotations.get("env-status", "false")
 
@@ -82,7 +86,7 @@ class Namespace:
 
     @property
     def operator_ns(self):
-        return self.annotations.get("operator-ns", "false") == "true"
+        return self.labels.get("operator-ns", "false") == "true"
 
     @property
     def is_reservable(self):
@@ -114,7 +118,7 @@ class Namespace:
 
     @property
     def ready(self):
-        return self.env_status == "ready"
+        return self.status == "ready"
 
     @property
     def available(self):
@@ -131,11 +135,14 @@ class Namespace:
         if "annotations" not in self._data["metadata"]:
             self._data["metadata"]["annotations"] = {}
 
+        if "labels" not in self._data["metadata"]:
+            self._data["metadata"]["labels"] = {}
+
         if self.reserved:
             res = self.reservation  # note: using 'reservation' property defined below
             if res:
                 self.requester = res["spec"]["requester"]
-                self.expires = _parse_time(res["env-status"]["expiration"])
+                self.expires = _parse_time(res["status"]["expiration"])
         else:
             self.requester = None
             self.expires = None
@@ -168,7 +175,7 @@ class Namespace:
             log.debug("fetching reservation for ns '%s'", self.name)
             self._reservation = get_reservation(namespace=self.name)
 
-        if not self._reservation or not self._reservation.get("env-status"):
+        if not self._reservation or not self._reservation.get("status"):
             self._reservation = None
             log.warning("could not retrieve reservation details for ns: %s", self.name)
 
@@ -215,7 +222,7 @@ def get_namespaces(available=False, mine=False):
             app for app in all_clowdapps if app.get("metadata", {}).get("namespace") == ns_name
         ]
         reservation_data = [
-            res for res in all_res if res.get("env-status", {}).get("namespace") == ns_name
+            res for res in all_res if res.get("status", {}).get("namespace") == ns_name
         ]
         # ensure a non-None value is passed in for these kwargs since we have already
         # pre-fetched the data
