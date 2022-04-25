@@ -920,7 +920,7 @@ def get_all_namespaces() -> list:
         all_namespaces = get_json("project", label="operator-ns")["items"]
     else:
         all_namespaces = get_json("namespace", label="operator-ns")["items"]
-    
+
     return all_namespaces
 
 
