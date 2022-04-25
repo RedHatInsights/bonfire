@@ -310,7 +310,7 @@ def extend_namespace(namespace, duration, local=True):
         if res.get("status", {}).get("state") == "expired":
             log.error(
                 "The reservation for namespace %s has expired. Please reserve a new namespace",
-                res["env-status"]["namespace"],
+                res["status"]["namespace"],
             )
             return None
 
