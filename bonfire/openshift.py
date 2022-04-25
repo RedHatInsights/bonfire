@@ -259,7 +259,7 @@ def apply_config(namespace, list_resource):
         oc("apply", "-f", "-", "-n", namespace, _in=json.dumps(list_resource))
 
 
-def get_json(restype, name=None, label=None, namespace=None) -> dict:
+def get_json(restype, name=None, label=None, namespace=None):
     """
     Run 'oc get' for a given resource type/name/label and return the json output.
 
@@ -915,7 +915,7 @@ def on_k8s():
     return True
 
 
-def get_all_namespaces() -> list:
+def get_all_namespaces():
     if not on_k8s():
         all_namespaces = get_json("project", label="operator-ns")["items"]
     else:

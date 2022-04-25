@@ -10,14 +10,21 @@ DATA_PATH = Path(__file__).parent.joinpath("data")
 
 
 @pytest.fixture(scope="module")
-def namespace_list() -> list:
+def namespace_list():
     with open(DATA_PATH.joinpath("namespace_data.json"), "r") as namespace_data_file:
         return json.load(namespace_data_file)["items"]
 
 
 @pytest.fixture(scope="module")
+<<<<<<< HEAD
 def reservation_list() -> list:
     with open(DATA_PATH.joinpath("reservation_data.json"), "r") as reservation_data_file:
+=======
+def reservation_list():
+    with open(
+        DATA_PATH.joinpath("reservation_data.json"), "r"
+    ) as reservation_data_file:
+>>>>>>> ea7ab2d (Removed function return types.)
         return json.load(reservation_data_file)["items"]
 
 
