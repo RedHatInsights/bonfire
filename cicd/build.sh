@@ -77,11 +77,11 @@ if [[ $IMAGE == quay.io/* ]]; then
     echo "checking if image '$IMAGE:$IMAGE_TAG' already exists in quay.io..."
     QUAY_REPO=${IMAGE#"quay.io/"}
     RESPONSE=$( \
-        curl -Ls -I -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $QUAY_API_TOKEN" \
-        https://quay.io/api/v1/repository/$QUAY_REPO/tag/$IMAGE_TAG/images \
+        curl -Ls -H "Authorization: Bearer $QUAY_API_TOKEN" \
+        "https://quay.io/api/v1/repository/$QUAY_REPO/tag/?specificTag=$IMAGE_TAG" \
     )
-    echo "received HTTP response: $RESPONSE"
-    if [[ $RESPONSE == 200 ]]; then
+    TAGS_LENGTH=$(echo $RESPONSE | jq '.tags | length')
+    if [[ "$TAGS_LENGTH" -gt 0 ]]; then
         echo "$IMAGE:$IMAGE_TAG already present in quay, not rebuilding"
     else
         # image does not yet exist, build and push it
