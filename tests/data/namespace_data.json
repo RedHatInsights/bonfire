@@ -6,7 +6,6 @@
                 "namespace": "namspace-1",
                 "annotations": {
                     "env-status": "false",
-                    "operator-ns": "true",
                     "reserved": "true"
                 },
                 "labels": {
@@ -23,7 +22,6 @@
                 "namespace": "namspace-2",
                 "annotations": {
                     "env-status": "false",
-                    "operator-ns": "true",
                     "reserved": "true"
                 },
                 "labels": {
@@ -40,7 +38,6 @@
                 "namespace": "namspace-3",
                 "annotations": {
                     "env-status": "ready",
-                    "operator-ns": "true",
                     "reserved": "false,"
                 },
                 "labels": {
@@ -57,7 +54,6 @@
                 "namespace": "namspace-4",
                 "annotations": {
                     "env-status": "ready",
-                    "operator-ns": "true",
                     "reserved": "false,"
                 },
                 "labels": {
@@ -74,7 +70,6 @@
                 "namespace": "namespace-5",
                 "annotations": {
                     "env-status": "false",
-                    "operator-ns": "true",
                     "reserved": "true"
                 },
                 "labels": {
