@@ -5,9 +5,12 @@
                 "name": "namespace-1",
                 "namespace": "namspace-1",
                 "annotations": {
-                    "status": "false",
+                    "env-status": "false",
                     "operator-ns": "true",
                     "reserved": "true"
+                },
+                "labels": {
+                    "operator-ns": "true"
                 }
             },
             "status": {
@@ -19,9 +22,12 @@
                 "name": "namespace-2",
                 "namespace": "namspace-2",
                 "annotations": {
-                    "status": "false",
+                    "env-status": "false",
                     "operator-ns": "true",
                     "reserved": "true"
+                },
+                "labels": {
+                    "operator-ns": "true"
                 }
             },
             "status": {
@@ -33,9 +39,12 @@
                 "name": "namespace-3",
                 "namespace": "namspace-3",
                 "annotations": {
-                    "status": "ready",
+                    "env-status": "ready",
                     "operator-ns": "true",
                     "reserved": "false,"
+                },
+                "labels": {
+                    "operator-ns": "true"
                 }
             },
             "status": {
@@ -47,9 +56,12 @@
                 "name": "namespace-4",
                 "namespace": "namspace-4",
                 "annotations": {
-                    "status": "ready",
+                    "env-status": "ready",
                     "operator-ns": "true",
                     "reserved": "false,"
+                },
+                "labels": {
+                    "operator-ns": "true"
                 }
             },
             "status": {
@@ -61,9 +73,12 @@
                 "name": "namespace-5",
                 "namespace": "namespace-5",
                 "annotations": {
-                    "status": "false",
+                    "env-status": "false",
                     "operator-ns": "true",
                     "reserved": "true"
+                },
+                "labels": {
+                    "operator-ns": "true"
                 }
             },
             "status": {
