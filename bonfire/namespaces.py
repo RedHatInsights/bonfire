@@ -114,7 +114,7 @@ class Namespace:
 
     @property
     def ready(self):
-        return self.status == "ready"
+        return self.env_status == "ready"
 
     @property
     def available(self):
@@ -187,7 +187,7 @@ class Namespace:
         for app in self._clowdapps:
             if "env-status" in app:
                 deployments = app["env-status"]["deployments"]
-                if deployments["managedDeployments"] == deployments["readyDeployments"]:
+                if deployments["managedDeployments"] == deployments["readyDeployments"]:    
                     ready += 1
 
         return f"{ready}/{managed}"
