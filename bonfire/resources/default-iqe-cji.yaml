@@ -21,6 +21,9 @@ objects:
         requirements: ${{REQUIREMENTS}}
         requirementsPriority: ${{REQUIREMENTS_PRIORITY}}
         testImportance: ${{TEST_IMPORTANCE}}
+        ui:
+          selenium:
+            deploy: ${{DEPLOY_SELENIUM}}
 
 parameters:
 - name: NAME
@@ -46,3 +49,5 @@ parameters:
   value: "[]"
 - name: PLUGINS
   value: ""
+- name: DEPLOY_SELENIUM
+  value: "false"
