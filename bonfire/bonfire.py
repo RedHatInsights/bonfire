@@ -558,6 +558,13 @@ _iqe_cji_process_options = [
         default="",
     ),
     click.option(
+        "--selenium",
+        "-s",
+        help="deploy selenium container (default: false)",
+        is_flag=True,
+        default=False,
+    ),
+    click.option(
         "--cji-name",
         "-c",
         help="Name of ClowdJobInvocation (default: generate a random name)",
@@ -1136,6 +1143,7 @@ def _cmd_process_iqe_cji(
     test_importance,
     plugins,
     local,
+    selenium,
 ):
     """Process IQE ClowdJobInvocation template and print output"""
     cji_config = process_iqe_cji(
@@ -1152,6 +1160,7 @@ def _cmd_process_iqe_cji(
         test_importance,
         plugins,
         local,
+        selenium,
     )
     print(json.dumps(cji_config, indent=2))
 
@@ -1181,6 +1190,7 @@ def _cmd_deploy_iqe_cji(
     requester,
     duration,
     local,
+    selenium,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
     if not has_clowder():
@@ -1202,6 +1212,7 @@ def _cmd_deploy_iqe_cji(
         test_importance,
         plugins,
         local,
+        selenium,
     )
 
     log.debug("processed CJI config:\n%s", cji_config)
