@@ -221,12 +221,6 @@ def test_ns_list_option_output(
     actual_ns_4 = json.loads(result.output).get("namespace-4")
     actual_ns_5 = json.loads(result.output).get("namespace-5")
 
-    print(actual_ns_1)
-    print(actual_ns_2)
-    print(actual_ns_3)
-    print(actual_ns_4)
-    print(actual_ns_5)
-
     assert {
         "reserved": True,
         "status": "false",
