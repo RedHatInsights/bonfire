@@ -182,23 +182,8 @@ def test_ns_list_option_mine(
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
 
 
-@pytest.mark.parametrize(
-    "namespace, data",
-    [
-        ("namespace-1", {"reserved": True, "status": "false", "requester": "user-1"}),
-        ("namespace-2", {"reserved": True, "status": "false", "requester": "user-2"}),
-        ("namespace-3", {"reserved": False, "status": "ready", "requester": None}),
-        ("namespace-4", {"reserved": False, "status": "ready", "requester": None}),
-        ("namespace-5", {"reserved": True, "status": "false", "requester": "user-5"}),
-    ],
-)
 def test_ns_list_option_output(
-    mocker,
-    caplog,
-    namespace_list: list,
-    reservation_list: list,
-    namespace: str,
-    data: dict,
+    mocker, caplog, namespace_list: list, reservation_list: list,
 ):
     caplog.set_level(100000)
 
