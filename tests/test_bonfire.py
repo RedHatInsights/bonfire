@@ -180,3 +180,75 @@ def test_ns_list_option_mine(
     assert " ".join(["namespace-3", "false", "ready", "none"]) not in actual
     assert " ".join(["namespace-4", "false", "ready", "none"]) not in actual
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
+
+
+@pytest.mark.parametrize(
+    "namespace, data",
+    [
+        ("namespace-1", {"reserved": True, "status": "false", "requester": "user-1"}),
+        ("namespace-2", {"reserved": True, "status": "false", "requester": "user-2"}),
+        ("namespace-3", {"reserved": False, "status": "ready", "requester": None}),
+        ("namespace-4", {"reserved": False, "status": "ready", "requester": None}),
+        ("namespace-5", {"reserved": True, "status": "false", "requester": "user-5"}),
+    ],
+)
+def test_ns_list_option_output(
+    mocker,
+    caplog,
+    namespace_list: list,
+    reservation_list: list,
+    namespace: str,
+    data: dict,
+):
+    caplog.set_level(100000)
+
+    mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
+    mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=namespace_list)
+    mocker.patch("bonfire.namespaces.get_json", return_value={})
+    mocker.patch(
+        "bonfire.namespaces.get_all_reservations", return_value=reservation_list
+    )
+    mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
+    mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
+    mocker.patch("bonfire.openshift.process_template", return_value={})
+
+    runner = CliRunner()
+    result = runner.invoke(bonfire.namespace, ["list", "--output", "json"])
+
+    actual_ns_1 = json.loads(result.output).get("namespace-1")
+    actual_ns_2 = json.loads(result.output).get("namespace-2")
+    actual_ns_3 = json.loads(result.output).get("namespace-3")
+    actual_ns_4 = json.loads(result.output).get("namespace-4")
+    actual_ns_5 = json.loads(result.output).get("namespace-5")
+
+    print(actual_ns_1)
+    print(actual_ns_2)
+    print(actual_ns_3)
+    print(actual_ns_4)
+    print(actual_ns_5)
+
+    assert {
+        "reserved": True,
+        "status": "false",
+        "requester": "user-1",
+    }.items() <= actual_ns_1.items()
+    assert {
+        "reserved": True,
+        "status": "false",
+        "requester": "user-2",
+    }.items() <= actual_ns_2.items()
+    assert {
+        "reserved": False,
+        "status": "ready",
+        "requester": None,
+    }.items() <= actual_ns_3.items()
+    assert {
+        "reserved": False,
+        "status": "ready",
+        "requester": None,
+    }.items() <= actual_ns_4.items()
+    assert {
+        "reserved": True,
+        "status": "false",
+        "requester": "user-5",
+    }.items() <= actual_ns_5.items()
