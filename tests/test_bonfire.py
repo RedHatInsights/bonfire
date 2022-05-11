@@ -1,3 +1,4 @@
+from socket import timeout
 import pytest
 from click.testing import CliRunner
 from pathlib import Path
@@ -30,7 +31,7 @@ def reservation_list() -> list:
         ("namespace-7"),
     ],
 )
-def test_ns_reserve_options_name(mocker, caplog, name: str):
+def test_ns_reserve_flag_name(mocker, caplog, name: str):
     caplog.set_level(100000)
 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
@@ -54,7 +55,7 @@ def test_ns_reserve_options_name(mocker, caplog, name: str):
         ("user-2"),
     ],
 )
-def test_ns_reserve_options_requester(mocker, caplog, requester: str):
+def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     caplog.set_level(100000)
 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
@@ -79,7 +80,7 @@ def test_ns_reserve_options_requester(mocker, caplog, requester: str):
         ("30m"),
     ],
 )
-def test_ns_reserve_options_duration(mocker, caplog, duration: str):
+def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     caplog.set_level(100000)
 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
@@ -128,7 +129,7 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) in actual
 
 
-def test_ns_list_options_available(
+def test_ns_list_flag_available(
     mocker, caplog, namespace_list: list, reservation_list: list
 ):
     caplog.set_level(100000)
@@ -155,7 +156,7 @@ def test_ns_list_options_available(
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
 
 
-def test_ns_list_option_mine(
+def test_ns_list_flag_mine(
     mocker, caplog, namespace_list: list, reservation_list: list
 ):
     caplog.set_level(100000)
@@ -182,7 +183,7 @@ def test_ns_list_option_mine(
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
 
 
-def test_ns_list_option_output(
+def test_ns_list_flag_output(
     mocker, caplog, namespace_list: list, reservation_list: list,
 ):
     caplog.set_level(100000)
@@ -231,3 +232,29 @@ def test_ns_list_option_output(
         "status": "false",
         "requester": "user-5",
     }.items() <= actual_ns_5.items()
+
+
+@pytest.mark.parametrize(
+    "user, namespace, timeout",
+    [
+        ("user-6", "namespace-6", 600),
+        ("user-7", "namespace-7", 700),
+    ],
+)
+def test_ns_reserve_flag_timeout(
+    mocker, caplog, user: str, namespace: str, timeout: int
+):
+    caplog.set_level(100000)
+    mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
+    mocker.patch("bonfire.namespaces.whoami", return_value=user)
+    mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
+    mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
+    mocker.patch("bonfire.namespaces.process_reservation", return_value=namespace)
+    mocker.patch("bonfire.namespaces.apply_config")
+
+    mock_wait_on_res = mocker.patch("bonfire.namespaces.wait_on_reservation")
+
+    runner = CliRunner()
+    runner.invoke(bonfire.namespace, ["reserve", "--timeout", timeout])
+
+    mock_wait_on_res.assert_called_once_with(namespace, timeout)
