@@ -238,13 +238,13 @@ def get_namespaces(available=False, mine=False):
     return ephemeral_namespaces
 
 
-def reserve_namespace(name, requester, duration, timeout, local=True):
+def reserve_namespace(name, requester, duration, pool_type, timeout, local=True):
     res = get_reservation(name)
     # Name should be unique on reservation creation.
     if res:
         raise FatalError(f"Reservation with name {name} already exists")
 
-    res_config = process_reservation(name, requester, duration, local=local)
+    res_config = process_reservation(name, requester, duration, pool_type, local=local)
 
     log.debug("processed reservation:\n%s", res_config)
 
@@ -266,10 +266,11 @@ def reserve_namespace(name, requester, duration, timeout, local=True):
         raise
 
     log.info(
-        "namespace '%s' is reserved by '%s' for '%s'",
+        "namespace '%s' is reserved by '%s' for '%s' from the %s pool",
         ns_name,
         requester,
         duration,
+        pool_type,
     )
 
     return Namespace(name=ns_name)
