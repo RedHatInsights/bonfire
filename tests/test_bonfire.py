@@ -92,9 +92,13 @@ def test_ns_reserve_options_duration(mocker, caplog, duration: str):
     runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
 
     if duration:
-        mock_process_reservation.assert_called_once_with(None, "user-3", duration, "default", local=True)
+        mock_process_reservation.assert_called_once_with(
+            None, "user-3", duration, "default", local=True
+        )
     else:
-        mock_process_reservation.assert_called_once_with(None, "user-3", "1h", "default", local=True)
+        mock_process_reservation.assert_called_once_with(
+            None, "user-3", "1h", "default", local=True
+        )
 
 
 def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: list):
