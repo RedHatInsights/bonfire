@@ -22,5 +22,5 @@ parameters:
   required: true
 - name: NAME
   required: true
-- NAME: POOLTYPE
+- name: POOLTYPE
   required: true
