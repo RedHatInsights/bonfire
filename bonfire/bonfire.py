@@ -208,6 +208,12 @@ _ns_reserve_options = [
         help="Duration of the reservation",
         callback=_validate_reservation_duration,
     ),
+    click.option(
+        "--pool-type",
+        type=str,
+        default="default",
+        help="Specifies the pool type name. Either default or minimal",
+    ),
     _local_option,
 ]
 
@@ -656,7 +662,7 @@ def _list_namespaces(available, mine, output):
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("namespace reserve")
-def _cmd_namespace_reserve(name, requester, duration, timeout, local):
+def _cmd_namespace_reserve(name, requester, duration, pool_type, timeout, local):
     """Reserve an ephemeral namespace"""
     log.info("Attempting to reserve a namespace...")
     if not has_ns_operator():
@@ -668,7 +674,7 @@ def _cmd_namespace_reserve(name, requester, duration, timeout, local):
     if check_for_existing_reservation(requester):
         _warn_of_existing(requester)
 
-    ns = reserve_namespace(name, requester, duration, timeout, local)
+    ns = reserve_namespace(name, requester, duration, pool_type, timeout, local)
 
     click.echo(ns.name)
 
