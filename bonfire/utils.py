@@ -7,12 +7,12 @@ import shlex
 import subprocess
 import tempfile
 import time
-import yaml
 from distutils.version import StrictVersion
 from pathlib import Path
 
 import pkg_resources
 import requests
+import yaml
 from cached_property import cached_property
 
 
