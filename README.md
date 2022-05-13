@@ -179,7 +179,7 @@ Use `bonfire namespace -h` to see a list of all available namespace commands.
 
 ### Interactions with Clowder
 
-* `bonfire` expects a Clowder `ClowdEnvironment` resource similar to [this template](https://github.com/RedHatInsights/bonfire/blob/master/bonfire/resources/ephemeral-clowdenvironment.yaml) to be created for a namespace before it can deploy into it. This `ClowdEnvironment` may have been created by the ephemeral namespace operator, or by a user manually running `bonfire deploy-env`
+* `bonfire` expects a Clowder `ClowdEnvironment` resource similar to [this template](bonfire/resources/ephemeral-cluster-clowdenvironment.yaml) to be created for a namespace before it can deploy into it. This `ClowdEnvironment` may have been created by the ephemeral namespace operator, or by a user manually running `bonfire deploy-env`
 
 * When `bonfire deploy` is executed for a namespace, it will attempt to find the ClowdEnvironment associated with that namespace and set the `ENV_NAME` parameter accordingly for all templates it processes. All templates that define a `ClowdApp` resource should set the `environment` mapping in their spec using an `${ENV_NAME}` parameter.
 
