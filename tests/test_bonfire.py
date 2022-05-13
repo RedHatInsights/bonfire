@@ -249,7 +249,7 @@ def test_ns_reserve_flag_timeout(
     mocker.patch("bonfire.namespaces.whoami", return_value=user)
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
     mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
-    mocker.patch("bonfire.namespaces.process_reservation", return_value=namespace)
+    mocker.patch("bonfire.namespaces.process_reservation")
     mocker.patch("bonfire.namespaces.apply_config")
 
     mock_wait_on_res = mocker.patch("bonfire.namespaces.wait_on_reservation")
@@ -257,4 +257,4 @@ def test_ns_reserve_flag_timeout(
     runner = CliRunner()
     runner.invoke(bonfire.namespace, ["reserve", "--timeout", timeout])
 
-    mock_wait_on_res.assert_called_once_with(namespace, timeout)
+    mock_wait_on_res.assert_called_once_with(user, timeout)
