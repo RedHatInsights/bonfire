@@ -2,21 +2,13 @@ import copy
 import datetime
 import logging
 
-import bonfire.config as conf
-from bonfire.openshift import (
-    apply_config,
-    on_k8s,
-    get_all_namespaces,
-    get_json,
-    get_reservation,
-    get_all_reservations,
-    wait_on_reservation,
-    whoami,
-)
-from bonfire.processor import process_reservation
-from bonfire.utils import FatalError, hms_to_seconds
+from ocviapy import apply_config, get_all_namespaces, get_json, on_k8s
 from wait_for import TimedOutError
 
+import bonfire.config as conf
+from bonfire.openshift import get_all_reservations, get_reservation, wait_on_reservation, whoami
+from bonfire.processor import process_reservation
+from bonfire.utils import FatalError, hms_to_seconds
 
 log = logging.getLogger(__name__)
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
@@ -208,7 +200,7 @@ def get_namespaces(available=False, mine=False):
     mine (bool) -- return only namespaces owned by current user
     """
     log.debug("get_namespaces(available=%s, mine=%s)", available, mine)
-    all_namespaces = get_all_namespaces()
+    all_namespaces = get_all_namespaces(label="operator-ns")
     all_clowdapps = get_json("clowdapp", "--all-namespaces").get("items", [])
     all_res = get_all_reservations()
 

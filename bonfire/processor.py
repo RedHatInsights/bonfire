@@ -1,17 +1,18 @@
 import copy
-import logging
 import json
-import yaml
+import logging
 import re
 import traceback
 import uuid
-
 from pathlib import Path
+
+import yaml
+from ocviapy import process_template
 from sh import ErrorReturnCode
 
 import bonfire.config as conf
-from bonfire.openshift import process_template, whoami
-from bonfire.utils import RepoFile, FatalError
+from bonfire.openshift import whoami
+from bonfire.utils import FatalError, RepoFile
 from bonfire.utils import get_dependencies as utils_get_dependencies
 
 log = logging.getLogger(__name__)

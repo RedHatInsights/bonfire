@@ -1,13 +1,13 @@
 import logging
 import os
-from pathlib import Path
-from pkg_resources import resource_filename
 import shutil
 import subprocess
+from pathlib import Path
 
 from dotenv import load_dotenv
+from pkg_resources import resource_filename
 
-from bonfire.utils import load_file, get_config_path, FatalError
+from bonfire.utils import FatalError, get_config_path, load_file
 
 log = logging.getLogger(__name__)
 

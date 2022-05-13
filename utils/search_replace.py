@@ -1,9 +1,10 @@
 # Alternative to 'sed' to search/replace within a file using regex
 
-import click
 import os
 import re
 import sys
+
+import click
 
 
 def _do_lines(search_regex, replace_regex, file_path):

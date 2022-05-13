@@ -1,11 +1,6 @@
 import pytest
 
-from bonfire.utils import (
-    split_equals,
-    validate_time_string,
-    get_version,
-    hms_to_seconds,
-)
+from bonfire.utils import get_version, hms_to_seconds, split_equals, validate_time_string
 
 
 @pytest.mark.parametrize(

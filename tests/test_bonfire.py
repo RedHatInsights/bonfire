@@ -1,10 +1,10 @@
+import json
+from pathlib import Path
+
 import pytest
 from click.testing import CliRunner
-from pathlib import Path
-import json
 
 from bonfire import bonfire
-
 
 DATA_PATH = Path(__file__).parent.joinpath("data")
 

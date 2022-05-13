@@ -4,8 +4,9 @@ Read configurations and status objects from a clowder-managed namespace to get a
 import base64
 import json
 
-from bonfire.openshift import get_json, find_clowd_env_for_ns
 from app_common_python.types import AppConfig
+
+from bonfire.openshift import find_clowd_env_for_ns, get_json
 
 
 class EnvParser:
