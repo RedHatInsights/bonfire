@@ -1,7 +1,8 @@
 import logging
+
 import yaml
 
-from bonfire.utils import RepoFile, get_dupes, FatalError
+from bonfire.utils import FatalError, RepoFile, get_dupes
 
 log = logging.getLogger(__name__)
 

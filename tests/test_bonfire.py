@@ -1,11 +1,11 @@
+import json
+from pathlib import Path
+
 import pytest
 from unittest.mock import ANY
 from click.testing import CliRunner
-from pathlib import Path
-import json
 
 from bonfire import bonfire
-
 
 DATA_PATH = Path(__file__).parent.joinpath("data")
 
@@ -36,7 +36,7 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
     mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
-    mocker.patch("bonfire.openshift.process_template", return_value={})
+    mocker.patch("bonfire.processor.process_template", return_value={})
 
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
@@ -60,7 +60,7 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     mocker.patch("bonfire.bonfire._get_requester", return_value=requester)
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
     mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
-    mocker.patch("bonfire.openshift.process_template", return_value={})
+    mocker.patch("bonfire.processor.process_template", return_value={})
 
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
@@ -85,7 +85,7 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
     mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
-    mocker.patch("bonfire.openshift.process_template", return_value={})
+    mocker.patch("bonfire.processor.process_template", return_value={})
 
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
@@ -111,7 +111,7 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
-    mocker.patch("bonfire.openshift.process_template", return_value={})
+    mocker.patch("bonfire.processor.process_template", return_value={})
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list"])
@@ -134,7 +134,7 @@ def test_ns_list_options_available(mocker, caplog, namespace_list: list, reserva
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
-    mocker.patch("bonfire.openshift.process_template", return_value={})
+    mocker.patch("bonfire.processor.process_template", return_value={})
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--available"])
@@ -157,7 +157,7 @@ def test_ns_list_option_mine(mocker, caplog, namespace_list: list, reservation_l
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
-    mocker.patch("bonfire.openshift.process_template", return_value={})
+    mocker.patch("bonfire.processor.process_template", return_value={})
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--mine"])
@@ -185,7 +185,7 @@ def test_ns_list_flag_output(
     mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
-    mocker.patch("bonfire.openshift.process_template", return_value={})
+    mocker.patch("bonfire.processor.process_template", return_value={})
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--output", "json"])

@@ -1,11 +1,11 @@
-import json
 import copy
+import json
 import logging
 import re
 from urllib.parse import urlparse
 
-from gql import gql
 from gql import Client as GQLClient
+from gql import gql
 from gql.transport.requests import RequestsHTTPTransport
 from requests.auth import HTTPBasicAuth
 

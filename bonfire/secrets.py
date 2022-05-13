@@ -6,9 +6,9 @@ import json
 import logging
 import os
 
-from bonfire.openshift import oc, get_json
-from bonfire.utils import load_file, FatalError
+from ocviapy import get_json, oc
 
+from bonfire.utils import FatalError, load_file
 
 log = logging.getLogger(__name__)
 

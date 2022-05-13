@@ -1,15 +1,15 @@
 import base64
-import logging
-import click
 import json
+import logging
 import os
 import sys
+
+import click
 import yaml
-
-from bonfire.openshift import oc, wait_for_ready
-from bonfire.utils import split_equals
-
 from env_parser import EnvParser
+from ocviapy import oc, wait_for_ready
+
+from bonfire.utils import split_equals
 
 SECRET_NAME = "iqe-settings"
 

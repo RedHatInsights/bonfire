@@ -1,52 +1,48 @@
 #!/usr/bin/env python3
 
-import click
 import json
 import logging
 import sys
 import warnings
-
-from tabulate import tabulate
-from wait_for import TimedOutError
 from functools import wraps
 
+import click
+from ocviapy import apply_config
+from tabulate import tabulate
+from wait_for import TimedOutError
+
 import bonfire.config as conf
-from bonfire.qontract import get_apps_for_env, sub_refs
-from bonfire.openshift import (
-    apply_config,
-    wait_for_all_resources,
-    wait_for_db_resources,
-    find_clowd_env_for_ns,
-    wait_for_clowd_env_target_ns,
-    wait_on_cji,
-    get_reservation,
-    check_for_existing_reservation,
-    whoami,
-    has_ns_operator,
-    has_clowder,
-)
-from bonfire.utils import (
-    FatalError,
-    split_equals,
-    find_what_depends_on,
-    validate_time_string,
-    check_pypi,
-    get_version,
-)
 from bonfire.local import get_local_apps
-from bonfire.processor import (
-    TemplateProcessor,
-    process_clowd_env,
-    process_iqe_cji,
-)
 from bonfire.namespaces import (
     Namespace,
-    get_namespaces,
     extend_namespace,
-    reserve_namespace,
+    get_namespaces,
     release_reservation,
+    reserve_namespace,
 )
+from bonfire.openshift import (
+    check_for_existing_reservation,
+    find_clowd_env_for_ns,
+    get_reservation,
+    has_clowder,
+    has_ns_operator,
+    wait_for_all_resources,
+    wait_for_clowd_env_target_ns,
+    wait_for_db_resources,
+    wait_on_cji,
+    whoami,
+)
+from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
+from bonfire.qontract import get_apps_for_env, sub_refs
 from bonfire.secrets import import_secrets_from_dir
+from bonfire.utils import (
+    FatalError,
+    check_pypi,
+    find_what_depends_on,
+    get_version,
+    split_equals,
+    validate_time_string,
+)
 
 log = logging.getLogger(__name__)
 
