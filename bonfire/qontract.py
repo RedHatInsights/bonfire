@@ -36,7 +36,7 @@ APPS_QUERY = gql(
         parentApp {
           name
         }
-        saasFilesV2 {
+        saasFiles {
           path
           name
           parameters
@@ -272,7 +272,7 @@ def get_apps_for_env(env_name):
         if app["parentApp"] and app["parentApp"].get("name") != "insights":
             ignored_apps.add(app["name"])
             continue
-        saas_files = app.get("saasFilesV2", [])
+        saas_files = app.get("saasFiles", [])
         for saas_file in saas_files:
             for resource_template in saas_file.get("resourceTemplates", []):
                 for target in resource_template.get("targets", []):
