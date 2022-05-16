@@ -276,7 +276,7 @@ def reserve_namespace(name, requester, duration, pool_type, timeout, local=True)
     return Namespace(name=ns_name)
 
 
-def release_reservation(name=None, namespace=None, local=True):
+def release_reservation(name=None, namespace=None, pool_type=None, local=True):
     res = get_reservation(name=name, namespace=namespace)
     if res:
         res_name = res["metadata"]["name"]
@@ -284,6 +284,7 @@ def release_reservation(name=None, namespace=None, local=True):
             res["metadata"]["name"],
             res["spec"]["requester"],
             "0s",  # on release set duration to 0s
+            pool_type=pool_type if pool_type else "unknown",
             local=local,
         )
 

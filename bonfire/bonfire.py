@@ -212,6 +212,7 @@ _ns_reserve_options = [
         "--pool-type",
         type=str,
         default="default",
+        show_default=True,
         help="Specifies the pool type name. Either default or minimal",
     ),
     _local_option,
