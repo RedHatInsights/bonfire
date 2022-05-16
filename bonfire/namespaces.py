@@ -266,7 +266,7 @@ def reserve_namespace(name, requester, duration, pool_type, timeout, local=True)
         raise
 
     log.info(
-        "namespace '%s' is reserved by '%s' for '%s' from the %s pool",
+        "namespace '%s' is reserved by '%s' for '%s' from the %s",
         ns_name,
         requester,
         duration,
