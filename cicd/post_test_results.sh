@@ -20,15 +20,35 @@ then
     # set +e so that if this POST fails, the entire run will not fail
     set +e
 
-    # post a comment to GitHub
-    curl \
-      -X POST \
+    # check if there's already a comment by InsightsDroid
+    last_comment=$(curl \
+      -X GET -H "Accept: application/vnd.github.v3+json" \
+      -H "Authorization: token ${GITHUB_TOKEN}" \
+      -H "Content-Type: application/json; charset=utf-8" \
+      ${GITHUB_API_URL}/repos/${ghprbGhRepository}/issues/${ghprbPullId}/comments | \
+      jq 'map(select(.user.login == "InsightsDroid"))[-1]')
+
+    if [[ $last_comment != "null" ]]; then
+      # edit the comment
+      comment_id=$(echo $last_comment | jq '.id')
+      curl \
+      -X PATCH \
       -H "Accept: application/vnd.github.v3+json" \
       -H "Authorization: token ${GITHUB_TOKEN}" \
       -H "Content-Type: application/json; charset=utf-8" \
-      ${GITHUB_API_URL}/repos/${ghprbGhRepository}/issues/${ghprbPullId}/comments \
+      ${GITHUB_API_URL}/repos/${ghprbGhRepository}/issues/comments/${comment_id} \
       -d "{\"body\":\"$message\"}"
-    set -e
+    else
+      # post a new comment to GitHub
+      curl \
+        -X POST \
+        -H "Accept: application/vnd.github.v3+json" \
+        -H "Authorization: token ${GITHUB_TOKEN}" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        ${GITHUB_API_URL}/repos/${ghprbGhRepository}/issues/${ghprbPullId}/comments \
+        -d "{\"body\":\"$message\"}"
+      set -e
+    fi
   fi
 
   # if it is a GitLab MR
