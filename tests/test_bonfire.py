@@ -1,5 +1,5 @@
-from socket import timeout
 import pytest
+from unittest.mock import ANY
 from click.testing import CliRunner
 from pathlib import Path
 import json
@@ -257,4 +257,4 @@ def test_ns_reserve_flag_timeout(
     runner = CliRunner()
     runner.invoke(bonfire.namespace, ["reserve", "--timeout", timeout])
 
-    mock_wait_on_res.assert_called_once_with(user, timeout)
+    mock_wait_on_res.assert_called_once_with(ANY, timeout)
