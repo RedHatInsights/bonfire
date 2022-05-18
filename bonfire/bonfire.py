@@ -209,7 +209,7 @@ _ns_reserve_options = [
         callback=_validate_reservation_duration,
     ),
     click.option(
-        "--pool-type",
+        "--pool",
         type=str,
         default="default",
         show_default=True,
