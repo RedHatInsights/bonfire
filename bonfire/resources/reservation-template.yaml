@@ -13,7 +13,7 @@ objects:
   spec:
     duration: ${DURATION}
     requester: ${REQUESTER}
-    pool-type: ${POOLTYPE}
+    pool: ${POOL}
 
 parameters:
 - name: DURATION
@@ -22,5 +22,5 @@ parameters:
   required: true
 - name: NAME
   required: true
-- name: POOLTYPE
+- name: POOL
   required: true
