@@ -42,7 +42,7 @@ def test_ns_reserve_options_name(mocker, caplog, name: str):
     runner = CliRunner()
     runner.invoke(bonfire.namespace, ["reserve", "--name", name])
 
-    mock_process_reservation.assert_called_once_with(name, "user-3", "1h", local=True)
+    mock_process_reservation.assert_called_once_with(name, "user-3", "1h", "default", local=True)
 
 
 @pytest.mark.parametrize(
@@ -66,7 +66,7 @@ def test_ns_reserve_options_requester(mocker, caplog, requester: str):
     runner = CliRunner()
     runner.invoke(bonfire.namespace, ["reserve", "--requester", requester])
 
-    mock_process_reservation.assert_called_once_with(None, requester, "1h", local=True)
+    mock_process_reservation.assert_called_once_with(None, requester, "1h", "default", local=True)
 
 
 @pytest.mark.parametrize(
@@ -92,9 +92,13 @@ def test_ns_reserve_options_duration(mocker, caplog, duration: str):
     runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
 
     if duration:
-        mock_process_reservation.assert_called_once_with(None, "user-3", duration, local=True)
+        mock_process_reservation.assert_called_once_with(
+            None, "user-3", duration, "default", local=True
+        )
     else:
-        mock_process_reservation.assert_called_once_with(None, "user-3", "1h", local=True)
+        mock_process_reservation.assert_called_once_with(
+            None, "user-3", "1h", "default", local=True
+        )
 
 
 def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: list):
