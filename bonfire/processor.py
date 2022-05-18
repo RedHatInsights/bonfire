@@ -131,6 +131,7 @@ def process_iqe_cji(
     test_importance="",
     plugins="",
     local=True,
+    selenium=False,
 ):
     log.info("processing IQE ClowdJobInvocation")
 
@@ -158,6 +159,7 @@ def process_iqe_cji(
     params["REQUIREMENTS"] = json.dumps(requirements)
     params["REQUIREMENTS_PRIORITY"] = json.dumps(requirements_priority)
     params["TEST_IMPORTANCE"] = json.dumps(test_importance)
+    params["DEPLOY_SELENIUM"] = json.dumps(selenium)
 
     processed_template = _process_template(template_data, params=params, local=local)
 

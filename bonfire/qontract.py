@@ -36,7 +36,7 @@ APPS_QUERY = gql(
         parentApp {
           name
         }
-        saasFilesV2 {
+        saasFiles {
           path
           name
           parameters
@@ -272,7 +272,7 @@ def get_apps_for_env(env_name):
         if app["parentApp"] and app["parentApp"].get("name") != "insights":
             ignored_apps.add(app["name"])
             continue
-        saas_files = app.get("saasFilesV2", [])
+        saas_files = app.get("saasFiles", [])
         for saas_file in saas_files:
             for resource_template in saas_file.get("resourceTemplates", []):
                 for target in resource_template.get("targets", []):
@@ -317,18 +317,22 @@ def sub_refs(apps, ref_env_name):
             if ref_component:
                 final_component = final_apps[app_name]["components"][idx]
                 final_component["ref"] = ref_component["ref"]
-                ref_image_tag = ref_component.get("parameters", {}).get("IMAGE_TAG")
-                if ref_image_tag:
+                image_tags = {}
+                parameters = ref_component.get("parameters", {})
+                for param, val in parameters.items():
+                    if param.startswith("IMAGE_TAG"):
+                        image_tags[param] = val
+                if image_tags:
                     if "parameters" not in final_component:
                         final_component["parameters"] = {}
-                    final_component["parameters"]["IMAGE_TAG"] = ref_image_tag
+                    final_component["parameters"].update(image_tags)
                 log.debug(
                     "app: '%s' component: '%s' -- using ref from env '%s': %s%s",
                     app_name,
                     component_name,
                     ref_env_name,
                     final_component["ref"],
-                    f", IMAGE_TAG: {ref_image_tag}" if ref_image_tag else "",
+                    f", {image_tags}" if image_tags else "",
                 )
             else:
                 log.debug(

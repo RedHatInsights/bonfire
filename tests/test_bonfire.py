@@ -121,7 +121,7 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) in actual
 
 
-def test_ns_list_flag_available(mocker, caplog, namespace_list: list, reservation_list: list):
+def test_ns_list_options_available(mocker, caplog, namespace_list: list, reservation_list: list):
     caplog.set_level(100000)
 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
@@ -144,7 +144,7 @@ def test_ns_list_flag_available(mocker, caplog, namespace_list: list, reservatio
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
 
 
-def test_ns_list_flag_mine(mocker, caplog, namespace_list: list, reservation_list: list):
+def test_ns_list_option_mine(mocker, caplog, namespace_list: list, reservation_list: list):
     caplog.set_level(100000)
 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
