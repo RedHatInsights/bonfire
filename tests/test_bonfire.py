@@ -203,7 +203,7 @@ def test_ns_list_flag_output(
     test_items_3 = {"reserved": False, "status": "ready", "requester": None}
     test_items_4 = {"reserved": False, "status": "ready", "requester": None}
     test_items_5 = {"reserved": True, "status": "false", "requester": "user-5"}
-    
+
     assert all([item in test_items_1.items() for item in actual_ns_1.items()])
     assert all([item in test_items_2.items() for item in actual_ns_2.items()])
     assert all([item in test_items_3.items() for item in actual_ns_3.items()])
