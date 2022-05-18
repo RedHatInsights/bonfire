@@ -210,10 +210,10 @@ _ns_reserve_options = [
     ),
     click.option(
         "--pool",
-        type=str,
+        type=click.Choice(['default', 'minimal'], case_sensitive=False),
         default="default",
         show_default=True,
-        help="Specifies the pool type name. Either default or minimal",
+        help="Specifies the pool type name.",
     ),
     _local_option,
 ]
