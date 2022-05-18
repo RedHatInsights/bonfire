@@ -192,31 +192,23 @@ def test_ns_list_flag_output(
     actual_ns_4 = json.loads(result.output).get("namespace-4")
     actual_ns_5 = json.loads(result.output).get("namespace-5")
 
-    assert {
-        "reserved": True,
-        "status": "false",
-        "requester": "user-1",
-    }.items() <= actual_ns_1.items()
-    assert {
-        "reserved": True,
-        "status": "false",
-        "requester": "user-2",
-    }.items() <= actual_ns_2.items()
-    assert {
-        "reserved": False,
-        "status": "ready",
-        "requester": None,
-    }.items() <= actual_ns_3.items()
-    assert {
-        "reserved": False,
-        "status": "ready",
-        "requester": None,
-    }.items() <= actual_ns_4.items()
-    assert {
-        "reserved": True,
-        "status": "false",
-        "requester": "user-5",
-    }.items() <= actual_ns_5.items()
+    del actual_ns_1["expires_in"]
+    del actual_ns_2["expires_in"]
+    del actual_ns_3["expires_in"]
+    del actual_ns_4["expires_in"]
+    del actual_ns_5["expires_in"]
+
+    test_items_1 = {"reserved": True, "status": "false", "requester": "user-1"}
+    test_items_2 = {"reserved": True, "status": "false", "requester": "user-2"}
+    test_items_3 = {"reserved": False, "status": "ready", "requester": None}
+    test_items_4 = {"reserved": False, "status": "ready", "requester": None}
+    test_items_5 = {"reserved": True, "status": "false", "requester": "user-5"}
+    
+    assert all([item in test_items_1.items() for item in actual_ns_1.items()])
+    assert all([item in test_items_2.items() for item in actual_ns_2.items()])
+    assert all([item in test_items_3.items() for item in actual_ns_3.items()])
+    assert all([item in test_items_4.items() for item in actual_ns_4.items()])
+    assert all([item in test_items_5.items() for item in actual_ns_5.items()])
 
 
 @pytest.mark.parametrize(
