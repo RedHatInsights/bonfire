@@ -16,15 +16,10 @@ def namespace_list():
 
 
 @pytest.fixture(scope="module")
-<<<<<<< HEAD
-def reservation_list() -> list:
-    with open(DATA_PATH.joinpath("reservation_data.json"), "r") as reservation_data_file:
-=======
 def reservation_list():
     with open(
         DATA_PATH.joinpath("reservation_data.json"), "r"
     ) as reservation_data_file:
->>>>>>> ea7ab2d (Removed function return types.)
         return json.load(reservation_data_file)["items"]
 
 
