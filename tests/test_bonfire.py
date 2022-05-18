@@ -17,9 +17,7 @@ def namespace_list():
 
 @pytest.fixture(scope="module")
 def reservation_list():
-    with open(
-        DATA_PATH.joinpath("reservation_data.json"), "r"
-    ) as reservation_data_file:
+    with open(DATA_PATH.joinpath("reservation_data.json"), "r") as reservation_data_file:
         return json.load(reservation_data_file)["items"]
 
 
