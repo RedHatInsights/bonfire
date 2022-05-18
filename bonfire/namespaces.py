@@ -73,8 +73,12 @@ class Namespace:
         return self._data.get("metadata", "").get("annotations", {})
 
     @property
+    def labels(self):
+        return self._data.get("metadata", "").get("labels", {})
+
+    @property
     def status(self):
-        return self.annotations.get("status", "false")
+        return self.annotations.get("env-status", "false")
 
     @property
     def reserved(self):
@@ -82,7 +86,7 @@ class Namespace:
 
     @property
     def operator_ns(self):
-        return self.annotations.get("operator-ns", "false") == "true"
+        return self.labels.get("operator-ns", "false") == "true"
 
     @property
     def is_reservable(self):
@@ -130,6 +134,9 @@ class Namespace:
 
         if "annotations" not in self._data["metadata"]:
             self._data["metadata"]["annotations"] = {}
+
+        if "labels" not in self._data["metadata"]:
+            self._data["metadata"]["labels"] = {}
 
         if self.reserved:
             res = self.reservation  # note: using 'reservation' property defined below
