@@ -275,7 +275,7 @@ def reserve_namespace(name, requester, duration, pool, timeout, local=True):
     return Namespace(name=ns_name)
 
 
-def release_reservation(name=None, namespace=None, pool=None, local=True):
+def release_reservation(name=None, namespace=None, local=True):
     res = get_reservation(name=name, namespace=namespace)
     if res:
         res_name = res["metadata"]["name"]
@@ -283,7 +283,7 @@ def release_reservation(name=None, namespace=None, pool=None, local=True):
             res["metadata"]["name"],
             res["spec"]["requester"],
             "0s",  # on release set duration to 0s
-            pool=pool if pool else "unknown",
+            pool=res["spec"].get("pool"),
             local=local,
         )
 
@@ -313,6 +313,7 @@ def extend_namespace(namespace, duration, local=True):
             res["metadata"]["name"],
             res["spec"]["requester"],
             _duration_fmt(new_duration),
+            pool=res["spec"].get("pool"),
             local=local,
         )
 
