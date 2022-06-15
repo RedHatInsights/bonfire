@@ -124,6 +124,7 @@ def apps():
     """Show information about deployable apps"""
     pass
 
+
 @main.group()
 def pool():
     """Perform operations related to namespace reservation"""
@@ -185,6 +186,7 @@ def _validate_reservation_duration(ctx, param, value):
         return validate_time_string(value)
     except ValueError as err:
         raise click.BadParameter(err)
+
 
 _ns_reserve_options = [
     click.option(
@@ -628,7 +630,7 @@ def _list_namespaces(available, mine, output):
         _error(NO_RESERVATION_SYS)
 
     namespaces = get_namespaces(available=available, mine=mine)
-    
+
     if not namespaces:
         if output == "json":
             click.echo("{}")
@@ -825,10 +827,12 @@ def _process(
     )
     return processor.process()
 
+
 @pool.command("list")
 def _cmd_pool_types():
     """List all pool types"""
     click.echo("default\nminimal\nmanaged-kafka")
+
 
 @main.command("process")
 @options(_process_options)
