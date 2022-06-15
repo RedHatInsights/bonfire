@@ -25,7 +25,8 @@
                     "reserved": "true"
                 },
                 "labels": {
-                    "operator-ns": "true"
+                    "operator-ns": "true",
+                    "pool": "default"
                 }
             },
             "status": {
@@ -41,7 +42,8 @@
                     "reserved": "false,"
                 },
                 "labels": {
-                    "operator-ns": "true"
+                    "operator-ns": "true",
+                    "pool": "default"
                 }
             },
             "status": {
@@ -57,7 +59,8 @@
                     "reserved": "false,"
                 },
                 "labels": {
-                    "operator-ns": "true"
+                    "operator-ns": "true",
+                    "pool": "default"
                 }
             },
             "status": {
@@ -73,7 +76,8 @@
                     "reserved": "true"
                 },
                 "labels": {
-                    "operator-ns": "true"
+                    "operator-ns": "true",
+                    "pool": "default"
                 }
             },
             "status": {

@@ -639,7 +639,7 @@ def _list_namespaces(available, mine, output):
                     "reserved": ns.reserved,
                     "status": ns.status,
                     "requester": ns.requester,
-                    "expires_in": ns.expires_in,
+                    "expires_in": ns.expires_in
                 }
             click.echo(json.dumps(data, indent=2))
         else:
@@ -650,6 +650,7 @@ def _list_namespaces(available, mine, output):
                 "APPS READY": [ns.clowdapps for ns in namespaces],
                 "REQUESTER": [ns.requester for ns in namespaces],
                 "EXPIRES IN": [ns.expires_in for ns in namespaces],
+                "POOL TYPE": "default",
             }
             tabulated = tabulate(data, headers="keys")
             click.echo(tabulated)
