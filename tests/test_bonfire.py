@@ -118,7 +118,7 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["namespace-1", "true", "false", "none", "user-1", "default"]) in actual
+    assert " ".join(["namespace-1", "true", "false", "none", "user-1", "minimal"]) in actual
     assert " ".join(["namespace-2", "true", "false", "none", "user-2", "default"]) in actual
     assert " ".join(["namespace-3", "false", "ready", "none", "default"]) in actual
     assert " ".join(["namespace-4", "false", "ready", "none", "default"]) in actual
@@ -202,11 +202,11 @@ def test_ns_list_flag_output(
     del actual_ns_4["expires_in"]
     del actual_ns_5["expires_in"]
 
-    test_items_1 = {"reserved": True, "status": "false", "requester": "user-1"}
-    test_items_2 = {"reserved": True, "status": "false", "requester": "user-2"}
-    test_items_3 = {"reserved": False, "status": "ready", "requester": None}
-    test_items_4 = {"reserved": False, "status": "ready", "requester": None}
-    test_items_5 = {"reserved": True, "status": "false", "requester": "user-5"}
+    test_items_1 = {"reserved": True, "status": "false", "requester": "user-1", "pool_type": "minimal"}
+    test_items_2 = {"reserved": True, "status": "false", "requester": "user-2", "pool_type": "default"}
+    test_items_3 = {"reserved": False, "status": "ready", "requester": None, "pool_type": "default"}
+    test_items_4 = {"reserved": False, "status": "ready", "requester": None, "pool_type": "default"}
+    test_items_5 = {"reserved": True, "status": "false", "requester": "user-5", "pool_type": "default"}
 
     assert all([item in test_items_1.items() for item in actual_ns_1.items()])
     assert all([item in test_items_2.items() for item in actual_ns_2.items()])

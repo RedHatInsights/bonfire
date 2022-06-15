@@ -9,7 +9,8 @@
                     "reserved": "true"
                 },
                 "labels": {
-                    "operator-ns": "true"
+                    "operator-ns": "true",
+                    "pool": "minimal"
                 }
             },
             "status": {
