@@ -224,6 +224,7 @@ def test_ns_list_flag_output(
 )
 def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, timeout: int):
     caplog.set_level(100000)
+
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.whoami", return_value=user)
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
@@ -237,3 +238,12 @@ def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, time
     runner.invoke(bonfire.namespace, ["reserve", "--timeout", timeout])
 
     mock_wait_on_res.assert_called_once_with(ANY, timeout)
+
+
+def test_pool_list_command(caplog):
+    caplog.set_level(100000)
+
+    runner = CliRunner()
+    result = runner.invoke(bonfire.pool, ["list"])
+
+    assert result.output == "default\nminimal\nmanaged-kafka\n"

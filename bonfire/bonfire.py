@@ -124,6 +124,11 @@ def apps():
     """Show information about deployable apps"""
     pass
 
+@main.group()
+def pool():
+    """Perform operations related to namespace reservation"""
+    pass
+
 
 def _confirm_or_abort(msg):
     if conf.BONFIRE_BOT:
@@ -181,7 +186,6 @@ def _validate_reservation_duration(ctx, param, value):
     except ValueError as err:
         raise click.BadParameter(err)
 
-
 _ns_reserve_options = [
     click.option(
         "--name",
@@ -238,7 +242,6 @@ _ns_list_options = [
         type=click.Choice(["cli", "json"], case_sensitive=False),
     ),
 ]
-
 
 _timeout_option = [
     click.option(
@@ -625,7 +628,7 @@ def _list_namespaces(available, mine, output):
         _error(NO_RESERVATION_SYS)
 
     namespaces = get_namespaces(available=available, mine=mine)
-
+    
     if not namespaces:
         if output == "json":
             click.echo("{}")
@@ -822,6 +825,10 @@ def _process(
     )
     return processor.process()
 
+@pool.command("list")
+def _cmd_pool_types():
+    """List all pool types"""
+    click.echo("default\nminimal\nmanaged-kafka")
 
 @main.command("process")
 @options(_process_options)
