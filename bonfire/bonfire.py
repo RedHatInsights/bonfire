@@ -831,7 +831,13 @@ def _process(
 @pool.command("list")
 def _cmd_pool_types():
     """List all pool types"""
-    click.echo("default\nminimal\nmanaged-kafka")
+    pool_type_list = [
+        "default",
+        "minimal",
+        "managed-kafka"
+    ]
+
+    click.echo("\n".join([pool_name for pool_name in pool_type_list]))
 
 
 @main.command("process")
