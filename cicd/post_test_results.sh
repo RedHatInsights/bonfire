@@ -8,14 +8,14 @@ UUIDS="$(ls $ARTIFACTS_DIR | grep .tar.gz | sed -e 's/\.tar.gz$//')"
 
 if [[ -n $UUIDS ]]
 then
+  # construct the comment message
+  message="Test results are available in Ibutsu:"
+  for uuid in $UUIDS
+  do
+    message="${message}\nhttps://url.corp.redhat.com/ibutsu-runs-${uuid}"
+  done
   # if it is a GitHub PR
   if [[ -n $ghprbPullId ]]; then
-    # construct the comment message for GitHub
-    message="Test results are available in [Ibutsu](https://url.corp.redhat.com/ibutsu-runs). The test run IDs are:"
-    for uuid in $UUIDS
-    do
-      message="${message}\n${uuid}"
-    done
 
     # set +e so that if this POST fails, the entire run will not fail
     set +e
@@ -53,15 +53,6 @@ then
 
   # if it is a GitLab MR
   if [[ -n $gitlabMergeRequestIid ]]; then
-    # construct the comment message for GitLab
-    message="Test results are available in Ibutsu:"
-    for uuid in $UUIDS
-    do
-      urls="${urls}${IBUTSU_URL}/runs/${uuid}\n"
-    done
-
-    message="${message}\n${urls}"
-
     # set +e so that if this POST fails, the entire run will not fail
     set +e
 
