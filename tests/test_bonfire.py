@@ -18,9 +18,7 @@ def namespace_list():
 
 @pytest.fixture(scope="module")
 def reservation_list():
-    with open(
-        DATA_PATH.joinpath("reservation_data.json"), "r"
-    ) as reservation_data_file:
+    with open(DATA_PATH.joinpath("reservation_data.json"), "r") as reservation_data_file:
         return json.load(reservation_data_file)["items"]
 
 
@@ -45,9 +43,7 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
     runner = CliRunner()
     runner.invoke(bonfire.namespace, ["reserve", "--name", name])
 
-    mock_process_reservation.assert_called_once_with(
-        name, "user-3", "1h", "default", local=True
-    )
+    mock_process_reservation.assert_called_once_with(name, "user-3", "1h", "default", local=True)
 
 
 @pytest.mark.parametrize(
@@ -71,9 +67,7 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     runner = CliRunner()
     runner.invoke(bonfire.namespace, ["reserve", "--requester", requester])
 
-    mock_process_reservation.assert_called_once_with(
-        None, requester, "1h", "default", local=True
-    )
+    mock_process_reservation.assert_called_once_with(None, requester, "1h", "default", local=True)
 
 
 @pytest.mark.parametrize(
@@ -99,13 +93,9 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
 
     if duration:
-        mock_process_reservation.assert_called_once_with(
-            None, "user-3", duration, "default", local=True
-        )
+        mock_process_reservation.assert_called_once_with(None, "user-3", duration, "default", local=True)
     else:
-        mock_process_reservation.assert_called_once_with(
-            None, "user-3", "1h", "default", local=True
-        )
+        mock_process_reservation.assert_called_once_with(None, "user-3", "1h", "default", local=True)
 
 
 def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: list):
@@ -114,9 +104,7 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=namespace_list)
     mocker.patch("bonfire.namespaces.get_json", return_value={})
-    mocker.patch(
-        "bonfire.namespaces.get_all_reservations", return_value=reservation_list
-    )
+    mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
     mocker.patch("bonfire.processor.process_template", return_value={})
@@ -136,23 +124,16 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
     )
     assert " ".join(["namespace-3", "false", "ready", "none", "default"]) in actual
     assert " ".join(["namespace-4", "false", "ready", "none", "default"]) in actual
-    assert (
-        " ".join(["namespace-5", "true", "false", "none", "user-5", "default"])
-        in actual
-    )
+    assert (" ".join(["namespace-5", "true", "false", "none", "user-5", "default"])in actual)
 
 
-def test_ns_list_options_available(
-    mocker, caplog, namespace_list: list, reservation_list: list
-):
+def test_ns_list_options_available(mocker, caplog, namespace_list: list, reservation_list: list):
     caplog.set_level(100000)
 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=namespace_list)
     mocker.patch("bonfire.namespaces.get_json", return_value={})
-    mocker.patch(
-        "bonfire.namespaces.get_all_reservations", return_value=reservation_list
-    )
+    mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
     mocker.patch("bonfire.processor.process_template", return_value={})
@@ -169,17 +150,13 @@ def test_ns_list_options_available(
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
 
 
-def test_ns_list_option_mine(
-    mocker, caplog, namespace_list: list, reservation_list: list
-):
+def test_ns_list_option_mine(mocker, caplog, namespace_list: list, reservation_list: list):
     caplog.set_level(100000)
 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=namespace_list)
     mocker.patch("bonfire.namespaces.get_json", return_value={})
-    mocker.patch(
-        "bonfire.namespaces.get_all_reservations", return_value=reservation_list
-    )
+    mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
     mocker.patch("bonfire.processor.process_template", return_value={})
@@ -196,20 +173,13 @@ def test_ns_list_option_mine(
     assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
 
 
-def test_ns_list_flag_output(
-    mocker,
-    caplog,
-    namespace_list: list,
-    reservation_list: list,
-):
+def test_ns_list_flag_output(mocker, caplog, namespace_list: list, reservation_list: list):
     caplog.set_level(100000)
 
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.get_all_namespaces", return_value=namespace_list)
     mocker.patch("bonfire.namespaces.get_json", return_value={})
-    mocker.patch(
-        "bonfire.namespaces.get_all_reservations", return_value=reservation_list
-    )
+    mocker.patch("bonfire.namespaces.get_all_reservations", return_value=reservation_list)
     mocker.patch("bonfire.namespaces.on_k8s", return_value=False)
     mocker.patch("bonfire.namespaces.whoami", return_value="user-1")
     mocker.patch("bonfire.processor.process_template", return_value={})
@@ -274,9 +244,7 @@ def test_ns_list_flag_output(
         ("user-7", "namespace-7", 700),
     ],
 )
-def test_ns_reserve_flag_timeout(
-    mocker, caplog, user: str, namespace: str, timeout: int
-):
+def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, timeout: int):
     caplog.set_level(100000)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.whoami", return_value=user)
