@@ -177,15 +177,16 @@ class RepoFile:
 
         return cls(d["host"], org, repo, d["path"], d.get("ref", "master"))
 
-    def fetch(self):
-        if self.host == "local":
-            result = self._fetch_local()
-        if self.host == "github":
-            result = self._fetch_github()
-        if self.host == "gitlab":
-            result = self._fetch_gitlab()
-
-        self._session.close()
+    def fetch(self, attempt_local_fetch_on_404=True):
+        try:
+            if self.host == "local":
+                result = self._fetch_local()
+            if self.host == "github":
+                result = self._fetch_github(attempt_local_fetch_on_404)
+            if self.host == "gitlab":
+                result = self._fetch_gitlab(attempt_local_fetch_on_404)
+        finally:
+            self._session.close()
 
         return result
 
@@ -287,7 +288,7 @@ class RepoFile:
         response = self._get_ref(get_ref_func)
         return response.json()["commit"]["id"]
 
-    def _fetch_gitlab(self):
+    def _fetch_gitlab(self, attempt_local_fetch_on_404=True):
         commit = self.ref
         if not GIT_SHA_RE.match(commit):
             # look up the commit hash for this branch
@@ -295,7 +296,7 @@ class RepoFile:
 
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
         response = self._session.get(url, verify=self._gl_certfile)
-        if response.status_code == 404:
+        if attempt_local_fetch_on_404 and response.status_code == 404:
             log.warning(
                 "http response 404 for url %s, checking for template in current working dir...", url
             )
@@ -319,7 +320,7 @@ class RepoFile:
         response = self._get_ref(get_ref_func)
         return response.json()["object"]["sha"]
 
-    def _fetch_github(self):
+    def _fetch_github(self, attempt_local_fetch_on_404=True):
         commit = self.ref
         if not GIT_SHA_RE.match(commit):
             # look up the commit hash for this branch
@@ -327,7 +328,7 @@ class RepoFile:
 
         url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
         response = self._session.get(url, headers=self._gh_auth_headers)
-        if response.status_code == 404:
+        if attempt_local_fetch_on_404 and response.status_code == 404:
             log.warning(
                 "http response 404 for url %s, checking for template in current working dir...", url
             )

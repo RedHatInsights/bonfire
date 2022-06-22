@@ -1,6 +1,7 @@
 import logging
 
 import yaml
+from requests import RequestException
 
 from bonfire.utils import FatalError, RepoFile, get_dupes
 
@@ -9,7 +10,14 @@ log = logging.getLogger(__name__)
 
 def _fetch_apps_file(config):
     rf = RepoFile.from_config(config["appsFile"])
-    commit, content = rf.fetch()
+    try:
+        commit, content = rf.fetch(attempt_local_fetch_on_404=False)
+    except RequestException as err:
+        raise FatalError(
+            f"unable to fetch appsFile: {err}\n\n"
+            "run 'bonfire config edit' and check configuration"
+        )
+
     log.info(
         "loading commit '%s' of %s repo %s/%s at path '%s' for apps config",
         commit,
@@ -21,7 +29,10 @@ def _fetch_apps_file(config):
     fetched_apps = yaml.safe_load(content)
 
     if "apps" not in fetched_apps:
-        raise FatalError("fetched apps file has no 'apps' key")
+        raise FatalError(
+            "fetched appsFile has no 'apps' key\n\n"
+            "run 'bonfire config edit' and check configuration"
+        )
 
     app_names = [a["name"] for a in fetched_apps["apps"]]
     dupes = get_dupes(app_names)
