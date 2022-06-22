@@ -118,11 +118,11 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["namespace-1", "true", "false", "none", "user-1", "minimal"])in actual
-    assert " ".join(["namespace-2", "true", "false", "none", "user-2", "default"])in actual
+    assert " ".join(["namespace-1", "true", "false", "none", "user-1", "minimal"]) in actual
+    assert " ".join(["namespace-2", "true", "false", "none", "user-2", "default"]) in actual
     assert " ".join(["namespace-3", "false", "ready", "none", "default"]) in actual
     assert " ".join(["namespace-4", "false", "ready", "none", "default"]) in actual
-    assert " ".join(["namespace-5", "true", "false", "none", "user-5", "default"])in actual
+    assert " ".join(["namespace-5", "true", "false", "none", "user-5", "default"]) in actual
 
 
 def test_ns_list_options_available(mocker, caplog, namespace_list: list, reservation_list: list):
