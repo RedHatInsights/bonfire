@@ -2,7 +2,7 @@
     "items": [
         {
             "metadata": {
-                "name": "namespace-1",
+                "name": "ns-1",
                 "namespace": "namspace-1",
                 "annotations": {
                     "env-status": "false",
@@ -14,12 +14,12 @@
                 }
             },
             "status": {
-                "namespace": "namespace-1"
+                "namespace": "ns-1"
             }
         },
         {
             "metadata": {
-                "name": "namespace-2",
+                "name": "ns-2",
                 "namespace": "namspace-2",
                 "annotations": {
                     "env-status": "false",
@@ -31,12 +31,12 @@
                 }
             },
             "status": {
-                "namespace": "namespace-2"
+                "namespace": "ns-2"
             }
         },
         {
             "metadata": {
-                "name": "namespace-3",
+                "name": "ns-3",
                 "namespace": "namspace-3",
                 "annotations": {
                     "env-status": "ready",
@@ -48,12 +48,12 @@
                 }
             },
             "status": {
-                "namespace": "namespace-3"
+                "namespace": "ns-3"
             }
         },
         {
             "metadata": {
-                "name": "namespace-4",
+                "name": "ns-4",
                 "namespace": "namspace-4",
                 "annotations": {
                     "env-status": "ready",
@@ -65,13 +65,13 @@
                 }
             },
             "status": {
-                "namespace": "namespace-4"
+                "namespace": "ns-4"
             }
         },
         {
             "metadata": {
-                "name": "namespace-5",
-                "namespace": "namespace-5",
+                "name": "ns-5",
+                "namespace": "ns-5",
                 "annotations": {
                     "env-status": "false",
                     "reserved": "true"
@@ -82,7 +82,7 @@
                 }
             },
             "status": {
-                "namespace": "namespace-5"
+                "namespace": "ns-5"
             }
         }
     ]
