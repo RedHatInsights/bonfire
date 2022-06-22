@@ -125,6 +125,12 @@ def apps():
     pass
 
 
+@main.group()
+def pool():
+    """Perform operations related to namespace reservation"""
+    pass
+
+
 def _confirm_or_abort(msg):
     if conf.BONFIRE_BOT:
         # these types of warnings shouldn't occur in automated runs, error out immediately
@@ -238,7 +244,6 @@ _ns_list_options = [
         type=click.Choice(["cli", "json"], case_sensitive=False),
     ),
 ]
-
 
 _timeout_option = [
     click.option(
@@ -821,6 +826,18 @@ def _process(
         frontends,
     )
     return processor.process()
+
+
+@pool.command("list")
+def _cmd_pool_types():
+    """List all pool types"""
+    pool_type_list = [
+        "default",
+        "minimal",
+        "managed-kafka"
+    ]
+
+    click.echo("\n".join([pool_name for pool_name in pool_type_list]))
 
 
 @main.command("process")
