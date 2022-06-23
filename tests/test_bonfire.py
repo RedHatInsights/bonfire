@@ -175,7 +175,7 @@ def test_ns_list_flag_output(
     mocker,
     caplog,
     namespace_list: list,
-    reservation_list: list
+    reservation_list: list,
 ):
     caplog.set_level(100000)
 
