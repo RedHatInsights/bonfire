@@ -212,7 +212,7 @@ _ns_reserve_options = [
     ),
     click.option(
         "--pool",
-        type=click.Choice(["default", "minimal"], case_sensitive=False),
+        type=click.Choice(["default", "minimal", "managed-kafka"], case_sensitive=False),
         default="default",
         show_default=True,
         help="Specifies the pool type name.",
