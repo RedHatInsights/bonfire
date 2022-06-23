@@ -1,10 +1,11 @@
 import json
 from pathlib import Path
+from unittest.mock import ANY
 
 import pytest
-from unittest.mock import ANY
 from click.testing import CliRunner
 
+import bonfire.config as conf
 from bonfire import bonfire
 
 DATA_PATH = Path(__file__).parent.joinpath("data")
@@ -206,31 +207,21 @@ def test_ns_list_flag_output(
         "reserved": True,
         "status": "false",
         "requester": "user-1",
-        "pool_type": "minimal"
+        "pool_type": "minimal",
     }
     test_items_2 = {
         "reserved": True,
         "status": "false",
         "requester": "user-2",
-        "pool_type": "default"
+        "pool_type": "default",
     }
-    test_items_3 = {
-        "reserved": False,
-        "status": "ready",
-        "requester": None,
-        "pool_type": "default"
-    }
-    test_items_4 = {
-        "reserved": False,
-        "status": "ready",
-        "requester": None,
-        "pool_type": "default"
-    }
+    test_items_3 = {"reserved": False, "status": "ready", "requester": None, "pool_type": "default"}
+    test_items_4 = {"reserved": False, "status": "ready", "requester": None, "pool_type": "default"}
     test_items_5 = {
         "reserved": True,
         "status": "false",
         "requester": "user-5",
-        "pool_type": "default"
+        "pool_type": "default",
     }
 
     assert all([item in test_items_1.items() for item in actual_ns_1.items()])
@@ -271,4 +262,6 @@ def test_pool_list_command(caplog):
     runner = CliRunner()
     result = runner.invoke(bonfire.pool, ["list"])
 
-    assert result.output == "default\nminimal\nmanaged-kafka\n"
+    output = [r for r in result.output.split("\n") if r != ""]
+
+    assert output == conf.NAMESPACE_POOLS

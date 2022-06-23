@@ -212,10 +212,10 @@ _ns_reserve_options = [
     ),
     click.option(
         "--pool",
-        type=click.Choice(["default", "minimal", "managed-kafka"], case_sensitive=False),
+        type=click.Choice(conf.NAMESPACE_POOLS, case_sensitive=False),
         default="default",
         show_default=True,
-        help="Specifies the pool type name.",
+        help="Specifies the pool type name",
     ),
     _local_option,
 ]
@@ -645,7 +645,7 @@ def _list_namespaces(available, mine, output):
                     "status": ns.status,
                     "requester": ns.requester,
                     "expires_in": ns.expires_in,
-                    "pool_type": ns.pool_type
+                    "pool_type": ns.pool_type,
                 }
             click.echo(json.dumps(data, indent=2))
         else:
@@ -833,13 +833,7 @@ def _process(
 @pool.command("list")
 def _cmd_pool_types():
     """List all pool types"""
-    pool_type_list = [
-        "default",
-        "minimal",
-        "managed-kafka"
-    ]
-
-    click.echo("\n".join([pool_name for pool_name in pool_type_list]))
+    click.echo("\n".join(conf.NAMESPACE_POOLS))
 
 
 @main.command("process")

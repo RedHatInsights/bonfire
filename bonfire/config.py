@@ -16,6 +16,8 @@ DEFAULT_CONFIG_PATH = get_config_path().joinpath("config.yaml")
 DEFAULT_ENV_PATH = get_config_path().joinpath("env")
 DEFAULT_SECRETS_DIR = get_config_path().joinpath("secrets")
 
+NAMESPACE_POOLS = ["default", "minimal", "managed-kafka"]
+
 DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
     "bonfire", "resources/local-cluster-clowdenvironment.yaml"
 )
