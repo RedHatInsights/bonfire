@@ -127,7 +127,7 @@ def apps():
 
 @main.group()
 def pool():
-    """Perform operations related to namespace reservation"""
+    """Perform operations related to pool types"""
     pass
 
 
