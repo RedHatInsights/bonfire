@@ -25,8 +25,8 @@ def reservation_list():
 @pytest.mark.parametrize(
     "name",
     [
-        ("namespace-6"),
-        ("namespace-7"),
+        ("ns-6"),
+        ("ns-7"),
     ],
 )
 def test_ns_reserve_flag_name(mocker, caplog, name: str):
@@ -118,11 +118,11 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["namespace-1", "true", "false", "none", "user-1"]) in actual
-    assert " ".join(["namespace-2", "true", "false", "none", "user-2"]) in actual
-    assert " ".join(["namespace-3", "false", "ready", "none"]) in actual
-    assert " ".join(["namespace-4", "false", "ready", "none"]) in actual
-    assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) in actual
+    assert " ".join(["ns-1", "true", "false", "none", "user-1", "minimal"]) in actual
+    assert " ".join(["ns-2", "true", "false", "none", "user-2", "default"]) in actual
+    assert " ".join(["ns-3", "false", "ready", "none", "default"]) in actual
+    assert " ".join(["ns-4", "false", "ready", "none", "default"]) in actual
+    assert " ".join(["ns-5", "true", "false", "none", "user-5", "default"]) in actual
 
 
 def test_ns_list_options_available(mocker, caplog, namespace_list: list, reservation_list: list):
@@ -141,11 +141,11 @@ def test_ns_list_options_available(mocker, caplog, namespace_list: list, reserva
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["namespace-1", "true", "false", "none", "user-1"]) not in actual
-    assert " ".join(["namespace-2", "true", "false", "none", "user-2"]) not in actual
-    assert " ".join(["namespace-3", "false", "ready", "none"]) in actual
-    assert " ".join(["namespace-4", "false", "ready", "none"]) in actual
-    assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
+    assert " ".join(["ns-1", "true", "false", "none", "user-1"]) not in actual
+    assert " ".join(["ns-2", "true", "false", "none", "user-2"]) not in actual
+    assert " ".join(["ns-3", "false", "ready", "none"]) in actual
+    assert " ".join(["ns-4", "false", "ready", "none"]) in actual
+    assert " ".join(["ns-5", "true", "false", "none", "user-5"]) not in actual
 
 
 def test_ns_list_option_mine(mocker, caplog, namespace_list: list, reservation_list: list):
@@ -164,11 +164,11 @@ def test_ns_list_option_mine(mocker, caplog, namespace_list: list, reservation_l
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["namespace-1", "true", "false", "none", "user-1"]) in actual
-    assert " ".join(["namespace-2", "true", "false", "none", "user-2"]) not in actual
-    assert " ".join(["namespace-3", "false", "ready", "none"]) not in actual
-    assert " ".join(["namespace-4", "false", "ready", "none"]) not in actual
-    assert " ".join(["namespace-5", "true", "false", "none", "user-5"]) not in actual
+    assert " ".join(["ns-1", "true", "false", "none", "user-1"]) in actual
+    assert " ".join(["ns-2", "true", "false", "none", "user-2"]) not in actual
+    assert " ".join(["ns-3", "false", "ready", "none"]) not in actual
+    assert " ".join(["ns-4", "false", "ready", "none"]) not in actual
+    assert " ".join(["ns-5", "true", "false", "none", "user-5"]) not in actual
 
 
 def test_ns_list_flag_output(
@@ -190,11 +190,11 @@ def test_ns_list_flag_output(
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--output", "json"])
 
-    actual_ns_1 = json.loads(result.output).get("namespace-1")
-    actual_ns_2 = json.loads(result.output).get("namespace-2")
-    actual_ns_3 = json.loads(result.output).get("namespace-3")
-    actual_ns_4 = json.loads(result.output).get("namespace-4")
-    actual_ns_5 = json.loads(result.output).get("namespace-5")
+    actual_ns_1 = json.loads(result.output).get("ns-1")
+    actual_ns_2 = json.loads(result.output).get("ns-2")
+    actual_ns_3 = json.loads(result.output).get("ns-3")
+    actual_ns_4 = json.loads(result.output).get("ns-4")
+    actual_ns_5 = json.loads(result.output).get("ns-5")
 
     del actual_ns_1["expires_in"]
     del actual_ns_2["expires_in"]
@@ -202,11 +202,36 @@ def test_ns_list_flag_output(
     del actual_ns_4["expires_in"]
     del actual_ns_5["expires_in"]
 
-    test_items_1 = {"reserved": True, "status": "false", "requester": "user-1"}
-    test_items_2 = {"reserved": True, "status": "false", "requester": "user-2"}
-    test_items_3 = {"reserved": False, "status": "ready", "requester": None}
-    test_items_4 = {"reserved": False, "status": "ready", "requester": None}
-    test_items_5 = {"reserved": True, "status": "false", "requester": "user-5"}
+    test_items_1 = {
+        "reserved": True,
+        "status": "false",
+        "requester": "user-1",
+        "pool_type": "minimal"
+    }
+    test_items_2 = {
+        "reserved": True,
+        "status": "false",
+        "requester": "user-2",
+        "pool_type": "default"
+    }
+    test_items_3 = {
+        "reserved": False,
+        "status": "ready",
+        "requester": None,
+        "pool_type": "default"
+    }
+    test_items_4 = {
+        "reserved": False,
+        "status": "ready",
+        "requester": None,
+        "pool_type": "default"
+    }
+    test_items_5 = {
+        "reserved": True,
+        "status": "false",
+        "requester": "user-5",
+        "pool_type": "default"
+    }
 
     assert all([item in test_items_1.items() for item in actual_ns_1.items()])
     assert all([item in test_items_2.items() for item in actual_ns_2.items()])
@@ -218,8 +243,8 @@ def test_ns_list_flag_output(
 @pytest.mark.parametrize(
     "user, namespace, timeout",
     [
-        ("user-6", "namespace-6", 600),
-        ("user-7", "namespace-7", 700),
+        ("user-6", "ns-6", 600),
+        ("user-7", "ns-7", 700),
     ],
 )
 def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, timeout: int):

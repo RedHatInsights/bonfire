@@ -88,6 +88,10 @@ class Namespace:
         return self.operator_ns
 
     @property
+    def pool_type(self):
+        return self.labels.get("pool", "false")
+
+    @property
     def expires_in(self):
         if not self.expires:
             # reconciler needs to set the time ...
