@@ -4,7 +4,7 @@
 #IMAGE="quay.io/cloudservices/mycomponent"  # image that this application uses
 #COMPONENTS="component1 component2"  # specific components to deploy (optional, default: all)
 #COMPONENTS_W_RESOURCES="component1 component2"  # components which should preserve resource settings (optional, default: none)
-#DEPLOY_TIMEOUT="600"  # bonfire deployment timeout parameter in seconds
+#DEPLOY_TIMEOUT="900"  # bonfire deployment timeout parameter in seconds
 #RELEASE_NAMESPACE="true"  # release namespace after PR check ends (default: true)
 #ALWAYS_COLLECT_LOGS="true"  # collect logs on teardown even if tests passed (default: false)
 #REF_ENV="insights-production"  # name of bonfire reference environment (default: insights-production)
@@ -30,7 +30,7 @@ set -e
 
 : ${COMPONENTS:=""}
 : ${COMPONENTS_W_RESOURCES:=""}
-: ${DEPLOY_TIMEOUT:="600"}
+: ${DEPLOY_TIMEOUT:="900"}
 : ${REF_ENV:="insights-production"}
 : ${RELEASE_NAMESPACE:="true"}
 : ${ALWAYS_COLLECT_LOGS:="false"}
