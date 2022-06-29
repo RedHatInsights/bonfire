@@ -8,51 +8,40 @@ UUIDS="$(ls $ARTIFACTS_DIR | grep .tar.gz | sed -e 's/\.tar.gz$//')"
 
 if [[ -n $UUIDS ]]
 then
-  # construct the comment message
-  message="Test results are available in Ibutsu:"
-  for uuid in $UUIDS
-  do
-    message="${message}\nhttps://url.corp.redhat.com/ibutsu-runs-${uuid}"
-  done
+  base_message="Test results are available in Ibutsu"
+
   # if it is a GitHub PR
   if [[ -n $ghprbPullId ]]; then
 
     # set +e so that if this POST fails, the entire run will not fail
     set +e
 
-    # check if there's already a comment by InsightsDroid
-    last_comment=$(curl \
-      -X GET -H "Accept: application/vnd.github.v3+json" \
-      -H "Authorization: token ${GITHUB_TOKEN}" \
-      -H "Content-Type: application/json; charset=utf-8" \
-      ${GITHUB_API_URL}/repos/${ghprbGhRepository}/issues/${ghprbPullId}/comments | \
-      jq 'map(select(.user.login == "InsightsDroid"))[-1]')
+    # post a status api message for each test run separately
+    for index in "${!UUIDS[@]}";
+    do
+      uuid=${UUIDS[$index]}
 
-    if [[ $last_comment != "null" ]]; then
-      # edit the comment
-      comment_id=$(echo $last_comment | jq '.id')
-      curl \
-      -X PATCH \
-      -H "Accept: application/vnd.github.v3+json" \
-      -H "Authorization: token ${GITHUB_TOKEN}" \
-      -H "Content-Type: application/json; charset=utf-8" \
-      ${GITHUB_API_URL}/repos/${ghprbGhRepository}/issues/comments/${comment_id} \
-      -d "{\"body\":\"$message\"}"
-    else
-      # post a new comment to GitHub
       curl \
         -X POST \
         -H "Accept: application/vnd.github.v3+json" \
         -H "Authorization: token ${GITHUB_TOKEN}" \
         -H "Content-Type: application/json; charset=utf-8" \
-        ${GITHUB_API_URL}/repos/${ghprbGhRepository}/issues/${ghprbPullId}/comments \
-        -d "{\"body\":\"$message\"}"
-      set -e
-    fi
+        ${GITHUB_API_URL}/repos/${ghprbGhRepository}/statuses/${ghprbActualCommit} \
+        -d "{\"state\":\"success\",\"target_url\":\"https://url.corp.redhat.com/ibutsu-runs-${uuid}\",\"description\":\"${base_message}\",\"context\":\"ibutsu/run-${index}\"}"
+    done
+
+    set -e
   fi
 
   # if it is a GitLab MR
   if [[ -n $gitlabMergeRequestIid ]]; then
+    # construct the comment message
+    message="${base_message}:"
+    for uuid in $UUIDS
+    do
+      message="${message}\nhttps://url.corp.redhat.com/ibutsu-runs-${uuid}"
+    done
+
     # set +e so that if this POST fails, the entire run will not fail
     set +e
 
