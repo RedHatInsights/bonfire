@@ -13,6 +13,7 @@ from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.local import get_local_apps
+import bonfire.cicd as cd
 from bonfire.namespaces import (
     Namespace,
     extend_namespace,
@@ -130,6 +131,10 @@ def pool():
     """Perform operations related to pool types"""
     pass
 
+@main.group()
+def cicd():
+    """Perform operations related app continuous integration"""
+    pass
 
 def _confirm_or_abort(msg):
     if conf.BONFIRE_BOT:
@@ -1254,6 +1259,14 @@ def _cmd_version():
     """Print bonfire version"""
     click.echo("bonfire version " + get_version())
 
+@cicd.command("init")
+@click.argument("type", required=False, type=str)
+def _cmd_ci_init(type):
+    """Setup PR check and build deploy files. Supports [frontend || backend] as a type. 
+    If no type is supplied, the system will default to the existance of a package.json"""
+    project_type = type if type else cd.find_project_type()
+    click.echo("Setting up " + project_type + " pr_check and build_deploy files for " + cd.get_project_name())
+    cd.init_cicd_files(project_type)
 
 @config.command("write-default")
 @click.argument("path", required=False, type=str)

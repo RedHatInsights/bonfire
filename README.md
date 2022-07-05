@@ -37,6 +37,9 @@ The `bonfire process-env` command can be used to print a processed ClowdEnvironm
 The `bonfire deploy-env` command can be used as a helpful "1-liner" command to apply a ClowdEnvironment
 configuration into a cluster and wait for environment resources to come up successfully.
 
+The `bonfire cicd` command can be used to setup ci within your project accoriding to app-sre standards.
+
+
 Use `bonfire --help` to get a list of other commands you may find useful.
 
 ### Loading an app's ephemeral config from app-interface (default behavior)
