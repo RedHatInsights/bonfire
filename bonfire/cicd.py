@@ -5,7 +5,6 @@ from pkg_resources import resource_filename
 
 PR_CHECK_TEMPLATE = resource_filename(__name__, "resources/pr_check_template.sh")
 BUILD_DEPLOY_TEMPLATE = resource_filename(__name__, "resources/pr_check_template.sh")
-EXEC = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
 
 def get_project_name():
     return os.getcwd()
@@ -37,10 +36,11 @@ def render_template(filename):
         for l in lines:
             rendered_template.append(process_template_line(l))
 
-    with open("pr_check.sh", 'w') as pr:
+    with open(os.path.join(os.getcwd(), "pr_check.sh"), 'w') as pr:
         for line in rendered_template:
             pr.write(line)
-        os.chmod(os.path.join(os.getcwd(), "pr_check.sh"), EXEC)
+    # Chmod must use an octal number 0o
+    os.chmod(os.path.join(os.getcwd(), "pr_check.sh"), 0o755)
 
 def process_template_line(line):
     if "%" in line:
