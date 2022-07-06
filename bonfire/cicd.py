@@ -61,7 +61,7 @@ class CICDTemplate:
         with open(os.path.join(os.getcwd(), target_file), 'w') as pr:
             for line in rendered_template:
                 pr.write(line)
-        # Chmod must use an octal number beginngin with `0o`
+        # Chmod must use an octal number beginning with `0o`
         os.chmod(os.path.join(os.getcwd(), target_file), 0o755)
 
     def process_template_line(self, line):
