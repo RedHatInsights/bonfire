@@ -1260,13 +1260,20 @@ def _cmd_version():
     click.echo("bonfire version " + get_version())
 
 @cicd.command("init")
-@click.argument("type", required=False, type=str)
-def _cmd_ci_init(type):
-    """Setup PR check and build deploy files. Supports [frontend || backend] as a type. 
+@click.argument("name", required=False, type=str)
+@click.option(
+        "--backend",
+        help="Init backend cicd components (default: false)",
+        type=bool,
+        default=False,
+)
+def _cmd_ci_init(name, backend):
+    """Setup PR check and build deploy files. Name is supplied by the user or defaults to the repo name. 
     If no type is supplied, the system will default to the existance of a package.json"""
-    project_type = type if type else cd.find_project_type()
-    click.echo("Setting up " + project_type + " pr_check and build_deploy files for " + cd.get_project_name())
-    cd.init_cicd_files(project_type)
+    project_type = "backend" if backend else "frontend"
+    name = name if name else cd.get_app_name()
+    click.echo("Setting up " + project_type + " pr_check and build_deploy files for " + cd.get_project_path())
+    cd.init_cicd_files(name, project_type)
 
 @config.command("write-default")
 @click.argument("path", required=False, type=str)
