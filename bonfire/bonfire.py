@@ -131,10 +131,12 @@ def pool():
     """Perform operations related to pool types"""
     pass
 
+
 @main.group()
 def cicd():
     """Perform operations related app continuous integration"""
     pass
+
 
 def _confirm_or_abort(msg):
     if conf.BONFIRE_BOT:
@@ -1259,6 +1261,7 @@ def _cmd_version():
     """Print bonfire version"""
     click.echo("bonfire version " + get_version())
 
+
 @cicd.command("init")
 @click.argument("name", required=False, type=str)
 @click.option(
@@ -1268,12 +1271,14 @@ def _cmd_version():
         default=False,
 )
 def _cmd_ci_init(name, backend):
-    """Setup PR check and build deploy files. Name is supplied by the user or defaults to the repo name. 
-    If no type is supplied, the system will default to the existance of a package.json"""
+    """Setup PR check and build deploy files. Name is supplied by the user or defaults
+    to the repo name. If no --backend flag is supplied, the system will default to
+    the existance of a package.json"""
     project_type = "backend" if backend else "frontend"
     name = name if name else cd.get_app_name()
-    click.echo("Setting up " + project_type + " pr_check and build_deploy files for " + cd.get_project_path())
+    click.echo(f"Setting up {project_type} pr_check and build_deploy for {cd.get_project_path()}")
     cd.init_cicd_files(name, project_type)
+
 
 @config.command("write-default")
 @click.argument("path", required=False, type=str)
