@@ -44,10 +44,10 @@ class CICDTemplate:
 
     def create_build_deploy(self):
         if self.project_type == "frontend":
-            click.echo("Creating pr_check.sh for frontend app " + self.app_name)
+            click.echo("Creating build_deploy.sh for frontend app " + self.app_name)
             self.render_template(BUILD_DEPLOY_FRONTEND, BUILD_DEPLOY)
         else:
-            click.echo("Creating pr_check.sh for backend app " + self.app_name)
+            click.echo("Creating build_deploy.sh for backend app " + self.app_name)
             self.render_template(BUILD_DEPLOY_BACKEND, BUILD_DEPLOY)
         click.echo("Created build_deploy.sh in top level of " + self.project_path)
 
