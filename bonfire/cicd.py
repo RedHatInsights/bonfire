@@ -13,14 +13,16 @@ BUILD_DEPLOY = "build_deploy.sh"
 
 class CICDTemplate:
 
-    def __init__(self, app_name, project_type):
+    def __init__(self, app_name, component, project_type):
         self.app_name = app_name if app_name else get_app_name()
+        self.component = component if component else self.app_name
         self.project_type = project_type if project_type else find_project_type()
         self.project_path = get_project_path()
         self.image_name = self.setup_image_name()
         self.template_vars = {
             "app_name": self.app_name,
-            "image_name": self.image_name
+            "image_name": self.image_name,
+            "component": self.component
         }
 
     def init(self):
@@ -99,6 +101,6 @@ def find_project_type():
     return "backend"
 
 
-def init_cicd_files(app_name, project_type):
-    template = CICDTemplate(app_name, project_type)
+def init_cicd_files(app_name, component, project_type):
+    template = CICDTemplate(app_name, component, project_type)
     template.init()

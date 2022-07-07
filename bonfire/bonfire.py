@@ -1265,19 +1265,23 @@ def _cmd_version():
 @cicd.command("init")
 @click.argument("name", required=False, type=str)
 @click.option(
-        "--backend",
-        help="Init backend cicd components (default: false)",
-        type=bool,
-        default=False,
+        "--component",
+        help="App interface folder name",
+        type=str,
+        default=None,
 )
-def _cmd_ci_init(name, backend):
+@click.option(
+        "--type",
+        help="Sets the project type (frontend | backend)",
+        type=str,
+        default=None,
+)
+def _cmd_ci_init(name, component, type):
     """Setup PR check and build deploy files. Name is supplied by the user or defaults
     to the repo name. If no --backend flag is supplied, the system will default to
     the existance of a package.json"""
-    project_type = "backend" if backend else "frontend"
-    name = name if name else cd.get_app_name()
-    click.echo(f"Setting up {project_type} pr_check and build_deploy for {cd.get_project_path()}")
-    cd.init_cicd_files(name, project_type)
+    click.echo(f"Setting up pr_check and build_deploy for {cd.get_project_path()}")
+    cd.init_cicd_files(name, component, type)
 
 
 @config.command("write-default")
