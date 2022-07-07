@@ -13,6 +13,7 @@ from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.local import get_local_apps
+import bonfire.project as project
 from bonfire.namespaces import (
     Namespace,
     extend_namespace,
@@ -1253,6 +1254,12 @@ def _cmd_deploy_iqe_cji(
 def _cmd_version():
     """Print bonfire version"""
     click.echo("bonfire version " + get_version())
+
+
+@main.command("project")
+def _cmd_project():
+    """Get current project info"""
+    click.echo(project.get_project_info())
 
 
 @config.command("write-default")
