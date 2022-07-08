@@ -1,6 +1,7 @@
 import os
 import click
 from pkg_resources import resource_filename
+from jinja2 import Template
 
 PR_CHECK_FRONTEND = resource_filename(__name__, "resources/pr_check_template.sh")
 BUILD_DEPLOY_FRONTEND = resource_filename(__name__, "resources/pr_check_template.sh")
@@ -54,33 +55,15 @@ class CICDTemplate:
         click.echo("Created build_deploy.sh in top level of " + self.project_path)
 
     def render_template(self, template_name, target_file):
-        rendered_template = []
         with open(template_name, "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                rendered_template.append(self.process_template_line(line))
+            template = Template(f.read())
+        rendered_template = template.render(component=self.component, image_name=self.image_name)
 
         with open(os.path.join(os.getcwd(), target_file), 'w') as pr:
             for line in rendered_template:
                 pr.write(line)
         # Chmod must use an octal number beginning with `0o`
         os.chmod(os.path.join(os.getcwd(), target_file), 0o755)
-
-    def process_template_line(self, line):
-        if "%" in line:
-            processed = self.process_inline_var(line)
-            return processed
-        else:
-            return line
-
-    def process_inline_var(self, line):
-        # The template uses %var% as the format. A line split over % will yield
-        # ["stuff before %", "RENDER_INDEX", "stuff after %", "\n"]
-        # We will render the var in the template and update the line with that value
-        RENDER_INDEX = 1
-        matched_line = line.split("%")
-        matched_line[RENDER_INDEX] = '"' + self.template_vars[matched_line[RENDER_INDEX]] + '"'
-        return ''.join(matched_line)
 
 
 def get_project_path():
