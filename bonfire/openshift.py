@@ -11,6 +11,7 @@ from ocviapy import (
     get_json,
     oc,
     wait_for_ready_threaded,
+    on_k8s,
 )
 from sh import ErrorReturnCode
 from wait_for import TimedOutError, wait_for
@@ -25,6 +26,19 @@ def has_ns_operator():
         if name == "namespacereservation" and apigroup == "cloud.redhat.com":
             return True
     return False
+
+
+@functools.lru_cache(maxsize=None, typed=False)
+def get_console_url():
+    if on_k8s():
+        return None
+    else:
+        try:
+            host = get_json("route", "console", namespace="openshift-console")["spec"]["host"]
+        except Exception as err:
+            log.error("unable to obtain console url: %s: %s", err.__class__.__name__, err)
+            return None
+        return f"https://{host}"
 
 
 def has_clowder():
