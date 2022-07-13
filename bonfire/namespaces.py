@@ -284,7 +284,7 @@ def reserve_namespace(name, requester, duration, pool, timeout, local=True):
 
     url = get_console_url()
     if url:
-        ns_url = f"{url}/k8s/ns/{ns_name}"
+        ns_url = f"{url}/k8s/cluster/projects/{ns_name}"
         log.info("namespace console url: %s", ns_url)
 
     return Namespace(name=ns_name)
