@@ -268,12 +268,16 @@ def reserve_namespace(name, requester, duration, pool, timeout, local=True):
         release_reservation(name=res_name)
         raise
 
+    # Build the URL pointing to this namespace in OpenShift console
+    url = f"https://{conf.APP_INTERFACE_BASE_URL}/k8s/cluster/projects/{ns_name}"
+
     log.info(
-        "namespace '%s' is reserved by '%s' for '%s' from the %s pool",
+        "namespace '%s' is reserved by '%s' for '%s' from the %s pool with console at %s",
         ns_name,
         requester,
         duration,
         pool,
+        url
     )
 
     return Namespace(name=ns_name)
