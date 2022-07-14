@@ -34,11 +34,12 @@ def get_console_url():
         return None
     else:
         try:
-            host = get_json("route", "console", namespace="openshift-console")["spec"]["host"]
+            cfg_map = get_json("configmap", "console-public", namespace="openshift-config-managed")
+            url = cfg_map["data"]["consoleURL"]
         except Exception as err:
             log.debug("unable to obtain console url: %s: %s", err.__class__.__name__, err)
             return None
-        return f"https://{host}"
+        return url
 
 
 def has_clowder():
