@@ -36,7 +36,7 @@ def get_console_url():
         try:
             host = get_json("route", "console", namespace="openshift-console")["spec"]["host"]
         except Exception as err:
-            log.error("unable to obtain console url: %s: %s", err.__class__.__name__, err)
+            log.debug("unable to obtain console url: %s: %s", err.__class__.__name__, err)
             return None
         return f"https://{host}"
 
