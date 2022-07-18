@@ -13,13 +13,13 @@ from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.local import get_local_apps
-import bonfire.project as project
 from bonfire.namespaces import (
     Namespace,
     extend_namespace,
     get_namespaces,
     release_reservation,
     reserve_namespace,
+    describe_namespace
 )
 from bonfire.openshift import (
     check_for_existing_reservation,
@@ -745,6 +745,12 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     except TimedOutError as err:
         log.error("Hit timeout error: %s", err)
         _error("namespace wait timed out")
+
+
+@namespace.command("describe")
+def _describe_namespace():
+    """Get current namespace info"""
+    click.echo(describe_namespace())
 
 
 def _get_apps_config(source, target_env, ref_env, local_config_path):
