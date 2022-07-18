@@ -347,6 +347,8 @@ def extend_namespace(namespace, duration, local=True):
 def describe_namespace():
     output = ""
     project_name = oc("project", "-q", _silent=True).strip()
+    project_url = get_console_url()
+
     if not project_name.startswith("ephemeral") or project_name == "default":
         output += "Can't get project info. Please use an ephemeral oc project\n"
         output += "Hint: run 'oc project <ephemeral-namespace>' and retry\n"
@@ -357,6 +359,9 @@ def describe_namespace():
     kc_name = f"env-{project_name}-keycloak"
     fe_creds = get_default_keycloak_creds(oc("get", "secret", kc_name, "-o", "json", _silent=True).strip())
     output += f"Current project: {project_name}\n"
+    if project_url:
+        ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
+        output += f"Namespace console url: {ns_url}\n"
     output += f"Frontend route: https://{host}\n"
     output += f"Keycloak login: {fe_creds}\n"
     return output
