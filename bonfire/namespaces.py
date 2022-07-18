@@ -343,7 +343,6 @@ def extend_namespace(namespace, duration, local=True):
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
 
 
-
 def describe_namespace():
     output = ""
     project_name = oc("project", "-q", _silent=True).strip()
@@ -357,7 +356,7 @@ def describe_namespace():
     host = get_fe_hostname(oc("get", "route", "-o", "json", _silent=True).strip())
 
     kc_name = f"env-{project_name}-keycloak"
-    fe_creds = get_default_keycloak_creds(oc("get", "secret", kc_name, "-o", "json", _silent=True).strip())
+    fe_creds = get_keycloak_creds(oc("get", "secret", kc_name, "-o", "json", _silent=True).strip())
     output += f"Current project: {project_name}\n"
     if project_url:
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
@@ -379,7 +378,7 @@ def get_default_keycloak_pass(keycloak_secret):
     return base64.b64decode(default_pass).decode("UTF-8")
 
 
-def get_default_keycloak_creds(keycloak_secret):
+def get_keycloak_creds(keycloak_secret):
     username = "jdoe"
     password = get_default_keycloak_pass(keycloak_secret)
     return f"Username: {username} || Password: {password}"

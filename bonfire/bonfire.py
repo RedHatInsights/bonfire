@@ -1262,12 +1262,6 @@ def _cmd_version():
     click.echo("bonfire version " + get_version())
 
 
-@main.command("project")
-def _cmd_project():
-    """Get current project info"""
-    click.echo(project.get_project_info())
-
-
 @config.command("write-default")
 @click.argument("path", required=False, type=str)
 def _cmd_write_default_config(path):
