@@ -578,9 +578,13 @@ class TemplateProcessor:
 
     def _handle_dependencies(self, app_name, processed_component, in_recursion):
         items = processed_component.items
-        if self._frontend_found(items) and "frontend-configs" not in self.processed_components:
-            log.info("found a Frontend resource, auto-adding frontend-configs as dependency")
-            self._process_component("frontend-configs", app_name, in_recursion)
+        if self._frontend_found(items):
+            if "frontend-configs" not in self.processed_components:
+                log.info("found a Frontend resource, auto-adding frontend-configs as dependency")
+                self._process_component("frontend-configs", app_name, in_recursion)
+            if "rbac" not in self.processed_components:
+                log.info("found a Frontend resource, auto-adding rbac as dependency")
+                self._process_component("rbac", app_name, in_recursion)
 
         self._add_dependencies_to_config(app_name, processed_component, in_recursion)
 
