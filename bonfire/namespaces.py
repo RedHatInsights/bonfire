@@ -343,9 +343,8 @@ def extend_namespace(namespace, duration, local=True):
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
 
 
-def describe_namespace():
+def describe_namespace(project_name: str):
     output = ""
-    project_name = oc("project", "-q", _silent=True).strip()
     project_url = get_console_url()
 
     if not project_name.startswith("ephemeral") or project_name == "default":
@@ -353,7 +352,8 @@ def describe_namespace():
         output += "Hint: run 'oc project <ephemeral-namespace>' and retry\n"
         output += "If you do not know your namespace, use 'bonfire namespace list'\n"
         return output
-    host = get_fe_hostname(oc("get", "route", "-o", "json", _silent=True).strip())
+    routes = oc("get", "route", "-o", "json", _silent=True).strip()
+    host = get_fe_hostname(routes)
 
     kc_name = f"env-{project_name}-keycloak"
     fe_creds = get_keycloak_creds(oc("get", "secret", kc_name, "-o", "json", _silent=True).strip())
@@ -362,7 +362,7 @@ def describe_namespace():
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
         output += f"Namespace console url: {ns_url}\n"
     output += f"Frontend route: https://{host}\n"
-    output += f"Keycloak login: {fe_creds}\n"
+    output += f"Keycloak login: {fe_creds['username']} | {fe_creds['password']}\n"
     return output
 
 
@@ -372,13 +372,18 @@ def get_fe_hostname(routes):
     return json_routes['items'][0]['spec']['host']
 
 
-def get_default_keycloak_pass(keycloak_secret):
+def get_default_keycloak_creds(keycloak_secret):
     json_secret = json.loads(keycloak_secret)
+    default_user = json_secret['data']['defaultUsername']
     default_pass = json_secret['data']['defaultPassword']
-    return base64.b64decode(default_pass).decode("UTF-8")
+    plain_text_user = base64.b64decode(default_user).decode("UTF-8")
+    plain_text_pass = base64.b64decode(default_pass).decode("UTF-8")
+    return plain_text_user, plain_text_pass
 
 
 def get_keycloak_creds(keycloak_secret):
-    username = "jdoe"
-    password = get_default_keycloak_pass(keycloak_secret)
-    return f"Username: {username} || Password: {password}"
+    username, password = get_default_keycloak_creds(keycloak_secret)
+    kc_creds = {}
+    kc_creds['username'] = username
+    kc_creds['password'] = password
+    return kc_creds

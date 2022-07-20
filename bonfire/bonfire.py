@@ -748,9 +748,10 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
 
 
 @namespace.command("describe")
-def _describe_namespace():
+@click.argument("namespace", required=True, type=str)
+def _describe_namespace(namespace):
     """Get current namespace info"""
-    click.echo(describe_namespace())
+    click.echo(describe_namespace(namespace))
 
 
 def _get_apps_config(source, target_env, ref_env, local_config_path):
