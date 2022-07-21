@@ -17,17 +17,15 @@ then
     set +e
 
     # post a status api message for each test run separately
-    for index in "${!UUIDS[@]}";
+    for uuid in $UUIDS;
     do
-      uuid=${UUIDS[$index]}
-
       curl \
         -X POST \
         -H "Accept: application/vnd.github.v3+json" \
         -H "Authorization: token ${GITHUB_TOKEN}" \
         -H "Content-Type: application/json; charset=utf-8" \
         ${GITHUB_API_URL}/repos/${ghprbGhRepository}/statuses/${ghprbActualCommit} \
-        -d "{\"state\":\"success\",\"target_url\":\"https://url.corp.redhat.com/ibutsu-runs-${uuid}\",\"description\":\"${base_message}\",\"context\":\"ibutsu/run-${index}\"}"
+        -d "{\"state\":\"success\",\"target_url\":\"https://url.corp.redhat.com/ibutsu-runs-${uuid}\",\"description\":\"${base_message}\",\"context\":\"ibutsu/run-${uuid}\"}"
     done
 
     set -e
