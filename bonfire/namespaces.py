@@ -345,7 +345,8 @@ def extend_namespace(namespace, duration, local=True):
 
 def describe_namespace(project_name: str):
     output = ""
-    project_url = get_console_url()
+    if not project_exists(project_name):
+        return f"Error no namespace called {project_name} was found"
 
     if not project_name.startswith("ephemeral") or project_name == "default":
         output += "Can't get project info. Please use an ephemeral oc project\n"
@@ -358,12 +359,26 @@ def describe_namespace(project_name: str):
     kc_name = f"env-{project_name}-keycloak"
     fe_creds = get_keycloak_creds(oc("get", "secret", kc_name, "-o", "json", _silent=True).strip())
     output += f"Current project: {project_name}\n"
+    project_url = get_console_url()
     if project_url:
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
         output += f"Namespace console url: {ns_url}\n"
     output += f"Frontend route: https://{host}\n"
     output += f"Keycloak login: {fe_creds['username']} | {fe_creds['password']}\n"
     return output
+
+
+def project_exists(project_name: str):
+    # we have to ignore errors or the console is flooded by the oc stderr
+    project_output = oc("get", "project", project_name, _silent=True, _ignore_errors=True)
+    try:
+        # if there isn't an error in the output, the project exists
+        return not ("not found" in project_output)
+    # If the project_output can't be searched, we hit a TypeError because it is None
+    # meaning the project doesn't exist
+    except TypeError:
+        return False
+    return True
 
 
 def get_fe_hostname(routes):
@@ -376,8 +391,8 @@ def get_default_keycloak_creds(keycloak_secret):
     json_secret = json.loads(keycloak_secret)
     default_user = json_secret['data']['defaultUsername']
     default_pass = json_secret['data']['defaultPassword']
-    plain_text_user = base64.b64decode(default_user).decode("UTF-8")
-    plain_text_pass = base64.b64decode(default_pass).decode("UTF-8")
+    plain_text_user = decode_b64(default_user)
+    plain_text_pass = decode_b64(default_pass)
     return plain_text_user, plain_text_pass
 
 
@@ -387,3 +402,7 @@ def get_keycloak_creds(keycloak_secret):
     kc_creds['username'] = username
     kc_creds['password'] = password
     return kc_creds
+
+
+def decode_b64(item: str):
+    return base64.b64decode(item).decode("UTF-8")

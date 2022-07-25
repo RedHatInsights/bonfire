@@ -308,3 +308,12 @@ def test_describe_empty_ns(mocker):
     assert("Error: Missing argument 'NAMESPACE'." in result.output)
     assert("env-ephemeral-blah-howdy" not in result.output)
     assert("yes.redhat.com" not in result.output)
+
+
+def test_describe_wrong_ns(mocker):
+    mocker.patch("bonfire.namespaces.project_exists", return_value=False)
+    mocker.patch("bonfire.namespaces.oc")
+    runner = CliRunner()
+    result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-memes"])
+
+    assert("Error no namespace called ephemeral-memes was found" in result.output)
