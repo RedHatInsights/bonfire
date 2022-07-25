@@ -37,8 +37,8 @@ The `bonfire process-env` command can be used to print a processed ClowdEnvironm
 The `bonfire deploy-env` command can be used as a helpful "1-liner" command to apply a ClowdEnvironment
 configuration into a cluster and wait for environment resources to come up successfully.
 
-The `bonfire project` command will give you information about your ephemeral namespace such as frontend
-hostname and ephemeral keycloak credentials.
+The `bonfire namespace describe` command will give you information about your ephemeral namespace such as frontend
+hostname, ephemeral keycloak credentials, and the openshift console link.
 
 Use `bonfire --help` to get a list of other commands you may find useful.
 
