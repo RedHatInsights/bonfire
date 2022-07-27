@@ -1,10 +1,9 @@
 import copy
 import datetime
 import logging
-import json
 import base64
 
-from ocviapy import apply_config, get_all_namespaces, get_json, on_k8s, oc
+from ocviapy import apply_config, get_all_namespaces, get_json, on_k8s
 from wait_for import TimedOutError
 
 import bonfire.config as conf
@@ -345,52 +344,38 @@ def extend_namespace(namespace, duration, local=True):
 
 def describe_namespace(project_name: str):
     output = ""
-    if not project_exists(project_name):
-        return f"Error no namespace called {project_name} was found"
 
-    if not project_name.startswith("ephemeral") or project_name == "default":
-        output += "Can't get project info. Please use an ephemeral oc project\n"
-        output += "Hint: run 'oc project <ephemeral-namespace>' and retry\n"
-        output += "If you do not know your namespace, use 'bonfire namespace list'\n"
-        return output
-    routes = oc("get", "route", "-o", "json", _silent=True).strip()
+    ns_data = get_json('namespace', project_name)
+    if not ns_data:
+        raise FatalError(f"namespace '{project_name}' not found")
+    ns = Namespace(namespace_data=ns_data)
+    if not ns.operator_ns:
+        raise FatalError(f"namespace '{project_name}' was not reserved with namespace operator")
+
+    routes = get_json("route", namespace=project_name)
     host = get_fe_hostname(routes)
 
     kc_name = f"env-{project_name}-keycloak"
-    fe_creds = get_keycloak_creds(oc("get", "secret", kc_name, "-o", "json", _silent=True).strip())
+    fe_creds = get_keycloak_creds(get_json("secret", name=kc_name, namespace=project_name))
     output += f"Current project: {project_name}\n"
+
     project_url = get_console_url()
     if project_url:
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
-        output += f"Namespace console url: {ns_url}\n"
+        output += f"Console url: {ns_url}\n"
     output += f"Frontend route: https://{host}\n"
     output += f"Keycloak login: {fe_creds['username']} | {fe_creds['password']}\n"
     return output
 
 
-def project_exists(project_name: str):
-    # we have to ignore errors or the console is flooded by the oc stderr
-    project_output = oc("get", "project", project_name, _silent=True, _ignore_errors=True)
-    try:
-        # if there isn't an error in the output, the project exists
-        return not ("not found" in project_output)
-    # If the project_output can't be searched, we hit a TypeError because it is None
-    # meaning the project doesn't exist
-    except TypeError:
-        return False
-    return True
-
-
 def get_fe_hostname(routes):
-    json_routes = json.loads(routes)
     # Hostnames are all the same, so return the first one
-    return json_routes['items'][0]['spec']['host']
+    return routes['items'][0]['spec']['host']
 
 
 def get_default_keycloak_creds(keycloak_secret):
-    json_secret = json.loads(keycloak_secret)
-    default_user = json_secret['data']['defaultUsername']
-    default_pass = json_secret['data']['defaultPassword']
+    default_user = keycloak_secret['data']['defaultUsername']
+    default_pass = keycloak_secret['data']['defaultPassword']
     plain_text_user = decode_b64(default_user)
     plain_text_pass = decode_b64(default_pass)
     return plain_text_user, plain_text_pass
