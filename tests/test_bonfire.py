@@ -7,6 +7,7 @@ from click.testing import CliRunner
 
 import bonfire.config as conf
 from bonfire import bonfire
+from bonfire.utils import FatalError
 
 DATA_PATH = Path(__file__).parent.joinpath("data")
 
@@ -265,3 +266,55 @@ def test_pool_list_command(caplog):
     output = [r for r in result.output.split("\n") if r != ""]
 
     assert output == conf.NAMESPACE_POOLS
+
+
+default_kc = {'username': 'jdoe', 'password': 'password'}
+eph_test_route = "env-ephemeral-blah-howdy.apps.c-rh-c-eph.8p0c.p1.openshiftapps.com"
+
+
+def test_describe_ephemeral_ns(mocker):
+    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
+    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
+    mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
+    mocker.patch("bonfire.namespaces.get_json")
+    mocker.patch("bonfire.namespaces.Namespace")
+    runner = CliRunner()
+    result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-blah"])
+
+    assert("jdoe | password" in result.output)
+    assert("env-ephemeral-blah-howdy" in result.output)
+    assert("yes.redhat.com" in result.output)
+
+
+def test_describe_empty_ns(mocker):
+    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
+    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
+    mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
+    mocker.patch("bonfire.namespaces.get_json")
+    runner = CliRunner()
+    result = runner.invoke(bonfire.namespace, ["describe"])
+
+    assert("Error: Missing argument 'NAMESPACE'." in result.output)
+    assert("env-ephemeral-blah-howdy" not in result.output)
+    assert("yes.redhat.com" not in result.output)
+
+
+def test_describe_default_ns(mocker):
+    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
+    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
+    mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
+    mocker.patch("bonfire.namespaces.get_json")
+    runner = CliRunner()
+    try:
+        runner.invoke(bonfire.namespace, ["describe", "default"])
+    except FatalError:
+        assert True
+
+
+def test_describe_wrong_ns(mocker):
+    mocker.patch("bonfire.namespaces.get_json", return_value=None)
+    runner = CliRunner()
+    try:
+        runner.invoke(bonfire.namespace, ["describe", "ephemeral-memes"])
+    except FatalError:
+        assert True

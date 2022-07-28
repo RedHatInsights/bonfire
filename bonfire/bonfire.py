@@ -19,6 +19,7 @@ from bonfire.namespaces import (
     get_namespaces,
     release_reservation,
     reserve_namespace,
+    describe_namespace
 )
 from bonfire.openshift import (
     check_for_existing_reservation,
@@ -744,6 +745,13 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     except TimedOutError as err:
         log.error("Hit timeout error: %s", err)
         _error("namespace wait timed out")
+
+
+@namespace.command("describe")
+@click.argument("namespace", required=True, type=str)
+def _describe_namespace(namespace):
+    """Get current namespace info"""
+    click.echo(describe_namespace(namespace))
 
 
 def _get_apps_config(source, target_env, ref_env, local_config_path):
