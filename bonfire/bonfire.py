@@ -31,9 +31,10 @@ from bonfire.openshift import (
     wait_for_clowd_env_target_ns,
     wait_for_db_resources,
     wait_on_cji,
+    wait_on_cypress,
     whoami,
 )
-from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
+from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji, process_cypress
 from bonfire.qontract import get_apps_for_env, sub_refs
 from bonfire.secrets import import_secrets_from_dir
 from bonfire.utils import (
@@ -509,6 +510,47 @@ _clowdenv_process_options = [
         "-f",
         help=(
             "Path to ClowdEnvironment template file (default: use local cluster template packaged"
+            " with bonfire)"
+        ),
+        type=str,
+        default=None,
+    ),
+    _local_option,
+]
+
+
+_cypress_process_options = [
+    click.argument(
+        "clowd_app_name",
+        type=str,
+        required=True,
+    ),
+    click.option(
+        "--debug-pod",
+        "debug",
+        help="Set debug mode on cypress pod",
+        default=False,
+        is_flag=True,
+    ),
+    click.option(
+        "--image-tag",
+        "-i",
+        help="image tag to use for IQE pod",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--cypress-name",
+        "-c",
+        help="Name of ClowdJobInvocation (default: generate a random name)",
+        type=str,
+        default=None,
+    ),
+    click.option(
+        "--template-file",
+        "-f",
+        help=(
+            "Path to ClowdJobInvocation template file (default: use IQE CJI template packaged"
             " with bonfire)"
         ),
         type=str,
@@ -1191,6 +1233,44 @@ def _cmd_process_iqe_cji(
     print(json.dumps(cji_config, indent=2))
 
 
+@main.command("process-cypress")
+@options(_cypress_process_options)
+def _cmd_process_cypress(
+    clowd_app_name,
+    debug,
+    marker,
+    filter,
+    env,
+    image_tag,
+    cji_name,
+    template_file,
+    requirements,
+    requirements_priority,
+    test_importance,
+    plugins,
+    local,
+    selenium,
+):
+    """Process cypress ClowdJobInvocation template and print output"""
+    cypress_config = process_cypress(
+        clowd_app_name,
+        debug,
+        marker,
+        filter,
+        env,
+        image_tag,
+        cji_name,
+        template_file,
+        requirements,
+        requirements_priority,
+        test_importance,
+        plugins,
+        local,
+        selenium,
+    )
+    print(json.dumps(cypress_config, indent=2))
+
+
 @main.command("deploy-iqe-cji")
 @click.option("--namespace", "-n", help="Namespace to deploy to", type=str, required=True)
 @options(_iqe_cji_process_options)
@@ -1254,6 +1334,77 @@ def _cmd_deploy_iqe_cji(
     log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
     pod_name = wait_on_cji(namespace, cji_name, timeout)
     log.info("pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace)
+    click.echo(pod_name)
+
+
+@main.command("deploy-cypress")
+@click.option("--namespace", "-n", help="Namespace to deploy to", type=str, required=True)
+@options(_cypress_process_options)
+@options(_ns_reserve_options)
+@options(_timeout_option)
+@click_exception_wrapper("deploy-cypress")
+def _cmd_deploy_cypress(
+    namespace,
+    clowd_app_name,
+    debug,
+    marker,
+    filter,
+    env,
+    image_tag,
+    cji_name,
+    template_file,
+    timeout,
+    requirements,
+    requirements_priority,
+    test_importance,
+    plugins,
+    name,
+    requester,
+    duration,
+    local,
+    selenium,
+    pool,
+):
+    """Process cypress template, apply it, and wait for it to start running."""
+    if not has_clowder():
+        _error("cluster does not have clowder operator installed")
+
+    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local)
+
+    cypress_config = process_cypress(
+        clowd_app_name,
+        debug,
+        marker,
+        filter,
+        env,
+        image_tag,
+        cji_name,
+        template_file,
+        requirements,
+        requirements_priority,
+        test_importance,
+        plugins,
+        local,
+        selenium,
+    )
+
+    log.debug("processed cypress config:\n%s", cypress_config)
+
+    try:
+        cypress_name = cypress_config["items"][0]["metadata"]["name"]
+    except (KeyError, IndexError):
+        raise Exception("error parsing name from cypress template, check the template")
+
+    apply_config(namespace, cypress_config)
+
+    log.info("waiting on CJI '%s' for max of %dsec...", cypress_name, timeout)
+    pod_name = wait_on_cypress(namespace, cypress_name, timeout)
+    log.info(
+        "pod '%s' related to cypress '%s' in ns '%s' is running",
+        pod_name,
+        cypress_name,
+        namespace
+    )
     click.echo(pod_name)
 
 

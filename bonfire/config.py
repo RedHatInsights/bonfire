@@ -25,6 +25,7 @@ EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE = resource_filename(
     "bonfire", "resources/ephemeral-cluster-clowdenvironment.yaml"
 )
 DEFAULT_IQE_CJI_TEMPLATE = resource_filename("bonfire", "resources/default-iqe-cji.yaml")
+DEFAULT_CYPRESS_TEMPLATE = resource_filename("bonfire", "resources/default-cypress.yaml")
 DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yaml")
 DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservation-template.yaml")
 

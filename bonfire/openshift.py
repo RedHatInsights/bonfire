@@ -266,6 +266,63 @@ def wait_on_cji(namespace, cji_name, timeout):
     return pod_name
 
 
+def wait_on_cypress(namespace, cypress_name, timeout):
+    # wait for job associated with this CJI to appear
+    log.info("waiting for Job to appear owned by cypress '%s'", cypress_name)
+
+    def _find_job():
+        jobs = get_json("job", label=f"clowdjob={cypress_name}", namespace=namespace)
+        try:
+            return jobs["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            return False
+
+    cypress = Resource("clowdjobinvocation", cypress_name, namespace)
+    try:
+        job_name, elapsed = wait_for(
+            _find_job, num_sec=timeout,
+            message=f"wait for Job to appear owned by cypress '{cypress_name}'"
+        )
+    except TimedOutError:
+        if not cypress.ready:
+            log.error("[%s] not ready, details: %s\n", cypress.key, cypress.details_str)
+        raise
+
+    log.info(
+        "found Job '%s' created by cypress '%s', now waiting for pod to appear",
+        job_name,
+        cypress_name
+    )
+
+    def _pod_found():
+        pods = get_json("pod", label=f"job-name={job_name}", namespace=namespace)
+        try:
+            return pods["items"][0]["metadata"]["name"]
+        except (KeyError, IndexError):
+            return False
+
+    remaining_time = timeout - elapsed
+
+    pod_name, elapsed = wait_for(
+        _pod_found,
+        num_sec=remaining_time,
+        message=f"wait for Pod to appear owned by cypress '{cypress_name}'",
+    )
+
+    log.info(
+        "found pod '%s' associated with cypress '%s', now waiting for pod to be 'running'",
+        pod_name,
+        cypress_name,
+    )
+
+    remaining_time = remaining_time - elapsed
+
+    waiter = ResourceWaiter(namespace, "pod", pod_name)
+    waiter.wait_for_ready(remaining_time, reraise=True)
+
+    return pod_name
+
+
 def wait_on_reservation(res_name, timeout):
     log.info("waiting for reservation '%s' to get picked up by operator", res_name)
 

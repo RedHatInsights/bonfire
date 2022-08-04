@@ -170,6 +170,58 @@ def process_iqe_cji(
     return processed_template
 
 
+def process_cypress(
+    clowd_app_name,
+    debug=False,
+    marker="",
+    filter="",
+    env="clowder_smoke",
+    image_tag="",
+    cji_name=None,
+    template_path=None,
+    requirements="",
+    requirements_priority="",
+    test_importance="",
+    plugins="",
+    local=True,
+    selenium=False,
+):
+    log.info("processing cypress ClowdJobInvocation")
+
+    template_path = Path(template_path if template_path else conf.DEFAULT_CYPRESS_TEMPLATE)
+
+    if not template_path.exists():
+        raise FatalError("cypress template file does not exist: %s", template_path)
+
+    with template_path.open() as fp:
+        template_data = yaml.safe_load(fp)
+
+    requirements = requirements.split(",") if requirements else []
+    requirements_priority = requirements_priority.split(",") if requirements_priority else []
+    test_importance = test_importance.split(",") if test_importance else []
+
+    params = dict()
+    params["DEBUG"] = str(debug).lower()
+    params["MARKER"] = marker
+    params["FILTER"] = filter
+    params["ENV_NAME"] = env
+    params["IMAGE_TAG"] = image_tag
+    params["PLUGINS"] = plugins
+    params["NAME"] = cji_name or f"iqe-{str(uuid.uuid4()).split('-')[0]}"
+    params["APP_NAME"] = clowd_app_name
+    params["REQUIREMENTS"] = json.dumps(requirements)
+    params["REQUIREMENTS_PRIORITY"] = json.dumps(requirements_priority)
+    params["TEST_IMPORTANCE"] = json.dumps(test_importance)
+    params["DEPLOY_SELENIUM"] = json.dumps(selenium)
+
+    processed_template = _process_template(template_data, params=params, local=local)
+
+    if not processed_template.get("items"):
+        raise FatalError("Processed cypress template has no items")
+
+    return processed_template
+
+
 def process_reservation(name, requester, duration, pool=None, template_path=None, local=True):
     log.info("processing namespace reservation")
 
