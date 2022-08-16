@@ -296,10 +296,11 @@ def check_for_existing_reservation(requester):
     for res in get_all_reservations():
         res_state = res.get("status", {}).get("state")
         if res["spec"]["requester"] == requester and res_state == "active":
-            if get_json("namespace", res["status"]["namespace"]):
+            ns = res["status"]["namespace"]
+            if get_json("namespace", ns):
                 return True
             else:
-                log.info("a reservation was found for namespace '%s' which no longer exists", res["status"]["namespace"])
+                log.info("reservation found for namespace '%s' whcih no longer exists", ns)
     return False
 
 
