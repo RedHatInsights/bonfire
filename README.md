@@ -67,6 +67,45 @@ The deploy command is an 'all-in-one' command that ties together 4 steps:
 * Extend your reservation with: `bonfire namespace extend <NAMESPACE> -d <time>` -- example time format: `48h`
 * Release your namespace reservation with: `bonfire namespace release <NAMESPACE>`
 
+# Examples for Common Use Cases
+
+In these examples, we will use the 'advisor' app which has a ClowdApp component named 'advisor-backend'
+
+* Deploy advisor-backend using a custom git branch:
+```
+bonfire deploy advisor --set-template-ref advisor-backend=custom_branch
+```
+
+* Deploy advisor-backend using a custom git commit:
+```
+bonfire deploy advisor --set-template-ref advisor-backend=df0d7a620b1ac02e59c5718eb22fe82b8a4cfd3d
+```
+
+* Use a certain branch to process the advisor-backend template, but set a different image tag on the container:
+```
+bonfire deploy advisor --set-template-ref advisor-backend=some_branch --set-parameter advisor-backend/IMAGE_TAG=some_tag
+```
+
+* Deploy the production version of advisor and its dependencies:
+```
+bonfire deploy advisor --ref-env insights-production
+```
+
+* Deploy the production version of everything but use a dev branch for advisor-backend:
+```
+bonfire deploy advisor --ref-env insights-production --set-template-ref advisor-backend=dev_branch
+```
+
+* Adjust the 'REPLICAS' parameter value at deploy time:
+```
+bonfire deploy advisor --set-parameter advisor-backend/REPLICAS=3
+```
+
+* Override the tag for all occurences of a specific container image:
+```
+bonfire deploy advisor --set-image-tag quay.io/cloudservices/advisor-backend=my_tag
+```
+
 # Commonly Used CLI Options
 ## Deploying/Processing
 
@@ -110,45 +149,6 @@ When bonfire processes templates, if it finds a ClowdApp, it will do the followi
     * `app-b-clowdapp` has `app-c-clowdapp` listed under its `optionalDependencies`
     * You will end up with all components of `app-a`, `app-b-clowdapp`, AND `app-c-clowdapp` deployed into the namespace.
   * `none`: `bonfire` will ignore the `optionalDependencies` on all ClowdApps that it encounters
-
-# Examples for Common Use Cases
-
-In these examples, we will use the 'advisor' app which has a ClowdApp component named 'advisor-backend'
-
-* Deploy advisor-backend using a custom git branch:
-```
-bonfire deploy advisor --set-template-ref advisor-backend=custom_branch
-```
-
-* Deploy advisor-backend using a custom git commit:
-```
-bonfire deploy advisor --set-template-ref advisor-backend=df0d7a620b1ac02e59c5718eb22fe82b8a4cfd3d
-```
-
-* Use a certain branch to process the advisor-backend template, but set a different image tag on the container:
-```
-bonfire deploy advisor --set-template-ref advisor-backend=some_branch --set-parameter advisor-backend/IMAGE_TAG=some_tag
-```
-
-* Deploy the production version of advisor and its dependencies:
-```
-bonfire deploy advisor --ref-env insights-production
-```
-
-* Deploy the production version of everything but use a dev branch for advisor-backend:
-```
-bonfire deploy advisor --ref-env insights-production --set-template-ref advisor-backend=dev_branch
-```
-
-* Adjust the 'REPLICAS' parameter value at deploy time:
-```
-bonfire deploy advisor --set-parameter advisor-backend/REPLICAS=3
-```
-
-* Override the tag for all occurences of a specific container image:
-```
-bonfire deploy advisor --set-image-tag quay.io/cloudservices/advisor-backend=my_tag
-```
 
 # Configuration Details 
 
