@@ -4,12 +4,13 @@ A CLI tool used to deploy ephemeral environments for testing cloud.redhat.com ap
 
 `bonfire` interacts with a running instance of [qontract-server](https://github.com/app-sre/qontract-server) (the component that powers the [AppSRE team](https://github.com/app-sre/)'s internal `app-interface` graphql API) or a local configuration file to obtain applications' OpenShift templates, process them, and deploy them.
 
-It also interacts with OpenShift to manage the reservation of ephemeral namespaces for testing.
+`bonfire` interacts with a running instance of [qontract-server](https://github.com/app-sre/qontract-server) (the component that powers the [AppSRE team](https://github.com/app-sre/)'s internal `app-interface` graphql API) to obtain applications' OpenShift templates, process them, and deploy them. A local configuration file allows you to override an application config if you wish.
 
-It is meant to be partnered with the [Clowder](https://github.com/RedHatInsights/clowder) and [namespace reservation operator](https://github.com/RedHatInsights/ephemeral-namespace-operator)
-operators to spin up an ephemeral environment for testing on either a remote OpenShift cluster or a local k8s cluster.
+It also interacts with the [ephemeral namespace operator](https://github.com/RedHatInsights/ephemeral-namespace-operator) to manage the reservation of ephemeral namespaces for testing.
 
-## Installation
+It has special functionality related to the [Clowder operator](https://github.com/RedHatInsights/clowder) and [Frontend operator](https://github.com/RedHatInsights/frontend-operator/) such as auto-deploying ClowdApp dependencies.
+
+# Installation
 
 We'd recommend setting up a virtual environment for bonfire:
 
@@ -22,52 +23,89 @@ pip install crc-bonfire
 bonfire --help
 ```
 
-## Overview
+# Getting Started
 
-The `bonfire process` command can be used to print processed app configs to stdout.
+One you have `bonfire` installed, the command you are most likely to use is `bonfire deploy`.
 
-The `bonfire namespace reserve` command can be used to acquire a namespace on a cluster
-if that cluster has been set up with the namespace reservation operator.
+If you are on the Red Hat VPN, `bonfire` will communicate with an internal instance of the App-SRE team's `qontract-server` API. You need to use `oc login` to log in to the ephemeral cluster.
 
-The `bonfire deploy` command can be used as a helpful "1-liner" command to reserve a namespace,
-process application configs, apply them into a desired namespace, and wait for them to come up successfully.
+Once logged in, you should be able to type `bonfire deploy advisor`
 
-The `bonfire process-env` command can be used to print a processed ClowdEnvironment config to stdout.
+This will cause `bonfire` to do the following:
+1. reserve a namespace
+2. fetch the templates for all components in the 'advisor' app and process them. By default, bonfire will look up the template and commit hash using the 'main'/'master' branch of each component defined in the app. It will look up the git commit hash for this branch and automatically set the `IMAGE_TAG` parameter passed to the templates. 
+3. if ClowdApp resources are found, figure out which additional ClowdApps to fetch and process
+4. apply all the processed template resources into your reserved namespace
+5. wait for all the resources to reach a 'ready' state
 
-The `bonfire deploy-env` command can be used as a helpful "1-liner" command to apply a ClowdEnvironment
-configuration into a cluster and wait for environment resources to come up successfully.
+Run `bonfire namespace list --mine` and you will see your namespace.
 
-The `bonfire namespace describe` command will give you information about your ephemeral namespace such as frontend
-hostname, ephemeral keycloak credentials, and the openshift console link.
+Switch into that namespace with `oc project <NAMESPACE>`
 
-Use `bonfire --help` to get a list of other commands you may find useful.
+Run `oc get clowdapp` in your namespace and you should see several ClowdApps have been deployed.
+
+If you want to to extend the time you have to work with your namespace, use `bonfire namespace extend <NAMESPACE>`
+
+When you are done working with your namespace, type `bonfire namespace release <NAMESPACE>` to instruct the ephemeral namespace operator to delete your reservation.
+
+The deploy command is an 'all-in-one' command that ties together 4 steps:
+1. `bonfire namespace reserve` to reserve a namespace
+2. `bonfire process` to fetch and process app templates
+3. `oc apply` to apply the processed app templates into the namespace
+4. `bonfire namespace wait-on-resources <NAMESPACE>` to wait on all resources in the namespace to reach 'ready' state
+
+# Commonly Used CLI Options
+
+As always, don't forget about `--help` -- there are several more options than what we will describe below -- remember that `--help` is there to help you!
+
+## Reserving Namespaces
+
+* `--duration <time>` -- by default the reservation duration is `1h` -- use this to increase the duration of your reservation.
+* `--pool <pool>` -- different namespace pools are set up to provide different test environment configurations. Use this option to select a non-default pool.
+
+## Deploying/Processing
+
+* `--frontends=true` -- by default, bonfire will not deploy Frontend resources. Use this flag to enable the deployment of app frontends.
+* `--set-image-tag <image uri>=<tag>` -- use this to change the image tag of a container image that appears in your templates. This does a search/replace for all occurences of `<image uri>` and sets the tag to be `<tag>`
+* `--target-env` -- this changes which deploy target `bonfire` looks up to determine the parameters to apply when processing app templates. By default, the target env is set to `insights-ephemeral`
+* `--ref-env` -- this changes which deploy target `bonfire` looks up to determine the git ref to fetch for your app configuration. For example, using `--ref-env insights-stage` would cause bonfire to deploy the stage git ref of your app and `--ref-env insights-production` would cause bonfire to deploy the production git ref of your app. If a target matching the environment is not found, `bonfire` defaults back to deploying the 'main'/'master' branch.
+* `--set-template-ref <component>=<ref>` -- use this to change the git ref deployed for just a single component.
+* `--set-parameter <component>/<name>=<value>` -- use this to set a parameter value on a specific component's template.
+* `--optional-deps-method <hybrid|all|none>` -- change the way that bonfire processes ClowdApp optional dependencies (see "Dependency Processing" section below)
 
 
-### Loading an app's ephemeral config from app-interface (default behavior)
+# Configuration Details 
 
-When running `bonfire process`/`bonfire deploy`, by default `--source appsre` will be selected. By default app-sre team's internal GraphQL API URL is used. `bonfire` will query the GraphQL API and read the desired application's deploy configuration.
+When running `bonfire process`/`bonfire deploy`, by default the app-sre team's internal GraphQL API server is used. `bonfire` will query the GraphQL API and read the application's deploy configuration.
 
 *NOTE*: You need to be on the internal VPN in order to access the default GraphQL API URL.
 
-You can edit the local configuration file (see 'App config overrides' below) if you wish to override any app configurations to allow for "local tinkering". If you define an app under the `apps` key of the config, it will take precedence over that app's configuration that was fetched from app-interface.
+`bonfire` relies on a few key pieces of info to process app configs:
 
-### Using a local config
+1. The application name. This is typically the name of the listed in `app.yaml` in `app-interface`
+2. A 'target env' -- the name of the `app-interface` environment that bonfire looks at to determine the parameters to apply when processing app templates. An app's config will only be processed if it has a deploy target set up that is pointing to a namespace in this environment (default: "ephemeral")
+3. A 'ref env' -- the name of the `app-interface` environment that we want to use in order to figure out which git ref of the components to deploy and which `IMAGE_TAG` value to set. By default, none is set which causes bonfire to use the 'main'/'master' git branch for all components.
+4. Any template refs you wish to override (optional)
+5. Any image tags you wish to override (optional)
+6. Any parameters you wish to override (optional)
 
-To get up and running without contacting app-interface's `qontract-server` at all, you can utilize
-a local config file. `bonfire` ships with a [default config](bonfire/resources/default_config.yaml) that
-should be enough to get started for most internal Red Hat employees. An internal repository holds
-application configurations for the cloud.redhat.com platform that are valid for use in ephemeral environments.
+By default, if app components use `ClowdApp` resources in their templates, then `bonfire` will dynamically load dependencies (see "Dependency Processing" section below)
 
-By default, the configuration file will be stored in `~/.config/bonfire/config.yaml`. You can reset the config to default at any time using `bonfire config write-default`.
+## Using a local config
 
-### App config overrides
+`bonfire` ships with a [default config](bonfire/resources/default_config.yaml) that should be enough to get started for most internal Red Hat employees.
 
-You can edit your local config file to override any app configurations to allow for "local tinkering". If you define an app under the
-`apps` key of the config, it will take precedence over any app's configuration that was fetched/downloaded.
+By default, the configuration file will be stored in `~/.config/bonfire/config.yaml`.
 
-#### Deploy app template using changes you've made locally
+If you wish to override any app configurations, you can edit your local configuration file by typing `bonfire config edit`. If you define an app under the `apps` key of the config, it will take precedence over that app's configuration that was fetched from app-interface. Note that defining a local app configuration here will replace the configuration defined in app-interface for ALL components within that app.
 
-As an example, if you wanted to test out some changes you're making to an app but you have not yet pushed these changes to a git repo, the local config could look similar to:
+You can reset the config to default at any time using `bonfire config write-default`.
+
+## Local config examples
+
+### Deploying local repo changes
+
+If you wanted to test out some changes you're making to an app but you have not yet pushed these changes to a git repo, the local config could look similar to:
 
 ```
 apps:
@@ -82,13 +120,12 @@ apps:
 - Where **host** set `local` indicates to look for the repo in a local directory
 - Where **repo** indicates the path to your git repo folder
 - Where **path** specifies the relative path to your ClowdApp template file in your git repo
-- An `app` is similar to an application folder in app-interface. A `component` is similar to what app-interface would call a `resourceTemplate` within an app.
 
-By default, bonfire will run `git rev-parse` to determine what IMAGE_TAG to set when the template is deployed. However, you can use `--set-image-tag` or `--set-parameter` to override this.
+By default, `bonfire` will run `git rev-parse` to determine the current working commit hash in your repo folder, and this determines what IMAGE_TAG to set when the template is deployed. This means you would need to have a valid container image pushed for this commit hash. However, you can use `--set-image-tag` or `--set-parameter` to override the image you wish to use during the deployment.
 
-#### Deploy app template using changes you've made in a remote git branch
+### Deploying changes changes in a remote git branch
 
-As an example, if you wanted to deploy changes to your app that you were working on which have been pushed to a PR/branch, the local config could look similar to:
+If you wanted to deploy changes to your app that you were working on which have been pushed to a PR/branch, the local config could look similar to:
 
 ```
 apps:
@@ -97,102 +134,22 @@ apps:
     - name: service
       host: github
       repo: MyOrg/MyRepo
+      ref: my_branch
       path: /clowdapp.yaml
 ```
 
 - Where **host** set to `github` or `gitlab` indicates where the repo is hosted
 - Where **repo** indicates the `OrganizationName/RepoName`
 - Where **path** specifies the relative path to your ClowdApp template file in your git repo
-- An `app` is similar to an application folder in app-interface. A `component` is similar to what app-interface would call a `resourceTemplate` within an app.
+- Where **ref** specifies the branch or commit of the repo you want to deploy
 
-By default, bonfire will use the commit hash of `master` to determine what IMAGE_TAG to deploy.
-
-NOTE: For this particular use case, if your changes are already present in a git repo, and your app already has appropriate ephemeral deployment configs set up, then using the `--set-template-ref` and `--set-image-tag` flags in bonfire may be simpler than editing your app config.
-
-### Loading application configs
-
-`bonfire process` relies on a few key pieces of info to process app configs:
-1. The application name. This is typically the name of the listed in `app.yaml` in `app-interface`
-1. *(applies to `--source=appsre` only)* a 'target env' -- the name of the `app-interface` environment that you want to pull application configs for. An app's config will only be processed if it has a deploy target set up that points to a namespace mapped to this environment (default: "ephemeral")
-1. *(optional)* a 'ref env' -- the name of the `app-interface` environment that we want to use in order to set the applications `IMAGE_TAG` values and deploy template ref. This can be useful if you want to deploy applications using ephemeral template parameters, but you want to override the `IMAGE_TAG`/`ref` defined on all apps to use the values found in `prod` or `stage`.
-1. Any template refs you wish to override -- in other words, if you want to download a different git hash of an application component's template.
-1. Any image tags you wish to override -- in other words, if you want to use a different image tag for just a specific docker image.
-1. Any parameters you wish to override -- if you want to set a different template parameter for a specific app.
-
-By default, `bonfire` will dynamically load dependencies that all components of `app` relies on. This requires the `app` to be using the [Clowder](https://github.com/RedHatInsights/clowder) operator and to have the `dependencies` or `optionalDependencies` section of the ClowdApp set up.
-
-
-### Example usage in a smoke test
-
-The goal of a smoke test running against an `app` is to:
-* deploy the PR's code for `app`
-* deploy the production versions of `app`'s dependencies alongside it
-
-Below we'll show how `bonfire deploy` will enable this:
-
-Let's say that we are running a PR check against the `insights-puptoo` service. This service:
-* is a member of the `ingress` application.
-* has a kubernetes deploy manifest that resides in the same repo as the code
-* has its CI/CD `pr_check.sh` set up such that if a PR is opened, a docker image is built and pushed to `quay.io/myorg/insights-puptoo` with the tag `pr-<git hash>`. The PR opened against the app has commit hash `abc1234`
-
-If we intend to reserve a namespace and deploy the `ingress` application group into it, using the new template/image of the `insights-puptoo` PR, but using the production template/image for all other components, we could run:
-
-```bash
-APP_NAME=ingress
-COMPONENT_NAME=insights-puptoo
-GIT_COMMIT=pr-abc1234
-IMAGE=quay.io/myorg/insights-puptoo
-IMAGE_TAG=abc1234
-
-NAMESPACE=$(bonfire deploy $APP_NAME \
-    --ref-env insights-prod \
-    --set-template-ref $COMPONENT_NAME=$GIT_COMMIT \
-    --set-image-tag $IMAGE=$IMAGE_TAG)
-
-echo "My environment is deployed into $NAMESPACE"
-```
-
-This is functionally equivalent to:
-```bash
-NAMESPACE=$(bonfire namespace reserve)
-
-bonfire process $APP_NAME
-    --ref-env insights-prod
-    --set-template-ref $COMPONENT_NAME=$GIT_COMMIT
-    --set-image-tag $IMAGE=$IMAGE_TAG
-    --clowd-env env-$NAMESPACE
-
-bonfire namespace wait-on-resources $NAMESPACE
-
-echo "My environment is deployed into $NAMESPACE"
-```
-
-## Namespace management
-
-`bonfire` is also used to reserve, release, and reconcile ephemeral namespaces running on our test OpenShift clusters. It interacts with the
-[namespace reservation operator](https://github.com/RedHatInsights/ephemeral-namespace-operator) to reserve/release namespaces in a cluster
-that has the operator installed.
-
-When a tester is logged in using the proper account, namespace commands can be used such as:
-
-`bonfire namespace reserve` -- find an available namespace and reserve it. By default the TTL is 1 hr.
-
-`bonfire namespace release <namespace>` -- release a namespace reservation
-
-Use `bonfire namespace -h` to see a list of all available namespace commands.
+By default, bonfire will use the latest commit hash found at the specified git ref to determine what IMAGE_TAG pass on to the deployment templates.
 
 ### Interactions with Clowder
 
-* `bonfire` expects a Clowder `ClowdEnvironment` resource similar to [this template](bonfire/resources/ephemeral-cluster-clowdenvironment.yaml) to be created for a namespace before it can deploy into it. This `ClowdEnvironment` may have been created by the ephemeral namespace operator, or by a user manually running `bonfire deploy-env`
+* `bonfire` expects a Clowder `ClowdEnvironment` resource to be created for a namespace before it can deploy into it. This `ClowdEnvironment` is already created by the ephemeral namespace operator.
 
-* When `bonfire deploy` is executed for a namespace, it will attempt to find the ClowdEnvironment associated with that namespace and set the `ENV_NAME` parameter accordingly for all templates it processes. All templates that define a `ClowdApp` resource should set the `environment` mapping in their spec using an `${ENV_NAME}` parameter.
-
-* When `bonfire namespace wait-on-resources` is executed, it follows this logic:
-1. Wait for all resources owned by a 'ClowdEnvironment' to appear in the namespace
-2. Wait for all the deployments in the namespace to reach 'active' state.
-3. Wait for resources owned by a 'ClowdApp' to appear in the namespace
-4. Wait for all the deployments in the namespace to reach 'active' state (deployments we already waited on in step 2 are not waited on again)
-5. Wait for other resources such as ClowdJobInvocations, CyndiPipelines, XJoinPipelines, etc. to reach a 'ready' state.
+* When `bonfire deploy` is executed for a namespace, it will attempt to find the ClowdEnvironment associated with that namespace and set the `ENV_NAME` parameter accordingly for all templates it processes. All templates that define a `ClowdApp` resource should set the `environment` mapping in their spec using a parameter named `${ENV_NAME}`.
 
 ## Miscellaneous
 ### Running a local qontract-server
