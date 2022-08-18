@@ -1,6 +1,32 @@
-# bonfire
+# bonfire <!-- omit in toc -->
 
-A CLI tool used to deploy ephemeral environments for testing cloud.redhat.com applications
+A CLI tool used by Red Hat engineers to deploy console.redhat.com applications into kubernetes/OpenShift. This tool is mainly used for the purpose of creating ephemeral test environments.
+
+![Demo gif](demo.gif)
+
+# Table of Contents <!-- omit in toc -->
+
+- [About](#about)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+  - [Deploying](#deploying)
+  - [Namespace Management](#namespace-management)
+- [Examples for Common Use Cases](#examples-for-common-use-cases)
+- [Commonly Used CLI Options](#commonly-used-cli-options)
+  - [Deploying/Processing](#deployingprocessing)
+- [Interactions with Ephemeral Namespace Operator](#interactions-with-ephemeral-namespace-operator)
+- [Interactions with Clowder Operator](#interactions-with-clowder-operator)
+  - [ClowdEnvironments](#clowdenvironments)
+  - [Dependency Processing](#dependency-processing)
+- [Configuration Details](#configuration-details)
+  - [Using a local config](#using-a-local-config)
+  - [Local config examples](#local-config-examples)
+    - [Deploying local repo changes](#deploying-local-repo-changes)
+    - [Deploying changes changes in a remote git branch](#deploying-changes-changes-in-a-remote-git-branch)
+  - [Advanced](#advanced)
+    - [Running a local qontract-server](#running-a-local-qontract-server)
+
+# About
 
 `bonfire` interacts with a running instance of [qontract-server](https://github.com/app-sre/qontract-server) (the component that powers the [AppSRE team](https://github.com/app-sre/)'s internal `app-interface` graphql API) to obtain applications' OpenShift templates, process them, and deploy them. A local configuration file can be defined that allows you to override an application config if you wish.
 
@@ -9,6 +35,8 @@ It also interacts with the [ephemeral namespace operator](https://github.com/Red
 It has special functionality related to the [Clowder operator](https://github.com/RedHatInsights/clowder) and [Frontend operator](https://github.com/RedHatInsights/frontend-operator/) such as auto-deploying ClowdApp dependencies.
 
 A wide range of CLI options allow you to customize exactly what combination of components get deployed into a namespace.
+
+> NOTE: for information related to app-interface configurations, see the internal [ConsoleDot Docs](https://consoledot.pages.redhat.com/)
 
 # Installation
 
@@ -151,6 +179,8 @@ When bonfire processes templates, if it finds a ClowdApp, it will do the followi
   * `none`: `bonfire` will ignore the `optionalDependencies` on all ClowdApps that it encounters
 
 # Configuration Details 
+
+> NOTE: for information related to app-interface configurations, see the internal [ConsoleDot Docs](https://consoledot.pages.redhat.com/)
 
 When running `bonfire process`/`bonfire deploy`, by default the app-sre team's internal GraphQL API server is used. `bonfire` will query the GraphQL API and read the application's deploy configuration.
 
