@@ -68,9 +68,7 @@ pip install --upgrade 'crc-bonfire>=4.4.0'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
-# DONOTMERGE testing in pr_check against 
-# https://github.com/content-services/content-sources-backend/pull/82/files
-git clone --branch add-pr-latest-tag https://github.com/mshriver/bonfire.git $BONFIRE_ROOT
+git clone --branch master https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Do a docker login to ensure our later 'docker pull' calls have an auth file created
 source ${CICD_ROOT}/_common_container_logic.sh
