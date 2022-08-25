@@ -62,7 +62,7 @@ function docker_build {
 
     docker push "${IMAGE}:${IMAGE_TAG}"
     if  [ ! -z "$IMAGE_TAG_LATEST" ]; then
-        podman push "${IMAGE}:${IMAGE_TAG_LATEST}"
+        docker push "${IMAGE}:${IMAGE_TAG_LATEST}"
     fi
     set +x
 }
