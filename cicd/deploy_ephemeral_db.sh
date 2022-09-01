@@ -21,8 +21,6 @@ bonfire process \
     --set-template-ref ${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag $IMAGE=$IMAGE_TAG \
     --namespace $NAMESPACE \
-    # comment out the below because it breaks apps that use a shared DB
-    #--remove-dependencies all \
     $COMPONENTS_ARG \
     $COMPONENTS_RESOURCES_ARG | oc_wrapper apply -f - -n $NAMESPACE
 
