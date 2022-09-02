@@ -21,7 +21,7 @@ bonfire process \
     --set-template-ref ${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag $IMAGE=$IMAGE_TAG \
     --namespace $NAMESPACE \
-    --remove-dependencies all \
+    --optional-deps-method none \
     $COMPONENTS_ARG \
     $COMPONENTS_RESOURCES_ARG | oc_wrapper apply -f - -n $NAMESPACE
 
