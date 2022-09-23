@@ -31,6 +31,7 @@ from bonfire.openshift import (
     wait_for_db_resources,
     wait_on_cji,
     whoami,
+    get_console_url,
 )
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -1069,7 +1070,10 @@ def _cmd_config_deploy(
         log.exception("hit unexpected error!")
         _err_handler(err)
     else:
-        log.info("successfully deployed to namespace '%s'", ns)
+        url = get_console_url()
+        if url:
+            ns_url = f"{url}/k8s/cluster/projects/{ns}"
+        log.info("successfully deployed to '%s'", ns_url)
         click.echo(ns)
 
 
