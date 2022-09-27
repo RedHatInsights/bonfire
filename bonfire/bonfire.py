@@ -1070,10 +1070,11 @@ def _cmd_config_deploy(
         log.exception("hit unexpected error!")
         _err_handler(err)
     else:
+        log.info("successfully deployed to namespace %s", ns)
         url = get_console_url()
         if url:
             ns_url = f"{url}/k8s/cluster/projects/{ns}"
-        log.info("successfully deployed to '%s'", ns_url)
+            log.info("namespace url: %s", ns_url)
         click.echo(ns)
 
 
