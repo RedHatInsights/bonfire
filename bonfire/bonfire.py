@@ -19,7 +19,7 @@ from bonfire.namespaces import (
     get_namespaces,
     release_reservation,
     reserve_namespace,
-    describe_namespace
+    describe_namespace,
 )
 from bonfire.openshift import (
     check_for_existing_reservation,

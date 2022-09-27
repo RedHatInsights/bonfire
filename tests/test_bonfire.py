@@ -268,7 +268,7 @@ def test_pool_list_command(caplog):
     assert output == conf.NAMESPACE_POOLS
 
 
-default_kc = {'username': 'jdoe', 'password': 'password'}
+default_kc = {"username": "jdoe", "password": "password"}
 eph_test_route = "env-ephemeral-blah-howdy.apps.c-rh-c-eph.8p0c.p1.openshiftapps.com"
 
 
@@ -281,9 +281,9 @@ def test_describe_ephemeral_ns(mocker):
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-blah"])
 
-    assert("jdoe | password" in result.output)
-    assert("env-ephemeral-blah-howdy" in result.output)
-    assert("yes.redhat.com" in result.output)
+    assert "jdoe | password" in result.output
+    assert "env-ephemeral-blah-howdy" in result.output
+    assert "yes.redhat.com" in result.output
 
 
 def test_describe_empty_ns(mocker):
@@ -294,9 +294,9 @@ def test_describe_empty_ns(mocker):
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe"])
 
-    assert("Error: Missing argument 'NAMESPACE'." in result.output)
-    assert("env-ephemeral-blah-howdy" not in result.output)
-    assert("yes.redhat.com" not in result.output)
+    assert "Error: Missing argument 'NAMESPACE'." in result.output
+    assert "env-ephemeral-blah-howdy" not in result.output
+    assert "yes.redhat.com" not in result.output
 
 
 def test_describe_default_ns(mocker):

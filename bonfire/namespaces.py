@@ -345,7 +345,7 @@ def extend_namespace(namespace, duration, local=True):
 def describe_namespace(project_name: str):
     output = ""
 
-    ns_data = get_json('namespace', project_name)
+    ns_data = get_json("namespace", project_name)
     if not ns_data:
         raise FatalError(f"namespace '{project_name}' not found")
     ns = Namespace(namespace_data=ns_data)
@@ -370,12 +370,12 @@ def describe_namespace(project_name: str):
 
 def get_fe_hostname(routes):
     # Hostnames are all the same, so return the first one
-    return routes['items'][0]['spec']['host']
+    return routes["items"][0]["spec"]["host"]
 
 
 def get_default_keycloak_creds(keycloak_secret):
-    default_user = keycloak_secret['data']['defaultUsername']
-    default_pass = keycloak_secret['data']['defaultPassword']
+    default_user = keycloak_secret["data"]["defaultUsername"]
+    default_pass = keycloak_secret["data"]["defaultPassword"]
     plain_text_user = decode_b64(default_user)
     plain_text_pass = decode_b64(default_pass)
     return plain_text_user, plain_text_pass
@@ -384,8 +384,8 @@ def get_default_keycloak_creds(keycloak_secret):
 def get_keycloak_creds(keycloak_secret):
     username, password = get_default_keycloak_creds(keycloak_secret)
     kc_creds = {}
-    kc_creds['username'] = username
-    kc_creds['password'] = password
+    kc_creds["username"] = username
+    kc_creds["password"] = password
     return kc_creds
 
 
