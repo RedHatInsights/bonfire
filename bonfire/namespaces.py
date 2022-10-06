@@ -84,17 +84,6 @@ class Namespace:
         return self.annotations.get("reserved", "false") == "true"
 
     @property
-    def operator_ns(self):
-        return self.labels.get("operator-ns", "false") == "true"
-
-    @property
-    def is_reservable(self):
-        """
-        Check whether a namespace was created by the namespace operator.
-        """
-        return self.operator_ns
-
-    @property
     def pool_type(self):
         return self.labels.get("pool", "false")
 
@@ -168,7 +157,7 @@ class Namespace:
 
     def __str__(self):
         return (
-            f"ns {self.name} (reservable: {self.is_reservable}, owned_by_me: {self.owned_by_me}, "
+            f"ns {self.name} (reservable: {self.reserved}, owned_by_me: {self.owned_by_me}, "
             f"available: {self.available})"
         )
 
@@ -211,7 +200,7 @@ def get_namespaces(available=False, mine=False):
     mine (bool) -- return only namespaces owned by current user
     """
     log.debug("get_namespaces(available=%s, mine=%s)", available, mine)
-    all_namespaces = get_all_namespaces(label="operator-ns")
+    all_namespaces = get_all_namespaces(label="pool")
     all_clowdapps = get_json("clowdapp", "--all-namespaces").get("items", [])
     all_res = get_all_reservations()
 
@@ -239,7 +228,7 @@ def get_namespaces(available=False, mine=False):
     ephemeral_namespaces = []
     for ns_kwargs in all_ns_kwargs:
         ns = Namespace(**ns_kwargs)
-        if not ns.is_reservable:
+        if ns.reserved:
             continue
         get_all = not mine and not available
         if get_all or (mine and ns.owned_by_me) or (available and ns.available):
@@ -349,7 +338,7 @@ def describe_namespace(project_name: str):
     if not ns_data:
         raise FatalError(f"namespace '{project_name}' not found")
     ns = Namespace(namespace_data=ns_data)
-    if not ns.operator_ns:
+    if not ns.pool_type:
         raise FatalError(f"namespace '{project_name}' was not reserved with namespace operator")
 
     routes = get_json("route", namespace=project_name)
