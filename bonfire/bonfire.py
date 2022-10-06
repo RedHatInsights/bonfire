@@ -19,7 +19,7 @@ from bonfire.namespaces import (
     get_namespaces,
     release_reservation,
     reserve_namespace,
-    describe_namespace
+    describe_namespace,
 )
 from bonfire.openshift import (
     check_for_existing_reservation,
@@ -33,6 +33,7 @@ from bonfire.openshift import (
     wait_on_cji,
     wait_on_cypress,
     whoami,
+    get_console_url,
 )
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji, process_cypress
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -1119,7 +1120,11 @@ def _cmd_config_deploy(
         log.exception("hit unexpected error!")
         _err_handler(err)
     else:
-        log.info("successfully deployed to namespace '%s'", ns)
+        log.info("successfully deployed to namespace %s", ns)
+        url = get_console_url()
+        if url:
+            ns_url = f"{url}/k8s/cluster/projects/{ns}"
+            log.info("namespace url: %s", ns_url)
         click.echo(ns)
 
 

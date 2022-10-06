@@ -14,6 +14,9 @@ import bonfire.config as conf
 log = logging.getLogger(__name__)
 
 
+CONSOLEDOT_PARENT_APPS = ("insights", "image-builder")
+
+
 ENVS_QUERY = gql(
     """
     {
@@ -269,7 +272,7 @@ def get_apps_for_env(env_name):
     defined_multiple = set()
 
     for app in all_apps:
-        if app["parentApp"] and app["parentApp"].get("name") != "insights":
+        if app["parentApp"] and app["parentApp"].get("name") not in CONSOLEDOT_PARENT_APPS:
             ignored_apps.add(app["name"])
             continue
         saas_files = app.get("saasFiles", [])
@@ -290,7 +293,8 @@ def get_apps_for_env(env_name):
 
     if ignored_apps:
         log.debug(
-            "ignored apps in env '%s' that do not have parentApp 'insights': %s",
+            "ignored apps in env '%s' that do not have parentApp of %s: %s",
+            CONSOLEDOT_PARENT_APPS,
             env_name,
             ", ".join(ignored_apps),
         )
