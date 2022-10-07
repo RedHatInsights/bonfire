@@ -679,15 +679,15 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local):
 
         if get_namespace_quantity(pool):
             log.info(f"""Namespace max reached for '{pool}' pool
-            
+
                 Max number of namespaces for '{pool}' pool have been reserved. We apologize for
-                the inconvenience. 
-                
-                If you have any questions contact the DevProd team at the slack 
+                the inconvenience.
+
+                If you have any questions contact the DevProd team at the slack
                 channel #team-consoledot-devprod.
             """)
             exit()
-    
+
     log.info("Attempting to reserve a namespace...")
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
