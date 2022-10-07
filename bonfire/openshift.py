@@ -329,6 +329,7 @@ def get_reservation(name=None, namespace=None, requester=None):
 
     return None
 
+
 def get_pool_size_limit(pool):
     try:
         output = oc(["get", "NamespacePool", pool], o="json", _silent=True)
@@ -349,10 +350,12 @@ def get_pool_size_limit(pool):
 
     return pool_size
 
+
 def get_namespace_quantity(pool):
     """Get quantity of namespaces from the specified pool"""
     try:
-        namespace_count = len(oc(["get", "Namespaces", "-l", f'pool={pool}'], o="json", _silent=True))
+        command = ["get", "Namespaces", "-l", f'pool={pool}']
+        namespace_count = len(oc(command, o="json", _silent=True))
     except ErrorReturnCode as err:
         if "NotFound" in err.stderr:
             return f'Could not retrieve number of namespaces in "{pool}" pool'
