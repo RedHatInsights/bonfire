@@ -1,6 +1,7 @@
 import functools
 import logging
 import time
+import json
 
 from ocviapy import (
     Resource,
@@ -327,3 +328,34 @@ def get_reservation(name=None, namespace=None, requester=None):
             return None
 
     return None
+
+def get_pool_size_limit(pool):
+    try:
+        output = oc(["get", "NamespacePool", pool], o="json", _silent=True)
+    except ErrorReturnCode as err:
+        if "NotFound" in err.stderr:
+            return {}
+        raise
+
+    try:
+        parsed_json = json.loads(str(output))
+    except ValueError:
+        return {}
+
+    try:
+        pool_size = parsed_json["spec"]["sizeLimit"]
+    except KeyError:
+        return None
+
+    return pool_size
+
+def get_namespace_quantity(pool):
+    """Get quantity of namespaces from the specified pool"""
+    try:
+        namespace_count = len(oc(["get", "Namespaces", "-l", f'pool={pool}'], o="json", _silent=True))
+    except ErrorReturnCode as err:
+        if "NotFound" in err.stderr:
+            return f'Could not retrieve number of namespaces in "{pool}" pool'
+        raise
+
+    return namespace_count
