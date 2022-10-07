@@ -351,14 +351,17 @@ def get_pool_size_limit(pool):
     return pool_size
 
 
-def get_namespace_quantity(pool):
+def get_reserved_namespace_quantity(pool):
     """Get quantity of namespaces from the specified pool"""
     try:
         command = ["get", "Namespaces", "-l", f'pool={pool}']
-        namespace_count = len(oc(command, o="json", _silent=True))
+        namespaces = oc(command, _silent=True)
     except ErrorReturnCode as err:
         if "NotFound" in err.stderr:
             return f'Could not retrieve number of namespaces in "{pool}" pool'
         raise
+    
+    for namespace_count, line in enumerate(namespaces):
+        pass
 
     return namespace_count

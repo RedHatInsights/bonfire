@@ -34,7 +34,7 @@ from bonfire.openshift import (
     whoami,
     get_console_url,
     get_pool_size_limit,
-    get_namespace_quantity,
+    get_reserved_namespace_quantity,
 )
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -683,7 +683,9 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, forc
     if pool_size_limit := get_pool_size_limit(pool):
         log.info(f"Pool size limit is defined as {pool_size_limit} in '{pool}' pool")
 
-        if get_namespace_quantity(pool):
+        print(get_reserved_namespace_quantity(pool))
+        print(get_pool_size_limit(pool))
+        if get_reserved_namespace_quantity(pool) == get_pool_size_limit(pool):
             log.info(f"""Namespace max reached for '{pool}' pool
 
                 Max number of namespaces for '{pool}' pool have been reserved. We apologize for
