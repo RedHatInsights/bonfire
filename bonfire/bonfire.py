@@ -683,8 +683,7 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local):
                 Max number of namespaces for '{pool}' pool have been reserved. We apologize for
                 the inconvenience.
 
-                If you have any questions contact the DevProd team at the slack
-                channel #team-consoledot-devprod.
+                If you have any questions contact the DevProd team on Slack for more details.
             """)
             exit()
 
