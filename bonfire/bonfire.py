@@ -33,6 +33,8 @@ from bonfire.openshift import (
     wait_on_cji,
     whoami,
     get_console_url,
+    get_pool_size_limit,
+    get_namespace_quantity,
 )
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -51,6 +53,7 @@ log = logging.getLogger(__name__)
 APP_SRE_SRC = "appsre"
 LOCAL_SRC = "local"
 NO_RESERVATION_SYS = "this cluster does not use a namespace reservation system"
+NAMESPACES_UNAVAILABLE = "The pool specified has currently hit its limit for namespace reservations"
 
 _local_option = click.option(
     "--local",
@@ -670,6 +673,21 @@ def _list_namespaces(available, mine, output):
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local):
     """Reserve an ephemeral namespace"""
+    log.info("Checking for available namespaces to reserve.")
+    if pool_size_limit := get_pool_size_limit(pool):
+        log.info(f"Pool size limit is defined as {pool_size_limit} in '{pool}' pool")
+
+        if get_namespace_quantity(pool):
+            log.info(f"""Namespace max reached for '{pool}' pool
+            
+                Max number of namespaces for '{pool}' pool have been reserved. We apologize for
+                the inconvenience. 
+                
+                If you have any questions contact the DevProd team at the slack 
+                channel #team-consoledot-devprod.
+            """)
+            exit()
+    
     log.info("Attempting to reserve a namespace...")
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
