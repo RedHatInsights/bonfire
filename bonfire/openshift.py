@@ -355,7 +355,7 @@ def get_reserved_namespace_quantity(pool):
     """Get quantity of namespaces from the specified pool"""
     try:
         command = ['get', 'namespace', '-l', f'pool={pool}', '-o',
-                'jsonpath="{.items[?(@.metadata.annotations.reserved=="true")].metadata.name}"']
+                   'jsonpath="{.items[?(@.metadata.annotations.reserved=="true")].metadata.name}"']
 
         namespaces = oc(command, _silent=True)
     except ErrorReturnCode as err:
