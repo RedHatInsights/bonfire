@@ -354,14 +354,13 @@ def get_pool_size_limit(pool):
 def get_reserved_namespace_quantity(pool):
     """Get quantity of namespaces from the specified pool"""
     try:
-        command = ["get", "Namespaces", "-l", f'pool={pool}']
+        command = ['get', 'namespace', '-l', f'pool={pool}', '-o', 'jsonpath="{.items[?(@.metadata.annotations.reserved=="true")].metadata.name}"']
         namespaces = oc(command, _silent=True)
     except ErrorReturnCode as err:
         if "NotFound" in err.stderr:
             return f'Could not retrieve number of namespaces in "{pool}" pool'
         raise
-    
-    for namespace_count, line in enumerate(namespaces):
-        pass
 
-    return namespace_count
+    reservedNamespaceNames = "{}".format(namespaces).split()
+
+    return len(reservedNamespaceNames)
