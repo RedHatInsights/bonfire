@@ -683,8 +683,6 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, forc
     if pool_size_limit := get_pool_size_limit(pool):
         log.info(f"Pool size limit is defined as {pool_size_limit} in '{pool}' pool")
 
-        print(get_reserved_namespace_quantity(pool))
-        print(get_pool_size_limit(pool))
         if get_reserved_namespace_quantity(pool) == get_pool_size_limit(pool):
             log.info(f"""Namespace max reached for '{pool}' pool
 
