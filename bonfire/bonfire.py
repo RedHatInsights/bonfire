@@ -219,6 +219,12 @@ _ns_reserve_options = [
         show_default=True,
         help="Specifies the pool type name",
     ),
+    click.option(
+        "-f", "--force",
+        is_flag=True,
+        default=False,
+        help="Don't prompt if reservations exist for user",
+    ),
     _local_option,
 ]
 
@@ -668,7 +674,7 @@ def _list_namespaces(available, mine, output):
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("namespace reserve")
-def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local):
+def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
     log.info("Attempting to reserve a namespace...")
     if not has_ns_operator():
@@ -677,7 +683,7 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local):
     if requester is None:
         requester = _get_requester()
 
-    if check_for_existing_reservation(requester):
+    if not force and check_for_existing_reservation(requester):
         _warn_of_existing(requester)
 
     ns = reserve_namespace(name, requester, duration, pool, timeout, local)
@@ -902,7 +908,7 @@ def _cmd_process(
     print(json.dumps(processed_templates, indent=2))
 
 
-def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, local):
+def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, local, force):
     reserved_new_ns = False
 
     if not has_ns_operator():
@@ -934,7 +940,7 @@ def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, 
         else:
             log.debug("checking if requester already has another namespace reserved...")
             requester = requester if requester else _get_requester()
-            if check_for_existing_reservation(requester):
+            if not force and check_for_existing_reservation(requester):
                 _warn_of_existing(requester)
             ns = reserve_namespace(name, requester, duration, pool, timeout, local)
             reserved_new_ns = True
@@ -999,12 +1005,15 @@ def _cmd_config_deploy(
     local,
     frontends,
     pool,
+    force,
 ):
     """Process app templates and deploy them to a cluster"""
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    ns, reserved_new_ns = _get_namespace(namespace, name, requester, duration, pool, timeout, local)
+    ns, reserved_new_ns = _get_namespace(
+        namespace, name, requester, duration, pool, timeout, local, force
+    )
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -1129,12 +1138,13 @@ def _cmd_deploy_clowdenv(
     duration,
     local,
     pool,
+    force,
 ):
     """Process ClowdEnv template and deploy to a cluster"""
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local)
+    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local, force)
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -1223,12 +1233,13 @@ def _cmd_deploy_iqe_cji(
     local,
     selenium,
     pool,
+    force,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local)
+    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local, force)
 
     cji_config = process_iqe_cji(
         clowd_app_name,
