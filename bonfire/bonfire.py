@@ -684,14 +684,8 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, forc
         log.info(f"Pool size limit is defined as {pool_size_limit} in '{pool}' pool")
 
         if get_reserved_namespace_quantity(pool) == get_pool_size_limit(pool):
-            log.info(f"""Namespace max reached for '{pool}' pool
-
-                Max number of namespaces for '{pool}' pool have been reserved. We apologize for
-                the inconvenience.
-
-                If you have any questions contact the DevProd team on Slack for more details.
-            """)
-            exit()
+            _error(f"maximum number of namespaces for pool `{pool}` (limit: {size_limit})
+                     have been reserved")
 
     log.info("Attempting to reserve a namespace...")
     if not has_ns_operator():
