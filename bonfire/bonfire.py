@@ -683,8 +683,7 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, forc
 
     if pool_size_limit := get_pool_size_limit(pool):
         log.info(f"Pool size limit is defined as {pool_size_limit} in '{pool}' pool")
-
-        if get_reserved_namespace_quantity(pool) == pool_size_limit:
+        if pool_size_limit > 0 and get_reserved_namespace_quantity(pool) >= pool_size_limit:
             _error(f"maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
                    "have been reserved")
 
