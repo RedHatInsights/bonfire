@@ -331,24 +331,9 @@ def get_reservation(name=None, namespace=None, requester=None):
 
 
 def get_pool_size_limit(pool):
-    try:
-        output = oc(["get", "NamespacePool", pool], o="json", _silent=True)
-    except ErrorReturnCode as err:
-        if "NotFound" in err.stderr:
-            return {}
-        raise
-
-    try:
-        parsed_json = json.loads(str(output))
-    except ValueError:
-        return {}
-
-    try:
-        pool_size = parsed_json["spec"]["sizeLimit"]
-    except KeyError:
-        return None
-
-    return pool_size
+    pool_data = get_json("namespacepool", pool)
+    
+    return int(pool_data["spec"].get("sizeLimit", 0)) if pool_data else 0
 
 
 def get_reserved_namespace_quantity(pool):
