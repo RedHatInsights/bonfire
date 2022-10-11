@@ -688,7 +688,7 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, forc
 
         if reserved_namespace_count == pool_size_limit:
             _error(f"maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
-                  + "have been reserved")
+                    "have been reserved")
 
     log.info("Attempting to reserve a namespace...")
     if not has_ns_operator():

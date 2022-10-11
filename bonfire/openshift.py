@@ -13,6 +13,7 @@ from ocviapy import (
     oc,
     wait_for_ready_threaded,
     on_k8s,
+    get_all_namespaces
 )
 from sh import ErrorReturnCode
 from wait_for import TimedOutError, wait_for
