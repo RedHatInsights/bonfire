@@ -468,16 +468,13 @@ class TemplateProcessor:
 
         template = yaml.safe_load(template_content)
 
-        params = {
-            "IMAGE_TAG": commit[:7],
-            "ENV_NAME": self.clowd_env,
-        }
-
-        params.update(component.get("parameters", {}))
-
+        # fetch component parameters
+        params = component.get("parameters", {})
+        # set the image tag and clowdenv name
+        params["IMAGE_TAG"] = commit[:7]
+        params["ENV_NAME"] = self.clowd_env
         # override any specific parameters on this component if requested
         self._sub_params(component_name, params)
-
         log.debug("parameters for component '%s': %s", component_name, params)
 
         new_items = _process_template(template, params, self.local)["items"]
