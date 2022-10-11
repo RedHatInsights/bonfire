@@ -680,11 +680,14 @@ def _list_namespaces(available, mine, output):
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
     log.info("Checking for available namespaces to reserve.")
+    pool_size_limit = get_pool_size_limit(pool)
+    reserved_namespace_count = get_reserved_namespace_quantity(pool)
+
     if pool_size_limit := get_pool_size_limit(pool):
         log.info(f"Pool size limit is defined as {pool_size_limit} in '{pool}' pool")
 
-        if get_reserved_namespace_quantity(pool) == get_pool_size_limit(pool):
-            _error(f"maximum number of namespaces for pool `{pool}` (limit: {size_limit})"
+        if reserved_namespace_count == pool_size_limit:
+            _error(f"maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
                   + "have been reserved")
 
     log.info("Attempting to reserve a namespace...")
