@@ -339,7 +339,7 @@ def get_pool_size_limit(pool):
 def get_reserved_namespace_quantity(pool):
     label = f"pool={pool}"
     pool_namespaces = get_all_namespaces(label=label)
-    reserved_namespaces = [ns for ns in pool_namespaces 
+    reserved_namespaces = [ns for ns in pool_namespaces
                            if ns["metadata"].get("annotations", {}).get("reserved") == "true"]
-   
+
     return len(reserved_namespaces)
