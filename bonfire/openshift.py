@@ -2,7 +2,6 @@ import functools
 import logging
 import time
 
-
 from ocviapy import (
     Resource,
     ResourceWaiter,
