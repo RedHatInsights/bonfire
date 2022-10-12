@@ -470,10 +470,15 @@ class TemplateProcessor:
 
         # fetch component parameters
         params = component.get("parameters", {})
-        # set the image tag and clowdenv name
-        params["IMAGE_TAG"] = commit[:7]
+
+        # set IMAGE_TAG on this component only if it is currently unset
+        if "IMAGE_TAG" not in params:
+            params["IMAGE_TAG"] = commit[:7]
+
+        # always override ENV_NAME
         params["ENV_NAME"] = self.clowd_env
-        # override any specific parameters on this component if requested
+
+        # override other specific parameters on this component if requested by user at runtime
         self._sub_params(component_name, params)
         log.debug("parameters for component '%s': %s", component_name, params)
 
