@@ -222,7 +222,8 @@ _ns_reserve_options = [
         help="Specifies the pool type name",
     ),
     click.option(
-        "-f", "--force",
+        "-f",
+        "--force",
         is_flag=True,
         default=False,
         help="Don't prompt if reservations exist for user",

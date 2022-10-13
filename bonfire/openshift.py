@@ -12,7 +12,7 @@ from ocviapy import (
     oc,
     wait_for_ready_threaded,
     on_k8s,
-    get_all_namespaces
+    get_all_namespaces,
 )
 from sh import ErrorReturnCode
 from wait_for import TimedOutError, wait_for
@@ -339,7 +339,10 @@ def get_pool_size_limit(pool):
 def get_reserved_namespace_quantity(pool):
     label = f"pool={pool}"
     pool_namespaces = get_all_namespaces(label=label)
-    reserved_namespaces = [ns for ns in pool_namespaces
-                           if ns["metadata"].get("annotations", {}).get("reserved") == "true"]
+    reserved_namespaces = [
+        ns
+        for ns in pool_namespaces
+        if ns["metadata"].get("annotations", {}).get("reserved") == "true"
+    ]
 
     return len(reserved_namespaces)
