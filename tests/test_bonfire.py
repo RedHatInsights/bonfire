@@ -34,7 +34,7 @@ def reservation_list():
 def test_ns_reserve_flag_name(mocker, caplog, name: str):
     caplog.set_level(100000)
 
-    mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=None)
+    mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
@@ -44,7 +44,8 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
     runner = CliRunner()
-    runner.invoke(bonfire.namespace, ["reserve", "--name", name])
+    result = runner.invoke(bonfire.namespace, ["reserve", "--name", name])
+    print(result.output)
 
     mock_process_reservation.assert_called_once_with(name, "user-3", "1h", "default", local=True)
 
@@ -59,7 +60,7 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
 def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     caplog.set_level(100000)
 
-    mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=None)
+    mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value=requester)
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
@@ -69,7 +70,8 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
     runner = CliRunner()
-    runner.invoke(bonfire.namespace, ["reserve", "--requester", requester])
+    result = runner.invoke(bonfire.namespace, ["reserve", "--requester", requester])
+    print(result.output)
 
     mock_process_reservation.assert_called_once_with(None, requester, "1h", "default", local=True)
 
@@ -85,7 +87,7 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
 def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     caplog.set_level(100000)
 
-    mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=None)
+    mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
@@ -95,7 +97,8 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
     runner = CliRunner()
-    runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
+    result = runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
+    print(result.output)
 
     if duration:
         mock_process_reservation.assert_called_once_with(
@@ -120,6 +123,7 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list"])
+    print(result.output)
 
     actual = " ".join(result.output.split())
 
@@ -166,6 +170,7 @@ def test_ns_list_option_mine(mocker, caplog, namespace_list: list, reservation_l
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--mine"])
+    print(result.output)
 
     actual = " ".join(result.output.split())
 
@@ -194,6 +199,7 @@ def test_ns_list_flag_output(
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["list", "--output", "json"])
+    print(result.output)
 
     actual_ns_1 = json.loads(result.output).get("ns-1")
     actual_ns_2 = json.loads(result.output).get("ns-2")
@@ -245,7 +251,7 @@ def test_ns_list_flag_output(
 def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, timeout: int):
     caplog.set_level(100000)
 
-    mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=None)
+    mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.whoami", return_value=user)
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
@@ -256,7 +262,8 @@ def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, time
     mock_wait_on_res = mocker.patch("bonfire.namespaces.wait_on_reservation")
 
     runner = CliRunner()
-    runner.invoke(bonfire.namespace, ["reserve", "--timeout", timeout])
+    result = runner.invoke(bonfire.namespace, ["reserve", "--timeout", timeout])
+    print(result.output)
 
     mock_wait_on_res.assert_called_once_with(ANY, timeout)
 
@@ -266,6 +273,7 @@ def test_pool_list_command(caplog):
 
     runner = CliRunner()
     result = runner.invoke(bonfire.pool, ["list"])
+    print(result.output)
 
     output = [r for r in result.output.split("\n") if r != ""]
 
@@ -284,6 +292,7 @@ def test_describe_ephemeral_ns(mocker):
     mocker.patch("bonfire.namespaces.Namespace")
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-blah"])
+    print(result.output)
 
     assert "jdoe | password" in result.output
     assert "env-ephemeral-blah-howdy" in result.output
@@ -297,6 +306,7 @@ def test_describe_empty_ns(mocker):
     mocker.patch("bonfire.namespaces.get_json")
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe"])
+    print(result.output)
 
     assert "Error: Missing argument 'NAMESPACE'." in result.output
     assert "env-ephemeral-blah-howdy" not in result.output
@@ -310,7 +320,8 @@ def test_describe_default_ns(mocker):
     mocker.patch("bonfire.namespaces.get_json")
     runner = CliRunner()
     try:
-        runner.invoke(bonfire.namespace, ["describe", "default"])
+        result = runner.invoke(bonfire.namespace, ["describe", "default"])
+        print(result.output)
     except FatalError:
         assert True
 
@@ -319,6 +330,7 @@ def test_describe_wrong_ns(mocker):
     mocker.patch("bonfire.namespaces.get_json", return_value=None)
     runner = CliRunner()
     try:
-        runner.invoke(bonfire.namespace, ["describe", "ephemeral-memes"])
+        result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-memes"])
+        print(result.output)
     except FatalError:
         assert True

@@ -332,8 +332,8 @@ def get_reservation(name=None, namespace=None, requester=None):
 
 def get_pool_size_limit(pool):
     pool_data = get_json("namespacepool", name=pool)
-
-    return int(pool_data["spec"].get("sizeLimit", 0)) if pool_data else 0
+    size_limit = pool_data["spec"].get("sizeLimit") if pool_data else 0
+    return int(size_limit) if size_limit else 0
 
 
 def get_reserved_namespace_quantity(pool):
