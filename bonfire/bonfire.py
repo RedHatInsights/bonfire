@@ -53,7 +53,6 @@ log = logging.getLogger(__name__)
 APP_SRE_SRC = "appsre"
 LOCAL_SRC = "local"
 NO_RESERVATION_SYS = "this cluster does not use a namespace reservation system"
-NAMESPACES_UNAVAILABLE = "The pool specified has currently hit its limit for namespace reservations"
 
 _local_option = click.option(
     "--local",
