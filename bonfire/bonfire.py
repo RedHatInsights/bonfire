@@ -678,27 +678,8 @@ def _list_namespaces(available, mine, output):
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
-    log.info("Checking for available namespaces to reserve.")
-
-    if pool_size_limit := get_pool_size_limit(pool):
-        log.info(f"Pool size limit is defined as {pool_size_limit} in '{pool}' pool")
-        if pool_size_limit > 0 and get_reserved_namespace_quantity(pool) >= pool_size_limit:
-            _error(f"maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
-                   " have been reserved")
-
-    log.info("Attempting to reserve a namespace...")
-    if not has_ns_operator():
-        _error(NO_RESERVATION_SYS)
-
-    if requester is None:
-        requester = _get_requester()
-
-    if not force and check_for_existing_reservation(requester):
-        _warn_of_existing(requester)
-
-    ns = reserve_namespace(name, requester, duration, pool, timeout, local)
-
-    click.echo(ns.name)
+    ns_name, _ = _get_namespace(None, name, requester, duration, pool, timeout, local, force)
+    click.echo(ns_name)
 
 
 @namespace.command("release")
@@ -952,6 +933,17 @@ def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, 
             requester = requester if requester else _get_requester()
             if not force and check_for_existing_reservation(requester):
                 _warn_of_existing(requester)
+
+            log.info("checking for available namespaces to reserve...")
+
+            pool_size_limit = get_pool_size_limit(pool)
+            log.info("pool size limit is defined as %d in '%s' pool", pool_size_limit, pool)
+            if pool_size_limit > 0 and get_reserved_namespace_quantity(pool) >= pool_size_limit:
+                _error(
+                    f"maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
+                    " have been reserved"
+                )
+
             ns = reserve_namespace(name, requester, duration, pool, timeout, local)
             reserved_new_ns = True
 
