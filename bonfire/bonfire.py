@@ -941,7 +941,7 @@ def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, 
             log.info("pool size limit is defined as %d in '%s' pool", pool_size_limit, pool)
             if pool_size_limit > 0 and get_reserved_namespace_quantity(pool) >= pool_size_limit:
                 _error(
-                    f"maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
+                    f"Maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
                     " have been reserved"
                 )
 
