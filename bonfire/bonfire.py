@@ -33,6 +33,8 @@ from bonfire.openshift import (
     wait_on_cji,
     whoami,
     get_console_url,
+    get_pool_size_limit,
+    get_reserved_namespace_quantity,
 )
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -220,7 +222,8 @@ _ns_reserve_options = [
         help="Specifies the pool type name",
     ),
     click.option(
-        "-f", "--force",
+        "-f",
+        "--force",
         is_flag=True,
         default=False,
         help="Don't prompt if reservations exist for user",
@@ -676,19 +679,8 @@ def _list_namespaces(available, mine, output):
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
-    log.info("Attempting to reserve a namespace...")
-    if not has_ns_operator():
-        _error(NO_RESERVATION_SYS)
-
-    if requester is None:
-        requester = _get_requester()
-
-    if not force and check_for_existing_reservation(requester):
-        _warn_of_existing(requester)
-
-    ns = reserve_namespace(name, requester, duration, pool, timeout, local)
-
-    click.echo(ns.name)
+    ns_name, _ = _get_namespace(None, name, requester, duration, pool, timeout, local, force)
+    click.echo(ns_name)
 
 
 @namespace.command("release")
@@ -942,6 +934,17 @@ def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, 
             requester = requester if requester else _get_requester()
             if not force and check_for_existing_reservation(requester):
                 _warn_of_existing(requester)
+
+            log.info("checking for available namespaces to reserve...")
+
+            pool_size_limit = get_pool_size_limit(pool)
+            log.info("pool size limit is defined as %d in '%s' pool", pool_size_limit, pool)
+            if pool_size_limit > 0 and get_reserved_namespace_quantity(pool) >= pool_size_limit:
+                _error(
+                    f"Maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
+                    " have been reserved"
+                )
+
             ns = reserve_namespace(name, requester, duration, pool, timeout, local)
             reserved_new_ns = True
 

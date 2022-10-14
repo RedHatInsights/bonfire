@@ -12,6 +12,7 @@ from ocviapy import (
     oc,
     wait_for_ready_threaded,
     on_k8s,
+    get_all_namespaces,
 )
 from sh import ErrorReturnCode
 from wait_for import TimedOutError, wait_for
@@ -327,3 +328,21 @@ def get_reservation(name=None, namespace=None, requester=None):
             return None
 
     return None
+
+
+def get_pool_size_limit(pool):
+    pool_data = get_json("namespacepool", name=pool)
+    size_limit = pool_data["spec"].get("sizeLimit") if pool_data else 0
+    return int(size_limit) if size_limit else 0
+
+
+def get_reserved_namespace_quantity(pool):
+    label = f"pool={pool}"
+    pool_namespaces = get_all_namespaces(label=label)
+    reserved_namespaces = [
+        ns
+        for ns in pool_namespaces
+        if ns["metadata"].get("annotations", {}).get("reserved") == "true"
+    ]
+
+    return len(reserved_namespaces)
