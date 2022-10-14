@@ -123,7 +123,7 @@ def _all_resources_ready(namespace, timeout, watcher):
 
     # wait on anything else not covered by the above
     waiters = []
-    for k, r in watcher.resources.items():
+    for k, r in watcher.resources.copy().items():
         if r.restype in _resources_for_ns_wait() and r.key not in already_waited_on:
             waiter = ResourceWaiter(
                 r.namespace,
