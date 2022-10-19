@@ -388,9 +388,13 @@ def find_what_depends_on(apps_config, clowdapp_name):
             items = template.get("objects", [])
 
             dependencies = get_dependencies(items)
-            dependencies = dependencies.union(get_dependencies(items, optional=True))
+            optional_dependencies = get_dependencies(items, optional=True)
 
+            all_dependencies = {}
             for name, deps in dependencies.items():
+                all_dependencies[name] = deps.union(optional_dependencies.get(name, set()))
+
+            for name, deps in all_dependencies.items():
                 # check if the name of the ClowdApp is set with a parameter
                 parameter_name = _PARAM_REGEX.findall(name)
                 if parameter_name:
