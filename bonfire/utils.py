@@ -391,8 +391,11 @@ def find_what_depends_on(apps_config, clowdapp_name):
             optional_dependencies = get_dependencies(items, optional=True)
 
             all_dependencies = {}
-            for name, deps in dependencies.items():
-                all_dependencies[name] = deps.union(optional_dependencies.get(name, set()))
+            all_keys = dependencies.keys() | optional_dependencies.keys()
+            for name in all_keys:
+                all_dependencies[name] = dependencies.get(name, set()).union(
+                    optional_dependencies.get(name, set())
+                )
 
             for name, deps in all_dependencies.items():
                 # check if the name of the ClowdApp is set with a parameter
