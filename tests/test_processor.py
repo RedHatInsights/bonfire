@@ -138,6 +138,7 @@ def processor():
         component_filter=[],
         local=True,
         frontends=False,
+        counter={},
     )
     return tp
 
