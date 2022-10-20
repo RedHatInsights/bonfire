@@ -376,6 +376,7 @@ class TemplateProcessor:
         component_filter,
         local,
         frontends,
+        counter,
     ):
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
@@ -393,6 +394,7 @@ class TemplateProcessor:
         self.component_filter = component_filter
         self.local = local
         self.frontends = frontends
+        self.counter = counter
 
         self._validate()
 
@@ -424,6 +426,8 @@ class TemplateProcessor:
             # easier to just re.sub on a whole string
             content, subs = re.subn(rf"{image}:[-\w\.]+", rf"{image}:{image_tag}", content)
             if subs:
+                self.counter["image_tag_overrides"] = {}
+                self.counter["image_tag_overrides"][image] += subs
                 log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
         return json.loads(content)
 

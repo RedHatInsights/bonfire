@@ -813,6 +813,7 @@ def _process(
     component_filter,
     local,
     frontends,
+    counter,
 ):
     apps_config = _get_apps_config(source, target_env, ref_env, local_config_path)
 
@@ -833,6 +834,7 @@ def _process(
         component_filter,
         local,
         frontends,
+        counter,
     )
     return processor.process()
 
@@ -876,6 +878,8 @@ def _cmd_process(
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
 
+    counter = {}
+
     processed_templates = _process(
         app_names,
         source,
@@ -896,6 +900,7 @@ def _cmd_process(
         component_filter,
         local,
         frontends,
+        counter,
     )
     print(json.dumps(processed_templates, indent=2))
 
@@ -1047,6 +1052,8 @@ def _cmd_config_deploy(
             _error(msg)
 
     try:
+        counter = {}
+
         log.info("processing app templates...")
         apps_config = _process(
             app_names,
@@ -1068,10 +1075,14 @@ def _cmd_config_deploy(
             component_filter,
             local,
             frontends,
+            counter,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
             log.warning("no configurations found to apply!")
+        if counter.get("image_tag_overrides"):
+            if len(counter["image_tag_overrides"]) == 0:
+                raise FatalError("No image tag overrides found. Check your tags and try again.")
         else:
             log.info("applying app configs...")
             apply_config(ns, apps_config)
