@@ -645,7 +645,8 @@ class TemplateProcessor:
                 images_with_no_subs.append(image)
         if images_with_no_subs:
             raise FatalError(
-                f"Could not find the following image names in any templates: {images_with_no_subs}. Check the arguments to --set-image-tag and try again."
+                f"""Could not find the following image names in any templates: {images_with_no_subs}.
+                Check the arguments to --set-image-tag and try again."""
             )
 
         return self.k8s_list
