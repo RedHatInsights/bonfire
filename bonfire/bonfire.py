@@ -4,7 +4,6 @@ import json
 import logging
 import sys
 import warnings
-import socket
 from functools import wraps
 
 import click
