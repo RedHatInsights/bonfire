@@ -547,4 +547,4 @@ def check_connection(hostname="gitlab.cee.redhat.com"):
     try:
         socket.gethostbyname(hostname)
     except socket.gaierror:
-        raise FatalError(f"Unable to connect to {hostname} Check VPN Connection.")
+        raise FatalError(f"Unable to connect to {hostname}. Check VPN Connection.")
