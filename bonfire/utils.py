@@ -7,6 +7,7 @@ import shlex
 import subprocess
 import tempfile
 import time
+import socket
 from distutils.version import StrictVersion
 from pathlib import Path
 
@@ -537,3 +538,13 @@ def hms_to_seconds(s):
                 seconds += int(group.split("s")[0])
 
     return seconds
+
+
+def check_connection(hostname="gitlab.cee.redhat.com"):
+    """
+    Check connection makes sure a connection is available to a given hostname.
+    """
+    try:
+        socket.gethostbyname(hostname)
+    except socket.gaierror:
+        raise FatalError(f"Unable to connect to {hostname} Check VPN Connection.")

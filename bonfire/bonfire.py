@@ -4,6 +4,7 @@ import json
 import logging
 import sys
 import warnings
+import socket
 from functools import wraps
 
 import click
@@ -46,6 +47,7 @@ from bonfire.utils import (
     get_version,
     split_equals,
     validate_time_string,
+    check_connection,
 )
 
 log = logging.getLogger(__name__)
@@ -758,6 +760,7 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
 
     if source == APP_SRE_SRC:
         log.info("fetching apps config using source: %s, target env: %s", source, target_env)
+        check_connection()
         if not target_env:
             _error("target env must be supplied for source '{APP_SRE_SRC}'")
         apps_config = get_apps_for_env(target_env)
