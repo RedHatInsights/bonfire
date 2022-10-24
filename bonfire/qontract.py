@@ -10,6 +10,7 @@ from gql.transport.requests import RequestsHTTPTransport
 from requests.auth import HTTPBasicAuth
 
 import bonfire.config as conf
+from bonfire.utils import check_url_connection
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +95,8 @@ class Client:
         elif conf.QONTRACT_USERNAME and conf.QONTRACT_PASSWORD:
             log.debug("using basic authentication")
             transport_kwargs["auth"] = HTTPBasicAuth(conf.QONTRACT_USERNAME, conf.QONTRACT_PASSWORD)
+
+        check_url_connection(transport_kwargs["url"])
 
         transport = RequestsHTTPTransport(**transport_kwargs)
         self.client = GQLClient(transport=transport, fetch_schema_from_transport=True)
