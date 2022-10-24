@@ -1,4 +1,5 @@
 import atexit
+from functools import cache
 import json
 import logging
 import os
@@ -7,8 +8,10 @@ import shlex
 import subprocess
 import tempfile
 import time
+import socket
 from distutils.version import StrictVersion
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pkg_resources
 import requests
@@ -19,6 +22,10 @@ from cached_property import cached_property
 class FatalError(Exception):
     """An exception that will cause the CLI to exit"""
 
+    pass
+
+
+class ConnectionError(FatalError):
     pass
 
 
@@ -259,9 +266,9 @@ class RepoFile:
 
     def _get_gl_commit_hash(self):
         group, project = self.org, self.repo
-        response = self._session.get(
-            GL_PROJECTS_URL.format(type="groups", group=group), verify=self._gl_certfile
-        )
+        url = GL_PROJECTS_URL.format(type="groups", group=group)
+        check_url_connection(url)
+        response = self._session.get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
             # use a different path
@@ -294,6 +301,7 @@ class RepoFile:
             commit = self._get_gl_commit_hash()
 
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
+        check_url_connection(url)
         response = self._session.get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             log.warning(
@@ -307,12 +315,10 @@ class RepoFile:
 
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
+            url = GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref)
+            check_url_connection(url)
             return self._session.get(
-                GH_BRANCH_URL.format(
-                    org=self.org,
-                    repo=self.repo,
-                    branch=ref,
-                ),
+                url,
                 headers=self._gh_auth_headers,
             )
 
@@ -326,6 +332,7 @@ class RepoFile:
             commit = self._get_gh_commit_hash()
 
         url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
+        check_url_connection(url)
         response = self._session.get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
             log.warning(
@@ -537,3 +544,31 @@ def hms_to_seconds(s):
                 seconds += int(group.split("s")[0])
 
     return seconds
+
+
+@cache
+def check_hostname(hostname):
+    """
+    Check connection makes sure a connection is available to a given hostname.
+
+    Function is cached so that we only check a hostname once.
+    """
+    log.debug("checking connection to '%s'", hostname)
+
+    try:
+        socket.gethostbyname(hostname)
+    except socket.gaierror:
+        raise ConnectionError(
+            f"Unable to resolve hostname '{hostname}'. Check network connection (is VPN needed?)"
+        )
+
+
+def check_url_connection(url):
+    try:
+        parsed_url = urlparse(url)
+    except (ValueError) as err:
+        raise ValueError(f"invalid url '{url}': {err}")
+
+    hostname = parsed_url.netloc
+
+    return check_hostname(hostname)
