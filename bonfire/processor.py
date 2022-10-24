@@ -405,6 +405,10 @@ class TemplateProcessor:
 
         self.processed_components = {}
 
+        self.counter = {"image_tag_overrides": {}}
+        for image in self.image_tag_overrides:
+            self.counter["image_tag_overrides"][image] = 0
+
     def _get_app_config(self, app_name):
         if app_name not in self.apps_config:
             raise FatalError(f"app {app_name} not found in apps config")
@@ -424,6 +428,7 @@ class TemplateProcessor:
             # easier to just re.sub on a whole string
             content, subs = re.subn(rf"{image}:[-\w\.]+", rf"{image}:{image_tag}", content)
             if subs:
+                self.counter["image_tag_overrides"][image] += subs
                 log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
         return json.loads(content)
 
@@ -633,5 +638,15 @@ class TemplateProcessor:
 
         for app_name in app_names:
             self._process_app(app_name)
+
+        images_with_no_subs = []
+        for image, subs in self.counter["image_tag_overrides"].items():
+            if subs == 0:
+                images_with_no_subs.append(image)
+        if images_with_no_subs:
+            raise FatalError(
+                f"""Could not find the following image names in any templates: {images_with_no_subs}.
+                Check the arguments to --set-image-tag and try again."""
+            )
 
         return self.k8s_list
