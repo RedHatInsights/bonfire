@@ -1,5 +1,5 @@
 import atexit
-from functools import cache
+from functools import lru_cache
 import json
 import logging
 import os
@@ -546,7 +546,7 @@ def hms_to_seconds(s):
     return seconds
 
 
-@cache
+@lru_cache(maxsize=None)
 def check_hostname(hostname):
     """
     Check connection makes sure a connection is available to a given hostname.
