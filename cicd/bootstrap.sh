@@ -79,7 +79,27 @@ add_cicd_bin_to_path() {
   if ! command -v oc_wrapper; then export PATH=$PATH:${CICD_ROOT}/bin; fi
 }
 
+check_available_server() {
+  echo "Checking connectivity to ephemeral cluster ..."
+  (curl -s $OC_LOGIN_SERVER > /dev/null)
+  RET_CODE=$?
+  if [ $RET_CODE -ge 1 ]; then echo "Connectivity check failed"; fi
+  return $RET_CODE
+}
+
+# Hotswap based on availability
+login_to_available_server() {
+  if check_available_server; then
+    # log in to ephemeral cluster
+    oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
+    echo "logging in to Ephemeral cluster"
+  else
+    # switch to crcd cluster
+    oc_wrapper login --token=$OC_LOGIN_TOKEN_DEV --server=$OC_LOGIN_SERVER_DEV
+    echo "logging in to CRCD cluster"
+  fi
+}
+
 add_cicd_bin_to_path
 
-# log in to ephemeral cluster
-oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
+login_to_available_server
