@@ -53,6 +53,12 @@ python3 -m venv $VENV_DIR
 pip install crc-bonfire
 ```
 
+To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs, [create a personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) on your GitHub account which grants bonfire read access to your repos. Configure bonfire to use the token with:
+```
+echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
+```
+
+
 # Quick Start
 
 Start with `bonfire --help` to familiarize yourself with the basic command groups. Don't forget to use the `--help` flag on sub-commmands as well if you are curious to learn more about different CLI commands, options, and arguments.
