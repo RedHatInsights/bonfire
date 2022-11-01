@@ -82,7 +82,7 @@ add_cicd_bin_to_path() {
 check_available_server() {
   echo "Checking connectivity to ephemeral cluster ..."
   (curl -s $OC_LOGIN_SERVER > /dev/null)
-  RET_CODE=$?
+  RET_CODE=1
   if [ $RET_CODE -ge 1 ]; then echo "Connectivity check failed"; fi
   return $RET_CODE
 }
