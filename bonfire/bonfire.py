@@ -139,6 +139,8 @@ def _confirm_or_abort(msg):
     if conf.BONFIRE_BOT:
         # these types of warnings shouldn't occur in automated runs, error out immediately
         _error(msg)
+    elif not sys.stdout.isatty():
+        _error(msg + " Output is not a tty. Aborting.")
     else:
         # have end user confirm if they want to proceed anyway
         msg = f"{msg}.  Continue anyway?"
@@ -162,7 +164,7 @@ def _warn_before_delete():
 def _warn_of_existing(requester):
     _confirm_or_abort(
         f"Existing reservation(s) found for requester '{requester}', "
-        "consider re-using the existing namespace"
+        "consider re-using the existing namespace."
     )
 
 
