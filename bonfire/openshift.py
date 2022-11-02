@@ -301,7 +301,7 @@ def check_for_existing_reservation(requester):
             if get_json("namespace", ns):
                 return True
             else:
-                log.info("reservation found for namespace '%s' whcih no longer exists", ns)
+                log.info("reservation found for namespace '%s' which no longer exists", ns)
     return False
 
 
