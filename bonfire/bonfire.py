@@ -139,12 +139,15 @@ def _confirm_or_abort(msg):
     if conf.BONFIRE_BOT:
         # these types of warnings shouldn't occur in automated runs, error out immediately
         _error(msg)
-    elif not sys.stdout.isatty():
-        _error(msg + " Output is not a tty. Aborting.")
     else:
         # have end user confirm if they want to proceed anyway
-        msg = f"{msg}.  Continue anyway?"
-        if not click.confirm(msg):
+        click.echo(f"\n{msg}")
+        prompt = "Continue anyway?"
+        if not sys.stdout.isatty():
+            _error(
+                f"Prompt cannot be answered:\n\n{msg}\n{prompt}\n\nOutput is not a TTY. Aborting."
+            )
+        if not click.confirm(prompt):
             click.echo("Aborting")
             sys.exit(0)
 
