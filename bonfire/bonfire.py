@@ -141,8 +141,13 @@ def _confirm_or_abort(msg):
         _error(msg)
     else:
         # have end user confirm if they want to proceed anyway
-        msg = f"{msg}.  Continue anyway?"
-        if not click.confirm(msg):
+        click.echo(f"\n{msg}")
+        prompt = "Continue anyway?"
+        if not sys.stdout.isatty():
+            _error(
+                f"Prompt cannot be answered:\n\n{msg}\n{prompt}\n\nOutput is not a TTY. Aborting."
+            )
+        if not click.confirm(prompt):
             click.echo("Aborting")
             sys.exit(0)
 
@@ -162,7 +167,7 @@ def _warn_before_delete():
 def _warn_of_existing(requester):
     _confirm_or_abort(
         f"Existing reservation(s) found for requester '{requester}', "
-        "consider re-using the existing namespace"
+        "consider re-using the existing namespace."
     )
 
 
