@@ -69,7 +69,8 @@ POD=$(
 set +x
 
 # Pipe logs to background to keep them rolling in jenkins
-oc_wrapper logs -n $NAMESPACE $POD -f &
+CONTAINER=$(oc_wrapper get pod $POD -n $NAMESPACE -o jsonpath="{.status.containerStatuses[0].name}")
+oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f &
 
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
