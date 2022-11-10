@@ -70,6 +70,7 @@ pip install --upgrade 'crc-bonfire>=4.8.2'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
+echo "Fetching branch '$BONFIRE_BRANCH' of https://github.com/RedHatInsights/bonfire.git"
 git clone --branch $BONFIRE_BRANCH https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
 
 # Do a docker login to ensure our later 'docker pull' calls have an auth file created
