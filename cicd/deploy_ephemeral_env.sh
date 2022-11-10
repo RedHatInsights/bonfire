@@ -20,10 +20,6 @@ export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 export NAMESPACE=$(bonfire namespace reserve --pool ${NAMESPACE_POOL})
 SMOKE_NAMESPACE=$NAMESPACE  # track which namespace was used here for 'teardown' in common_deploy_logic
 
-FRONTENDS_ARG=""
-if [ "$DEPLOY_FRONTENDS" = "true" ]; then
-    FRONTENDS_ARG=" --frontends "
-fi
 
 bonfire deploy \
     ${APP_NAME} \
@@ -34,7 +30,7 @@ bonfire deploy \
     --namespace ${NAMESPACE} \
     --timeout ${DEPLOY_TIMEOUT} \
     --optional-deps-method ${OPTIONAL_DEPS_METHOD} \
-    ${FRONTENDS_ARG} \
+    --frontends ${DEPLOY_FRONTENDS} \
     ${COMPONENTS_ARG} \
     ${COMPONENTS_RESOURCES_ARG} \
     ${EXTRA_DEPLOY_ARGS}
