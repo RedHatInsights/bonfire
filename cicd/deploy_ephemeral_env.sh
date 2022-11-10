@@ -9,6 +9,9 @@ source ${CICD_ROOT}/_common_deploy_logic.sh
 # Caller can alter the default dependency fetching method if desired
 : ${OPTIONAL_DEPS_METHOD:="hybrid"}
 
+# Whether or not to deploy frontends (default: false)
+: ${DEPLOY_FRONTENDS:="false"}
+
 # Deploy k8s resources for app and its dependencies (use insights-stage instead of insights-production for now)
 # -> use this PR as the template ref when downloading configurations for this component
 # -> use this PR's newly built image in the deployed configurations
@@ -16,6 +19,11 @@ set -x
 export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 export NAMESPACE=$(bonfire namespace reserve --pool ${NAMESPACE_POOL})
 SMOKE_NAMESPACE=$NAMESPACE  # track which namespace was used here for 'teardown' in common_deploy_logic
+
+FRONTENDS_ARG=""
+if [ "$DEPLOY_FRONTENDS" = "true" ]; then
+    FRONTENDS_ARG=" --frontends "
+fi
 
 bonfire deploy \
     ${APP_NAME} \
@@ -26,6 +34,7 @@ bonfire deploy \
     --namespace ${NAMESPACE} \
     --timeout ${DEPLOY_TIMEOUT} \
     --optional-deps-method ${OPTIONAL_DEPS_METHOD} \
+    ${FRONTENDS_ARG} \
     ${COMPONENTS_ARG} \
     ${COMPONENTS_RESOURCES_ARG} \
     ${EXTRA_DEPLOY_ARGS}
