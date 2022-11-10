@@ -5,10 +5,15 @@
 #IQE_CJI_TIMEOUT="10m" -- timeout value to pass to 'oc wait', should be slightly higher than expected test run time
 #IQE_MARKER_EXPRESSION="something AND something_else" -- pytest marker, can be "" if no filter desired
 #IQE_FILTER_EXPRESSION="something AND something_else" -- pytest filter, can be "" if no filter desired
+#IQE_IMAGE_TAG="something" -- image tag to use for IQE pod, leave unset to use ClowdApp's iqePlugin value
 #IQE_REQUIREMENTS="something,something_else" -- iqe requirements filter, can be "" if no filter desired
 #IQE_REQUIREMENTS_PRIORITY="something,something_else" -- iqe requirements filter, can be "" if no filter desired
 #IQE_TEST_IMPORTANCE="something,something_else" -- iqe test importance filter, can be "" if no filter desired
-#NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, usually set by 'deploy_ephemeral_env.sh'
+#IQE_PLUGINS="plugin1,plugin2" -- IQE plugins to run tests for, leave unset to use ClowdApp's iqePlugin value
+#IQE_ENV="something" -- value to set for ENV_FOR_DYNACONF, default is "clowder_smoke"
+#IQE_SELENIUM="true" -- whether to run IQE pod with a selenium container, default is "false"
+
+#NAMESPACE="mynamespace" -- namespace to deploy iqe pod into, usually already set by 'deploy_ephemeral_env.sh'
 
 # Env vars set by 'bootstrap.sh':
 #ARTIFACTS_DIR -- directory where test run artifacts are stored
@@ -25,6 +30,8 @@ set -e
 : "${IQE_REQUIREMENTS_PRIORITY:='""'}"
 : "${IQE_TEST_IMPORTANCE:='""'}"
 : "${IQE_PLUGINS:='""'}"
+: "${IQE_ENV:=clowder_smoke}"
+: "${IQE_SELENIUM:=false}"
 
 
 # minio client is used to fetch test artifacts from minio in the ephemeral ns
@@ -39,6 +46,11 @@ if [[ -z $IQE_CJI_TIMEOUT ]]; then
     exit 1
 fi
 
+SELENIUM_ARG=""
+if [ "$IQE_SELENIUM" = "true" ]; then
+    SELENIUM_ARG=" --selenium "
+fi
+
 # Invoke the CJI using the options set via env vars
 set -x
 POD=$(
@@ -50,8 +62,9 @@ POD=$(
     --requirements-priority "$IQE_REQUIREMENTS_PRIORITY" \
     --test-importance "$IQE_TEST_IMPORTANCE" \
     --plugins "$IQE_PLUGINS" \
-    --env "clowder_smoke" \
+    --env "$IQE_ENV" \
     --cji-name $CJI_NAME \
+    $SELENIUM_ARG \
     --namespace $NAMESPACE)
 set +x
 
