@@ -1,5 +1,7 @@
 # bonfire <!-- omit in toc -->
 
+a change
+
 A CLI tool used by Red Hat engineers to deploy console.redhat.com applications into kubernetes/OpenShift. This tool is mainly used for the purpose of creating ephemeral test environments.
 
 As an example, typing `bonfire deploy host-inventory` leads to the host-inventory application and all its dependencies being deployed and ready to run in under 4 minutes:
