@@ -21,6 +21,8 @@ add_cicd_bin_to_path
 function trap_proxy {
     # https://stackoverflow.com/questions/9256644/identifying-received-signal-name-in-bash
     func="$1"; shift
+
+    # shellcheck disable=SC2064
     for sig; do
         trap "$func $sig" "$sig"
     done
