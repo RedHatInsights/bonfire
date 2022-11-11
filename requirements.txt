@@ -33,5 +33,5 @@ tabulate==0.8.9
 urllib3==1.26.6
 wait-for==1.1.6
 websocket-client==1.1.1
-yarl==1.6.3
+yarl==1.8.1
 junitparser==2.4.2
