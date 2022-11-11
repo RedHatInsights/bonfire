@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # Env vars caller defines:
 #APP_NAME="myapp"  # name of app-sre "application" folder this component lives in
 #COMPONENT_NAME="mycomponent"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
@@ -40,19 +41,24 @@ K8S_ARTIFACTS_DIR="$ARTIFACTS_DIR/k8s_artifacts"
 TEARDOWN_RAN=0
 
 function get_pod_logs() {
-    local ns=$1
-    LOGS_DIR="$K8S_ARTIFACTS_DIR/$ns/logs"
+
+    local NAMESPACE="$1"
+    local LOGS_DIR="${K8S_ARTIFACTS_DIR}/${NAMESPACE}/logs"
+
     mkdir -p "$LOGS_DIR"
+
     # get array of pod_name:container1,container2,..,containerN for all containers in all pods
     echo "Collecting container logs..."
-    PODS_CONTAINERS=($(oc_wrapper get pods --ignore-not-found=true -n $ns -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
+
+    IFS=" " read -r -a PODS_CONTAINERS <<< "$(oc get pods --ignore-not-found=true -n "$NAMESPACE" -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}")"
+
     for pc in "${PODS_CONTAINERS[@]}"; do
         # https://stackoverflow.com/a/4444841
         POD=${pc%%:*}
         CONTAINERS=${pc#*:}
         for container in ${CONTAINERS//,/ }; do
-            oc_wrapper logs "$POD" -c "$container" -n "$ns" > "${LOGS_DIR}/${POD}_${container}.log" 2> /dev/null || continue
-            oc_wrapper logs "$POD" -c "$container" --previous -n "$ns" > "${LOGS_DIR}/${POD}_${container}-previous.log" 2> /dev/null || continue
+            oc_wrapper logs "$POD" -c "$container" -n "$NAMESPACE" > "${LOGS_DIR}/${POD}_${container}.log" 2> /dev/null || continue
+            oc_wrapper logs "$POD" -c "$container" --previous -n "$NAMESPACE" > "${LOGS_DIR}/${POD}_${container}-previous.log" 2> /dev/null || continue
         done
     done
 }
