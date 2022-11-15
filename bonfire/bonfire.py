@@ -521,7 +521,6 @@ _clowdenv_process_options = [
     ),
     click.option(
         "--template-file",
-        "-f",
         help=(
             "Path to ClowdEnvironment template file (default: use local cluster template packaged"
             " with bonfire)"
@@ -597,7 +596,6 @@ _iqe_cji_process_options = [
     ),
     click.option(
         "--template-file",
-        "-f",
         help=(
             "Path to ClowdJobInvocation template file (default: use IQE CJI template packaged"
             " with bonfire)"
@@ -978,7 +976,6 @@ def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, 
 )
 @click.option(
     "--no-release-on-fail",
-    "-f",
     is_flag=True,
     help="Do not release namespace reservation if deployment fails",
 )
