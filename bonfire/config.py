@@ -54,6 +54,14 @@ BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
 # set to true when bonfire is running via automation using a bot acct (not an end user)
 BONFIRE_BOT = os.getenv("BONFIRE_BOT")
 
+AUTO_ADDED_FRONTEND_DEPENDENCIES = (
+    "frontend-configs",
+    "rbac",
+    "rbac-frontend",
+    "host-inventory",
+    "host-inventory-frontend",
+)
+
 
 def write_default_config(outpath=None):
     outpath = Path(outpath) if outpath else DEFAULT_CONFIG_PATH
