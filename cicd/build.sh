@@ -4,7 +4,7 @@
 #IMAGE="quay.io/myorg/myapp" -- docker image URI to push to
 #DOCKERFILE=Dockerfile.custom  -- dockerfile to use (optional)
 #CACHE_FROM_LATEST_IMAGE=true  -- build image from cache from latest image (optional)
-: ${QUAY_EXPIRE_TIME:="3d"}  # sets a time to expire from when the image is built
+: "${QUAY_EXPIRE_TIME:=3d}"  # sets a time to expire from when the image is built
 
 # Env vars set by bootstrap.sh:
 #IMAGE_TAG="abcd123" -- image tag to push to
@@ -14,7 +14,8 @@
 CMD_OPTS="-t ${IMAGE}:${IMAGE_TAG}"
 set -e
 
-source ${CICD_ROOT}/_common_container_logic.sh
+# shellcheck source=cicd/_common_container_logic.sh
+source "${CICD_ROOT}/_common_container_logic.sh"
 
 is_pr_or_mr_build() {
     [ -n "$ghprbPullId" ] || [ -n "$gitlabMergeRequestId" ]
@@ -94,7 +95,7 @@ function docker_build {
     set -x
 
     docker push "${IMAGE}:${IMAGE_TAG}"
-    if  [ ! -z "$IMAGE_TAG_LATEST" ]; then
+    if  [ -n "$IMAGE_TAG_LATEST" ]; then
         docker push "${IMAGE}:${IMAGE_TAG_LATEST}"
     fi
     set +x
@@ -104,15 +105,14 @@ function podman_build {
     set -x
     podman build -f $APP_ROOT/$DOCKERFILE ${CMD_OPTS} $APP_ROOT
     podman push "${IMAGE}:${IMAGE_TAG}"
-    if  [ ! -z "$IMAGE_TAG_LATEST" ]; then
+    if  [ -n "$IMAGE_TAG_LATEST" ]; then
         podman push "${IMAGE}:${IMAGE_TAG_LATEST}"
     fi
     set +x
 }
 
-
-: ${DOCKERFILE:="Dockerfile"}
-: ${CACHE_FROM_LATEST_IMAGE:="false"}
+: "${DOCKERFILE:=Dockerfile}"
+: "${CACHE_FROM_LATEST_IMAGE:=false}"
 
 # Login to registry with podman/docker
 login
@@ -126,7 +126,7 @@ if [[ $IMAGE == quay.io/* ]]; then
         "https://quay.io/api/v1/repository/$QUAY_REPO/tag/?specificTag=$IMAGE_TAG" \
     )
     # find all non-expired tags
-    VALID_TAGS_LENGTH=$(echo $RESPONSE | jq '[ .tags[] | select(.end_ts == null) ] | length')
+    VALID_TAGS_LENGTH=$(jq '[ .tags[] | select(.end_ts == null) ] | length' <<< "$RESPONSE")
     if [[ "$VALID_TAGS_LENGTH" -gt 0 ]]; then
         echo "$IMAGE:$IMAGE_TAG already present in quay, not rebuilding"
     else
