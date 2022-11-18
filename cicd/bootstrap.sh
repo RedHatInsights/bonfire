@@ -22,6 +22,7 @@ export BONFIRE_BOT="true"
 export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 # which branch to fetch cidd scripts from in bonfire repo
 export BONFIRE_BRANCH="${BONFIRE_BRANCH:-master}"
+export BONFIRE_GROUP="${BONFIRE_GROUP:-RedHatInsights}"
 
 set -x
 # Set up docker cfg
@@ -70,8 +71,8 @@ pip install --upgrade 'crc-bonfire>=4.10.4'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
-echo "Fetching branch '$BONFIRE_BRANCH' of https://github.com/RedHatInsights/bonfire.git"
-git clone --branch $BONFIRE_BRANCH https://github.com/RedHatInsights/bonfire.git $BONFIRE_ROOT
+echo "Fetching branch '$BONFIRE_BRANCH' of https://github.com/${BONFIRE_GROUP}/bonfire.git"
+git clone --branch "$BONFIRE_BRANCH" "https://github.com/${BONFIRE_GROUP}/bonfire.git" "$BONFIRE_ROOT"
 
 # Do a docker login to ensure our later 'docker pull' calls have an auth file created
 source ${CICD_ROOT}/_common_container_logic.sh
