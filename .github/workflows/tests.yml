@@ -25,7 +25,7 @@ jobs:
         python -m pip install -U pip
         pip install -U wheel setuptools build
 
-    - name: Install test requirements
+    - name: Install requirements
       run: pip install -r requirements.txt
 
     - name: Lint
@@ -72,15 +72,17 @@ jobs:
     - name: install ${{ matrix.install-from }}
       run: pip install ${{ matrix.install-from }}
     - name: Install test requirements
-      run: pip install -r requirements.txt
-    - name: pytest
-      run: pytest -sv
-    - name: test bonfire version and basic commands
+#      run: pip install -r requirements.txt
+#      TODO: refactor project's test requirements
+      run: pip install pytest-mock
+    - name: test bonfire version and create default config file
       run: |
         python -c "import pkg_resources; print(pkg_resources.get_distribution('crc-bonfire').version)"
         which bonfire
         bonfire --help
         bonfire config write-default
+    - name: pytest
+      run: pytest -sv
 
   build_check:
     runs-on: ubuntu-latest
