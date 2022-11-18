@@ -6,46 +6,107 @@ on:
       - master
 
 jobs:
-  tests:
-    name: Unit Tests
+  build:
+    name: Build sdist and wheel
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout to master
-        uses: actions/checkout@v2
 
-      - name: Setup python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-          architecture: 'x64'
+    - name: Checkout to master
+      uses: actions/checkout@v2
 
-      - name: Install
-        run: |
-          python -m pip install -e .
-          python -c "import pkg_resources; print(pkg_resources.get_distribution('crc-bonfire').version)"
-          which bonfire
-          bonfire --help
-          bonfire config write-default
+    - name: Setup python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+        architecture: 'x64'
 
-      - name: Install test reqs
-        run: pip install -r requirements.txt
+    - name: Install build dependencies
+      run: |
+        python -m pip install -U pip
+        pip install -U wheel setuptools build
 
-      - name: Lint
-        uses: suo/flake8-github-action@releases/v1
-        with:
-          checkName: 'flake8'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Install test requirements
+      run: pip install -r requirements.txt
 
-      - name: Unit tests
-        run: |
-          pytest -sv .
+    - name: Lint
+      uses: suo/flake8-github-action@releases/v1
+      with:
+        checkName: 'flake8'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package build
-        run: |
-          python -m pip install --upgrade pip setuptools wheel build twine
-          python -m build
-          ls -l dist
-          python -m twine check dist/*
+    - name: Build
+      run: python -m build -o dist/
 
+    - uses: actions/upload-artifact@v2
+      with:
+        name: dist
+        path: dist
+
+  test:
+    runs-on: ubuntu-latest
+    needs: [build]
+    strategy:
+      matrix:
+        # todo: extract from source
+        python-version: [ 3.6, 3.7, 3.8, 3.9, 3.10 ]
+        install-from: ["dist/*.whl"]
+        pytest: ["pytest~=7.0.0", "pytest~=7.1.0", "pytest~=6.2.0",  ]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - uses: actions/cache@v2
+      with:
+        path: ${{ env.pythonLocation }}
+        key: ${{ env.pythonLocation }}-${{ matrix.pytest }}
+    - name: Install dependencies + ${{ matrix.pytest }}
+      run: |
+        python -m pip install --upgrade pip
+        pip install -U setuptools setuptools_scm
+        pip install ${{ matrix.pytest }}
+    - uses: actions/download-artifact@v2
+      with:
+        name: dist
+        path: dist
+    - name: install ${{ matrix.install-from }}
+      run: pip install ${{ matrix.install-from }}
+    - name: pytest
+      run: pytest -sv
+    - name: test bonfire version and basic commands
+      run: |
+        python -c "import pkg_resources; print(pkg_resources.get_distribution('crc-bonfire').version)"
+        which bonfire
+        bonfire --help
+        bonfire config write-default
+
+  build_check:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+        architecture: 'x64'
+    - uses: actions/download-artifact@v2
+      with:
+        name: dist
+        path: dist
+    - run: pipx run twine check --strict dist/*
+
+  dist_upload:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
+    needs: [build_check, test]
+    steps:
+    - uses: actions/download-artifact@v2
+      with:
+        name: dist
+        path: dist
+    - name: Publish package to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.pypi_token }}
