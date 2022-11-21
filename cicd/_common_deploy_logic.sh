@@ -46,6 +46,7 @@ function get_pod_logs() {
 
     local NAMESPACE="$1"
     local LOGS_DIR="${K8S_ARTIFACTS_DIR}/${NAMESPACE}/logs"
+    local F_IFS="$IFS"
 
     mkdir -p "$LOGS_DIR"
 
@@ -53,6 +54,7 @@ function get_pod_logs() {
     echo "Collecting container logs..."
 
     IFS=" " read -r -a PODS_CONTAINERS <<< "$(oc get pods --ignore-not-found=true -n "$NAMESPACE" -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}")"
+    IFS="$F_IFS"
 
     for pc in "${PODS_CONTAINERS[@]}"; do
         # https://stackoverflow.com/a/4444841
