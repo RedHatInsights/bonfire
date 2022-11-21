@@ -13,7 +13,7 @@ from distutils.version import StrictVersion
 from pathlib import Path
 from urllib.parse import urlparse
 
-import pkg_resources
+from importlib.metadata import version, PackageNotFoundError
 import requests
 import yaml
 from cached_property import cached_property
@@ -443,8 +443,8 @@ def load_file(path):
 
 def get_version():
     try:
-        return pkg_resources.get_distribution(PKG_NAME).version
-    except pkg_resources.DistributionNotFound:
+        return version(PKG_NAME)
+    except PackageNotFoundError:
         return "0.0.0"
 
 
