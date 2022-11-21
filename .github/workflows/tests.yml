@@ -25,9 +25,6 @@ jobs:
         python -m pip install -U pip
         pip install -U wheel setuptools build
 
-    - name: Install requirements
-      run: pip install -r requirements.txt
-
     - name: Lint
       uses: suo/flake8-github-action@releases/v1
       with:
@@ -69,15 +66,11 @@ jobs:
       with:
         name: dist
         path: dist
-    - name: install ${{ matrix.install-from }}
+    - name: install ${{ matrix.install-from }}[test]
       run: pip install ${{ matrix.install-from }}
-    - name: Install test requirements
-#      run: pip install -r requirements.txt
-#      TODO: refactor project's test requirements
-      run: pip install pytest-mock
     - name: test bonfire version and create default config file
       run: |
-        python -c "import pkg_resources; print(pkg_resources.get_distribution('crc-bonfire').version)"
+        pip list | grep crc-bonfire
         which bonfire
         bonfire --help
         bonfire config write-default
