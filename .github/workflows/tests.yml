@@ -25,15 +25,8 @@ jobs:
         python -m pip install -U pip
         pip install -U wheel setuptools build
 
-    - name: Install flake8
-      run: pip install flake8
-
-    - name: Lint
-      uses: suo/flake8-github-action@releases/v1
-      with:
-        checkName: 'flake8'
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Lint: run Flake8
+      uses: TrueBrain/actions-flake8@v2
 
     - name: Build
       run: python -m build -o dist/
