@@ -86,19 +86,3 @@ jobs:
         name: dist
         path: dist
     - run: pipx run twine check --strict dist/*
-
-  dist_upload:
-    name: Publish Python 🐍 distributions to PyPI
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
-    needs: [build_check, test]
-    steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: dist
-        path: dist
-    - name: Publish package to PyPI
-      uses: pypa/gh-action-pypi-publish@master
-      with:
-        user: __token__
-        password: ${{ secrets.pypi_token }}
