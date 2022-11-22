@@ -13,7 +13,14 @@ from distutils.version import StrictVersion
 from pathlib import Path
 from urllib.parse import urlparse
 
-from importlib.metadata import version, PackageNotFoundError
+import sys
+
+if sys.version_info >= (3, 8):
+    import importlib.metadata
+    importlib_metadata = importlib.metadata
+else:
+    import importlib_metadata as importlib_metadata  # noqa: F401
+
 import requests
 import yaml
 from cached_property import cached_property
@@ -443,8 +450,8 @@ def load_file(path):
 
 def get_version():
     try:
-        return version(PKG_NAME)
-    except PackageNotFoundError:
+        return importlib_metadata.version(PKG_NAME)
+    except importlib_metadata.PackageNotFoundError:
         return "0.0.0"
 
 
