@@ -1027,6 +1027,12 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
     default=None,
 )
 @click.option(
+    "--reserve",
+    help="Do not use current context's namespace and force reserve a new one. (keeps"
+         " the reservation on failure)",
+    is_flag=True,
+)
+@click.option(
     "--import-secrets",
     is_flag=True,
     help="Import secrets from local directory at deploy time",
@@ -1063,6 +1069,7 @@ def _cmd_config_deploy(
     no_remove_dependencies,
     single_replicas,
     namespace,
+    reserve,
     name,
     requester,
     duration,
@@ -1081,7 +1088,9 @@ def _cmd_config_deploy(
         _error("cluster does not have clowder operator installed")
 
     using_current = False
-    if not namespace and not conf.BONFIRE_BOT:
+    if reserve:
+        namespace = None
+    elif not namespace and not conf.BONFIRE_BOT:
         using_current = True
         namespace = get_current_namespace()
 
@@ -1107,7 +1116,7 @@ def _cmd_config_deploy(
 
     def _err_handler(err):
         try:
-            if not no_release_on_fail and reserved_new_ns:
+            if not no_release_on_fail and reserved_new_ns and not reserve:
                 # if we auto-reserved this ns, auto-release it on failure unless
                 # --no-release-on-fail was requested
                 log.info("releasing namespace '%s'", ns)
