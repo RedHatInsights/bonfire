@@ -3,7 +3,7 @@ import datetime
 import logging
 import base64
 
-from ocviapy import apply_config, get_all_namespaces, get_json, on_k8s
+from ocviapy import apply_config, get_all_namespaces, get_json, on_k8s, set_current_namespace
 from wait_for import TimedOutError
 
 import bonfire.config as conf
@@ -290,6 +290,10 @@ def reserve_namespace(name, requester, duration, pool, timeout, local=True):
         duration,
         pool,
     )
+
+    if not conf.BONFIRE_BOT:
+        # set reserved namespace as current
+        set_current_namespace(ns_name)
 
     url = get_console_url()
     if url:
