@@ -682,8 +682,8 @@ def _list_namespaces(available, mine, output):
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
-    ns_name, _ = _get_namespace(None, name, requester, duration, pool, timeout, local, force)
-    click.echo(ns_name)
+    ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
+    click.echo(ns.name)
 
 
 @namespace.command("release")
@@ -911,47 +911,61 @@ def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, 
             ns = Namespace(name=requested_ns_name)
         else:
             _error(f"{NO_RESERVATION_SYS}. Use '-n' to provide a specific target namespace")
-
     else:
         if requested_ns_name:
-            log.debug(
-                "checking if namespace '%s' has been reserved via ns operator...", requested_ns_name
-            )
-            operator_reservation = get_reservation(namespace=requested_ns_name)
-            if not operator_reservation:
-                _error(f"Namespace '{requested_ns_name}' has not been reserved yet")
-            else:
-                log.debug("found existing ns operator reservation")
-
-                if operator_reservation.get("status", {}).get("state") == "expired":
-                    _error(f"Reservation has expired for namespace '{requested_ns_name}'")
-
-                ns = Namespace(name=requested_ns_name)
-                if not ns.owned_by_me:
-                    _warn_if_not_owned_by_me()
-                if not ns.ready:
-                    _warn_if_not_ready()
-
+            ns = _check_and_use_namespace(requested_ns_name)
         else:
-            log.debug("checking if requester already has another namespace reserved...")
-            requester = requester if requester else _get_requester()
-            if not force and check_for_existing_reservation(requester):
-                _warn_of_existing(requester)
-
-            log.info("checking for available namespaces to reserve...")
-
-            pool_size_limit = get_pool_size_limit(pool)
-            log.info("pool size limit is defined as %d in '%s' pool", pool_size_limit, pool)
-            if pool_size_limit > 0 and get_reserved_namespace_quantity(pool) >= pool_size_limit:
-                _error(
-                    f"Maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
-                    " have been reserved"
-                )
-
-            ns = reserve_namespace(name, requester, duration, pool, timeout, local)
+            ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
             reserved_new_ns = True
 
     return ns.name, reserved_new_ns
+
+
+def _check_and_use_namespace(requested_ns_name):
+    if not has_ns_operator():
+        _error(f"{NO_RESERVATION_SYS}")
+
+    log.debug(
+        "checking if namespace '%s' has been reserved via ns operator...", requested_ns_name
+    )
+    operator_reservation = get_reservation(namespace=requested_ns_name)
+    if not operator_reservation:
+        _error(f"Namespace '{requested_ns_name}' has not been reserved yet")
+    else:
+        log.debug("found existing ns operator reservation")
+
+        if operator_reservation.get("status", {}).get("state") == "expired":
+            _error(f"Reservation has expired for namespace '{requested_ns_name}'")
+
+        ns = Namespace(name=requested_ns_name)
+        if not ns.owned_by_me:
+            _warn_if_not_owned_by_me()
+        if not ns.ready:
+            _warn_if_not_ready()
+
+    return ns
+
+
+def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force):
+    if not has_ns_operator():
+        _error(f"{NO_RESERVATION_SYS}")
+
+    log.debug("checking if requester already has another namespace reserved...")
+    requester = requester if requester else _get_requester()
+    if not force and check_for_existing_reservation(requester):
+        _warn_of_existing(requester)
+
+    log.info("checking for available namespaces to reserve...")
+
+    pool_size_limit = get_pool_size_limit(pool)
+    log.info("pool size limit is defined as %d in '%s' pool", pool_size_limit, pool)
+    if pool_size_limit > 0 and get_reserved_namespace_quantity(pool) >= pool_size_limit:
+        _error(
+            f"Maximum number of namespaces for pool `{pool}` (limit: {pool_size_limit})"
+            " have been reserved"
+        )
+
+    return reserve_namespace(name, requester, duration, pool, timeout, local)
 
 
 @main.command("deploy")
