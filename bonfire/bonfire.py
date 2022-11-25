@@ -7,7 +7,7 @@ import warnings
 from functools import wraps
 
 import click
-from ocviapy import apply_config
+from ocviapy import apply_config, get_current_namespace
 from tabulate import tabulate
 from wait_for import TimedOutError
 
@@ -65,6 +65,16 @@ _local_option = click.option(
 def _error(msg):
     click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
+
+
+def current_namespace_or_error():
+    namespace = get_current_namespace()
+    if not namespace:
+        _error(
+            "Namespace from current oc/kubectl context is not set."
+            " Please specify namespace using options/arguments."
+        )
+    return namespace
 
 
 def click_exception_wrapper(command):
@@ -687,7 +697,7 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, forc
 
 
 @namespace.command("release")
-@click.argument("namespace", required=True, type=str)
+@click.argument("namespace", required=False, type=str)
 @click.option(
     "-f",
     "--force",
@@ -702,6 +712,9 @@ def _cmd_namespace_release(namespace, force, local):
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
 
+    if not namespace:
+        namespace = current_namespace_or_error()
+
     if not force:
         _warn_before_delete()
         ns = Namespace(name=namespace)
@@ -712,7 +725,7 @@ def _cmd_namespace_release(namespace, force, local):
 
 
 @namespace.command("extend")
-@click.argument("namespace", required=True, type=str)
+@click.argument("namespace", required=False, type=str)
 @click.option(
     "--duration",
     "-d",
@@ -728,11 +741,14 @@ def _cmd_namespace_extend(namespace, duration, local):
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
 
+    if not namespace:
+        namespace = current_namespace_or_error()
+
     extend_namespace(namespace, duration, local)
 
 
 @namespace.command("wait-on-resources")
-@click.argument("namespace", required=True, type=str)
+@click.argument("namespace", required=False, type=str)
 @click.option(
     "--db-only",
     is_flag=True,
@@ -742,6 +758,8 @@ def _cmd_namespace_extend(namespace, duration, local):
 @options(_timeout_option)
 def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     """Wait for rolled out resources to be ready in namespace"""
+    if not namespace:
+        namespace = current_namespace_or_error()
     try:
         _wait_on_namespace_resources(namespace, timeout, db_only=db_only)
     except TimedOutError as err:
@@ -750,9 +768,12 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
 
 
 @namespace.command("describe")
-@click.argument("namespace", required=True, type=str)
+@click.argument("namespace", required=False, type=str)
 def _describe_namespace(namespace):
     """Get current namespace info"""
+    if not namespace:
+        namespace = current_namespace_or_error()
+
     click.echo(describe_namespace(namespace))
 
 
@@ -903,25 +924,42 @@ def _cmd_process(
     print(json.dumps(processed_templates, indent=2))
 
 
-def _get_namespace(requested_ns_name, name, requester, duration, pool, timeout, local, force):
-    reserved_new_ns = False
+def _get_namespace(
+    requested_ns_name,
+    name,
+    requester,
+    duration,
+    pool,
+    timeout,
+    local,
+    force,
+    using_current=False
+):
 
     if not has_ns_operator():
         if requested_ns_name:
             ns = Namespace(name=requested_ns_name)
+            return ns.name, False
         else:
             _error(f"{NO_RESERVATION_SYS}. Use '-n' to provide a specific target namespace")
-    else:
-        if requested_ns_name:
-            ns = _check_and_use_namespace(requested_ns_name)
-        else:
-            ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
-            reserved_new_ns = True
+
+    ns = None
+    if requested_ns_name:
+        ns = _check_and_use_namespace(requested_ns_name, using_current)
+
+    reserved_new_ns = False
+    if not ns:
+        if using_current:
+            log.info("Current namespace '%s' could not be used (not reserved,"
+                     " expired, or not owned), reserving a new one", requested_ns_name)
+
+        ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
+        reserved_new_ns = True
 
     return ns.name, reserved_new_ns
 
 
-def _check_and_use_namespace(requested_ns_name):
+def _check_and_use_namespace(requested_ns_name, using_current):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
@@ -929,19 +967,30 @@ def _check_and_use_namespace(requested_ns_name):
         "checking if namespace '%s' has been reserved via ns operator...", requested_ns_name
     )
     operator_reservation = get_reservation(namespace=requested_ns_name)
-    if not operator_reservation:
-        _error(f"Namespace '{requested_ns_name}' has not been reserved yet")
-    else:
+    ns = None
+    if operator_reservation:
         log.debug("found existing ns operator reservation")
 
         if operator_reservation.get("status", {}).get("state") == "expired":
-            _error(f"Reservation has expired for namespace '{requested_ns_name}'")
+            msg = f"Reservation has expired for namespace '{requested_ns_name}'"
+            if using_current:
+                log.info(msg)
+                return None
+            else:
+                _error(msg)
 
         ns = Namespace(name=requested_ns_name)
         if not ns.owned_by_me:
+            if using_current:
+                log.info("current namespace '%s' is reserved by someone else", requested_ns_name)
+                return None
+
             _warn_if_not_owned_by_me()
         if not ns.ready:
             _warn_if_not_ready()
+
+    elif not using_current:
+        _error(f"Namespace '{requested_ns_name}' has not been reserved yet")
 
     return ns
 
@@ -973,7 +1022,8 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
 @click.option(
     "--namespace",
     "-n",
-    help="Namespace to deploy to (if none given, bonfire will try to reserve one)",
+    help="Namespace (defaults to namespace from current context; "
+         "if not set, not reserved, or not owned, then bonfire will reserve a new one)",
     default=None,
 )
 @click.option(
@@ -1030,8 +1080,14 @@ def _cmd_config_deploy(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
+    using_current = False
+    if not namespace and not conf.BONFIRE_BOT:
+        using_current = True
+        namespace = get_current_namespace()
+
     ns, reserved_new_ns = _get_namespace(
-        namespace, name, requester, duration, pool, timeout, local, force
+        namespace, name, requester, duration, pool, timeout, local, force,
+        using_current=using_current
     )
 
     if import_secrets:
