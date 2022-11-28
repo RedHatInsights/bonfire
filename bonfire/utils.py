@@ -17,6 +17,7 @@ import sys
 
 if sys.version_info >= (3, 8):
     import importlib.metadata
+
     importlib_metadata = importlib.metadata
 else:
     import importlib_metadata as importlib_metadata  # noqa: F401

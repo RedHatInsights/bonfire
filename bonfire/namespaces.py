@@ -132,7 +132,15 @@ class Namespace:
         self._reservation = copy.deepcopy(reservation_data)
         self._clowdapps = copy.deepcopy(clowdapps_data)
 
-        self._data = namespace_data or get_json("namespace", self.name)
+        if namespace_data is None:
+            self._data = get_json("namespace", self.name)
+            if not self._data:
+                raise ValueError(f"namespace '{self.name}' not found")
+        elif not namespace_data:
+            raise ValueError(f"{self.__class__.__name__} initialized with empty namespace_data")
+        else:
+            self._data = namespace_data
+
         self.name = self._data.get("metadata", {}).get("name")
 
         if "annotations" not in self._data["metadata"]:
@@ -152,7 +160,7 @@ class Namespace:
 
     def __init__(self, name=None, namespace_data=None, reservation_data=None, clowdapps_data=None):
         self.name = name
-        self._data = namespace_data  # if empty/None, we will fetch data
+        self._data = namespace_data  # if None, we will fetch data
         self._reservation = reservation_data  # if None, we will fetch data
         self._clowdapps = clowdapps_data  # if None, we will fetch data
         self.requester = None
