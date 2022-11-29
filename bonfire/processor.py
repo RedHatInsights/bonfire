@@ -69,10 +69,17 @@ def _set_replicas(items):
         deployments = i["spec"].get("deployments", []) or i["spec"].get("pods", [])
         for d in deployments:
             dep_name = d.get("name")
+            # minReplicas is deprecated in this pr
+            # https://github.com/RedHatInsights/clowder/pull/686/files
             if "minReplicas" in d and d["minReplicas"] > 1:
                 d["minReplicas"] = 1
                 log.debug(
                     "set minReplicas to '1' on ClowdApp '%s' deployment '%s'", app_name, dep_name
+                )
+            if "replicas" in d and d["replicas"] > 1:
+                d["replicas"] = 1
+                log.debug(
+                    "set replicas to '1' on ClowdApp '%s' deployment '%s'", app_name, dep_name
                 )
 
 
