@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
 
     - name: Checkout to master
@@ -36,7 +36,7 @@ jobs:
         path: dist
 
   build_check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build]
     steps:
     - uses: actions/setup-python@v4
@@ -50,7 +50,7 @@ jobs:
     - run: pipx run twine check --strict dist/*
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build]
     strategy:
       matrix:

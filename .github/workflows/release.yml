@@ -11,7 +11,7 @@ jobs:
   build-and-publish:
     name: Build and publish to PyPI
     if: startsWith(github.event.ref, 'refs/tags')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout to master
         uses: actions/checkout@v3
