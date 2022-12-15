@@ -925,15 +925,7 @@ def _cmd_process(
 
 
 def _get_namespace(
-    requested_ns_name,
-    name,
-    requester,
-    duration,
-    pool,
-    timeout,
-    local,
-    force,
-    using_current=False
+    requested_ns_name, name, requester, duration, pool, timeout, local, force, using_current=False
 ):
 
     if not has_ns_operator():
@@ -950,8 +942,11 @@ def _get_namespace(
     reserved_new_ns = False
     if not ns:
         if using_current:
-            log.info("Current namespace '%s' could not be used (not reserved,"
-                     " expired, or not owned), reserving a new one", requested_ns_name)
+            log.info(
+                "Current namespace '%s' could not be used (not reserved,"
+                " expired, or not owned), reserving a new one",
+                requested_ns_name,
+            )
 
         ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
         reserved_new_ns = True
@@ -963,9 +958,7 @@ def _check_and_use_namespace(requested_ns_name, using_current):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
-    log.debug(
-        "checking if namespace '%s' has been reserved via ns operator...", requested_ns_name
-    )
+    log.debug("checking if namespace '%s' has been reserved via ns operator...", requested_ns_name)
     operator_reservation = get_reservation(namespace=requested_ns_name)
     ns = None
     if operator_reservation:
@@ -1022,14 +1015,18 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
 @click.option(
     "--namespace",
     "-n",
-    help="Namespace (defaults to namespace from current context; "
-         "if not set, not reserved, or not owned, then bonfire will reserve a new one)",
+    help=(
+        "Namespace (defaults to namespace from current context; "
+        "if not set, not reserved, or not owned, then bonfire will reserve a new one)"
+    ),
     default=None,
 )
 @click.option(
     "--reserve",
-    help="Do not use current context's namespace and force reserve a new one. (keeps"
-         " the reservation on failure)",
+    help=(
+        "Do not use current context's namespace and force reserve a new one. (keeps"
+        " the reservation on failure)"
+    ),
     is_flag=True,
 )
 @click.option(
@@ -1095,8 +1092,15 @@ def _cmd_config_deploy(
         namespace = get_current_namespace()
 
     ns, reserved_new_ns = _get_namespace(
-        namespace, name, requester, duration, pool, timeout, local, force,
-        using_current=using_current
+        namespace,
+        name,
+        requester,
+        duration,
+        pool,
+        timeout,
+        local,
+        force,
+        using_current=using_current,
     )
 
     if import_secrets:
