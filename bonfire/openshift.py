@@ -20,6 +20,7 @@ from wait_for import TimedOutError, wait_for
 log = logging.getLogger(__name__)
 
 
+@functools.lru_cache(maxsize=None, typed=False)
 def has_ns_operator():
     for res in get_api_resources():
         name = res["name"]

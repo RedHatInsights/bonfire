@@ -299,18 +299,20 @@ def test_describe_ephemeral_ns(mocker):
     assert "yes.redhat.com" in result.output
 
 
-def test_describe_empty_ns(mocker):
+def test_describe_ephemeral_ns_from_ctx(mocker):
     mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
     mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
     mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
     mocker.patch("bonfire.namespaces.get_json")
+    mocker.patch("bonfire.namespaces.Namespace")
+    mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value='ephemeral-blah')
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe"])
     print(result.output)
 
-    assert "Error: Missing argument 'NAMESPACE'." in result.output
-    assert "env-ephemeral-blah-howdy" not in result.output
-    assert "yes.redhat.com" not in result.output
+    assert "jdoe | password" in result.output
+    assert "env-ephemeral-blah-howdy" in result.output
+    assert "yes.redhat.com" in result.output
 
 
 def test_describe_default_ns(mocker):
