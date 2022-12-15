@@ -68,6 +68,7 @@ def _error(msg):
 
 
 def current_namespace_or_error():
+    log.info("attempting to use current namespace from oc/kubectl context...")
     namespace = get_current_namespace()
     if not namespace:
         _error(
@@ -943,9 +944,8 @@ def _get_namespace(
     if not ns:
         if using_current:
             log.info(
-                "Current namespace '%s' could not be used (not reserved,"
+                "current namespace could not be used (not reserved,"
                 " expired, or not owned), reserving a new one",
-                requested_ns_name,
             )
 
         ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
@@ -955,6 +955,9 @@ def _get_namespace(
 
 
 def _check_and_use_namespace(requested_ns_name, using_current):
+    if using_current:
+        log.info("attempting to use current namespace from oc/kubectl context...")
+
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
@@ -965,7 +968,7 @@ def _check_and_use_namespace(requested_ns_name, using_current):
         log.debug("found existing ns operator reservation")
 
         if operator_reservation.get("status", {}).get("state") == "expired":
-            msg = f"Reservation has expired for namespace '{requested_ns_name}'"
+            msg = f"reservation has expired for namespace '{requested_ns_name}'"
             if using_current:
                 log.info(msg)
                 return None
@@ -973,12 +976,17 @@ def _check_and_use_namespace(requested_ns_name, using_current):
                 _error(msg)
 
         ns = Namespace(name=requested_ns_name)
-        if not ns.owned_by_me:
+
+        if ns.owned_by_me:
             if using_current:
-                log.info("current namespace '%s' is reserved by someone else", requested_ns_name)
+                log.info("current namespace '%s' is owned by this user", ns.name)
+        else:
+            if using_current:
+                log.info("current namespace '%s' is reserved by someone else", ns.name)
                 return None
 
             _warn_if_not_owned_by_me()
+
         if not ns.ready:
             _warn_if_not_ready()
 
