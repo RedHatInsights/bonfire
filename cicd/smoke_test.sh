@@ -1,3 +1,5 @@
+# DEPRECATED: please use cji_smoke_test.sh
+
 # Spin up iqe pod and execute IQE tests in it
 
 # Env vars defined by caller:
@@ -8,6 +10,8 @@
 
 # Env vars set by 'bootstrap.sh':
 #ARTIFACTS_DIR -- directory where test run artifacts are stored
+
+echo "*** DEPRECATED: 'smoke_test.sh' is deprecated, please switch to 'cji_smoke_test.sh' ***"
 
 IQE_POD_NAME="iqe-tests"
 
