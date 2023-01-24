@@ -133,11 +133,11 @@ function transform_arg {
 }
 
 if [ -n "$COMPONENTS" ]; then
-    COMPONENTS_ARG=$(transform_arg --component $COMPONENTS)
+    COMPONENTS_ARG=$(transform_arg --component "$COMPONENTS")
     export COMPONENTS_ARG
 fi
 
 if [ -n "$COMPONENTS_W_RESOURCES" ]; then
-    COMPONENTS_RESOURCES_ARG=$(transform_arg --no-remove-resources $COMPONENTS_W_RESOURCES)
+    COMPONENTS_RESOURCES_ARG=$(transform_arg --no-remove-resources "$COMPONENTS_W_RESOURCES")
     export COMPONENTS_RESOURCES_ARG
 fi
