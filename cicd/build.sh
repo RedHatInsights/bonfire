@@ -11,7 +11,7 @@
 #APP_ROOT="/path/to/app/root" -- path to the cloned app repo
 
 # Env vars for local use
-IMAGE_TAG_OPTS="-t ${IMAGE}:${IMAGE_TAG}"
+CMD_OPTS="-t ${IMAGE}:${IMAGE_TAG}"
 set -e
 
 source ${CICD_ROOT}/_common_container_logic.sh
@@ -22,12 +22,12 @@ function build {
         exit 1
     fi
 
-    # if this is a PR, set the tag to expire in 3 days
+    # if this is a PR, set the tag to expire in 3 days and set arg 'TEST_IMAGE=true'
     if [ ! -z "$ghprbPullId" ] || [ ! -z "$gitlabMergeRequestIid" ]; then
         echo "LABEL quay.expires-after=${QUAY_EXPIRE_TIME}" >> $APP_ROOT/$DOCKERFILE
         # use IMAGE_TAG_LATEST later to detect extra tag to push
         IMAGE_TAG_LATEST="$(cut -d "-" -f 1,2 <<< $IMAGE_TAG)-latest"
-        IMAGE_TAG_OPTS+=" -t ${IMAGE}:${IMAGE_TAG_LATEST}"
+        CMD_OPTS+=" -t ${IMAGE}:${IMAGE_TAG_LATEST} --build-arg TEST_IMAGE=true"
     fi
 
     if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
@@ -45,17 +45,17 @@ function docker_build {
         {
             set -x
             docker pull "${IMAGE}" &&
-            docker build $IMAGE_TAG_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}"
+            docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}"
             set +x
         } || {
             echo "Build from cache failed, attempting build without cache"
             set -x
-            docker build $IMAGE_TAG_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+            docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE
             set +x
         }
     else
         set -x
-        docker build $IMAGE_TAG_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+        docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE
         set +x
     fi
     set -x
@@ -69,7 +69,7 @@ function docker_build {
 
 function podman_build {
     set -x
-    podman build -f $APP_ROOT/$DOCKERFILE ${IMAGE_TAG_OPTS} $APP_ROOT
+    podman build -f $APP_ROOT/$DOCKERFILE ${CMD_OPTS} $APP_ROOT
     podman push "${IMAGE}:${IMAGE_TAG}"
     if  [ ! -z "$IMAGE_TAG_LATEST" ]; then
         podman push "${IMAGE}:${IMAGE_TAG_LATEST}"
