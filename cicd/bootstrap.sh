@@ -66,8 +66,8 @@ python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
 set +x
-pip install --upgrade pip 'setuptools<58' wheel
-pip install --upgrade 'crc-bonfire>=4.10.4'
+python3 -m pip install --upgrade pip 'setuptools<58' wheel
+python3 -m pip install --upgrade 'crc-bonfire>=4.10.4'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
