@@ -42,6 +42,7 @@ export KUBECONFIG_DIR="$WORKSPACE/.kube"
 export KUBECONFIG="$KUBECONFIG_DIR/config"
 rm -fr $KUBECONFIG_DIR
 mkdir $KUBECONFIG_DIR
+
 set +x
 
 # if this is a PR, use a different tag, since PR tags expire
@@ -66,8 +67,8 @@ export LC_ALL=en_US.utf-8
 python3 -m venv .bonfire_venv
 source .bonfire_venv/bin/activate
 
-pip install --upgrade pip 'setuptools<58' wheel
-pip install --upgrade 'crc-bonfire>=4.10.4'
+python3 -m pip install --upgrade pip 'setuptools<58' wheel
+python3 -m pip install --upgrade 'crc-bonfire>=4.10.4'
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
