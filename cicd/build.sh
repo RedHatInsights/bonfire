@@ -16,21 +16,37 @@ set -e
 
 source ${CICD_ROOT}/_common_container_logic.sh
 
+is_pr_or_mr_build() {
+    [ -n "$ghprbPullId" ] || [ -n "$gitlabMergeRequestId" ]
+}
+
+get_expiry_label_parameter() {
+    echo "--label quay.expires-after=${QUAY_EXPIRE_TIME}"
+}
+
+is_rhel7_host() {
+
+    local RELEASE_FILE='/etc/redhat-release'
+
+    [ -f "$RELEASE_FILE" ] && grep -q -i "release 7" "$RELEASE_FILE"
+}
+
 function build {
+
+    local IMAGE_TAG_LATEST=''
+
     if [ ! -f "$APP_ROOT/$DOCKERFILE" ]; then
         echo "ERROR: No $DOCKERFILE found"
         exit 1
     fi
 
-    # if this is a PR, set the tag to expire in 3 days and set arg 'TEST_IMAGE=true'
-    if [ ! -z "$ghprbPullId" ] || [ ! -z "$gitlabMergeRequestIid" ]; then
-        echo "LABEL quay.expires-after=${QUAY_EXPIRE_TIME}" >> $APP_ROOT/$DOCKERFILE
-        # use IMAGE_TAG_LATEST later to detect extra tag to push
+    if is_pr_or_mr_build; then
+        CMD_OPTS+=" $(get_expiry_label_parameter)"
         IMAGE_TAG_LATEST="$(cut -d "-" -f 1,2 <<< $IMAGE_TAG)-latest"
         CMD_OPTS+=" -t ${IMAGE}:${IMAGE_TAG_LATEST} --build-arg TEST_IMAGE=true"
     fi
 
-    if test -f /etc/redhat-release && grep -q -i "release 7" /etc/redhat-release; then
+    if is_rhel7_host; then
         # on RHEL7, use docker
         docker_build
     else
