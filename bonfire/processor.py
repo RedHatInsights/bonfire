@@ -140,6 +140,7 @@ def process_iqe_cji(
     plugins="",
     local=True,
     selenium=False,
+    tty=False,
 ):
     log.info("processing IQE ClowdJobInvocation")
 
@@ -169,7 +170,7 @@ def process_iqe_cji(
     params["TEST_IMPORTANCE"] = json.dumps(test_importance)
     params["DEPLOY_SELENIUM"] = json.dumps(selenium)
 
-    processed_template = _process_template(template_data, params=params, local=local)
+    processed_template = _process_template(template_data, params=params, local=local, tty=tty)
 
     if not processed_template.get("items"):
         raise FatalError("Processed CJI template has no items")

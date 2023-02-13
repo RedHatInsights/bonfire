@@ -632,6 +632,12 @@ _iqe_cji_process_options = [
         type=str,
         default="",
     ),
+    click.option(
+        "--tty",
+        help="Allocate a tty to an iqe-tests pod.",
+        is_flag=True,
+        default=False,
+    ),
     _local_option,
 ]
 
@@ -1281,6 +1287,7 @@ def _cmd_process_iqe_cji(
     plugins,
     local,
     selenium,
+    tty,
 ):
     """Process IQE ClowdJobInvocation template and print output"""
     cji_config = process_iqe_cji(
@@ -1330,6 +1337,7 @@ def _cmd_deploy_iqe_cji(
     selenium,
     pool,
     force,
+    tty,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
     if not has_clowder():
