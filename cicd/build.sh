@@ -52,13 +52,7 @@ function build {
     fi
 }
 
-# Used to add a new line to the Dockerfile to add the
-# automatic expiry date for PR/MR-only images.
-#
-# Adding a new line to the Dockerfile adds a new layer,
-# preventing Podman to associate the expiry label to the
-# release image when running on master after merging the
-# MR/PR.
+# https://github.com/RedHatInsights/bonfire/issues/291
 add_expiry_label_to_file() {
 
     local FILE="$1"
