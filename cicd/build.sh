@@ -38,7 +38,7 @@ function build {
     fi
 
     if is_pr_or_mr_build; then
-        add_expiry_label_to_dockerfile "$DOCKERFILE_PATH" "$QUAY_EXPIRE_TIME"
+        add_expiry_label_to_file "$DOCKERFILE_PATH" "$QUAY_EXPIRE_TIME"
         IMAGE_TAG_LATEST="$(cut -d "-" -f 1,2 <<< $IMAGE_TAG)-latest"
         CMD_OPTS+=" -t ${IMAGE}:${IMAGE_TAG_LATEST} --build-arg TEST_IMAGE=true"
     fi
