@@ -11,7 +11,7 @@
 #APP_ROOT="/path/to/app/root" -- path to the cloned app repo
 
 # Env vars for local use
-CMD_OPTS="-t ${IMAGE}:${IMAGE_TAG}"
+CMD_OPTS=(-t "${IMAGE}:${IMAGE_TAG}")
 set -e
 
 # shellcheck source=cicd/_common_container_logic.sh
@@ -79,17 +79,17 @@ function docker_build {
         {
             set -x
             docker pull "${IMAGE}" &&
-            docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}"
+            docker build "${CMD_OPTS[@]}" "$APP_ROOT" -f "${APP_ROOT}/${DOCKERFILE}" --cache-from "${IMAGE}"
             set +x
         } || {
             echo "Build from cache failed, attempting build without cache"
             set -x
-            docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+            docker build "${CMD_OPTS[@]}" "$APP_ROOT" -f "${APP_ROOT}/${DOCKERFILE}"
             set +x
         }
     else
         set -x
-        docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE
+        docker build "${CMD_OPTS[@]}" "$APP_ROOT" -f "${APP_ROOT}/${DOCKERFILE}"
         set +x
     fi
     set -x
@@ -103,7 +103,8 @@ function docker_build {
 
 function podman_build {
     set -x
-    podman build -f $APP_ROOT/$DOCKERFILE ${CMD_OPTS} $APP_ROOT
+
+    podman build -f "${APP_ROOT}/${DOCKERFILE}" "${CMD_OPTS[@]}" "$APP_ROOT"
     podman push "${IMAGE}:${IMAGE_TAG}"
     if  [ -n "$IMAGE_TAG_LATEST" ]; then
         podman push "${IMAGE}:${IMAGE_TAG_LATEST}"
