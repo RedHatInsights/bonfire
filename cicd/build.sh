@@ -11,7 +11,7 @@
 #APP_ROOT="/path/to/app/root" -- path to the cloned app repo
 
 # Env vars for local use
-CMD_OPTS=(-t "${IMAGE}:${IMAGE_TAG}")
+CMD_OPTS=("-t ${IMAGE}:${IMAGE_TAG}")
 set -e
 
 # shellcheck source=cicd/_common_container_logic.sh
