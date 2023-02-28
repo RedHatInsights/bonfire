@@ -40,8 +40,8 @@ function build {
 
     if is_pr_or_mr_build; then
         add_expiry_label_to_file "$DOCKERFILE_PATH" "$QUAY_EXPIRE_TIME"
-        IMAGE_TAG_LATEST="$(cut -d "-" -f 1,2 <<< $IMAGE_TAG)-latest"
-        CMD_OPTS+=" -t ${IMAGE}:${IMAGE_TAG_LATEST} --build-arg TEST_IMAGE=true"
+        IMAGE_TAG_LATEST="$(cut -d "-" -f 1,2 <<< "$IMAGE_TAG")-latest"
+        CMD_OPTS+=("-t ${IMAGE}:${IMAGE_TAG_LATEST}" "--build-arg TEST_IMAGE=true")
     fi
 
     if is_rhel7_host; then
@@ -70,7 +70,7 @@ add_expiry_label_to_file() {
 }
 
 _file_ends_with_newline() {
-    [ $(tail -1 "$1" | wc -l) -ne 0 ]
+    [ "$(tail -1 "$1" | wc -l)" -ne 0 ]
 }
 
 function docker_build {
