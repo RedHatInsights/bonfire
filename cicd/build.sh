@@ -11,7 +11,7 @@
 #APP_ROOT="/path/to/app/root" -- path to the cloned app repo
 
 # Env vars for local use
-CMD_OPTS=("-t ${IMAGE}:${IMAGE_TAG}")
+CMD_OPTS=("-t" "${IMAGE}:${IMAGE_TAG}")
 set -e
 
 # shellcheck source=cicd/_common_container_logic.sh
@@ -41,7 +41,7 @@ function build {
     if is_pr_or_mr_build; then
         add_expiry_label_to_file "$DOCKERFILE_PATH" "$QUAY_EXPIRE_TIME"
         IMAGE_TAG_LATEST="$(cut -d "-" -f 1,2 <<< "$IMAGE_TAG")-latest"
-        CMD_OPTS+=("-t ${IMAGE}:${IMAGE_TAG_LATEST}" "--build-arg TEST_IMAGE=true")
+        CMD_OPTS+=("-t" "${IMAGE}:${IMAGE_TAG_LATEST}" "--build-arg" "TEST_IMAGE=true")
     fi
 
     if is_rhel7_host; then
