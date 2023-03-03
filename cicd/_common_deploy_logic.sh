@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Env vars caller defines:
 #APP_NAME="myapp"  # name of app-sre "application" folder this component lives in
 #COMPONENT_NAME="mycomponent"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
@@ -19,6 +21,8 @@ add_cicd_bin_to_path
 function trap_proxy {
     # https://stackoverflow.com/questions/9256644/identifying-received-signal-name-in-bash
     func="$1"; shift
+
+    # shellcheck disable=SC2064
     for sig; do
         trap "$func $sig" "$sig"
     done
@@ -28,45 +32,63 @@ trap_proxy teardown EXIT ERR SIGINT SIGTERM
 
 set -e
 
-: ${COMPONENTS:=""}
-: ${COMPONENTS_W_RESOURCES:=""}
-: ${DEPLOY_TIMEOUT:="900"}
-: ${REF_ENV:="insights-production"}
-: ${RELEASE_NAMESPACE:="true"}
-: ${ALWAYS_COLLECT_LOGS:="false"}
+: "${COMPONENTS:=}"
+: "${COMPONENTS_W_RESOURCES:=}"
+: "${DEPLOY_TIMEOUT:=900}"
+: "${REF_ENV:=insights-production}"
+: "${RELEASE_NAMESPACE:=true}"
+: "${ALWAYS_COLLECT_LOGS:=false}"
 
 K8S_ARTIFACTS_DIR="$ARTIFACTS_DIR/k8s_artifacts"
 TEARDOWN_RAN=0
 
 function get_pod_logs() {
-    local ns=$1
-    LOGS_DIR="$K8S_ARTIFACTS_DIR/$ns/logs"
-    mkdir -p $LOGS_DIR
-    # get array of pod_name:container1,container2,..,containerN for all containers in all pods
+
+    local NAMESPACE="$1"
+    local LOGS_DIR="${K8S_ARTIFACTS_DIR}/${NAMESPACE}/logs"
+
+    mkdir -p "$LOGS_DIR"
+
     echo "Collecting container logs..."
-    PODS_CONTAINERS=($(oc_wrapper get pods --ignore-not-found=true -n $ns -o "jsonpath={range .items[*]}{' '}{.metadata.name}{':'}{range .spec['containers', 'initContainers'][*]}{.name}{','}"))
-    for pc in ${PODS_CONTAINERS[@]}; do
+
+    IFS=" " read -r -a PODS_CONTAINERS <<< "$(get_containers_per_pod "$NAMESPACE")"
+
+    for pc in "${PODS_CONTAINERS[@]}"; do
         # https://stackoverflow.com/a/4444841
         POD=${pc%%:*}
         CONTAINERS=${pc#*:}
         for container in ${CONTAINERS//,/ }; do
-            oc_wrapper logs $POD -c $container -n $ns > $LOGS_DIR/${POD}_${container}.log 2> /dev/null || continue
-            oc_wrapper logs $POD -c $container --previous -n $ns > $LOGS_DIR/${POD}_${container}-previous.log 2> /dev/null || continue
+            oc_wrapper logs "$POD" -c "$container" -n "$NAMESPACE" > "${LOGS_DIR}/${POD}_${container}.log" 2> /dev/null || continue
+            oc_wrapper logs "$POD" -c "$container" --previous -n "$NAMESPACE" > "${LOGS_DIR}/${POD}_${container}-previous.log" 2> /dev/null || continue
         done
     done
+}
+
+get_containers_per_pod() {
+
+    local NAMESPACE="$1"
+    # template format: pod_name:container1,container2,..,containerN for all containers in all pods
+    local OUTPUT_TEMPLATE="jsonpath={range .items[*]}{' '}{.metadata.name}{':'}"
+    OUTPUT_TEMPLATE="${OUTPUT_TEMPLATE}{range .spec['containers', 'initContainers'][*]}{.name}{','}"
+
+    oc_wrapper get pods --ignore-not-found=true -n "$NAMESPACE" -o "$OUTPUT_TEMPLATE"
 }
 
 function collect_k8s_artifacts() {
     local ns=$1
     DIR="$K8S_ARTIFACTS_DIR/$ns"
-    mkdir -p $DIR
-    get_pod_logs $ns
+    mkdir -p "$DIR"
+    get_pod_logs "$ns"
     echo "Collecting events and k8s configs..."
-    oc_wrapper get events -n $ns --sort-by='.lastTimestamp' > $DIR/oc_get_events.txt
-    oc_wrapper get all -n $ns -o yaml > $DIR/oc_get_all.yaml
-    oc_wrapper get clowdapp -n $ns -o yaml > $DIR/oc_get_clowdapp.yaml
-    oc_wrapper get clowdenvironment env-$ns -o yaml > $DIR/oc_get_clowdenvironment.yaml
-    oc_wrapper get clowdjobinvocation -n $ns -o yaml > $DIR/oc_get_clowdjobinvocation.yaml
+    oc_wrapper get events -n "$ns" --sort-by='.lastTimestamp' > "${DIR}/oc_get_events.txt"
+    oc_wrapper get all -n "$ns" -o yaml > "${DIR}/oc_get_all.yaml"
+    oc_wrapper get clowdapp -n "$ns" -o yaml > "${DIR}/oc_get_clowdapp.yaml"
+    oc_wrapper get clowdenvironment "env-${ns}" -o yaml > "${DIR}/oc_get_clowdenvironment.yaml"
+    oc_wrapper get clowdjobinvocation -n "$ns" -o yaml > "${DIR}/oc_get_clowdjobinvocation.yaml"
+}
+
+remove_duplicates() {
+    xargs -n1 <<< "$*" | sort -u
 }
 
 function teardown {
@@ -84,11 +106,9 @@ function teardown {
     echo "Tear down operation triggered by signal: $CAPTURED_SIGNAL"
 
     # run teardown on all namespaces possibly reserved in this run
-    RESERVED_NAMESPACES=("${NAMESPACE}" "${DB_NAMESPACE}" "${SMOKE_NAMESPACE}")
-    # remove duplicates (https://stackoverflow.com/a/13648438)
-    UNIQUE_NAMESPACES=($(echo "${RESERVED_NAMESPACES[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
+    UNIQUE_NAMESPACES=$(remove_duplicates "$NAMESPACE" "$DB_NAMESPACE" "$SMOKE_NAMESPACE")
 
-    for ns in ${UNIQUE_NAMESPACES[@]}; do
+    for ns in $UNIQUE_NAMESPACES; do
         echo "Running teardown for ns: $ns"
         set +e
 
@@ -96,12 +116,12 @@ function teardown {
             echo "No errors or failures detected on JUnit reports, skipping K8s artifacts collection"
         else
             [ "$ALWAYS_COLLECT_LOGS" != "true" ] && echo "Errors or failures detected, collecting K8s artifacts"
-            collect_k8s_artifacts $ns
+            collect_k8s_artifacts "$ns"
         fi
 
         if [ "${RELEASE_NAMESPACE}" != "false" ]; then
             echo "Releasing namespace reservation"
-            bonfire namespace release $ns -f
+            bonfire namespace release "$ns" -f
         fi
         set -e
     done
@@ -112,17 +132,19 @@ function transform_arg {
     # transform components to "$1" options for bonfire
     options=""
     option="$1"; shift;
-    components="$@"
+    components="$*"
     for c in $components; do
         options="$options $option $c"
     done
     echo "$options"
 }
 
-if [ ! -z "$COMPONENTS" ]; then
-    export COMPONENTS_ARG=$(transform_arg --component $COMPONENTS)
+if [ -n "$COMPONENTS" ]; then
+    COMPONENTS_ARG=$(transform_arg --component "$COMPONENTS")
+    export COMPONENTS_ARG
 fi
 
-if [ ! -z "$COMPONENTS_W_RESOURCES" ]; then
-    export COMPONENTS_RESOURCES_ARG=$(transform_arg --no-remove-resources $COMPONENTS_W_RESOURCES)
+if [ -n "$COMPONENTS_W_RESOURCES" ]; then
+    COMPONENTS_RESOURCES_ARG=$(transform_arg --no-remove-resources "$COMPONENTS_W_RESOURCES")
+    export COMPONENTS_RESOURCES_ARG
 fi

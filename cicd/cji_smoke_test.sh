@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Run smoke tests as a ClowdJobInvocation deployed by bonfire
 
 # Env vars defined by caller:
@@ -54,7 +56,7 @@ fi
 # Invoke the CJI using the options set via env vars
 set -x
 POD=$(
-    bonfire deploy-iqe-cji $COMPONENT_NAME \
+    bonfire deploy-iqe-cji "$COMPONENT_NAME" \
     --marker "$IQE_MARKER_EXPRESSION" \
     --filter "$IQE_FILTER_EXPRESSION" \
     --image-tag "${IQE_IMAGE_TAG}" \
@@ -63,37 +65,39 @@ POD=$(
     --test-importance "$IQE_TEST_IMPORTANCE" \
     --plugins "$IQE_PLUGINS" \
     --env "$IQE_ENV" \
-    --cji-name $CJI_NAME \
-    $SELENIUM_ARG \
-    --namespace $NAMESPACE)
+    --cji-name "$CJI_NAME" \
+    "$SELENIUM_ARG" \
+    --namespace "$NAMESPACE")
 set +x
 
 # Pipe logs to background to keep them rolling in jenkins
-CONTAINER=$(oc_wrapper get pod $POD -n $NAMESPACE -o jsonpath="{.status.containerStatuses[0].name}")
-oc_wrapper logs -n $NAMESPACE $POD -c $CONTAINER -f &
+CONTAINER=$(oc_wrapper get pod "$POD" -n "$NAMESPACE" -o jsonpath="{.status.containerStatuses[0].name}")
+oc_wrapper logs -n "$NAMESPACE" "$POD" -c "$CONTAINER" -f &
 
 # Wait for the job to Complete or Fail before we try to grab artifacts
 # condition=complete does trigger when the job fails
 set -x
-oc_wrapper wait --timeout=$IQE_CJI_TIMEOUT --for=condition=JobInvocationComplete -n $NAMESPACE cji/$CJI_NAME
+oc_wrapper wait --timeout="$IQE_CJI_TIMEOUT" --for=condition=JobInvocationComplete -n "$NAMESPACE" "cji/${CJI_NAME}"
 set +x
 
 # Set up port-forward for minio
 set -x
 LOCAL_SVC_PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
-oc_wrapper port-forward svc/env-$NAMESPACE-minio $LOCAL_SVC_PORT:9000 -n $NAMESPACE &
+oc_wrapper port-forward "svc/env-${NAMESPACE}-minio" "${LOCAL_SVC_PORT}:9000" -n "$NAMESPACE" &
 set +x
 sleep 5
-PORT_FORWARD_PID=$!
 
 # Get the secret from the env
 set -x
-oc_wrapper get secret env-$NAMESPACE-minio -o json -n $NAMESPACE | jq -r '.data' > minio-creds.json
+oc_wrapper get secret "env-${NAMESPACE}-minio" -o json -n "$NAMESPACE" | jq -r '.data' > minio-creds.json
 set +x
 
 # Grab the needed creds from the secret
-export MINIO_ACCESS=$(jq -r .accessKey < minio-creds.json | base64 -d)
-export MINIO_SECRET_KEY=$(jq -r .secretKey < minio-creds.json | base64 -d)
+MINIO_ACCESS=$(jq -r .accessKey < minio-creds.json | base64 -d)
+MINIO_SECRET_KEY=$(jq -r .secretKey < minio-creds.json | base64 -d)
+
+export MINIO_ACCESS
+export MINIO_SECRET_KEY
 export MINIO_HOST=localhost
 export MINIO_PORT=$LOCAL_SVC_PORT
 
@@ -113,12 +117,12 @@ mc --no-color --quiet mirror --overwrite minio/${BUCKET_NAME} /artifacts/
 "
 
 run_mc () {
-    echo "running: docker run -t --net=host --name=$CONTAINER_NAME --entrypoint=\"/bin/sh\" $MC_IMAGE -c \"$CMD\""
+    echo "running: docker run -t --net=host --name=${CONTAINER_NAME} --entrypoint=\"/bin/sh\" ${MC_IMAGE} -c \"$CMD\""
     set +e
-    docker run -t --net=host --name=$CONTAINER_NAME --entrypoint="/bin/sh" $MC_IMAGE -c "$CMD"
+    docker run -t --net=host --name="$CONTAINER_NAME" --entrypoint="/bin/sh" "$MC_IMAGE" -c "$CMD"
     RET_CODE=$?
-    docker cp $CONTAINER_NAME:/artifacts/. $ARTIFACTS_DIR
-    docker rm $CONTAINER_NAME
+    docker cp "${CONTAINER_NAME}:/artifacts/." "$ARTIFACTS_DIR"
+    docker rm "$CONTAINER_NAME"
     set -e
     return $RET_CODE
 }
@@ -143,4 +147,4 @@ if [ "$MINIO_SUCCESS" = false ]; then
 fi
 
 echo "copied artifacts from iqe pod: "
-ls -l $ARTIFACTS_DIR
+ls -l "$ARTIFACTS_DIR"

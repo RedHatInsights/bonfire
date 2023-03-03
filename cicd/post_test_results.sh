@@ -4,14 +4,14 @@
 echo "Posting test results"
 
 # getting archives uuids
-UUIDS="$(ls $ARTIFACTS_DIR | grep .tar.gz | sed -e 's/\.tar.gz$//')"
+UUIDS=$(find "$ARTIFACTS_DIR" -type f -name '*.tar.gz' -printf "%f\n" | sed 's/\.tar\.gz$//')
 
 if [[ -n $UUIDS ]]
 then
   base_message="Test results are available in Ibutsu"
 
   # if it is a GitHub PR
-  if [[ -n $ghprbPullId ]]; then
+  if [[ -n "${ghprbPullId:-}" ]] && [[ -n "${ghprbGhRepository:-}" ]] && [[ -n "${ghprbActualCommit:-}" ]]; then
 
     # set +e so that if this POST fails, the entire run will not fail
     set +e
@@ -24,7 +24,7 @@ then
         -H "Accept: application/vnd.github.v3+json" \
         -H "Authorization: token ${GITHUB_TOKEN}" \
         -H "Content-Type: application/json; charset=utf-8" \
-        ${GITHUB_API_URL}/repos/${ghprbGhRepository}/statuses/${ghprbActualCommit} \
+        "${GITHUB_API_URL}/repos/${ghprbGhRepository}/statuses/${ghprbActualCommit}" \
         -d "{\"state\":\"success\",\"target_url\":\"https://url.corp.redhat.com/ibutsu-runs-${uuid}\",\"description\":\"${base_message}\",\"context\":\"ibutsu/run-${uuid}\"}"
     done
 
@@ -32,7 +32,7 @@ then
   fi
 
   # if it is a GitLab MR
-  if [[ -n $gitlabMergeRequestIid ]]; then
+  if [[ -n "${gitlabMergeRequestIid:-}" ]] && [[ -n "${gitlabMergeRequestTargetProjectId:-}" ]]; then
     # construct the comment message
     message="${base_message}:"
     for uuid in $UUIDS
@@ -48,7 +48,7 @@ then
       -X POST \
       -H "PRIVATE-TOKEN: ${GITLAB_TOKEN_IQE_BOT}" \
       -H "Content-Type: application/json; charset=utf-8" \
-      ${GITLAB_HOST_IQE_BOT}/api/v4/projects/${gitlabMergeRequestTargetProjectId}/merge_requests/${gitlabMergeRequestIid}/notes \
+      "${GITLAB_HOST_IQE_BOT}/api/v4/projects/${gitlabMergeRequestTargetProjectId}/merge_requests/${gitlabMergeRequestIid}/notes" \
       -d "{\"body\":\"$message\"}" -v
     set -e
   fi
