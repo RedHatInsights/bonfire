@@ -4,18 +4,17 @@
 #IMAGE="quay.io/myorg/myapp" -- docker image URI to push to
 #DOCKERFILE=Dockerfile.custom  -- dockerfile to use (optional)
 #CACHE_FROM_LATEST_IMAGE=true  -- build image from cache from latest image (optional)
-: "${QUAY_EXPIRE_TIME:=3d}"  # sets a time to expire from when the image is built
+: ${QUAY_EXPIRE_TIME:="3d"}  # sets a time to expire from when the image is built
 
 # Env vars set by bootstrap.sh:
 #IMAGE_TAG="abcd123" -- image tag to push to
 #APP_ROOT="/path/to/app/root" -- path to the cloned app repo
 
 # Env vars for local use
-CMD_OPTS=("-t" "${IMAGE}:${IMAGE_TAG}")
+CMD_OPTS="-t ${IMAGE}:${IMAGE_TAG}"
 set -e
 
-# shellcheck source=cicd/_common_container_logic.sh
-source "${CICD_ROOT}/_common_container_logic.sh"
+source ${CICD_ROOT}/_common_container_logic.sh
 
 is_pr_or_mr_build() {
     [ -n "$ghprbPullId" ] || [ -n "$gitlabMergeRequestId" ]
@@ -40,8 +39,8 @@ function build {
 
     if is_pr_or_mr_build; then
         add_expiry_label_to_file "$DOCKERFILE_PATH" "$QUAY_EXPIRE_TIME"
-        IMAGE_TAG_LATEST="$(cut -d "-" -f 1,2 <<< "$IMAGE_TAG")-latest"
-        CMD_OPTS+=("-t" "${IMAGE}:${IMAGE_TAG_LATEST}" "--build-arg" "TEST_IMAGE=true")
+        IMAGE_TAG_LATEST="$(cut -d "-" -f 1,2 <<< $IMAGE_TAG)-latest"
+        CMD_OPTS+=" -t ${IMAGE}:${IMAGE_TAG_LATEST} --build-arg TEST_IMAGE=true"
     fi
 
     if is_rhel7_host; then
@@ -70,7 +69,7 @@ add_expiry_label_to_file() {
 }
 
 _file_ends_with_newline() {
-    [ "$(tail -1 "$1" | wc -l)" -ne 0 ]
+    [ $(tail -1 "$1" | wc -l) -ne 0 ]
 }
 
 function docker_build {
@@ -79,23 +78,23 @@ function docker_build {
         {
             set -x
             docker pull "${IMAGE}" &&
-            docker build "${CMD_OPTS[@]}" "$APP_ROOT" -f "${APP_ROOT}/${DOCKERFILE}" --cache-from "${IMAGE}"
+            docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE --cache-from "${IMAGE}"
             set +x
         } || {
             echo "Build from cache failed, attempting build without cache"
             set -x
-            docker build "${CMD_OPTS[@]}" "$APP_ROOT" -f "${APP_ROOT}/${DOCKERFILE}"
+            docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE
             set +x
         }
     else
         set -x
-        docker build "${CMD_OPTS[@]}" "$APP_ROOT" -f "${APP_ROOT}/${DOCKERFILE}"
+        docker build $CMD_OPTS $APP_ROOT -f $APP_ROOT/$DOCKERFILE
         set +x
     fi
     set -x
 
     docker push "${IMAGE}:${IMAGE_TAG}"
-    if  [ -n "$IMAGE_TAG_LATEST" ]; then
+    if  [ ! -z "$IMAGE_TAG_LATEST" ]; then
         docker push "${IMAGE}:${IMAGE_TAG_LATEST}"
     fi
     set +x
@@ -103,17 +102,17 @@ function docker_build {
 
 function podman_build {
     set -x
-
-    podman build -f "${APP_ROOT}/${DOCKERFILE}" "${CMD_OPTS[@]}" "$APP_ROOT"
+    podman build -f $APP_ROOT/$DOCKERFILE ${CMD_OPTS} $APP_ROOT
     podman push "${IMAGE}:${IMAGE_TAG}"
-    if  [ -n "$IMAGE_TAG_LATEST" ]; then
+    if  [ ! -z "$IMAGE_TAG_LATEST" ]; then
         podman push "${IMAGE}:${IMAGE_TAG_LATEST}"
     fi
     set +x
 }
 
-: "${DOCKERFILE:=Dockerfile}"
-: "${CACHE_FROM_LATEST_IMAGE:=false}"
+
+: ${DOCKERFILE:="Dockerfile"}
+: ${CACHE_FROM_LATEST_IMAGE:="false"}
 
 # Login to registry with podman/docker
 login
@@ -127,7 +126,7 @@ if [[ $IMAGE == quay.io/* ]]; then
         "https://quay.io/api/v1/repository/$QUAY_REPO/tag/?specificTag=$IMAGE_TAG" \
     )
     # find all non-expired tags
-    VALID_TAGS_LENGTH=$(jq '[ .tags[] | select(.end_ts == null) ] | length' <<< "$RESPONSE")
+    VALID_TAGS_LENGTH=$(echo $RESPONSE | jq '[ .tags[] | select(.end_ts == null) ] | length')
     if [[ "$VALID_TAGS_LENGTH" -gt 0 ]]; then
         echo "$IMAGE:$IMAGE_TAG already present in quay, not rebuilding"
     else
