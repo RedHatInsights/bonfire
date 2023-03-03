@@ -36,23 +36,23 @@ for plugin in $PLUGIN_ARRAY; do
     # run tests marked for 'parallel'
     marker="parallel ${_marker}"
     # Convert image name to plugin name for clowder
-    plugin="${plugin//-/_}"
-    iqe tests plugin "${plugin}" \
-        --junitxml="${ARTIFACTS_DIR}/junit-${plugin}-parallel.xml" \
+    plugin=$(echo $plugin | tr "-" "_")
+    iqe tests plugin ${plugin} \
+        --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-parallel.xml \
         -m "${marker}" \
         -k "${IQE_FILTER_EXPRESSION}" \
         -n 2 \
         -s \
-        --log-file="${ARTIFACTS_DIR}/iqe-${plugin}-parallel.log" 2>&1
+        --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-parallel.log 2>&1
 
     # run non-parallel tests in sequence
     marker="not parallel ${_marker}"
-    iqe tests plugin "${plugin}" \
-        --junitxml="${ARTIFACTS_DIR}/junit-${plugin}-sequential.xml" \
+    iqe tests plugin ${plugin} \
+        --junitxml=${ARTIFACTS_DIR}/junit-${plugin}-sequential.xml \
         -m "${marker}" \
         -k "${IQE_FILTER_EXPRESSION}" \
         -s \
-        --log-file="${ARTIFACTS_DIR}/iqe-${plugin}-sequential.log" 2>&1
+        --log-file=${ARTIFACTS_DIR}/iqe-${plugin}-sequential.log 2>&1
 done
 
 ls -l ${ARTIFACTS_DIR}/
