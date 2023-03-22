@@ -24,6 +24,7 @@ from bonfire.namespaces import (
 from bonfire.openshift import (
     check_for_existing_reservation,
     find_clowd_env_for_ns,
+    get_namespace_pools,
     get_reservation,
     has_clowder,
     has_ns_operator,
@@ -232,8 +233,8 @@ _ns_reserve_options = [
     ),
     click.option(
         "--pool",
-        type=click.Choice(conf.NAMESPACE_POOLS, case_sensitive=False),
-        default="default",
+        type=click.Choice(str),
+        default=conf.DEFAULT_NAMESPACE_POOL,
         show_default=True,
         help="Specifies the pool type name",
     ),
@@ -865,7 +866,7 @@ def _process(
 @pool.command("list")
 def _cmd_pool_types():
     """List all pool types"""
-    click.echo("\n".join(conf.NAMESPACE_POOLS))
+    click.echo(get_namespace_pools)
 
 
 @main.command("process")
@@ -999,6 +1000,10 @@ def _check_and_use_namespace(requested_ns_name, using_current):
 def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
+
+    get_namespace_pools()
+    if pool not in get_namespace_pools():
+        _error(f"namespace pool '{pool}' does not exist on this cluster")
 
     log.debug("checking if requester already has another namespace reserved...")
     requester = requester if requester else _get_requester()

@@ -5,7 +5,6 @@ from unittest.mock import ANY
 import pytest
 from click.testing import CliRunner
 
-import bonfire.config as conf
 from bonfire import bonfire
 from bonfire.utils import FatalError
 
@@ -268,16 +267,20 @@ def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, time
     mock_wait_on_res.assert_called_once_with(ANY, timeout)
 
 
-def test_pool_list_command(caplog):
+def test_pool_list_command(mocker, caplog):
     caplog.set_level(100000)
+
+    mocker.patch("bonfire.bonfire.get_namespace_pools", return_value=["very", "fake", "pools"])
 
     runner = CliRunner()
     result = runner.invoke(bonfire.pool, ["list"])
     print(result.output)
 
-    output = [r for r in result.output.split("\n") if r != ""]
+    output = [str(r) for r in result.output.split("\n") if r != ""]
 
-    assert output == conf.NAMESPACE_POOLS
+    expected = "\n".join(["very", "fake", "pools"])
+
+    assert output == expected
 
 
 default_kc = {"username": "jdoe", "password": "password"}
