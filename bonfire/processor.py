@@ -606,7 +606,19 @@ class TemplateProcessor:
         else:
             log.info("processing component %s", component_name)
             items = self._get_component_items(component_name)
-
+            for components in items:
+                try:
+                    n = components['metadata']['name']
+                    """
+                    Local yaml config parameters (like IMAGE_TAG) will be overwritten by their proper
+                    upstream components unless we rename our local component_name
+                    to the correct one again.
+                    """
+                    if n in component_name:
+                        component_name = n
+                        break
+                except KeyError:
+                    continue
             # ignore frontends if we're not supposed to deploy them
             if self._frontend_found(items) and not self.frontends:
                 log.info(
