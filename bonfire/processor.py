@@ -610,8 +610,8 @@ class TemplateProcessor:
                 try:
                     n = components['metadata']['name']
                     """
-                    Local yaml config parameters (like IMAGE_TAG) will be overwritten by their proper
-                    upstream components unless we rename our local component_name
+                    Local yaml config parameters (like IMAGE_TAG) will be overwritten by their
+                    proper upstream components unless we rename our local component_name
                     to the correct one again.
                     """
                     if n in component_name:
