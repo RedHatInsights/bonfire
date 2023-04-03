@@ -219,11 +219,49 @@ By default, if app components use `ClowdApp` resources in their templates, then 
 
 `bonfire` ships with a [default config](bonfire/resources/default_config.yaml) that should be enough to get started for most internal Red Hat employees.
 
-By default, the configuration file will be stored in `~/.config/bonfire/config.yaml`.
+By default, the configuration file will be stored in `~/.config/bonfire/config.yaml`. 
 
-If you wish to override any app configurations, you can edit your local configuration file by typing `bonfire config edit`. If you define an app under the `apps` key of the config, it will take precedence over that app's configuration that was fetched from app-interface. Note that defining a local app configuration here will replace the configuration defined in app-interface for ALL components within that app.
+If you wish to override any app configurations, you can edit your local configuration file by typing `bonfire config edit`. You can then define an app under the `apps` key of the config. You can reset the config to default at any time using `bonfire config write-default`.
 
-You can reset the config to default at any time using `bonfire config write-default`.
+As of `bonfire` v5, there are two options for how the local configuration is loaded (controlled by the `--local-config-method` CLI option). Let's say we have an app configured in app-interface like this:
+
+```
+resourceTemplates:
+- name: mycomponent1
+  path: /deployment.yaml
+  url: https://github.com/myorg/myrepo1
+  targets:
+  - namespace:
+      $ref: /services/insights/ephemeral/namespaces/ephemeral-base.yml
+    parameters:
+      MIN_REPLICAS: 1
+- name: mycomponent2
+  path: /deployment.yaml
+  url: https://github.com/myorg/myrepo2
+  targets:
+  - namespace:
+      $ref: /services/insights/ephemeral/namespaces/ephemeral-base.yml
+    parameters:
+      MIN_REPLICAS: 2
+      SOME_OTHER_PARAM: some_other_value
+```
+
+and the local config file has this entry:
+
+```
+apps:
+- name: myapp
+  components:
+  - name: mycomponent2
+    parameters:
+      MIN_REPLICAS: 10
+```
+
+`bonfire` can override the remote configuration using one of two methods:
+
+1. `--local-config-method merge` (default). In this mode, the apps config in your local config is merged with the configuration that bonfire fetched remotely. With the above config, only the 'MIN_REPLICAS' parameter of 'mycomponent2' within app 'myapp' will be overridden. The 'SOME_OTHER_PARAM' parameter will still be present, and 'mycomponent1' would be unchanged.
+
+2. `--local-config-method override`. In this mode, the local app configuration will take precedence over the app's configuration that bonfire fetched remotely. In other words, defining a local app configuration will replace the configuration defined in app-interface for ALL components within that app. So 'mycomponent1' would be completely removed, and 'mycomponent2' would only have the parameters you defined in the local config.
 
 ## Local config examples
 
@@ -239,13 +277,15 @@ apps:
       host: local
       repo: ~/dev/projects/my-app
       path: /clowdapp.yaml
+      parameters:
+        SOME_PARAMETER: some_value
 ```
 
 - Where **host** set `local` indicates to look for the repo in a local directory
 - Where **repo** indicates the path to your git repo folder
 - Where **path** specifies the relative path to your ClowdApp template file in your git repo
 
-By default, `bonfire` will run `git rev-parse` to determine the current working commit hash in your repo folder, and this determines what IMAGE_TAG to set when the template is deployed. This means you would need to have a valid container image pushed for this commit hash. However, you can use `--set-image-tag` or `--set-parameter` to override the image you wish to use during the deployment.
+By default, `bonfire` will run `git rev-parse` to determine the current working commit hash in your repo folder, and this determines what IMAGE_TAG to set when the template is deployed. This means you would need to have a valid container image pushed for this commit hash. However, you can use `--set-image-tag`/`--set-parameter` or define the `IMAGE_TAG` parameter in your config in order to override the image you wish to use during the deployment.
 
 ### Deploying changes changes in a remote git branch
 

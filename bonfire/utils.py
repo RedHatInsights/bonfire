@@ -1,4 +1,5 @@
 import atexit
+import copy
 from functools import lru_cache
 import json
 import logging
@@ -55,6 +56,8 @@ GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
 GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
 GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects?search={name}"
 GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
+SYNTAX_ERR = "configuration syntax error"
+
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
 
@@ -154,7 +157,7 @@ def validate_time_string(time):
 class RepoFile:
     def __init__(self, host, org, repo, path, ref="master"):
         if host not in ["local", "github", "gitlab"]:
-            raise FatalError(f"invalid repo host type: {host}")
+            raise FatalError(f"{SYNTAX_ERR}, invalid repo host type: {host}")
 
         if not path.startswith("/"):
             path = f"/{path}"
@@ -174,13 +177,14 @@ class RepoFile:
         required_keys = ["host", "repo", "path"]
         missing_keys = [k for k in required_keys if k not in d.keys()]
         if missing_keys:
-            raise FatalError(f"repo config missing keys: {', '.join(missing_keys)}")
+            raise FatalError(f"{SYNTAX_ERR}, repo config missing keys: {', '.join(missing_keys)}")
 
         repo = d["repo"]
         if d["host"] in ["github", "gitlab"]:
             if "/" not in repo:
                 raise FatalError(
-                    f"invalid value for repo '{repo}', required format: <org>/<repo name>"
+                    f"{SYNTAX_ERR}, invalid value for repo '{repo}', required format: "
+                    "<org>/<repo name>"
                 )
             org, repo = repo.split("/")
         elif d["host"] == "local":
@@ -591,3 +595,72 @@ def check_url_connection(url, timeout=5):
     if not port:
         port = 443 if scheme == "https" else 80
     _check_connection(hostname=hostname, port=port, timeout=timeout)
+
+
+def object_merge(old, new, merge_lists=True):
+    """
+    Recursively merge two data structures
+    Thanks rsnyman :)
+    https://github.com/rochacbruno/dynaconf/commit/458ffa6012f1de62fc4f68077f382ab420b43cfc#diff-c1b434836019ae32dc57d00dd1ae2eb9R15
+    """
+    if isinstance(old, list) and isinstance(new, list) and merge_lists:
+        for item in old[::-1]:
+            new.insert(0, item)
+    if isinstance(old, dict) and isinstance(new, dict):
+        for key, value in old.items():
+            if key not in new:
+                new[key] = value
+            else:
+                object_merge(value, new[key])
+    return new
+
+
+def merge_app_configs(apps_config, new_apps, method="merge"):
+    """
+    Merge configurations found in new_apps into apps_config
+    """
+    if method == "override":
+        # with this method, any app defined in 'new_apps' completely overrides
+        # the config in 'apps_config'
+        apps_config.update(new_apps)
+        return apps_config
+
+    for app_name, new_app_cfg in new_apps.items():
+        # if the newly defined app is not present in remote apps, add the whole app config
+        if app_name not in apps_config:
+            apps_config[app_name] = new_app_cfg
+            continue
+
+        # 'components' key should be present but we'll initialize it as [] if it is absent
+        apps_config[app_name]["components"] = apps_config[app_name].get("components") or []
+        app_components = apps_config[app_name]["components"]
+        new_apps[app_name]["components"] = new_apps[app_name].get("components") or []
+        new_app_components = new_apps[app_name]["components"]
+
+        # if the newly defined app is present in existing apps, merge the components config
+        app_components_orig = copy.deepcopy(app_components)
+
+        for new_component in new_app_components:
+            component_name = new_component["name"]
+
+            # find all components in existing config with matching name
+            matched_components = [
+                (idx, c) for idx, c in enumerate(app_components_orig) if c["name"] == component_name
+            ]
+
+            if len(matched_components) < 1:
+                # this component doesn't exist in the existing apps config, just append it
+                app_components.append(new_component)
+            elif len(matched_components) == 1:
+                # a component with matching name was found, merge their config together
+                idx, component = matched_components[0]
+                app_components[idx] = object_merge(component, new_component)
+            else:
+                # this scenario is probably rare but if there is more than one match
+                # we won't know which component to merge config with
+                raise ValueError(
+                    f"config error: component '{component_name}' is defined "
+                    f"more than once in app '{app_name}'"
+                )
+
+    return apps_config
