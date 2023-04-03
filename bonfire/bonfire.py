@@ -47,6 +47,7 @@ from bonfire.utils import (
     get_version,
     split_equals,
     validate_time_string,
+    object_merge,
 )
 
 log = logging.getLogger(__name__)
@@ -804,9 +805,9 @@ def _describe_namespace(namespace):
 
     click.echo(describe_namespace(namespace))
 
-
 def _get_apps_config(source, target_env, ref_env, local_config_path):
     config = conf.load_config(local_config_path)
+    local_apps = get_local_apps(config, fetch_remote=False)
 
     if source == APP_SRE_SRC:
         log.info("fetching apps config using source: %s, target env: %s", source, target_env)
@@ -820,9 +821,18 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
                 for component in app_cfg.get("components", []):
                     component["ref"] = "master"
 
-        # override any apps that were defined in 'apps' setion of local config file
-        apps_config.update(get_local_apps(config, fetch_remote=False))
+        # override any components that were defined in an apps components section of local config file
+        for app_name, app_cfg in apps_config.items():
+            if app_name not in local_apps.keys():
+                continue
+            for idx, component in enumerate(app_cfg.get("components", [])):
+                matched_components = list(filter(
+                    lambda c: component["name"] == c["name"], local_apps[app_name]["components"]
+                ))
 
+                # There can be only one
+                if len(matched_components) == 1:
+                    app_cfg["components"][idx] = object_merge(component, matched_components[0])
     elif source == LOCAL_SRC:
         log.info("fetching apps config using source: %s", source)
         apps_config = get_local_apps(config, fetch_remote=True)

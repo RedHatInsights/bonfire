@@ -591,3 +591,21 @@ def check_url_connection(url, timeout=5):
     if not port:
         port = 443 if scheme == "https" else 80
     _check_connection(hostname=hostname, port=port, timeout=timeout)
+
+
+def object_merge(old, new, merge_lists=True):
+    """
+    Recursively merge two data structures
+    Thanks rsnyman :)
+    https://github.com/rochacbruno/dynaconf/commit/458ffa6012f1de62fc4f68077f382ab420b43cfc#diff-c1b434836019ae32dc57d00dd1ae2eb9R15
+    """
+    if isinstance(old, list) and isinstance(new, list) and merge_lists:
+        for item in old[::-1]:
+            new.insert(0, item)
+    if isinstance(old, dict) and isinstance(new, dict):
+        for key, value in old.items():
+            if key not in new:
+                new[key] = value
+            else:
+                object_merge(value, new[key])
+    return new
