@@ -47,7 +47,7 @@ from bonfire.utils import (
     get_version,
     split_equals,
     validate_time_string,
-    object_merge,
+    merge_app_configs,
 )
 
 log = logging.getLogger(__name__)
@@ -814,29 +814,20 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
         log.info("fetching apps config using source: %s, target env: %s", source, target_env)
         if not target_env:
             _error("target env must be supplied for source '{APP_SRE_SRC}'")
-        apps_config = get_apps_for_env(target_env)
+        remote_apps = get_apps_for_env(target_env)
 
         if target_env == conf.EPHEMERAL_ENV_NAME and not ref_env:
             log.info("target env is 'ephemeral' with no ref env given, using 'master' for all apps")
-            for _, app_cfg in apps_config.items():
+            for _, app_cfg in remote_apps.items():
                 for component in app_cfg.get("components", []):
                     component["ref"] = "master"
 
-        # override any components that were defined in an apps components section of local config
-        # file
-        for app_name, app_cfg in apps_config.items():
-            if app_name not in local_apps.keys():
-                continue
-            for idx, component in enumerate(app_cfg.get("components", [])):
-                matched_components = list(
-                    filter(
-                        lambda c: component["name"] == c["name"], local_apps[app_name]["components"]
-                    )
-                )
+        # merge remote apps config with local app config
+        apps_config = merge_app_configs(remote_apps, local_apps)
+        from pprint import pprint
 
-                # There can be only one
-                if len(matched_components) == 1:
-                    app_cfg["components"][idx] = object_merge(component, matched_components[0])
+        pprint(apps_config)
+
     elif source == LOCAL_SRC:
         log.info("fetching apps config using source: %s", source)
         apps_config = get_local_apps(config, fetch_remote=True)

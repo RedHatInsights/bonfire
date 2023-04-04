@@ -1,4 +1,5 @@
 import atexit
+import copy
 from functools import lru_cache
 import json
 import logging
@@ -593,7 +594,6 @@ def check_url_connection(url, timeout=5):
     _check_connection(hostname=hostname, port=port, timeout=timeout)
 
 
-
 def object_merge(old, new, merge_lists=True):
     """
     Recursively merge two data structures
@@ -610,3 +610,49 @@ def object_merge(old, new, merge_lists=True):
             else:
                 object_merge(value, new[key])
     return new
+
+
+def merge_app_configs(apps_config, new_apps):
+    """
+    Merge configurations found in new_apps into apps_config
+    """
+    for app_name, new_app_cfg in new_apps.items():
+        # if the newly defined app is not present in remote apps, add the whole app config
+        if app_name not in apps_config:
+            apps_config[app_name] = new_app_cfg
+            continue
+
+        # 'components' key should be present but we'll initialize it as [] if it is absent
+        apps_config[app_name]["components"] = apps_config[app_name].get("components") or []
+        app_components = apps_config[app_name]["components"]
+        new_apps[app_name]["components"] = new_apps[app_name].get("components") or []
+        new_app_components = new_apps[app_name]["components"]
+
+        # if the newly defined app is present in existing apps, merge the components config
+        app_components_orig = copy.deepcopy(app_components)
+
+        for new_component in new_app_components:
+            component_name = new_component["name"]
+
+            # find all components in existing config with matching name
+            matched_components = [
+                (idx, c) for idx, c in enumerate(app_components_orig) if c["name"] == component_name
+            ]
+
+            if len(matched_components) < 1:
+                # this component doesn't exist in the existing apps config, just append it
+                print("I AM APPENDING", new_component)
+                app_components.append(new_component)
+            elif len(matched_components) == 1:
+                # a component with matching name was found, merge their config together
+                idx, component = matched_components[0]
+                app_components[idx] = object_merge(component, new_component)
+            else:
+                # this scenario is probably rare but if there is more than one match
+                # we won't know which component to merge config with
+                raise ValueError(
+                    f"config error: component '{component_name}' is defined "
+                    f"more than once in app '{app_name}'"
+                )
+
+    return apps_config
