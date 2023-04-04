@@ -574,9 +574,27 @@ def check_hostname(hostname):
 def check_url_connection(url):
     try:
         parsed_url = urlparse(url)
-    except (ValueError) as err:
+    except ValueError as err:
         raise ValueError(f"invalid url '{url}': {err}")
 
     hostname = parsed_url.netloc
 
     return check_hostname(hostname)
+
+
+def object_merge(old, new, merge_lists=True):
+    """
+    Recursively merge two data structures
+    Thanks rsnyman :)
+    https://github.com/rochacbruno/dynaconf/commit/458ffa6012f1de62fc4f68077f382ab420b43cfc#diff-c1b434836019ae32dc57d00dd1ae2eb9R15
+    """
+    if isinstance(old, list) and isinstance(new, list) and merge_lists:
+        for item in old[::-1]:
+            new.insert(0, item)
+    if isinstance(old, dict) and isinstance(new, dict):
+        for key, value in old.items():
+            if key not in new:
+                new[key] = value
+            else:
+                object_merge(value, new[key])
+    return new

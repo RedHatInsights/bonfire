@@ -2,7 +2,7 @@ import logging
 
 import yaml
 
-from bonfire.utils import FatalError, RepoFile, get_dupes
+from bonfire.utils import FatalError, RepoFile, get_dupes, object_merge
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def get_local_apps(config, fetch_remote=True):
     config_apps = {}
     if "apps" in config:
         config_apps = _parse_apps_in_cfg(config)
-        log.info("local app configuration overrides found for: %s", list(config_apps.keys()))
+        log.info("will merge local configurations found for app: %s", list(config_apps.keys()))
 
     if not fetch_remote:
         final_apps = config_apps
@@ -55,8 +55,7 @@ def get_local_apps(config, fetch_remote=True):
             log.info("local config has a remote 'appsFile' defined, fetching it...")
             fetched_apps = _fetch_apps_file(config)
 
-        # override fetched apps with local apps if any were defined
-        fetched_apps.update(config_apps)
-        final_apps = fetched_apps
+        # override fetched apps config with local apps config if any were defined
+        final_apps = object_merge(fetched_apps, config_apps)
 
     return final_apps

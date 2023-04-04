@@ -305,7 +305,7 @@ def test_describe_ephemeral_ns_from_ctx(mocker):
     mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
     mocker.patch("bonfire.namespaces.get_json")
     mocker.patch("bonfire.namespaces.Namespace")
-    mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value='ephemeral-blah')
+    mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value="ephemeral-blah")
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe"])
     print(result.output)

@@ -79,7 +79,7 @@ class EnvParser:
     def get_kafka_topic(self, app_name, topic_name):
         try:
             topics = self.get_cdapp_config(app_name).kafka.topics
-        except (TypeError):
+        except TypeError:
             raise ValueError(f"topics config not present for app {app_name}")
 
         for topic_config in topics:

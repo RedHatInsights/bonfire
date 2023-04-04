@@ -46,6 +46,7 @@ from bonfire.utils import (
     get_version,
     split_equals,
     validate_time_string,
+    object_merge,
 )
 
 log = logging.getLogger(__name__)
@@ -794,7 +795,7 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
                     component["ref"] = "master"
 
         # override any apps that were defined in 'apps' setion of local config file
-        apps_config.update(get_local_apps(config, fetch_remote=False))
+        apps_config = object_merge(apps_config, get_local_apps(config, fetch_remote=False))
 
     elif source == LOCAL_SRC:
         log.info("fetching apps config using source: %s", source)
@@ -928,7 +929,6 @@ def _cmd_process(
 def _get_namespace(
     requested_ns_name, name, requester, duration, pool, timeout, local, force, using_current=False
 ):
-
     if not has_ns_operator():
         if requested_ns_name:
             ns = Namespace(name=requested_ns_name)
