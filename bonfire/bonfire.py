@@ -824,9 +824,6 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
 
         # merge remote apps config with local app config
         apps_config = merge_app_configs(remote_apps, local_apps)
-        from pprint import pprint
-
-        pprint(apps_config)
 
     elif source == LOCAL_SRC:
         log.info("fetching apps config using source: %s", source)

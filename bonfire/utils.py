@@ -641,7 +641,6 @@ def merge_app_configs(apps_config, new_apps):
 
             if len(matched_components) < 1:
                 # this component doesn't exist in the existing apps config, just append it
-                print("I AM APPENDING", new_component)
                 app_components.append(new_component)
             elif len(matched_components) == 1:
                 # a component with matching name was found, merge their config together
