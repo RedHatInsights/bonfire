@@ -612,10 +612,16 @@ def object_merge(old, new, merge_lists=True):
     return new
 
 
-def merge_app_configs(apps_config, new_apps):
+def merge_app_configs(apps_config, new_apps, method="merge"):
     """
     Merge configurations found in new_apps into apps_config
     """
+    if method == "override":
+        # with this method, any app defined in 'new_apps' completely overrides
+        # the config in 'apps_config'
+        apps_config.update(new_apps)
+        return apps_config
+
     for app_name, new_app_cfg in new_apps.items():
         # if the newly defined app is not present in remote apps, add the whole app config
         if app_name not in apps_config:

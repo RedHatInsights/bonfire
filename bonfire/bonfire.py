@@ -12,7 +12,7 @@ from tabulate import tabulate
 from wait_for import TimedOutError
 
 import bonfire.config as conf
-from bonfire.local import get_local_apps
+from bonfire.local import get_local_apps, get_appsfile_apps
 from bonfire.namespaces import (
     Namespace,
     extend_namespace,
@@ -53,7 +53,7 @@ from bonfire.utils import (
 log = logging.getLogger(__name__)
 
 APP_SRE_SRC = "appsre"
-LOCAL_SRC = "local"
+FILE_SRC = "file"
 NO_RESERVATION_SYS = "this cluster does not use a namespace reservation system"
 
 _local_option = click.option(
@@ -371,7 +371,7 @@ _app_source_options = [
         "--source",
         "-s",
         help=f"Configuration source to use when fetching app templates (default: {APP_SRE_SRC})",
-        type=click.Choice([APP_SRE_SRC, LOCAL_SRC], case_sensitive=False),
+        type=click.Choice([APP_SRE_SRC, FILE_SRC], case_sensitive=False),
         default=APP_SRE_SRC,
     ),
     click.option(
@@ -381,24 +381,39 @@ _app_source_options = [
         default=None,
     ),
     click.option(
+        "--local-config-method",
+        help="Selects method used when combining apps in local config with remote app config",
+        type=click.Choice(["merge", "override"], case_sensitive=False),
+        show_default=True,
+        default="merge",
+    ),
+    click.option(
         "--target-env",
         help=(
-            f"When using source={APP_SRE_SRC}, name of environment to fetch templates for"
-            f" (default: {conf.EPHEMERAL_ENV_NAME})"
+            f"Target environment name when using source={APP_SRE_SRC}. "
+            f"Use to select which template parameters are fetched."
         ),
         type=str,
         default=conf.EPHEMERAL_ENV_NAME,
+        show_default=True,
     ),
 ]
 
-_process_options = [
+_process_options = _app_source_options + [
     click.argument(
         "app_names",
         required=True,
         nargs=-1,
     ),
-    _app_source_options[0],
-    _app_source_options[1],
+    click.option(
+        "--ref-env",
+        help=(
+            f"Reference environment name in {APP_SRE_SRC}. "
+            "Use to set default 'ref'/'IMAGE_TAG' for apps."
+        ),
+        type=str,
+        default=None,
+    ),
     click.option(
         "--set-image-tag",
         "-i",
@@ -428,13 +443,6 @@ _process_options = [
         help=(
             f"Name of ClowdEnvironment (default: if --namespace provided, {conf.ENV_NAME_FORMAT})"
         ),
-        type=str,
-        default=None,
-    ),
-    _app_source_options[2],
-    click.option(
-        "--ref-env",
-        help=f"Query {APP_SRE_SRC} for apps in this environment and substitute 'ref'/'IMAGE_TAG'",
         type=str,
         default=None,
     ),
@@ -806,28 +814,28 @@ def _describe_namespace(namespace):
     click.echo(describe_namespace(namespace))
 
 
-def _get_apps_config(source, target_env, ref_env, local_config_path):
+def _get_apps_config(source, target_env, ref_env, local_config_path, local_config_method):
     config = conf.load_config(local_config_path)
-    local_apps = get_local_apps(config, fetch_remote=False)
 
     if source == APP_SRE_SRC:
         log.info("fetching apps config using source: %s, target env: %s", source, target_env)
         if not target_env:
             _error("target env must be supplied for source '{APP_SRE_SRC}'")
-        remote_apps = get_apps_for_env(target_env)
+        apps_config = get_apps_for_env(target_env)
 
         if target_env == conf.EPHEMERAL_ENV_NAME and not ref_env:
             log.info("target env is 'ephemeral' with no ref env given, using 'master' for all apps")
-            for _, app_cfg in remote_apps.items():
+            for _, app_cfg in apps_config.items():
                 for component in app_cfg.get("components", []):
                     component["ref"] = "master"
 
-        # merge remote apps config with local app config
-        apps_config = merge_app_configs(remote_apps, local_apps)
-
-    elif source == LOCAL_SRC:
+    elif source == FILE_SRC:
         log.info("fetching apps config using source: %s", source)
-        apps_config = get_local_apps(config, fetch_remote=True)
+        apps_config = get_appsfile_apps(config)
+
+    # merge remote apps config with local app config
+    local_apps = get_local_apps(config)
+    apps_config = merge_app_configs(apps_config, local_apps, local_config_method)
 
     if ref_env:
         log.info("subbing app template refs/image tags using environment: %s", ref_env)
@@ -852,6 +860,7 @@ def _process(
     source,
     get_dependencies,
     optional_deps_method,
+    local_config_method,
     set_image_tag,
     ref_env,
     target_env,
@@ -868,7 +877,9 @@ def _process(
     local,
     frontends,
 ):
-    apps_config = _get_apps_config(source, target_env, ref_env, local_config_path)
+    apps_config = _get_apps_config(
+        source, target_env, ref_env, local_config_path, local_config_method
+    )
 
     processor = TemplateProcessor(
         apps_config,
@@ -910,6 +921,7 @@ def _cmd_process(
     source,
     get_dependencies,
     optional_deps_method,
+    local_config_method,
     set_image_tag,
     ref_env,
     target_env,
@@ -935,6 +947,7 @@ def _cmd_process(
         source,
         get_dependencies,
         optional_deps_method,
+        local_config_method,
         set_image_tag,
         ref_env,
         target_env,
@@ -1092,6 +1105,7 @@ def _cmd_config_deploy(
     source,
     get_dependencies,
     optional_deps_method,
+    local_config_method,
     set_image_tag,
     ref_env,
     target_env,
@@ -1177,6 +1191,7 @@ def _cmd_config_deploy(
             source,
             get_dependencies,
             optional_deps_method,
+            local_config_method,
             set_image_tag,
             ref_env,
             target_env,
@@ -1450,11 +1465,12 @@ def _cmd_edit_default_config(path):
 def _cmd_apps_list(
     source,
     local_config_path,
+    local_config_method,
     target_env,
     list_components,
 ):
     """List names of all apps that are marked for deployment in given 'target_env'"""
-    apps = _get_apps_config(source, target_env, None, local_config_path)
+    apps = _get_apps_config(source, target_env, None, local_config_path, local_config_method)
 
     print("")
     sorted_keys = sorted(apps.keys())
@@ -1476,11 +1492,12 @@ def _cmd_apps_list(
 def _cmd_apps_what_depends_on(
     source,
     local_config_path,
+    local_config_method,
     target_env,
     component,
 ):
     """Show any apps that depend on COMPONENT for deployments in given 'target_env'"""
-    apps = _get_apps_config(source, target_env, None, local_config_path)
+    apps = _get_apps_config(source, target_env, None, local_config_path, local_config_method)
     found = find_what_depends_on(apps, component)
     print("\n".join(found) or f"no apps depending on {component} found")
 

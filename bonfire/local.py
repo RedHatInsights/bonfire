@@ -2,7 +2,7 @@ import logging
 
 import yaml
 
-from bonfire.utils import FatalError, RepoFile, get_dupes, merge_app_configs
+from bonfire.utils import FatalError, RepoFile, get_dupes
 
 log = logging.getLogger(__name__)
 
@@ -39,24 +39,25 @@ def _parse_apps_in_cfg(config):
     return {a["name"]: a for a in config["apps"]}
 
 
-def get_local_apps(config, fetch_remote=True):
-    # get any apps set directly in config
+def get_local_apps(config):
+    """
+    Get apps defined locally under 'apps' section of config
+    """
     config_apps = {}
     if "apps" in config:
         config_apps = _parse_apps_in_cfg(config)
         log.info("local app configuration overrides found for: %s", list(config_apps.keys()))
 
-    if not fetch_remote:
-        final_apps = config_apps
-    else:
-        # fetch apps from repo if appsFile is provided in config
-        fetched_apps = {}
-        if "appsFile" in config:
-            log.info("local config has a remote 'appsFile' defined, fetching it...")
-            fetched_apps = _fetch_apps_file(config)
+    return config_apps
 
-        # override fetched apps with local apps if any were defined
-        fetched_apps.update(config_apps)
-        final_apps = merge_app_configs(fetched_apps, config_apps)
 
-    return final_apps
+def get_appsfile_apps(config):
+    """
+    Fetch apps from repo based on appsFile provided in config
+    """
+    if "appsFile" not in config:
+        raise FatalError("config has no 'appsFile' defined")
+
+    log.info("local config has a remote 'appsFile' defined, fetching it...")
+    fetched_apps = _fetch_apps_file(config)
+    return fetched_apps
