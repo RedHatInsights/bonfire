@@ -28,6 +28,9 @@ import yaml
 from cached_property import cached_property
 
 
+MERGE_METHODS = ["merge", "override"]
+
+
 class FatalError(Exception):
     """An exception that will cause the CLI to exit"""
 
@@ -612,10 +615,14 @@ def object_merge(old, new, merge_lists=True):
     return new
 
 
-def merge_app_configs(apps_config, new_apps, method="merge"):
+def merge_app_configs(apps_config, new_apps, method):
     """
     Merge configurations found in new_apps into apps_config
     """
+    method = str(method).lower()
+    if method not in MERGE_METHODS:
+        raise FatalError(f"invalid merge method: {method}")
+
     if method == "override":
         # with this method, any app defined in 'new_apps' completely overrides
         # the config in 'apps_config'
