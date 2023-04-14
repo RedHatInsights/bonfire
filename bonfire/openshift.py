@@ -47,7 +47,7 @@ def get_console_url():
 @functools.lru_cache(maxsize=None, typed=False)
 def get_namespace_pools():
     namespace_pools = get_json("namespacepool")
-    return [pool["metadata"]["name"] for pool in namespace_pools]
+    return [pool["metadata"]["name"] for pool in namespace_pools.get("items", [])]
 
 
 def has_clowder():

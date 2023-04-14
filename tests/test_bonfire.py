@@ -270,7 +270,8 @@ def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, time
 def test_pool_list_command(mocker, caplog):
     caplog.set_level(100000)
 
-    mocker.patch("bonfire.bonfire.get_namespace_pools", return_value=["very", "fake", "pools"])
+    fake_pools = ["very", "fake", "pools"]
+    mocker.patch("bonfire.bonfire.get_namespace_pools", return_value=fake_pools)
 
     runner = CliRunner()
     result = runner.invoke(bonfire.pool, ["list"])
@@ -278,9 +279,7 @@ def test_pool_list_command(mocker, caplog):
 
     output = [str(r) for r in result.output.split("\n") if r != ""]
 
-    expected = "\n".join(["very", "fake", "pools"])
-
-    assert output == expected
+    assert output == fake_pools
 
 
 default_kc = {"username": "jdoe", "password": "password"}
@@ -308,7 +307,7 @@ def test_describe_ephemeral_ns_from_ctx(mocker):
     mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
     mocker.patch("bonfire.namespaces.get_json")
     mocker.patch("bonfire.namespaces.Namespace")
-    mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value='ephemeral-blah')
+    mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value="ephemeral-blah")
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe"])
     print(result.output)

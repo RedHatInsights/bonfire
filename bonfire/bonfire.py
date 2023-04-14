@@ -233,7 +233,7 @@ _ns_reserve_options = [
     ),
     click.option(
         "--pool",
-        type=click.Choice(str),
+        type=str,
         default=conf.DEFAULT_NAMESPACE_POOL,
         show_default=True,
         help="Specifies the pool type name",
@@ -866,7 +866,7 @@ def _process(
 @pool.command("list")
 def _cmd_pool_types():
     """List all pool types"""
-    click.echo(get_namespace_pools)
+    click.echo("\n".join(get_namespace_pools()))
 
 
 @main.command("process")
@@ -929,7 +929,6 @@ def _cmd_process(
 def _get_namespace(
     requested_ns_name, name, requester, duration, pool, timeout, local, force, using_current=False
 ):
-
     if not has_ns_operator():
         if requested_ns_name:
             ns = Namespace(name=requested_ns_name)
@@ -1001,7 +1000,6 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
-    get_namespace_pools()
     if pool not in get_namespace_pools():
         _error(f"namespace pool '{pool}' does not exist on this cluster")
 
