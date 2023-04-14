@@ -33,6 +33,7 @@ def reservation_list():
 def test_ns_reserve_flag_name(mocker, caplog, name: str):
     caplog.set_level(100000)
 
+    mocker.patch("bonfire.bonfire.get_namespace_pools", return_value=["default"])
     mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
@@ -59,6 +60,7 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
 def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     caplog.set_level(100000)
 
+    mocker.patch("bonfire.bonfire.get_namespace_pools", return_value=["default"])
     mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value=requester)
@@ -86,6 +88,7 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
 def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     caplog.set_level(100000)
 
+    mocker.patch("bonfire.bonfire.get_namespace_pools", return_value=["default"])
     mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
@@ -250,6 +253,7 @@ def test_ns_list_flag_output(
 def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, timeout: int):
     caplog.set_level(100000)
 
+    mocker.patch("bonfire.bonfire.get_namespace_pools", return_value=["default"])
     mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.namespaces.whoami", return_value=user)
