@@ -574,7 +574,7 @@ def check_hostname(hostname):
 def check_url_connection(url):
     try:
         parsed_url = urlparse(url)
-    except (ValueError) as err:
+    except ValueError as err:
         raise ValueError(f"invalid url '{url}': {err}")
 
     hostname = parsed_url.netloc
