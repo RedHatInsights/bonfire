@@ -286,14 +286,19 @@ def test_pool_list_command(mocker, caplog):
     assert output == fake_pools
 
 
-default_kc = {"username": "jdoe", "password": "password"}
+default_kc = {
+    "username": "admin",
+    "password": "adminPassword",
+    "defaultUsername": "jdoe",
+    "defaultPassword": "password",
+}
 eph_test_route = "env-ephemeral-blah-howdy.apps.c-rh-c-eph.8p0c.p1.openshiftapps.com"
 
 
 def test_describe_ephemeral_ns(mocker):
     mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
     mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
+    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
     mocker.patch("bonfire.namespaces.get_json")
     mocker.patch("bonfire.namespaces.Namespace")
     runner = CliRunner()
@@ -308,7 +313,7 @@ def test_describe_ephemeral_ns(mocker):
 def test_describe_ephemeral_ns_from_ctx(mocker):
     mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
     mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
+    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
     mocker.patch("bonfire.namespaces.get_json")
     mocker.patch("bonfire.namespaces.Namespace")
     mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value="ephemeral-blah")
@@ -324,7 +329,7 @@ def test_describe_ephemeral_ns_from_ctx(mocker):
 def test_describe_default_ns(mocker):
     mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
     mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.get_fe_hostname", return_value=eph_test_route)
+    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
     mocker.patch("bonfire.namespaces.get_json")
     runner = CliRunner()
     try:
