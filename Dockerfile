@@ -9,7 +9,7 @@ RUN groupadd -r -g 1000 bonfire && \
 
 RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-$OC_CLI_VERSION/openshift-client-linux.tar.gz \
   -o oc.tar.gz && \
-  tar -C /usr/bin/ -xvzf oc.tar.gz oc && \
+  tar -C /usr/bin/ -xvzf oc.tar.gz oc kubectl && \
   rm -f oc.tar.gz
 
 USER bonfire
@@ -20,5 +20,6 @@ ENV PATH="/opt/bonfire/.venv/bin:$PATH"
 
 RUN pip install crc-bonfire
 RUN bonfire config write-default
+COPY entrypoint.sh .
 
-CMD ["bonfire"]
+ENTRYPOINT ["/opt/bonfire/entrypoint.sh"]
