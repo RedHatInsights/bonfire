@@ -14,11 +14,9 @@ RUN curl -L https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-$OC
 
 USER bonfire
 WORKDIR /opt/bonfire
+ENV PATH="/opt/bonfire/.local/bin:$PATH"
 
-RUN python3 -m venv .venv
-ENV PATH="/opt/bonfire/.venv/bin:$PATH"
-
-RUN pip install crc-bonfire
+RUN pip3 install crc-bonfire --user
 RUN bonfire config write-default
 COPY entrypoint.sh .
 
