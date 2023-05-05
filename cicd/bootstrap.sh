@@ -1,8 +1,8 @@
 #!/bin/bash
 
 install_bonfire() {
-  python3 -m venv .bonfire_venv
-  source .bonfire_venv/bin/activate
+  python3 -m venv "${BONFIRE_VENV}"
+  source "${BONFIRE_VENV}/bin/activate"
 
   python3 -m pip install --upgrade pip 'setuptools<58' wheel
   python3 -m pip install --upgrade 'crc-bonfire>=4.10.4'
@@ -58,6 +58,9 @@ export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 # which branch to fetch cidd scripts from in bonfire repo
 export BONFIRE_REPO_BRANCH="${BONFIRE_REPO_BRANCH:-master}"
 export BONFIRE_REPO_ORG="${BONFIRE_REPO_ORG:-RedHatInsights}"
+#export BONFIRE_VENV="${BONFIRE_VENV:-${APP_ROOT}/.bonfire_venv}"
+export BONFIRE_VENV_NAME="${BONFIRE_VENV_NAME:-.bonfire_venv}"
+export BONFIRE_VENV="${APP_ROOT}/${BONFIRE_VENV_NAME}"
 
 set -x
 # Set up docker cfg
