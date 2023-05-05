@@ -13,6 +13,7 @@ if test -f unit_test.sh; then
   fi
 fi
 
+export INSTALL_BONFIRE="${INSTALL_BONFIRE:-true}"
 export APP_ROOT=$(pwd)
 export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build's workspace
 export BONFIRE_ROOT=${WORKSPACE}/.bonfire
@@ -64,11 +65,13 @@ rm -fr $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
 export LANG=en_US.utf-8
 export LC_ALL=en_US.utf-8
 
-python3 -m venv .bonfire_venv
-source .bonfire_venv/bin/activate
+if [[ "$INSTALL_BONFIRE" != "true" ]]; then
+    python3 -m venv .bonfire_venv
+    source .bonfire_venv/bin/activate
 
-python3 -m pip install --upgrade pip 'setuptools<58' wheel
-python3 -m pip install --upgrade 'crc-bonfire>=4.10.4'
+    python3 -m pip install --upgrade pip 'setuptools<58' wheel
+    python3 -m pip install --upgrade 'crc-bonfire>=4.10.4'
+fi
 
 # clone repo to download cicd scripts
 rm -fr $BONFIRE_ROOT
