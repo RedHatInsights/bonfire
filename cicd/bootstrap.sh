@@ -1,5 +1,39 @@
 #!/bin/bash
 
+install_bonfire() {
+  python3 -m venv .bonfire_venv
+  source .bonfire_venv/bin/activate
+
+  python3 -m pip install --upgrade pip 'setuptools<58' wheel
+  python3 -m pip install --upgrade 'crc-bonfire>=4.10.4'
+}
+
+# Gives access to helper commands such as "oc_wrapper"
+add_cicd_bin_to_path() {
+  export PATH="${PATH}:${CICD_ROOT}/bin"
+}
+
+check_available_server() {
+  echo "Checking connectivity to ephemeral cluster ..."
+  if ! curl -s "$OC_LOGIN_SERVER" > /dev/null; then
+    echo "Connectivity check failed"
+    return 1
+  fi
+}
+
+# Hotswap based on availability
+login_to_available_server() {
+  if check_available_server; then
+    # log in to ephemeral cluster
+    oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
+    echo "logging in to Ephemeral cluster"
+  else
+    # switch to crcd cluster
+    oc_wrapper login --token=$OC_LOGIN_TOKEN_DEV --server=$OC_LOGIN_SERVER_DEV
+    echo "logging in to CRCD cluster"
+  fi
+}
+
 set -e
 
 # check that unit_test.sh complies w/ best practices
@@ -31,13 +65,6 @@ export DOCKER_CONFIG="$WORKSPACE/.docker"
 rm -fr $DOCKER_CONFIG
 mkdir $DOCKER_CONFIG
 
-# Set up podman cfg
-# No longer needed due to podman now using the DOCKER_CONFIG
-#AUTH_CONF_DIR="$WORKSPACE/.podman"
-#rm -fr $AUTH_CONF_DIR
-#mkdir $AUTH_CONF_DIR
-#export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
-
 # Set up kube cfg
 export KUBECONFIG_DIR="$WORKSPACE/.kube"
 export KUBECONFIG="$KUBECONFIG_DIR/config"
@@ -55,7 +82,6 @@ if [ ! -z "$gitlabMergeRequestIid" ]; then
   export IMAGE_TAG="pr-${gitlabMergeRequestIid}-${IMAGE_TAG}"
 fi
 
-
 export GIT_COMMIT=$(git rev-parse HEAD)
 export ARTIFACTS_DIR="$WORKSPACE/artifacts"
 
@@ -65,12 +91,8 @@ rm -fr $ARTIFACTS_DIR && mkdir -p $ARTIFACTS_DIR
 export LANG=en_US.utf-8
 export LC_ALL=en_US.utf-8
 
-if [[ "$INSTALL_BONFIRE" != "true" ]]; then
-    python3 -m venv .bonfire_venv
-    source .bonfire_venv/bin/activate
-
-    python3 -m pip install --upgrade pip 'setuptools<58' wheel
-    python3 -m pip install --upgrade 'crc-bonfire>=4.10.4'
+if [[ "$INSTALL_BONFIRE" == "true" ]]; then
+    install_bonfire
 fi
 
 # clone repo to download cicd scripts
@@ -82,32 +104,8 @@ git clone --branch "$BONFIRE_REPO_BRANCH" "https://github.com/${BONFIRE_REPO_ORG
 source ${CICD_ROOT}/_common_container_logic.sh
 login
 
-# Gives access to helper commands such as "oc_wrapper"
-add_cicd_bin_to_path() {
-  if ! command -v oc_wrapper; then export PATH=$PATH:${CICD_ROOT}/bin; fi
-}
-
-check_available_server() {
-  echo "Checking connectivity to ephemeral cluster ..."
-  (curl -s $OC_LOGIN_SERVER > /dev/null)
-  RET_CODE=$?
-  if [ $RET_CODE -ge 1 ]; then echo "Connectivity check failed"; fi
-  return $RET_CODE
-}
-
-# Hotswap based on availability
-login_to_available_server() {
-  if check_available_server; then
-    # log in to ephemeral cluster
-    oc_wrapper login --token=$OC_LOGIN_TOKEN --server=$OC_LOGIN_SERVER
-    echo "logging in to Ephemeral cluster"
-  else
-    # switch to crcd cluster
-    oc_wrapper login --token=$OC_LOGIN_TOKEN_DEV --server=$OC_LOGIN_SERVER_DEV
-    echo "logging in to CRCD cluster"
-  fi
-}
-
-add_cicd_bin_to_path
+if ! command -v oc_wrapper; then
+  add_cicd_bin_to_path
+fi
 
 login_to_available_server
