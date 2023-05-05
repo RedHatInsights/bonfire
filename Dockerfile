@@ -2,7 +2,8 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:8.7-1107
 
 ARG OC_CLI_VERSION=4.12
 
-RUN microdnf install python3 shadow-utils tar gzip
+RUN microdnf install python3 shadow-utils tar gzip && \
+    microdnf clean all
 
 RUN groupadd -r -g 1000 bonfire && \
     useradd -r -u 1000 -g bonfire -m -d /opt/bonfire -s /bin/bash bonfire
