@@ -16,7 +16,6 @@ source ${CICD_ROOT}/_common_deploy_logic.sh
 # -> use this PR as the template ref when downloading configurations for this component
 # -> use this PR's newly built image in the deployed configurations
 set -x
-export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 export NAMESPACE=$(bonfire namespace reserve --pool ${NAMESPACE_POOL})
 SMOKE_NAMESPACE=$NAMESPACE  # track which namespace was used here for 'teardown' in common_deploy_logic
 
