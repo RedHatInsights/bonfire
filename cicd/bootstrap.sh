@@ -50,7 +50,8 @@ fi
 export INSTALL_BONFIRE="${INSTALL_BONFIRE:-true}"
 export APP_ROOT=$(pwd)
 export WORKSPACE=${WORKSPACE:-$APP_ROOT}  # if running in jenkins, use the build's workspace
-export BONFIRE_ROOT=${WORKSPACE}/.bonfire
+export BONFIRE_DIR_NAME="${BONFIRE_DIR_NAME:-.bonfire}"
+export BONFIRE_ROOT="${WORKSPACE}/${BONFIRE_DIR_NAME}"
 export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 export BONFIRE_BOT="true"
@@ -58,7 +59,6 @@ export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 # which branch to fetch cidd scripts from in bonfire repo
 export BONFIRE_REPO_BRANCH="${BONFIRE_REPO_BRANCH:-master}"
 export BONFIRE_REPO_ORG="${BONFIRE_REPO_ORG:-RedHatInsights}"
-#export BONFIRE_VENV="${BONFIRE_VENV:-${APP_ROOT}/.bonfire_venv}"
 export BONFIRE_VENV_NAME="${BONFIRE_VENV_NAME:-.bonfire_venv}"
 export BONFIRE_VENV="${APP_ROOT}/${BONFIRE_VENV_NAME}"
 
