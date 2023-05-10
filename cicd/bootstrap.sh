@@ -20,8 +20,8 @@ export CICD_ROOT=${BONFIRE_ROOT}/cicd
 export IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 export BONFIRE_BOT="true"
 export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
-# which branch to fetch cidd scripts from in bonfire repo
-export BONFIRE_REPO_BRANCH="${BONFIRE_REPO_BRANCH:-master}"
+# which branch to fetch cicd scripts from in bonfire repo
+export BONFIRE_REPO_BRANCH="${BONFIRE_REPO_BRANCH:-main}"
 export BONFIRE_REPO_ORG="${BONFIRE_REPO_ORG:-RedHatInsights}"
 
 set -x
