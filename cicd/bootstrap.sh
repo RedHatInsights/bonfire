@@ -3,7 +3,7 @@
 set -e
 
 # check that unit_test.sh complies w/ best practices
-URL="https://github.com/RedHatInsights/bonfire/tree/master/cicd/examples"
+URL="https://github.com/RedHatInsights/cicd-tools/tree/main/examples"
 if test -f unit_test.sh; then
   if grep 'exit $result' unit_test.sh; then
     echo "----------------------------"
