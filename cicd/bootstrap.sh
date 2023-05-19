@@ -8,7 +8,8 @@ export CICD_REPO_BRANCH="${CICD_REPO_BRANCH:-main}"
 BOOTSTRAP_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/${CICD_REPO_BRANCH}/bootstrap.sh"
 BOOTSTRAP_FILE=".cicd_tools_bootstrap.sh"
 
-set -x
 echo "Fetching $BOOTSTRAP_URL"
 rm -f $BOOTSTRAP_FILE
-curl --silent --show-error $BOOTSTRAP_URL > $BOOTSTRAP_FILE && source $BOOTSTRAP_FILE
+RESPONSE_CODE=$(curl --silent -w "%{http_code}" -o $BOOTSTRAP_FILE $BOOTSTRAP_URL)
+echo "HTTP response: $RESPONSE_CODE"
+source $BOOTSTRAP_FILE
