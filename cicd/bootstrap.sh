@@ -5,7 +5,7 @@ set -e
 # which branch to fetch cicd scripts from in cicd-tools repo
 export CICD_REPO_BRANCH="${CICD_REPO_BRANCH:-main}"
 
-BOOTSTRAP_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/${CICD_REPO_BRANCH}/cicd/bootstrap.sh"
+BOOTSTRAP_URL="https://raw.githubusercontent.com/RedHatInsights/cicd-tools/${CICD_REPO_BRANCH}/bootstrap.sh"
 BOOTSTRAP_FILE=".cicd_tools_bootstrap.sh"
 
 set -x
