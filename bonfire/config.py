@@ -55,6 +55,7 @@ BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
 BONFIRE_BOT = os.getenv("BONFIRE_BOT")
 
 AUTO_ADDED_FRONTEND_DEPENDENCIES = (
+    "chrome-service",
     "frontend-configs",
     "rbac",
     "rbac-frontend",
