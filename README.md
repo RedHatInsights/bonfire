@@ -184,7 +184,7 @@ In a ClowdApp definition, an app listed under `dependencies` is considered an ap
 
 When bonfire processes templates, if it finds a ClowdApp, it will do the following:
 * if the ClowdApp has `dependencies`, it will try to look up the config for that ClowdApp in app-interface and also fetch its templates
-* if the ClowdApp has `optionalDependencies`, it will behave differently based on with optional dependencies method is selected:
+* if the ClowdApp has `optionalDependencies`, it will behave differently based on which optional dependencies method is selected:
 
   * `hybrid` (default): if an app group was explicitly specified on the CLI (example: when running `bonfire deploy app-a` the app group 'app-a' is being explicitly specified) then the `optionalDependencies` will be deployed for it. For any ClowdApp `bonfire` comes across that is not a member of an explicitly specified app group, the `optionalDependencies` will NOT be deployed. As an example:
     * `app-a` has `app-b-clowdapp` listed under `optionalDependencies`
