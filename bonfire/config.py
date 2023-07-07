@@ -61,6 +61,7 @@ AUTO_ADDED_FRONTEND_DEPENDENCIES = (
     "rbac-frontend",
     "host-inventory",
     "host-inventory-frontend",
+    "unleash-proxy"
 )
 
 
