@@ -33,10 +33,6 @@ class FatalError(Exception):
     pass
 
 
-class ConnectionError(FatalError):
-    pass
-
-
 def get_config_path():
     xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
     if xdg_config_home:
@@ -555,28 +551,29 @@ def hms_to_seconds(s):
 
 
 @lru_cache(maxsize=None)
-def check_hostname(hostname):
+def __check_connection(hostname, port=443, timeout=5):
     """
     Check connection makes sure a connection is available to a given hostname.
 
-    Function is cached so that we only check a hostname once.
+    Function is cached so that we onl
+    y check a hostname once.
     """
     log.debug("checking connection to '%s'", hostname)
 
     try:
-        socket.gethostbyname(hostname)
-    except socket.gaierror:
-        raise ConnectionError(
-            f"Unable to resolve hostname '{hostname}'. Check network connection (is VPN needed?)"
-        )
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_connection_socket:
+            test_connection_socket.settimeout(timeout)
+            test_connection_socket.connect((hostname, port))
+
+    except TimeoutError as err:
+        err.args = (f"Unable to connect to '{hostname} on port {port} after {timeout} seconds'. "
+                    f"Check network connection (is VPN needed?)",)
+        raise
 
 
 def check_url_connection(url):
-    try:
-        parsed_url = urlparse(url)
-    except ValueError as err:
-        raise ValueError(f"invalid url '{url}': {err}")
+    parsed_url = urlparse(url)
+    if not (hostname := parsed_url.netloc):
+        raise ValueError(f"Cannot extract hostname from URL: '{url}'")
 
-    hostname = parsed_url.netloc
-
-    return check_hostname(hostname)
+    return __check_connection(hostname)
