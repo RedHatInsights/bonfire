@@ -555,8 +555,7 @@ def _check_connection(hostname, port=443, timeout=5):
     """
     Check connection makes sure a connection is available to a given hostname.
 
-    Function is cached so that we onl
-    y check a hostname once.
+    Function is cached so that we only check a hostname once.
     """
     log.debug("checking connection to '%s'", hostname)
 
@@ -575,5 +574,4 @@ def check_url_connection(url):
     parsed_url = urlparse(url)
     if not (hostname := parsed_url.netloc):
         raise ValueError(f"Cannot extract hostname from URL: '{url}'")
-
     _check_connection(hostname)
