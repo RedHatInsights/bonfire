@@ -551,7 +551,7 @@ def hms_to_seconds(s):
 
 
 @lru_cache(maxsize=None)
-def __check_connection(hostname, port=443, timeout=5):
+def _check_connection(hostname, port=443, timeout=5):
     """
     Check connection makes sure a connection is available to a given hostname.
 
