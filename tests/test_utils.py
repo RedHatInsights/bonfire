@@ -1,7 +1,7 @@
 import pytest
 
 from bonfire.utils import get_version, hms_to_seconds, split_equals, validate_time_string
-from bonfire.utils import check_url_connection
+from bonfire.utils import check_url_connection, FatalError
 
 
 @pytest.mark.parametrize(
@@ -89,5 +89,5 @@ def test_url_connection_timeout_handling(mocker):
     socket_mock = socket_library_mock.return_value.__enter__.return_value
     socket_mock.connect.side_effect = TimeoutError("timed out!")
 
-    with pytest.raises(TimeoutError, match=r".*after.*seconds.*is VPN needed.*"):
+    with pytest.raises(FatalError, match=r".*after.*seconds.*is VPN needed.*"):
         check_url_connection("https://timingout.com")
