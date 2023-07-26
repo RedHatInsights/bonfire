@@ -5,10 +5,10 @@ import logging
 import os
 import re
 import shlex
+import socket
 import subprocess
 import tempfile
 import time
-import socket
 from distutils.version import StrictVersion
 from pathlib import Path
 from urllib.parse import urlparse
@@ -557,16 +557,21 @@ def _check_connection(hostname, port=443, timeout=5):
 
     Function is cached so that we only check a hostname once.
     """
-    log.debug("checking connection to '%s'", hostname)
+    log.debug("checking connection to '%s', port %d, timeout %ssec", hostname, port, timeout)
 
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_connection_socket:
             test_connection_socket.settimeout(timeout)
             test_connection_socket.connect((hostname, port))
-
-    except TimeoutError:
-        raise FatalError(f"Unable to connect to '{hostname}' on port {port} after {timeout} "
-                         f"seconds. Check network connection (is VPN needed?)")
+    except socket.gaierror:
+        raise FatalError(
+            f"DNS lookup failed for '{hostname}' -- check network connection (is VPN needed?)"
+        )
+    except (OSError, TimeoutError):
+        raise FatalError(
+            f"Unable to connect to '{hostname}' on port {port} after {timeout} "
+            f"seconds -- check network connection (is VPN needed?)"
+        )
 
 
 def check_url_connection(url):
