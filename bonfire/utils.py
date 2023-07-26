@@ -576,4 +576,4 @@ def check_url_connection(url):
     if not (hostname := parsed_url.netloc):
         raise ValueError(f"Cannot extract hostname from URL: '{url}'")
 
-    return __check_connection(hostname)
+    _check_connection(hostname)
