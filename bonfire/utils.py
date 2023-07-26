@@ -571,6 +571,7 @@ def _check_connection(hostname, port=443, timeout=5):
 
 def check_url_connection(url):
     parsed_url = urlparse(url)
-    if not (hostname := parsed_url.netloc):
+    hostname = parsed_url.netloc
+    if not hostname:
         raise ValueError(f"Cannot extract hostname from URL: '{url}'")
     _check_connection(hostname)
