@@ -566,7 +566,7 @@ def _check_connection(hostname, port=443, timeout=5):
             test_connection_socket.connect((hostname, port))
 
     except TimeoutError as err:
-        err.args = (f"Unable to connect to '{hostname} on port {port} after {timeout} seconds'. "
+        err.args = (f"Unable to connect to '{hostname}' on port {port} after {timeout} seconds. "
                     f"Check network connection (is VPN needed?)",)
         raise
 
