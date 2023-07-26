@@ -574,9 +574,13 @@ def _check_connection(hostname, port=443, timeout=5):
         )
 
 
-def check_url_connection(url):
+def check_url_connection(url, timeout=5):
     parsed_url = urlparse(url)
-    hostname = parsed_url.netloc
-    if not hostname:
-        raise ValueError(f"Cannot extract hostname from URL: '{url}'")
-    _check_connection(hostname)
+    scheme = parsed_url.scheme
+    hostname = parsed_url.hostname
+    port = parsed_url.port
+    if scheme not in ("http", "https") or not hostname:
+        raise ValueError(f"Invalid URL: '{url}'")
+    if not port:
+        port = 443 if scheme == "https" else 80
+    _check_connection(hostname=hostname, port=port, timeout=timeout)

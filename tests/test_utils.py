@@ -89,10 +89,15 @@ def test_url_connection_timeout_handling(mocker):
     socket_mock = socket_library_mock.return_value.__enter__.return_value
     socket_mock.connect.side_effect = TimeoutError("timed out!")
 
-    with pytest.raises(FatalError, match=r".*after.*seconds.*is VPN needed.*"):
+    with pytest.raises(FatalError, match=r"Unable to connect to.*after.*seconds.*is VPN needed.*"):
         check_url_connection("https://timingout.com")
 
 
-def test_url_connection_dns_lookup_fails(mocker):
+def test_ip_timeout():
+    with pytest.raises(FatalError, match="Unable to connect to.*after 1 seconds.*is VPN needed.*"):
+        check_url_connection("https://10.255.255.1", timeout=1)
+
+
+def test_url_connection_dns_lookup_fails():
     with pytest.raises(FatalError, match=r".*DNS lookup failed.*"):
         check_url_connection("https://baddomain.test")
