@@ -100,4 +100,4 @@ def test_ip_timeout():
 
 def test_url_connection_dns_lookup_fails():
     with pytest.raises(FatalError, match=r".*DNS lookup failed.*"):
-        check_url_connection("https://baddomain.test")
+        check_url_connection("https://baddomain.invalid")
