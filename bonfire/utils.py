@@ -5,10 +5,10 @@ import logging
 import os
 import re
 import shlex
+import socket
 import subprocess
 import tempfile
 import time
-import socket
 from distutils.version import StrictVersion
 from pathlib import Path
 from urllib.parse import urlparse
@@ -30,10 +30,6 @@ from cached_property import cached_property
 class FatalError(Exception):
     """An exception that will cause the CLI to exit"""
 
-    pass
-
-
-class ConnectionError(FatalError):
     pass
 
 
@@ -555,28 +551,36 @@ def hms_to_seconds(s):
 
 
 @lru_cache(maxsize=None)
-def check_hostname(hostname):
+def _check_connection(hostname, port=443, timeout=5):
     """
     Check connection makes sure a connection is available to a given hostname.
 
     Function is cached so that we only check a hostname once.
     """
-    log.debug("checking connection to '%s'", hostname)
+    log.debug("checking connection to '%s', port %d, timeout %ssec", hostname, port, timeout)
 
     try:
-        socket.gethostbyname(hostname)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_connection_socket:
+            test_connection_socket.settimeout(timeout)
+            test_connection_socket.connect((hostname, port))
     except socket.gaierror:
-        raise ConnectionError(
-            f"Unable to resolve hostname '{hostname}'. Check network connection (is VPN needed?)"
+        raise FatalError(
+            f"DNS lookup failed for '{hostname}' -- check network connection (is VPN needed?)"
+        )
+    except (OSError, TimeoutError):
+        raise FatalError(
+            f"Unable to connect to '{hostname}' on port {port} after {timeout} "
+            f"seconds -- check network connection (is VPN needed?)"
         )
 
 
-def check_url_connection(url):
-    try:
-        parsed_url = urlparse(url)
-    except ValueError as err:
-        raise ValueError(f"invalid url '{url}': {err}")
-
-    hostname = parsed_url.netloc
-
-    return check_hostname(hostname)
+def check_url_connection(url, timeout=5):
+    parsed_url = urlparse(url)
+    scheme = parsed_url.scheme
+    hostname = parsed_url.hostname
+    port = parsed_url.port
+    if scheme not in ("http", "https") or not hostname:
+        raise ValueError(f"Invalid URL: '{url}'")
+    if not port:
+        port = 443 if scheme == "https" else 80
+    _check_connection(hostname=hostname, port=port, timeout=timeout)
