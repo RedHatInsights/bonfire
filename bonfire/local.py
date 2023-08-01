@@ -9,7 +9,12 @@ log = logging.getLogger(__name__)
 
 def _fetch_apps_file(config):
     rf = RepoFile.from_config(config["appsFile"])
-    commit, content = rf.fetch()
+    try:
+        commit, content = rf.fetch()
+    except FileNotFoundError:
+        raise FatalError(
+            f"cannot fetch 'appsFile' using provided config: {config['appsFile']}"
+        )
     log.info(
         "loading commit '%s' of %s repo %s/%s at path '%s' for apps config",
         commit,
@@ -26,7 +31,7 @@ def _fetch_apps_file(config):
     app_names = [a["name"] for a in fetched_apps["apps"]]
     dupes = get_dupes(app_names)
     if dupes:
-        raise FatalError("duplicate app names found in fetched apps file: {dupes}")
+        raise FatalError(f"duplicate app names found in fetched apps file: {dupes}")
 
     return {a["name"]: a for a in fetched_apps["apps"]}
 
@@ -35,7 +40,7 @@ def _parse_apps_in_cfg(config):
     app_names = [a["name"] for a in config["apps"]]
     dupes = get_dupes(app_names)
     if dupes:
-        raise FatalError("duplicate app names found in config: {dupes}")
+        raise FatalError(f"duplicate app names found in config: {dupes}")
     return {a["name"]: a for a in config["apps"]}
 
 
@@ -44,7 +49,9 @@ def get_local_apps(config, fetch_remote=True):
     config_apps = {}
     if "apps" in config:
         config_apps = _parse_apps_in_cfg(config)
-        log.info("local app configuration overrides found for: %s", list(config_apps.keys()))
+        log.info(
+            "local app configuration overrides found for: %s", list(config_apps.keys())
+        )
 
     if not fetch_remote:
         final_apps = config_apps

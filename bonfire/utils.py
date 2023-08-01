@@ -53,8 +53,12 @@ GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
 GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
 GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
-GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects/?per_page=100"
-GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
+GL_PROJECTS_URL = (
+    "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects/?per_page=100"
+)
+GL_BRANCH_URL = (
+    "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
+)
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
 
@@ -244,7 +248,10 @@ class RepoFile:
             if response.status_code == 200:
                 log.info("fetch succeeded for ref '%s'", ref)
                 break
-            elif response.status_code == 403 and "api rate limit exceeded" in response.text.lower():
+            elif (
+                response.status_code == 403
+                and "api rate limit exceeded" in response.text.lower()
+            ):
                 raise Exception(_RATE_LIMIT_ERR_MSG)
             else:
                 log.info(
@@ -269,6 +276,12 @@ class RepoFile:
         return response
 
     def _get_gl_commit_hash(self):
+        def get_ref_func(ref):
+            return self._session.get(
+                GL_BRANCH_URL.format(id=project_id, branch=ref),
+                verify=self._gl_certfile,
+            )
+
         group, project = self.org, self.repo
         url = GL_PROJECTS_URL.format(type="groups", group=group)
         check_url_connection(url)
@@ -277,7 +290,8 @@ class RepoFile:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
             # use a different path
             response = self._session.get(
-                GL_PROJECTS_URL.format(type="users", group=group), verify=self._gl_certfile
+                GL_PROJECTS_URL.format(type="users", group=group),
+                verify=self._gl_certfile,
             )
         response.raise_for_status()
         projects = response.json()
@@ -290,11 +304,6 @@ class RepoFile:
         if not project_id:
             raise FatalError("gitlab project ID not found for {self.org}/{self.repo}")
 
-        def get_ref_func(ref):
-            return self._session.get(
-                GL_BRANCH_URL.format(id=project_id, branch=ref), verify=self._gl_certfile
-            )
-
         response = self._get_ref(get_ref_func)
         return response.json()["commit"]["id"]
 
@@ -304,12 +313,15 @@ class RepoFile:
             # look up the commit hash for this branch
             commit = self._get_gl_commit_hash()
 
-        url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
+        url = GL_RAW_URL.format(
+            group=self.org, project=self.repo, ref=commit, path=self.path
+        )
         check_url_connection(url)
         response = self._session.get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             log.warning(
-                "http response 404 for url %s, checking for template in current working dir...", url
+                "http response 404 for url %s, checking for template in current working dir...",
+                url,
             )
             return self._fetch_local(os.getcwd())
         else:
@@ -335,15 +347,21 @@ class RepoFile:
             # look up the commit hash for this branch
             commit = self._get_gh_commit_hash()
 
-        url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
+        url = GH_RAW_URL.format(
+            org=self.org, repo=self.repo, ref=commit, path=self.path
+        )
         check_url_connection(url)
         response = self._session.get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
             log.warning(
-                "http response 404 for url %s, checking for template in current working dir...", url
+                "http response 404 for url %s, checking for template in current working dir...",
+                url,
             )
             return self._fetch_local(os.getcwd())
-        elif response.status_code == 403 and "api rate limit exceeded" in response.text.lower():
+        elif (
+            response.status_code == 403
+            and "api rate limit exceeded" in response.text.lower()
+        ):
             raise Exception(_RATE_LIMIT_ERR_MSG)
         else:
             response.raise_for_status()
@@ -393,7 +411,9 @@ def find_what_depends_on(apps_config, clowdapp_name):
                 rf = RepoFile.from_config(component)
                 _, template_content = rf.fetch()
             except Exception as err:
-                log.error("failed to fetch template file for %s: %s", component_name, err)
+                log.error(
+                    "failed to fetch template file for %s: %s", component_name, err
+                )
 
             template = yaml.safe_load(template_content)
             items = template.get("objects", [])
@@ -459,7 +479,9 @@ def _compare_version(pypi_version):
     try:
         my_version = StrictVersion(local_version)
     except ValueError:
-        log.info(f"version {local_version} seems to be a dev version, assuming up-to-date")
+        log.info(
+            f"version {local_version} seems to be a dev version, assuming up-to-date"
+        )
         my_version = StrictVersion("999.999.999")
         return
 
@@ -484,7 +506,9 @@ def _update_ver_check_file():
         with ver_check_file.open(mode="w") as fp:
             fp.write(str(time.time()))
     except OSError:
-        log.error("failed to update version check file at path: %s", ver_check_file.resolve())
+        log.error(
+            "failed to update version check file at path: %s", ver_check_file.resolve()
+        )
 
 
 def _ver_check_needed():
@@ -498,7 +522,9 @@ def _ver_check_needed():
         with ver_check_file.open() as fp:
             last_check_time = float(fp.read().strip())
     except (OSError, ValueError):
-        log.exception("failed to read version check file at path: %s", ver_check_file.resolve())
+        log.exception(
+            "failed to read version check file at path: %s", ver_check_file.resolve()
+        )
 
     if time.time() > last_check_time + VER_CHECK_TIME:
         _update_ver_check_file()
@@ -557,10 +583,14 @@ def _check_connection(hostname, port=443, timeout=5):
 
     Function is cached so that we only check a hostname once.
     """
-    log.debug("checking connection to '%s', port %d, timeout %ssec", hostname, port, timeout)
+    log.debug(
+        "checking connection to '%s', port %d, timeout %ssec", hostname, port, timeout
+    )
 
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_connection_socket:
+        with socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM
+        ) as test_connection_socket:
             test_connection_socket.settimeout(timeout)
             test_connection_socket.connect((hostname, port))
     except socket.gaierror:

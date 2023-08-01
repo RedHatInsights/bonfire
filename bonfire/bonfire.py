@@ -103,7 +103,9 @@ def click_exception_wrapper(command):
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
 def main(debug):
-    logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
+    logging.getLogger("sh").setLevel(
+        logging.CRITICAL
+    )  # silence the 'sh' library logger
     logging.basicConfig(
         format="%(asctime)s [%(levelname)8s] [%(threadName)20s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -173,7 +175,9 @@ def _warn_if_not_ready():
 
 
 def _warn_before_delete():
-    _confirm_or_abort("Deleting this reservation will also delete the associated namespace")
+    _confirm_or_abort(
+        "Deleting this reservation will also delete the associated namespace"
+    )
 
 
 def _warn_of_existing(requester):
@@ -190,7 +194,9 @@ def _get_requester():
         try:
             requester = whoami()
         except Exception:
-            log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
+            log.info(
+                "whoami returned an error - setting requester to 'bonfire'"
+            )  # minikube
             requester = "bonfire"
     return requester
 
@@ -357,7 +363,11 @@ def _validate_opposing_opts(ctx, param, value):
     # default values
     if param.name == "remove_resources" and not value and not opposite_option_value:
         value = ("all",)
-    if param.name == "no_remove_dependencies" and not value and not opposite_option_value:
+    if (
+        param.name == "no_remove_dependencies"
+        and not value
+        and not opposite_option_value
+    ):
         value = ("all",)
 
     return value
@@ -527,7 +537,9 @@ _clowdenv_process_options = [
     click.option(
         "--clowd-env",
         "-e",
-        help=(f"Name of ClowdEnvironment (default: if target ns provided, {conf.ENV_NAME_FORMAT})"),
+        help=(
+            f"Name of ClowdEnvironment (default: if target ns provided, {conf.ENV_NAME_FORMAT})"
+        ),
         type=str,
         default=None,
     ),
@@ -694,7 +706,9 @@ def _list_namespaces(available, mine, output):
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
-    ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
+    ns = _check_and_reserve_namespace(
+        name, requester, duration, pool, timeout, local, force
+    )
     click.echo(ns.name)
 
 
@@ -783,13 +797,17 @@ def _get_apps_config(source, target_env, ref_env, local_config_path):
     config = conf.load_config(local_config_path)
 
     if source == APP_SRE_SRC:
-        log.info("fetching apps config using source: %s, target env: %s", source, target_env)
+        log.info(
+            "fetching apps config using source: %s, target env: %s", source, target_env
+        )
         if not target_env:
             _error("target env must be supplied for source '{APP_SRE_SRC}'")
         apps_config = get_apps_for_env(target_env)
 
         if target_env == conf.EPHEMERAL_ENV_NAME and not ref_env:
-            log.info("target env is 'ephemeral' with no ref env given, using 'master' for all apps")
+            log.info(
+                "target env is 'ephemeral' with no ref env given, using 'master' for all apps"
+            )
             for _, app_cfg in apps_config.items():
                 for component in app_cfg.get("components", []):
                     component["ref"] = "master"
@@ -901,7 +919,7 @@ def _cmd_process(
 ):
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
-
+    breakpoint()
     processed_templates = _process(
         app_names,
         source,
@@ -927,14 +945,24 @@ def _cmd_process(
 
 
 def _get_namespace(
-    requested_ns_name, name, requester, duration, pool, timeout, local, force, using_current=False
+    requested_ns_name,
+    name,
+    requester,
+    duration,
+    pool,
+    timeout,
+    local,
+    force,
+    using_current=False,
 ):
     if not has_ns_operator():
         if requested_ns_name:
             ns = Namespace(name=requested_ns_name)
             return ns.name, False
         else:
-            _error(f"{NO_RESERVATION_SYS}. Use '-n' to provide a specific target namespace")
+            _error(
+                f"{NO_RESERVATION_SYS}. Use '-n' to provide a specific target namespace"
+            )
 
     ns = None
     if requested_ns_name:
@@ -948,7 +976,9 @@ def _get_namespace(
                 " expired, or not owned), reserving a new one",
             )
 
-        ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
+        ns = _check_and_reserve_namespace(
+            name, requester, duration, pool, timeout, local, force
+        )
         reserved_new_ns = True
 
     return ns.name, reserved_new_ns
@@ -961,7 +991,10 @@ def _check_and_use_namespace(requested_ns_name, using_current):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
-    log.debug("checking if namespace '%s' has been reserved via ns operator...", requested_ns_name)
+    log.debug(
+        "checking if namespace '%s' has been reserved via ns operator...",
+        requested_ns_name,
+    )
     operator_reservation = get_reservation(namespace=requested_ns_name)
     ns = None
     if operator_reservation:
@@ -996,7 +1029,9 @@ def _check_and_use_namespace(requested_ns_name, using_current):
     return ns
 
 
-def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force):
+def _check_and_reserve_namespace(
+    name, requester, duration, pool, timeout, local, force
+):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
@@ -1049,7 +1084,8 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
 @click.option(
     "--secrets-dir",
     type=str,
-    help="Directory to use for secrets import (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)",
+    help="Directory to use for secrets import (default: "
+    "$XDG_CONFIG_HOME/bonfire/secrets/)",
     default=conf.DEFAULT_SECRETS_DIR,
 )
 @click.option(
@@ -1196,14 +1232,18 @@ def _cmd_config_deploy(
 
 def _process_clowdenv(target_namespace, quay_user, env_name, template_file, local):
     env_name = _get_env_name(target_namespace, env_name)
-    return process_clowd_env(target_namespace, quay_user, env_name, template_file, local)
+    return process_clowd_env(
+        target_namespace, quay_user, env_name, template_file, local
+    )
 
 
 @main.command("process-env")
 @options(_clowdenv_process_options)
 def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local):
     """Process ClowdEnv template and print output"""
-    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
+    clowd_env_config = _process_clowdenv(
+        namespace, quay_user, clowd_env, template_file, local
+    )
     print(json.dumps(clowd_env_config, indent=2))
 
 
@@ -1218,7 +1258,10 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
 @click.option(
     "--secrets-dir",
     type=str,
-    help=("Import secrets from this directory (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)"),
+    help=(
+        "Import secrets from this directory (default: "
+        "$XDG_CONFIG_HOME/bonfire/secrets/)"
+    ),
     default=conf.DEFAULT_SECRETS_DIR,
 )
 @options(_ns_reserve_options)
@@ -1243,12 +1286,16 @@ def _cmd_deploy_clowdenv(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local, force)
+    namespace, _ = _get_namespace(
+        namespace, name, requester, duration, pool, timeout, local, force
+    )
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
 
-    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
+    clowd_env_config = _process_clowdenv(
+        namespace, quay_user, clowd_env, template_file, local
+    )
 
     log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
 
@@ -1306,7 +1353,9 @@ def _cmd_process_iqe_cji(
 
 
 @main.command("deploy-iqe-cji")
-@click.option("--namespace", "-n", help="Namespace to deploy to", type=str, required=True)
+@click.option(
+    "--namespace", "-n", help="Namespace to deploy to", type=str, required=True
+)
 @options(_iqe_cji_process_options)
 @options(_ns_reserve_options)
 @options(_timeout_option)
@@ -1338,7 +1387,9 @@ def _cmd_deploy_iqe_cji(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local, force)
+    namespace, _ = _get_namespace(
+        namespace, name, requester, duration, pool, timeout, local, force
+    )
 
     cji_config = process_iqe_cji(
         clowd_app_name,
@@ -1362,13 +1413,20 @@ def _cmd_deploy_iqe_cji(
     try:
         cji_name = cji_config["items"][0]["metadata"]["name"]
     except (KeyError, IndexError):
-        raise Exception("error parsing name of CJI from processed template, check CJI template")
+        raise Exception(
+            "error parsing name of CJI from processed template, check CJI template"
+        )
 
     apply_config(namespace, cji_config)
 
     log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
     pod_name = wait_on_cji(namespace, cji_name, timeout)
-    log.info("pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace)
+    log.info(
+        "pod '%s' related to CJI '%s' in ns '%s' is running",
+        pod_name,
+        cji_name,
+        namespace,
+    )
     click.echo(pod_name)
 
 
