@@ -67,17 +67,20 @@ DEFAULT_FRONTEND_DEPENDENCIES = (
 )
 
 
-def _parse_frontend_dependencies():
+def _get_auto_added_frontend_dependencies():
     env_var = os.getenv("BONFIRE_FRONTEND_DEPENDENCIES")
-    if isinstance(env_var, str):
-        if env_var.strip() == "":
-            return set()
-        return set(env_var.split(","))
+    result = set()
 
-    return set(DEFAULT_FRONTEND_DEPENDENCIES)
+    if env_var is None:
+        result = set(DEFAULT_FRONTEND_DEPENDENCIES)
+    elif env_var.strip() != "":
+        for app in env_var.split(","):
+            result.add(app.strip())
+
+    return result
 
 
-AUTO_ADDED_FRONTEND_DEPENDENCIES = _parse_frontend_dependencies()
+AUTO_ADDED_FRONTEND_DEPENDENCIES = _get_auto_added_frontend_dependencies()
 
 
 def write_default_config(outpath=None):
