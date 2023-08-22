@@ -54,7 +54,7 @@ BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
 # set to true when bonfire is running via automation using a bot acct (not an end user)
 BONFIRE_BOT = os.getenv("BONFIRE_BOT")
 
-AUTO_ADDED_FRONTEND_DEPENDENCIES = (
+DEFAULT_FRONTEND_DEPENDENCIES = (
     "chrome-service",
     "landing-page-frontend",
     "insights-chrome",
@@ -63,8 +63,21 @@ AUTO_ADDED_FRONTEND_DEPENDENCIES = (
     "rbac-frontend",
     "host-inventory",
     "host-inventory-frontend",
-    "unleash-proxy"
+    "unleash-proxy",
 )
+
+
+def _parse_frontend_dependencies():
+    env_var = os.getenv("BONFIRE_FRONTEND_DEPENDENCIES")
+    if isinstance(env_var, str):
+        if env_var.strip() == "":
+            return set()
+        return set(env_var.split(","))
+
+    return set(DEFAULT_FRONTEND_DEPENDENCIES)
+
+
+AUTO_ADDED_FRONTEND_DEPENDENCIES = _parse_frontend_dependencies()
 
 
 def write_default_config(outpath=None):
