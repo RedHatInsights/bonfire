@@ -56,7 +56,9 @@ BONFIRE_BOT = os.getenv("BONFIRE_BOT")
 
 AUTO_ADDED_FRONTEND_DEPENDENCIES = (
     "chrome-service",
-    "frontend-configs",
+    "landing-page-frontend",
+    "insights-chrome",
+    "insights-dashboard",
     "rbac",
     "rbac-frontend",
     "host-inventory",
