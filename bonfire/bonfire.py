@@ -633,6 +633,31 @@ _iqe_cji_process_options = [
         type=str,
         default="",
     ),
+    click.option(
+        "--parallel-enabled",
+        help="iqe --parallel-enabled expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--parallel-worker-count",
+        help="iqe --parallel-worker-count expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--rp-args",
+        help="iqe --rp-args expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--ibutsu-source",
+        help="iqe --ibutsu-source expression",
+        type=str,
+        default="",
+    ),
+
     _local_option,
 ]
 
@@ -1284,6 +1309,10 @@ def _cmd_process_iqe_cji(
     plugins,
     local,
     selenium,
+    parallel_enabled,
+    parallel_worker_count,
+    rp_args,
+    ibutsu_source,
 ):
     """Process IQE ClowdJobInvocation template and print output"""
     cji_config = process_iqe_cji(
@@ -1301,6 +1330,10 @@ def _cmd_process_iqe_cji(
         plugins,
         local,
         selenium,
+        parallel_enabled,
+        parallel_worker_count,
+        rp_args,
+        ibutsu_source,
     )
     print(json.dumps(cji_config, indent=2))
 
@@ -1331,6 +1364,10 @@ def _cmd_deploy_iqe_cji(
     duration,
     local,
     selenium,
+    parallel_enabled,
+    parallel_worker_count,
+    rp_args,
+    ibutsu_source,
     pool,
     force,
 ):
@@ -1355,6 +1392,10 @@ def _cmd_deploy_iqe_cji(
         plugins,
         local,
         selenium,
+        parallel_enabled,
+        parallel_worker_count,
+        rp_args,
+        ibutsu_source,
     )
 
     log.debug("processed CJI config:\n%s", cji_config)

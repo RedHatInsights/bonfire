@@ -21,6 +21,10 @@ objects:
         requirements: ${{REQUIREMENTS}}
         requirementsPriority: ${{REQUIREMENTS_PRIORITY}}
         testImportance: ${{TEST_IMPORTANCE}}
+        parallelEnabled: ${{PARALLEL_ENABLED}}
+        parallelWorkerCount: ${{PARALLEL_WORKER_COUNT}}
+        rpArgs: ${{RP_ARGS}}
+        ibutsuSource: ${{IBUTSU_SOURCE}}
         ui:
           selenium:
             deploy: ${{DEPLOY_SELENIUM}}
@@ -51,3 +55,12 @@ parameters:
   value: ""
 - name: DEPLOY_SELENIUM
   value: "false"
+- name: PARALLEL_ENABLED
+  value: "true"
+- name: PARALLEL_WORKER_COUNT
+  value: "2"
+- name: RP_ARGS
+  value: ""
+- name: IBUTSU_SOURCE
+  value: ""
+
