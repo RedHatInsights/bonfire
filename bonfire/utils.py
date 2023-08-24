@@ -330,7 +330,10 @@ class RepoFile:
             )
 
         response = self._get_ref(get_ref_func)
-        return response.json()["object"]["sha"]
+        response_json = response.json()
+        if isinstance(response_json, list):
+            return response_json[0]["object"]["sha"]
+        return response_json["object"]["sha"]
 
     def _fetch_github(self):
         commit = self.ref
