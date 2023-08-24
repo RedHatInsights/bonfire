@@ -288,7 +288,7 @@ class RepoFile:
                 project_id = p["id"]
 
         if not project_id:
-            raise FatalError("gitlab project ID not found for {self.org}/{self.repo}")
+            raise FatalError(f"gitlab project ID not found for {self.org}/{self.repo}")
 
         def get_ref_func(ref):
             return self._session.get(

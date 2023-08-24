@@ -657,7 +657,6 @@ _iqe_cji_process_options = [
         type=str,
         default="",
     ),
-
     _local_option,
 ]
 
