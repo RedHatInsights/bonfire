@@ -143,7 +143,7 @@ def process_iqe_cji(
     parallel_enabled="",
     parallel_worker_count="",
     rp_args="",
-    ibutsu_source=""
+    ibutsu_source="",
 ):
     log.info("processing IQE ClowdJobInvocation")
 
