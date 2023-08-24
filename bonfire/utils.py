@@ -333,7 +333,7 @@ class RepoFile:
         response_json = response.json()
         if isinstance(response_json, list):
             return response_json[0]["object"]["sha"]
-        return response.json()["object"]["sha"]
+        return response_json["object"]["sha"]
 
     def _fetch_github(self):
         commit = self.ref
