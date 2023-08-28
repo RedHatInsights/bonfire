@@ -17,6 +17,7 @@ from bonfire.openshift import (
 from bonfire.processor import process_reservation
 from bonfire.utils import FatalError, hms_to_seconds
 
+
 log = logging.getLogger(__name__)
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -188,7 +189,7 @@ class Namespace:
 
         if not self._reservation or not self._reservation.get("status"):
             self._reservation = None
-            log.warning("could not retrieve reservation details for ns: %s", self.name)
+            log.debug("could not retrieve reservation details for ns: %s", self.name)
 
         return self._reservation
 
