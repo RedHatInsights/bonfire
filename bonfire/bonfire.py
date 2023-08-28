@@ -48,21 +48,12 @@ from bonfire.utils import (
     split_equals,
     validate_time_string,
     merge_app_configs,
-    MERGE_METHODS,
 )
 
 log = logging.getLogger(__name__)
 
 APP_SRE_SRC = "appsre"
 FILE_SRC = "file"
-LOCAL_SRC = "local"
-
-APP_CONFIG_SOURCES = [
-    APP_SRE_SRC,
-    FILE_SRC,
-    LOCAL_SRC,  # deprecated
-]
-
 NO_RESERVATION_SYS = "this cluster does not use a namespace reservation system"
 
 _local_option = click.option(
@@ -379,9 +370,8 @@ _app_source_options = [
     click.option(
         "--source",
         "-s",
-        help="Configuration source to use when fetching app templates",
-        type=click.Choice(APP_CONFIG_SOURCES, case_sensitive=False),
-        show_default=True,
+        help=f"Configuration source to use when fetching app templates (default: {APP_SRE_SRC})",
+        type=click.Choice([APP_SRE_SRC, FILE_SRC], case_sensitive=False),
         default=APP_SRE_SRC,
     ),
     click.option(
@@ -392,11 +382,10 @@ _app_source_options = [
     ),
     click.option(
         "--local-config-method",
-        "-m",
         help="Selects method used when combining apps in local config with remote app config",
-        type=click.Choice(MERGE_METHODS, case_sensitive=False),
+        type=click.Choice(["merge", "override"], case_sensitive=False),
         show_default=True,
-        default="override",
+        default="merge",
     ),
     click.option(
         "--target-env",
@@ -827,10 +816,6 @@ def _describe_namespace(namespace):
 
 def _get_apps_config(source, target_env, ref_env, local_config_path, local_config_method):
     config = conf.load_config(local_config_path)
-
-    if source == LOCAL_SRC:
-        log.warning("source '%s' is deprecated and has been renamed to '%s'", LOCAL_SRC, FILE_SRC)
-        source = FILE_SRC
 
     if source == APP_SRE_SRC:
         log.info("fetching apps config using source: %s, target env: %s", source, target_env)

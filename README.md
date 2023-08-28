@@ -223,7 +223,7 @@ By default, the configuration file will be stored in `~/.config/bonfire/config.y
 
 If you wish to override any app configurations, you can edit your local configuration file by typing `bonfire config edit`. You can then define an app under the `apps` key of the config. You can reset the config to default at any time using `bonfire config write-default`.
 
-As of `bonfire` v14.13.0, there are two options for how the local configuration is loaded (controlled by the `--local-config-method` CLI option). Let's say we have an app configured in app-interface like this:
+As of `bonfire` v5, there are two options for how the local configuration is loaded (controlled by the `--local-config-method` CLI option). Let's say we have an app configured in app-interface like this:
 
 ```
 resourceTemplates:
@@ -259,9 +259,9 @@ apps:
 
 `bonfire` can override the remote configuration using one of two methods:
 
-1. `--local-config-method override` (default) -- In this mode, the local app configuration will take precedence over the app's configuration that bonfire fetched remotely. In other words, defining a local app configuration will replace the configuration defined in app-interface for ALL components within that app. So 'mycomponent1' would be completely removed, and 'mycomponent2' would only have the parameters you defined in the local config.
+1. `--local-config-method merge` (default). In this mode, the apps config in your local config is merged with the configuration that bonfire fetched remotely. With the above config, only the 'MIN_REPLICAS' parameter of 'mycomponent2' within app 'myapp' will be overridden. The 'SOME_OTHER_PARAM' parameter will still be present, and 'mycomponent1' would be unchanged.
 
-2. `--local-config-method merge` -- In this mode, the apps config in your local config is merged with the configuration that bonfire fetched remotely. With the above config, only the 'MIN_REPLICAS' parameter of 'mycomponent2' within app 'myapp' will be overridden. The 'SOME_OTHER_PARAM' parameter will still be present, and 'mycomponent1' would be unchanged.
+2. `--local-config-method override`. In this mode, the local app configuration will take precedence over the app's configuration that bonfire fetched remotely. In other words, defining a local app configuration will replace the configuration defined in app-interface for ALL components within that app. So 'mycomponent1' would be completely removed, and 'mycomponent2' would only have the parameters you defined in the local config.
 
 ## Local config examples
 
