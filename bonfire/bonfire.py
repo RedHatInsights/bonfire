@@ -48,6 +48,7 @@ from bonfire.utils import (
     split_equals,
     validate_time_string,
 )
+from ocviapy import StatusError
 
 log = logging.getLogger(__name__)
 
@@ -1205,6 +1206,9 @@ def _cmd_config_deploy(
         _err_handler(err)
     except FatalError as err:
         log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except StatusError as err:
+        log.error("hit status error: %s", err)
         _err_handler(err)
     except Exception as err:
         log.exception("hit unexpected error!")
