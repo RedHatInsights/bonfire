@@ -226,6 +226,7 @@ class Namespace:
     def is_active(self):
         return self.phase == self.STATUS_ACTIVE
 
+
 def get_namespaces(available=False, mine=False):
     """
     Look up reservable namespaces in the cluster.
