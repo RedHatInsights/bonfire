@@ -67,7 +67,12 @@ def _duration_fmt(seconds):
         return "%ds" % (seconds,)
 
 
+
+
 class Namespace:
+    STATUS_ACTIVE = "Active"
+    STATUS_TERMINATING = "Terminating"
+
     @property
     def annotations(self):
         return self._data.get("metadata", "").get("annotations", {})
@@ -150,7 +155,7 @@ class Namespace:
         if "labels" not in self._data["metadata"]:
             self._data["metadata"]["labels"] = {}
 
-        if self.reserved:
+        if self.reserved and not self.is_terminating:
             res = self.reservation  # note: using 'reservation' property defined below
             if res:
                 self.requester = res["spec"]["requester"]
@@ -189,7 +194,7 @@ class Namespace:
 
         if not self._reservation or not self._reservation.get("status"):
             self._reservation = None
-            log.debug("could not retrieve reservation details for ns: %s", self.name)
+            log.warning("could not retrieve reservation details for ns: %s", self.name)
 
         return self._reservation
 
@@ -211,6 +216,17 @@ class Namespace:
 
         return f"{ready}/{managed}"
 
+    @property
+    def status(self):
+        return self._data.get("status", {}).get("phase", "")
+    
+    @property
+    def is_terminating(self):
+        return self.status == self.STATUS_TERMINATING
+    
+    @property
+    def is_active(self):
+        return self.status == self.STATUS_ACTIVE
 
 def get_namespaces(available=False, mine=False):
     """
@@ -248,6 +264,8 @@ def get_namespaces(available=False, mine=False):
     ephemeral_namespaces = []
     for ns_kwargs in all_ns_kwargs:
         ns = Namespace(**ns_kwargs)
+        if ns.is_terminating:
+            continue
         if not ns.is_reservable:
             continue
         get_all = not mine and not available
