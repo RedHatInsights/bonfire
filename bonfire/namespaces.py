@@ -215,16 +215,16 @@ class Namespace:
         return f"{ready}/{managed}"
 
     @property
-    def status(self):
+    def phase(self):
         return self._data.get("status", {}).get("phase", "")
-    
+
     @property
     def is_terminating(self):
-        return self.status == self.STATUS_TERMINATING
-    
+        return self.phase == self.STATUS_TERMINATING
+
     @property
     def is_active(self):
-        return self.status == self.STATUS_ACTIVE
+        return self.phase == self.STATUS_ACTIVE
 
 def get_namespaces(available=False, mine=False):
     """
