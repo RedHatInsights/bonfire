@@ -68,8 +68,8 @@ def _duration_fmt(seconds):
 
 
 class Namespace:
-    STATUS_ACTIVE = "Active"
-    STATUS_TERMINATING = "Terminating"
+    PHASE_ACTIVE = "Active"
+    PHASE_TERMINATING = "Terminating"
 
     @property
     def annotations(self):
@@ -220,11 +220,11 @@ class Namespace:
 
     @property
     def is_terminating(self):
-        return self.phase == self.STATUS_TERMINATING
+        return self.phase == self.PHASE_TERMINATING
 
     @property
     def is_active(self):
-        return self.phase == self.STATUS_ACTIVE
+        return self.phase == self.PHASE_ACTIVE
 
 
 def get_namespaces(available=False, mine=False):
