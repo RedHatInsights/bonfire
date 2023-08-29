@@ -67,8 +67,6 @@ def _duration_fmt(seconds):
         return "%ds" % (seconds,)
 
 
-
-
 class Namespace:
     STATUS_ACTIVE = "Active"
     STATUS_TERMINATING = "Terminating"
