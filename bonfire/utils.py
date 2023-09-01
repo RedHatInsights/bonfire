@@ -53,7 +53,7 @@ GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
 GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
 GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
-GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects/?per_page=100"
+GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects?search={name}"
 GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
@@ -270,14 +270,15 @@ class RepoFile:
 
     def _get_gl_commit_hash(self):
         group, project = self.org, self.repo
-        url = GL_PROJECTS_URL.format(type="groups", group=group)
+        url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
         check_url_connection(url)
         response = self._session.get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
             # use a different path
             response = self._session.get(
-                GL_PROJECTS_URL.format(type="users", group=group), verify=self._gl_certfile
+                GL_PROJECTS_URL.format(type="users", group=group, name=project),
+                verify=self._gl_certfile,
             )
         response.raise_for_status()
         projects = response.json()
