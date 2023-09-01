@@ -7,7 +7,7 @@ import warnings
 from functools import wraps
 
 import click
-from ocviapy import apply_config, get_current_namespace
+from ocviapy import apply_config, get_current_namespace, StatusError
 from tabulate import tabulate
 from wait_for import TimedOutError
 
@@ -91,6 +91,8 @@ def click_exception_wrapper(command):
                 _error(f"{command}: hit timeout error: {err}")
             except FatalError as err:
                 _error(f"{command}: hit fatal error: {err}")
+            except StatusError as err:
+                _error(f"{command}: hit status error: {err}")
             except Exception as err:
                 log.exception("hit unexpected error")
                 _error(f"{command}: hit unexpected error: {err}")
@@ -1205,6 +1207,9 @@ def _cmd_config_deploy(
         _err_handler(err)
     except FatalError as err:
         log.error("hit fatal error: %s", err)
+        _err_handler(err)
+    except StatusError as err:
+        log.error("hit status error: %s", err)
         _err_handler(err)
     except Exception as err:
         log.exception("hit unexpected error!")
