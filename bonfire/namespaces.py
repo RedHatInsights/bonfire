@@ -17,6 +17,7 @@ from bonfire.openshift import (
 from bonfire.processor import process_reservation
 from bonfire.utils import FatalError, hms_to_seconds
 
+
 log = logging.getLogger(__name__)
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -67,6 +68,9 @@ def _duration_fmt(seconds):
 
 
 class Namespace:
+    PHASE_ACTIVE = "Active"
+    PHASE_TERMINATING = "Terminating"
+
     @property
     def annotations(self):
         return self._data.get("metadata", "").get("annotations", {})
@@ -149,7 +153,7 @@ class Namespace:
         if "labels" not in self._data["metadata"]:
             self._data["metadata"]["labels"] = {}
 
-        if self.reserved:
+        if self.reserved and not self.is_terminating:
             res = self.reservation  # note: using 'reservation' property defined below
             if res:
                 self.requester = res["spec"]["requester"]
@@ -210,6 +214,18 @@ class Namespace:
 
         return f"{ready}/{managed}"
 
+    @property
+    def phase(self):
+        return self._data.get("status", {}).get("phase", "")
+
+    @property
+    def is_terminating(self):
+        return self.phase == self.PHASE_TERMINATING
+
+    @property
+    def is_active(self):
+        return self.phase == self.PHASE_ACTIVE
+
 
 def get_namespaces(available=False, mine=False):
     """
@@ -247,6 +263,8 @@ def get_namespaces(available=False, mine=False):
     ephemeral_namespaces = []
     for ns_kwargs in all_ns_kwargs:
         ns = Namespace(**ns_kwargs)
+        if ns.is_terminating:
+            continue
         if not ns.is_reservable:
             continue
         get_all = not mine and not available
