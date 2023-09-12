@@ -140,6 +140,10 @@ def process_iqe_cji(
     plugins="",
     local=True,
     selenium=False,
+    parallel_enabled="",
+    parallel_worker_count="",
+    rp_args="",
+    ibutsu_source="",
 ):
     log.info("processing IQE ClowdJobInvocation")
 
@@ -168,6 +172,10 @@ def process_iqe_cji(
     params["REQUIREMENTS_PRIORITY"] = json.dumps(requirements_priority)
     params["TEST_IMPORTANCE"] = json.dumps(test_importance)
     params["DEPLOY_SELENIUM"] = json.dumps(selenium)
+    params["PARALLEL_ENABLED"] = json.dumps(parallel_enabled)
+    params["PARALLEL_WORKER_COUNT"] = json.dumps(parallel_worker_count)
+    params["RP_ARGS"] = json.dumps(rp_args)
+    params["IBUTSU_SOURCE"] = json.dumps(ibutsu_source)
 
     processed_template = _process_template(template_data, params=params, local=local)
 

@@ -53,12 +53,8 @@ GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
 GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
 GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
-GL_PROJECTS_URL = (
-    "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects/?per_page=100"
-)
-GL_BRANCH_URL = (
-    "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
-)
+GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects?search={name}"
+GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
 
@@ -283,14 +279,14 @@ class RepoFile:
             )
 
         group, project = self.org, self.repo
-        url = GL_PROJECTS_URL.format(type="groups", group=group)
+        url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
         check_url_connection(url)
         response = self._session.get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
             # use a different path
             response = self._session.get(
-                GL_PROJECTS_URL.format(type="users", group=group),
+                GL_PROJECTS_URL.format(type="users", group=group, name=project),
                 verify=self._gl_certfile,
             )
         response.raise_for_status()
@@ -302,7 +298,10 @@ class RepoFile:
                 project_id = p["id"]
 
         if not project_id:
-            raise FatalError("gitlab project ID not found for {self.org}/{self.repo}")
+            raise FatalError(
+                f"gitlab project ID not found for {self.org}/{self.repo}."
+                " If you are sure it is correct, check the repository's read permissions."
+            )
 
         response = self._get_ref(get_ref_func)
         return response.json()["commit"]["id"]
@@ -339,7 +338,10 @@ class RepoFile:
             )
 
         response = self._get_ref(get_ref_func)
-        return response.json()["object"]["sha"]
+        response_json = response.json()
+        if isinstance(response_json, list):
+            return response_json[0]["object"]["sha"]
+        return response_json["object"]["sha"]
 
     def _fetch_github(self):
         commit = self.ref

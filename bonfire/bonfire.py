@@ -7,7 +7,7 @@ import warnings
 from functools import wraps
 
 import click
-from ocviapy import apply_config, get_current_namespace
+from ocviapy import apply_config, get_current_namespace, StatusError
 from tabulate import tabulate
 from wait_for import TimedOutError
 
@@ -91,6 +91,8 @@ def click_exception_wrapper(command):
                 _error(f"{command}: hit timeout error: {err}")
             except FatalError as err:
                 _error(f"{command}: hit fatal error: {err}")
+            except StatusError as err:
+                _error(f"{command}: hit status error: {err}")
             except Exception as err:
                 log.exception("hit unexpected error")
                 _error(f"{command}: hit unexpected error: {err}")
@@ -642,6 +644,30 @@ _iqe_cji_process_options = [
     click.option(
         "--test-importance",
         help="iqe --test-importance expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--parallel-enabled",
+        help="iqe --parallel-enabled expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--parallel-worker-count",
+        help="iqe --parallel-worker-count expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--rp-args",
+        help="iqe --rp-args expression",
+        type=str,
+        default="",
+    ),
+    click.option(
+        "--ibutsu-source",
+        help="iqe --ibutsu-source expression",
         type=str,
         default="",
     ),
@@ -1218,6 +1244,9 @@ def _cmd_config_deploy(
     except FatalError as err:
         log.error("hit fatal error: %s", err)
         _err_handler(err)
+    except StatusError as err:
+        log.error("hit status error: %s", err)
+        _err_handler(err)
     except Exception as err:
         log.exception("hit unexpected error!")
         _err_handler(err)
@@ -1331,6 +1360,10 @@ def _cmd_process_iqe_cji(
     plugins,
     local,
     selenium,
+    parallel_enabled,
+    parallel_worker_count,
+    rp_args,
+    ibutsu_source,
 ):
     """Process IQE ClowdJobInvocation template and print output"""
     cji_config = process_iqe_cji(
@@ -1348,6 +1381,10 @@ def _cmd_process_iqe_cji(
         plugins,
         local,
         selenium,
+        parallel_enabled,
+        parallel_worker_count,
+        rp_args,
+        ibutsu_source,
     )
     print(json.dumps(cji_config, indent=2))
 
@@ -1380,6 +1417,10 @@ def _cmd_deploy_iqe_cji(
     duration,
     local,
     selenium,
+    parallel_enabled,
+    parallel_worker_count,
+    rp_args,
+    ibutsu_source,
     pool,
     force,
 ):
@@ -1406,6 +1447,10 @@ def _cmd_deploy_iqe_cji(
         plugins,
         local,
         selenium,
+        parallel_enabled,
+        parallel_worker_count,
+        rp_args,
+        ibutsu_source,
     )
 
     log.debug("processed CJI config:\n%s", cji_config)

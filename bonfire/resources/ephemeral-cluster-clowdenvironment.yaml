@@ -59,7 +59,7 @@ objects:
         # disable tls/auth for now until core apps are ready
         enableLegacyStrimzi: true
         cluster:
-          version: "3.0.0"
+          version: "3.4.0"
           resources:
             limits:
               cpu: 500m
@@ -68,7 +68,7 @@ objects:
               cpu: 250m
               memory: 600Mi
         connect:
-          version: "3.0.0"
+          version: "3.4.0"
           image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:latest"
           resources:
             limits:
