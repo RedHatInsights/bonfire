@@ -382,6 +382,8 @@ def describe_namespace(project_name: str):
     if not ns.operator_ns:
         raise FatalError(f"namespace '{project_name}' was not reserved with namespace operator")
 
+    frontend = get_json("frontend", project_name)
+
     fe_host, keycloak_url = parse_fe_env(project_name)
     fe_creds = get_keycloak_creds(project_name)
     output += f"Current project: {project_name}\n"
@@ -392,8 +394,9 @@ def describe_namespace(project_name: str):
         output += f"Console url: {ns_url}\n"
     output += f"Keycloak admin route: {keycloak_url}\n"
     output += f"Keycloak admin login: {fe_creds['username']} | {fe_creds['password']}\n"
-    output += f"Frontend route: https://{fe_host}\n"
-    output += f"Frontend login: {fe_creds['defaultUsername']} | {fe_creds['defaultPassword']}\n"
+    if frontend:
+        output += f"Frontend route: https://{fe_host}\n"
+        output += f"Frontend login: {fe_creds['defaultUsername']} | {fe_creds['defaultPassword']}\n"
     return output
 
 
