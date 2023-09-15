@@ -385,8 +385,6 @@ def describe_namespace(project_name: str):
     kc_creds = get_keycloak_creds(project_name)
     project_url = get_console_url()
 
-    print(frontends)
-
     output = f"Current project: {project_name}\n"
     if project_url:
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
