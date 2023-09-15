@@ -373,8 +373,6 @@ def extend_namespace(namespace, duration, local=True):
 
 
 def describe_namespace(project_name: str):
-    output = ""
-
     ns_data = get_json("namespace", project_name)
     if not ns_data:
         raise FatalError(f"namespace '{project_name}' not found")
@@ -382,21 +380,25 @@ def describe_namespace(project_name: str):
     if not ns.operator_ns:
         raise FatalError(f"namespace '{project_name}' was not reserved with namespace operator")
 
-    frontend = get_json("frontend", project_name)
-
+    frontends = get_json("frontend", namespace=project_name)
     fe_host, keycloak_url = parse_fe_env(project_name)
-    fe_creds = get_keycloak_creds(project_name)
-    output += f"Current project: {project_name}\n"
-
+    kc_creds = get_keycloak_creds(project_name)
     project_url = get_console_url()
+
+    print(frontends)
+
+    output = f"Current project: {project_name}\n"
     if project_url:
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
-        output += f"Console url: {ns_url}\n"
+        output += f"Project URL: {ns_url}\n"
     output += f"Keycloak admin route: {keycloak_url}\n"
-    output += f"Keycloak admin login: {fe_creds['username']} | {fe_creds['password']}\n"
-    if frontend:
+    output += f"Keycloak admin login: {kc_creds['username']} | {kc_creds['password']}\n"
+    if frontends.get('items'):
         output += f"Frontend route: https://{fe_host}\n"
-        output += f"Frontend login: {fe_creds['defaultUsername']} | {fe_creds['defaultPassword']}\n"
+    else:
+        output += "No frontends deployed\n"
+    output += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
+
     return output
 
 
