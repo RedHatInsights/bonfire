@@ -324,10 +324,6 @@ def test_local_config_merge_update_param(monkeypatch, source):
                 "name": "appB",
                 "components": [
                     {
-                        "name": "appBcomponent1",
-                        "ref": "a_new_ref",
-                    },
-                    {
                         "name": "appBcomponent2",
                         "parameters": {
                             "EXISTING_PARAM1": "NEW_VALUE1",
@@ -350,10 +346,11 @@ def test_local_config_merge_update_param(monkeypatch, source):
     )
 
     expected = _target_apps()
+    component1_found = False
     for _, app_config in expected.items():
         for component in app_config["components"]:
             if component["name"] == "appBcomponent1":
-                component["ref"] = "a_new_ref"
+                component1_found = True
             if component["name"] == "appBcomponent2":
                 component["parameters"] = {
                     "EXISTING_PARAM1": "NEW_VALUE1",
@@ -361,4 +358,5 @@ def test_local_config_merge_update_param(monkeypatch, source):
                     "NEW_PARAM2": "NEW_VALUE2",
                 }
 
+    assert component1_found  # ensure component 1 is not removed
     assert actual == expected
