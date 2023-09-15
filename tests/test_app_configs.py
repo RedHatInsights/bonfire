@@ -1,60 +1,12 @@
 import pytest
+import copy
 
 from bonfire.bonfire import _get_apps_config, APP_SRE_SRC, FILE_SRC
 
 import bonfire
 
 
-LOCAL_CONFIG_FILE_DATA = {
-    "apps": [
-        {
-            "name": "appA",
-            "components": [
-                {
-                    "name": "appAcomponent1",
-                    "host": "github",
-                    "repo": "someorg/appAcomponent1",
-                    "path": "deploy/template.yaml",
-                    "ref": "master",
-                    "parameters": {},
-                },
-                {
-                    "name": "appAcomponent2",
-                    "host": "github",
-                    "repo": "someorg/appAcomponent2",
-                    "path": "deploy/template.yaml",
-                    "ref": "master",
-                    "parameters": {},
-                },
-            ],
-        },
-        {
-            "name": "appB",
-            "components": [
-                {
-                    "name": "appBcomponent1",
-                    "host": "github",
-                    "repo": "someorg/appBcomponent1",
-                    "path": "deploy/template.yaml",
-                    "ref": "master",
-                    "parameters": {},
-                },
-                {
-                    "name": "appBcomponent2",
-                    "host": "github",
-                    "repo": "someorg/appBcomponent2",
-                    "path": "deploy/template.yaml",
-                    "ref": "master",
-                    "parameters": {},
-                },
-            ],
-        },
-    ]
-}
-
-LOCAL_APPS = {a["name"]: a for a in LOCAL_CONFIG_FILE_DATA["apps"]}
-
-REMOTE_TARGET_APPS = {
+TARGET_APPS = {
     "appA": {
         "name": "appA",
         "components": [
@@ -93,13 +45,17 @@ REMOTE_TARGET_APPS = {
                 "repo": "someorg/appBcomponent2",
                 "path": "deploy/template.yaml",
                 "ref": "appBcomponent2_target_ref",
-                "parameters": {},
+                "parameters": {
+                    "EXISTING_PARAM1": "EXISTING_VALUE1",
+                    "EXISTING_PARAM2": "EXISTING_VALUE2",
+                },
             },
         ],
     },
 }
 
-REMOTE_REFERENCE_APPS = {
+
+REFERENCE_APPS = {
     "appA": {
         "name": "appA",
         "components": [
@@ -145,7 +101,7 @@ REMOTE_REFERENCE_APPS = {
 }
 
 
-REMOTE_REFERENCE_APPS_MASTER_REFS = {
+TARGET_APPS_W_REFS_SUBBED = {
     "appA": {
         "name": "appA",
         "components": [
@@ -154,7 +110,7 @@ REMOTE_REFERENCE_APPS_MASTER_REFS = {
                 "host": "github",
                 "repo": "someorg/appAcomponent1",
                 "path": "deploy/template.yaml",
-                "ref": "master",
+                "ref": "appAcomponent1_reference_ref",
                 "parameters": {},
             },
             {
@@ -162,7 +118,7 @@ REMOTE_REFERENCE_APPS_MASTER_REFS = {
                 "host": "github",
                 "repo": "someorg/appAcomponent2",
                 "path": "deploy/template.yaml",
-                "ref": "master",
+                "ref": "appAcomponent2_reference_ref",
                 "parameters": {},
             },
         ],
@@ -175,7 +131,7 @@ REMOTE_REFERENCE_APPS_MASTER_REFS = {
                 "host": "github",
                 "repo": "someorg/appBcomponent1",
                 "path": "deploy/template.yaml",
-                "ref": "master",
+                "ref": "appBcomponent1_reference_ref",
                 "parameters": {},
             },
             {
@@ -183,8 +139,11 @@ REMOTE_REFERENCE_APPS_MASTER_REFS = {
                 "host": "github",
                 "repo": "someorg/appBcomponent2",
                 "path": "deploy/template.yaml",
-                "ref": "master",
-                "parameters": {},
+                "ref": "appBcomponent2_reference_ref",
+                "parameters": {
+                    "EXISTING_PARAM1": "EXISTING_VALUE1",
+                    "EXISTING_PARAM2": "EXISTING_VALUE2",
+                },
             },
         ],
     },
@@ -195,99 +154,125 @@ def _mock_get_apps_for_env(env):
     if env is None or env == "test_env_with_no_apps":
         return {}
     elif env == "test_target_env":
-        return REMOTE_TARGET_APPS
+        return TARGET_APPS
     elif env == "test_ref_env":
-        return REMOTE_REFERENCE_APPS
+        return REFERENCE_APPS
     else:
         raise ValueError(f"invalid env '{env}' provided to mock function")
 
 
+def _setup_monkeypatch(monkeypatch, source, local_cfg):
+    # always patch this func since it is used in bonfire.qontract.sub_refs()
+    monkeypatch.setattr(bonfire.qontract, "get_apps_for_env", _mock_get_apps_for_env)
+
+    # patch loading of local cfg
+    monkeypatch.setattr(bonfire.bonfire.conf, "load_config", lambda _: local_cfg)
+
+    # patch fetching of remote app config
+    if source == APP_SRE_SRC:
+        monkeypatch.setattr(bonfire.bonfire, "get_apps_for_env", _mock_get_apps_for_env)
+    elif source == FILE_SRC:
+        monkeypatch.setattr(bonfire.bonfire, "get_appsfile_apps", lambda _: TARGET_APPS)
+    else:
+        raise ValueError(f"invalid source '{source}' provided to mock function")
+
+
 @pytest.mark.parametrize("local_config_method", ("merge", "override"))
-def test_local_no_remote_apps_found_qontract(mocker, local_config_method):
-    mocker.patch("bonfire.qontract.get_apps_for_env", return_value={})
-    mocker.patch("bonfire.bonfire.get_apps_for_env", return_value={})
-    mocker.patch(
-        "bonfire.bonfire.conf.load_config", return_value=LOCAL_CONFIG_FILE_DATA
-    )
+@pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
+def test_local_no_remote_target_apps_found(monkeypatch, source, local_config_method):
+    local_cfg = {"apps": [val for _, val in TARGET_APPS.items()]}
+    _setup_monkeypatch(monkeypatch, source, local_cfg)
     actual = _get_apps_config(
-        source=APP_SRE_SRC,
+        source=source,
+        target_env="test_env_with_no_apps",
+        ref_env="test_ref_env",
+        local_config_path="na",
+        local_config_method=local_config_method,
+    )
+    assert actual == TARGET_APPS_W_REFS_SUBBED
+
+
+@pytest.mark.parametrize("local_config_method", ("merge", "override"))
+@pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
+def test_empty_local_config(monkeypatch, source, local_config_method):
+    local_cfg = {}
+    _setup_monkeypatch(monkeypatch, source, local_cfg)
+    actual = _get_apps_config(
+        source=source,
         target_env="test_target_env",
         ref_env="test_ref_env",
         local_config_path="na",
         local_config_method=local_config_method,
     )
-    expected = LOCAL_APPS
-    assert actual == expected
+    assert actual == TARGET_APPS_W_REFS_SUBBED
 
 
 @pytest.mark.parametrize("local_config_method", ("merge", "override"))
-def test_local_no_remote_apps_found_appsfile(mocker, local_config_method):
-    mocker.patch("bonfire.bonfire.get_appsfile_apps", return_value={})
-    mocker.patch(
-        "bonfire.bonfire.conf.load_config", return_value=LOCAL_CONFIG_FILE_DATA
-    )
-    actual = _get_apps_config(
-        source=FILE_SRC,
-        target_env=None,
-        ref_env=None,
-        local_config_path="na",
-        local_config_method=local_config_method,
-    )
-    expected = LOCAL_APPS
-    assert actual == expected
+@pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
+def test_master_branch_used_when_no_reference_app_found(monkeypatch, source, local_config_method):
+    local_cfg = {}
+    _setup_monkeypatch(monkeypatch, source, local_cfg)
 
-
-@pytest.mark.parametrize("local_config_method", ("merge", "override"))
-def test_empty_local_config_qontract(monkeypatch, local_config_method):
-    monkeypatch.setattr(bonfire.qontract, "get_apps_for_env", _mock_get_apps_for_env)
-    monkeypatch.setattr(bonfire.bonfire, "get_apps_for_env", _mock_get_apps_for_env)
-    monkeypatch.setattr(bonfire.bonfire.conf, "load_config", lambda _: {})
-    actual = _get_apps_config(
-        source=APP_SRE_SRC,
-        target_env="test_target_env",
-        ref_env="test_ref_env",
-        local_config_path="na",
-        local_config_method=local_config_method,
-    )
-    expected = REMOTE_REFERENCE_APPS
-    assert actual == expected
-
-
-@pytest.mark.parametrize("local_config_method", ("merge", "override"))
-def test_empty_local_config_appsfile(monkeypatch, local_config_method):
-    monkeypatch.setattr(
-        bonfire.bonfire, "get_appsfile_apps", lambda _: REMOTE_TARGET_APPS
-    )
-    monkeypatch.setattr(bonfire.qontract, "get_apps_for_env", _mock_get_apps_for_env)
-    monkeypatch.setattr(bonfire.bonfire, "get_apps_for_env", _mock_get_apps_for_env)
-    monkeypatch.setattr(bonfire.bonfire.conf, "load_config", lambda _: {})
-    actual = _get_apps_config(
-        source=FILE_SRC,
-        target_env="test_target_env",
-        ref_env="test_ref_env",
-        local_config_path="na",
-        local_config_method=local_config_method,
-    )
-    expected = REMOTE_REFERENCE_APPS
-    assert actual == expected
-
-
-@pytest.mark.parametrize("local_config_method", ("merge", "override"))
-def test_master_branch_used_when_no_reference_app_found(
-    monkeypatch, local_config_method
-):
-    monkeypatch.setattr(
-        bonfire.bonfire, "get_appsfile_apps", lambda _: REMOTE_TARGET_APPS
-    )
-    monkeypatch.setattr(bonfire.qontract, "get_apps_for_env", _mock_get_apps_for_env)
-    monkeypatch.setattr(bonfire.bonfire, "get_apps_for_env", _mock_get_apps_for_env)
-    monkeypatch.setattr(bonfire.bonfire.conf, "load_config", lambda _: {})
-    actual = _get_apps_config(
-        source=FILE_SRC,
+    apps_config = _get_apps_config(
+        source=source,
         target_env="test_target_env",
         ref_env="test_env_with_no_apps",
         local_config_path="na",
         local_config_method=local_config_method,
     )
-    expected = REMOTE_REFERENCE_APPS_MASTER_REFS
+
+    expected = copy.deepcopy(TARGET_APPS_W_REFS_SUBBED)
+    for _, app_config in expected.items():
+        for component in app_config["components"]:
+            component["ref"] = "master"
+
+    assert apps_config == expected
+
+
+@pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
+def test_local_config_merge(monkeypatch, source):
+    local_cfg = {
+        "apps": [
+            {
+                "name": "appB",
+                "components": [
+                    {
+                        "name": "appBcomponent1",
+                        "ref": "a_new_ref",
+                    },
+                    {
+                        "name": "appBcomponent2",
+                        "parameters": {
+                            "NEW_PARAM1": "NEW_VALUE1",
+                            "NEW_PARAM2": "NEW_VALUE2",
+                        },
+                    },
+                ],
+            },
+        ]
+    }
+
+    _setup_monkeypatch(monkeypatch, source, local_cfg)
+
+    actual = _get_apps_config(
+        source=source,
+        target_env="test_target_env",
+        ref_env=None,
+        local_config_path="na",
+        local_config_method="merge",
+    )
+
+    expected = copy.deepcopy(TARGET_APPS)
+    for _, app_config in expected.items():
+        for component in app_config["components"]:
+            if component["name"] == "appBcomponent1":
+                component["ref"] = "a_new_ref"
+            if component["name"] == "appBcomponent2":
+                component["parameters"] = {
+                    "EXISTING_PARAM1": "EXISTING_VALUE1",
+                    "EXISTING_PARAM2": "EXISTING_VALUE2",
+                    "NEW_PARAM1": "NEW_VALUE1",
+                    "NEW_PARAM2": "NEW_VALUE2",
+                }
+
     assert actual == expected
