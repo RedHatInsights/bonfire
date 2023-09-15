@@ -1,162 +1,167 @@
 import pytest
-import copy
 
 from bonfire.bonfire import _get_apps_config, APP_SRE_SRC, FILE_SRC
 
 import bonfire
 
+# Make sure to use functions for these test dictionaries instead of global vars.
+# Otherwise, data gets polluted between the tests due to re-using the same dict object in memory.
 
-TARGET_APPS = {
-    "appA": {
-        "name": "appA",
-        "components": [
-            {
-                "name": "appAcomponent1",
-                "host": "github",
-                "repo": "someorg/appAcomponent1",
-                "path": "deploy/template.yaml",
-                "ref": "appAcomponent1_target_ref",
-                "parameters": {},
-            },
-            {
-                "name": "appAcomponent2",
-                "host": "github",
-                "repo": "someorg/appAcomponent2",
-                "path": "deploy/template.yaml",
-                "ref": "appAcomponent2_target_ref",
-                "parameters": {},
-            },
-        ],
-    },
-    "appB": {
-        "name": "appB",
-        "components": [
-            {
-                "name": "appBcomponent1",
-                "host": "github",
-                "repo": "someorg/appBcomponent1",
-                "path": "deploy/template.yaml",
-                "ref": "appBcomponent1_target_ref",
-                "parameters": {},
-            },
-            {
-                "name": "appBcomponent2",
-                "host": "github",
-                "repo": "someorg/appBcomponent2",
-                "path": "deploy/template.yaml",
-                "ref": "appBcomponent2_target_ref",
-                "parameters": {
-                    "EXISTING_PARAM1": "EXISTING_VALUE1",
-                    "EXISTING_PARAM2": "EXISTING_VALUE2",
+
+def _target_apps():
+    return {
+        "appA": {
+            "name": "appA",
+            "components": [
+                {
+                    "name": "appAcomponent1",
+                    "host": "github",
+                    "repo": "someorg/appAcomponent1",
+                    "path": "deploy/template.yaml",
+                    "ref": "appAcomponent1_target_ref",
+                    "parameters": {},
                 },
-            },
-        ],
-    },
-}
-
-
-REFERENCE_APPS = {
-    "appA": {
-        "name": "appA",
-        "components": [
-            {
-                "name": "appAcomponent1",
-                "host": "github",
-                "repo": "someorg/appAcomponent1",
-                "path": "deploy/template.yaml",
-                "ref": "appAcomponent1_reference_ref",
-                "parameters": {},
-            },
-            {
-                "name": "appAcomponent2",
-                "host": "github",
-                "repo": "someorg/appAcomponent2",
-                "path": "deploy/template.yaml",
-                "ref": "appAcomponent2_reference_ref",
-                "parameters": {},
-            },
-        ],
-    },
-    "appB": {
-        "name": "appB",
-        "components": [
-            {
-                "name": "appBcomponent1",
-                "host": "github",
-                "repo": "someorg/appBcomponent1",
-                "path": "deploy/template.yaml",
-                "ref": "appBcomponent1_reference_ref",
-                "parameters": {},
-            },
-            {
-                "name": "appBcomponent2",
-                "host": "github",
-                "repo": "someorg/appBcomponent2",
-                "path": "deploy/template.yaml",
-                "ref": "appBcomponent2_reference_ref",
-                "parameters": {},
-            },
-        ],
-    },
-}
-
-
-TARGET_APPS_W_REFS_SUBBED = {
-    "appA": {
-        "name": "appA",
-        "components": [
-            {
-                "name": "appAcomponent1",
-                "host": "github",
-                "repo": "someorg/appAcomponent1",
-                "path": "deploy/template.yaml",
-                "ref": "appAcomponent1_reference_ref",
-                "parameters": {},
-            },
-            {
-                "name": "appAcomponent2",
-                "host": "github",
-                "repo": "someorg/appAcomponent2",
-                "path": "deploy/template.yaml",
-                "ref": "appAcomponent2_reference_ref",
-                "parameters": {},
-            },
-        ],
-    },
-    "appB": {
-        "name": "appB",
-        "components": [
-            {
-                "name": "appBcomponent1",
-                "host": "github",
-                "repo": "someorg/appBcomponent1",
-                "path": "deploy/template.yaml",
-                "ref": "appBcomponent1_reference_ref",
-                "parameters": {},
-            },
-            {
-                "name": "appBcomponent2",
-                "host": "github",
-                "repo": "someorg/appBcomponent2",
-                "path": "deploy/template.yaml",
-                "ref": "appBcomponent2_reference_ref",
-                "parameters": {
-                    "EXISTING_PARAM1": "EXISTING_VALUE1",
-                    "EXISTING_PARAM2": "EXISTING_VALUE2",
+                {
+                    "name": "appAcomponent2",
+                    "host": "github",
+                    "repo": "someorg/appAcomponent2",
+                    "path": "deploy/template.yaml",
+                    "ref": "appAcomponent2_target_ref",
+                    "parameters": {},
                 },
-            },
-        ],
-    },
-}
+            ],
+        },
+        "appB": {
+            "name": "appB",
+            "components": [
+                {
+                    "name": "appBcomponent1",
+                    "host": "github",
+                    "repo": "someorg/appBcomponent1",
+                    "path": "deploy/template.yaml",
+                    "ref": "appBcomponent1_target_ref",
+                    "parameters": {},
+                },
+                {
+                    "name": "appBcomponent2",
+                    "host": "github",
+                    "repo": "someorg/appBcomponent2",
+                    "path": "deploy/template.yaml",
+                    "ref": "appBcomponent2_target_ref",
+                    "parameters": {
+                        "EXISTING_PARAM1": "EXISTING_VALUE1",
+                        "EXISTING_PARAM2": "EXISTING_VALUE2",
+                    },
+                },
+            ],
+        },
+    }
+
+
+def _reference_apps():
+    return {
+        "appA": {
+            "name": "appA",
+            "components": [
+                {
+                    "name": "appAcomponent1",
+                    "host": "github",
+                    "repo": "someorg/appAcomponent1",
+                    "path": "deploy/template.yaml",
+                    "ref": "appAcomponent1_reference_ref",
+                    "parameters": {},
+                },
+                {
+                    "name": "appAcomponent2",
+                    "host": "github",
+                    "repo": "someorg/appAcomponent2",
+                    "path": "deploy/template.yaml",
+                    "ref": "appAcomponent2_reference_ref",
+                    "parameters": {},
+                },
+            ],
+        },
+        "appB": {
+            "name": "appB",
+            "components": [
+                {
+                    "name": "appBcomponent1",
+                    "host": "github",
+                    "repo": "someorg/appBcomponent1",
+                    "path": "deploy/template.yaml",
+                    "ref": "appBcomponent1_reference_ref",
+                    "parameters": {},
+                },
+                {
+                    "name": "appBcomponent2",
+                    "host": "github",
+                    "repo": "someorg/appBcomponent2",
+                    "path": "deploy/template.yaml",
+                    "ref": "appBcomponent2_reference_ref",
+                    "parameters": {},
+                },
+            ],
+        },
+    }
+
+
+def _target_apps_w_refs_subbed():
+    return {
+        "appA": {
+            "name": "appA",
+            "components": [
+                {
+                    "name": "appAcomponent1",
+                    "host": "github",
+                    "repo": "someorg/appAcomponent1",
+                    "path": "deploy/template.yaml",
+                    "ref": "appAcomponent1_reference_ref",
+                    "parameters": {},
+                },
+                {
+                    "name": "appAcomponent2",
+                    "host": "github",
+                    "repo": "someorg/appAcomponent2",
+                    "path": "deploy/template.yaml",
+                    "ref": "appAcomponent2_reference_ref",
+                    "parameters": {},
+                },
+            ],
+        },
+        "appB": {
+            "name": "appB",
+            "components": [
+                {
+                    "name": "appBcomponent1",
+                    "host": "github",
+                    "repo": "someorg/appBcomponent1",
+                    "path": "deploy/template.yaml",
+                    "ref": "appBcomponent1_reference_ref",
+                    "parameters": {},
+                },
+                {
+                    "name": "appBcomponent2",
+                    "host": "github",
+                    "repo": "someorg/appBcomponent2",
+                    "path": "deploy/template.yaml",
+                    "ref": "appBcomponent2_reference_ref",
+                    "parameters": {
+                        "EXISTING_PARAM1": "EXISTING_VALUE1",
+                        "EXISTING_PARAM2": "EXISTING_VALUE2",
+                    },
+                },
+            ],
+        },
+    }
 
 
 def _mock_get_apps_for_env(env):
     if env is None or env == "test_env_with_no_apps":
         return {}
     elif env == "test_target_env":
-        return TARGET_APPS
+        return _target_apps()
     elif env == "test_ref_env":
-        return REFERENCE_APPS
+        return _reference_apps()
     else:
         raise ValueError(f"invalid env '{env}' provided to mock function")
 
@@ -172,7 +177,7 @@ def _setup_monkeypatch(monkeypatch, source, local_cfg):
     if source == APP_SRE_SRC:
         monkeypatch.setattr(bonfire.bonfire, "get_apps_for_env", _mock_get_apps_for_env)
     elif source == FILE_SRC:
-        monkeypatch.setattr(bonfire.bonfire, "get_appsfile_apps", lambda _: TARGET_APPS)
+        monkeypatch.setattr(bonfire.bonfire, "get_appsfile_apps", lambda _: _target_apps())
     else:
         raise ValueError(f"invalid source '{source}' provided to mock function")
 
@@ -180,16 +185,16 @@ def _setup_monkeypatch(monkeypatch, source, local_cfg):
 @pytest.mark.parametrize("local_config_method", ("merge", "override"))
 @pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
 def test_local_no_remote_target_apps_found(monkeypatch, source, local_config_method):
-    local_cfg = {"apps": [val for _, val in TARGET_APPS.items()]}
+    local_cfg = {"apps": [val for _, val in _target_apps().items()]}
     _setup_monkeypatch(monkeypatch, source, local_cfg)
     actual = _get_apps_config(
         source=source,
         target_env="test_env_with_no_apps",
-        ref_env="test_ref_env",
+        ref_env=None,
         local_config_path="na",
         local_config_method=local_config_method,
     )
-    assert actual == TARGET_APPS_W_REFS_SUBBED
+    assert actual == _target_apps()
 
 
 @pytest.mark.parametrize("local_config_method", ("merge", "override"))
@@ -204,7 +209,7 @@ def test_empty_local_config(monkeypatch, source, local_config_method):
         local_config_path="na",
         local_config_method=local_config_method,
     )
-    assert actual == TARGET_APPS_W_REFS_SUBBED
+    assert actual == _target_apps_w_refs_subbed()
 
 
 @pytest.mark.parametrize("local_config_method", ("merge", "override"))
@@ -221,7 +226,7 @@ def test_master_branch_used_when_no_reference_app_found(monkeypatch, source, loc
         local_config_method=local_config_method,
     )
 
-    expected = copy.deepcopy(TARGET_APPS_W_REFS_SUBBED)
+    expected = _target_apps_w_refs_subbed()
     for _, app_config in expected.items():
         for component in app_config["components"]:
             component["ref"] = "master"
@@ -262,7 +267,7 @@ def test_local_config_merge(monkeypatch, source):
         local_config_method="merge",
     )
 
-    expected = copy.deepcopy(TARGET_APPS)
+    expected = _target_apps()
     for _, app_config in expected.items():
         for component in app_config["components"]:
             if component["name"] == "appBcomponent1":
@@ -272,6 +277,87 @@ def test_local_config_merge(monkeypatch, source):
                     "EXISTING_PARAM1": "EXISTING_VALUE1",
                     "EXISTING_PARAM2": "EXISTING_VALUE2",
                     "NEW_PARAM1": "NEW_VALUE1",
+                    "NEW_PARAM2": "NEW_VALUE2",
+                }
+
+    assert actual == expected
+
+
+@pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
+def test_local_config_override(monkeypatch, source):
+    app_b = {
+        "name": "appB",
+        "components": [
+            {
+                "name": "appBcomponent2",
+                "host": "gitlab",
+                "repo": "somefork/appBcomponent2",
+                "path": "deploy/new_template.yaml",
+                "ref": "some_custom_ref",
+                "parameters": {"SOME_PARAM": "SOME_VALUE"},
+            },
+        ],
+    }
+    local_cfg = {"apps": [app_b]}
+
+    _setup_monkeypatch(monkeypatch, source, local_cfg)
+
+    actual = _get_apps_config(
+        source=source,
+        target_env="test_target_env",
+        ref_env=None,
+        local_config_path="na",
+        local_config_method="override",
+    )
+
+    expected = _target_apps()
+    expected["appB"] = app_b
+
+    assert actual == expected
+
+
+@pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
+def test_local_config_merge_update_param(monkeypatch, source):
+    local_cfg = {
+        "apps": [
+            {
+                "name": "appB",
+                "components": [
+                    {
+                        "name": "appBcomponent1",
+                        "ref": "a_new_ref",
+                    },
+                    {
+                        "name": "appBcomponent2",
+                        "parameters": {
+                            "EXISTING_PARAM1": "NEW_VALUE1",
+                            "NEW_PARAM2": "NEW_VALUE2",
+                        },
+                    },
+                ],
+            },
+        ]
+    }
+
+    _setup_monkeypatch(monkeypatch, source, local_cfg)
+
+    actual = _get_apps_config(
+        source=source,
+        target_env="test_target_env",
+        ref_env=None,
+        local_config_path="na",
+        local_config_method="merge",
+    )
+
+    expected = _target_apps()
+    for _, app_config in expected.items():
+        for component in app_config["components"]:
+            if component["name"] == "appBcomponent1":
+                component["ref"] = "a_new_ref"
+            if component["name"] == "appBcomponent2":
+                component["parameters"] = {
+                    "EXISTING_PARAM1": "NEW_VALUE1",
+                    "EXISTING_PARAM2": "EXISTING_VALUE2",
                     "NEW_PARAM2": "NEW_VALUE2",
                 }
 
