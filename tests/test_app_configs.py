@@ -212,6 +212,33 @@ def test_empty_local_config(monkeypatch, source, local_config_method):
     assert actual == _target_apps_w_refs_subbed()
 
 
+@pytest.mark.parametrize(
+    "bad_local_cfg",
+    (
+        {"apps": [{"name": "bad_app", "components": {"oops": "bad_type"}}]},
+        {"apps": "bad_type"},
+        {"apps": [{"name": "bad_app", "components": [{"oops": "missing_keys"}]}]},
+    ),
+    ids=(
+        "wrong_type_for_components_list",
+        "wrong_type_for_apps_dict",
+        "missing_keys_in_components_dict",
+    ),
+)
+@pytest.mark.parametrize("local_config_method", ("merge", "override"))
+@pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
+def test_bad_local_config(monkeypatch, source, local_config_method, bad_local_cfg):
+    _setup_monkeypatch(monkeypatch, source, bad_local_cfg)
+    with pytest.raises(bonfire.utils.FatalError) as exc:
+        apps = _get_apps_config(
+            source=source,
+            target_env="test_env_with_no_apps",
+            ref_env=None,
+            local_config_path="na",
+            local_config_method=local_config_method,
+        )
+
+
 @pytest.mark.parametrize("local_config_method", ("merge", "override"))
 @pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
 def test_master_branch_used_when_no_reference_app_found(monkeypatch, source, local_config_method):

@@ -56,6 +56,8 @@ GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
 GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
 GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects?search={name}"
 GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
+SYNTAX_ERR = "configuration syntax error"
+
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
 
@@ -155,7 +157,7 @@ def validate_time_string(time):
 class RepoFile:
     def __init__(self, host, org, repo, path, ref="master"):
         if host not in ["local", "github", "gitlab"]:
-            raise FatalError(f"invalid repo host type: {host}")
+            raise FatalError(f"{SYNTAX_ERR}, invalid repo host type: {host}")
 
         if not path.startswith("/"):
             path = f"/{path}"
@@ -175,13 +177,14 @@ class RepoFile:
         required_keys = ["host", "repo", "path"]
         missing_keys = [k for k in required_keys if k not in d.keys()]
         if missing_keys:
-            raise FatalError(f"repo config missing keys: {', '.join(missing_keys)}")
+            raise FatalError(f"{SYNTAX_ERR}, repo config missing keys: {', '.join(missing_keys)}")
 
         repo = d["repo"]
         if d["host"] in ["github", "gitlab"]:
             if "/" not in repo:
                 raise FatalError(
-                    f"invalid value for repo '{repo}', required format: <org>/<repo name>"
+                    f"{SYNTAX_ERR}, invalid value for repo '{repo}', required format: "
+                    "<org>/<repo name>"
                 )
             org, repo = repo.split("/")
         elif d["host"] == "local":
