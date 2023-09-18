@@ -42,8 +42,6 @@ def _parse_apps_in_cfg(config):
         for component in app["components"]:
             if not isinstance(component, dict):
                 raise FatalError(f"{SYNTAX_ERR} component should be a dict type")
-            # validate the config for a component
-            RepoFile.from_config(component)
         app_names.append(app["name"])
 
     dupes = get_dupes(app_names)

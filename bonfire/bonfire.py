@@ -13,6 +13,7 @@ from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.local import get_local_apps, get_appsfile_apps
+from bonfire.utils import RepoFile
 from bonfire.namespaces import (
     Namespace,
     extend_namespace,
@@ -836,6 +837,16 @@ def _get_apps_config(source, target_env, ref_env, local_config_path, local_confi
     # merge remote apps config with local app config
     local_apps = get_local_apps(config)
     apps_config = merge_app_configs(apps_config, local_apps, local_config_method)
+
+    # validate the components look ok after merging
+    for app_name, app_config in apps_config.items():
+        for component in app_config["components"]:
+            # validate the config for a component
+            try:
+                RepoFile.from_config(component)
+            except FatalError as err:
+                # re-raise with a bit more context
+                raise FatalError(f"{str(err)}, hit on app {app_name}")
 
     if ref_env:
         log.info("subbing app template refs/image tags using environment: %s", ref_env)
