@@ -230,13 +230,14 @@ def test_empty_local_config(monkeypatch, source, local_config_method):
 def test_bad_local_config(monkeypatch, source, local_config_method, bad_local_cfg):
     _setup_monkeypatch(monkeypatch, source, bad_local_cfg)
     with pytest.raises(bonfire.utils.FatalError) as exc:
-        apps = _get_apps_config(
+        _get_apps_config(
             source=source,
             target_env="test_env_with_no_apps",
             ref_env=None,
             local_config_path="na",
             local_config_method=local_config_method,
         )
+        assert str(exc).startswith(bonfire.utils.SYNTAX_ERR)
 
 
 @pytest.mark.parametrize("local_config_method", ("merge", "override"))
