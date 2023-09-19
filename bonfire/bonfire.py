@@ -13,7 +13,7 @@ from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.local import get_local_apps, get_appsfile_apps
-from bonfire.utils import RepoFile
+from bonfire.utils import RepoFile, SYNTAX_ERR
 from bonfire.namespaces import (
     Namespace,
     extend_namespace,
@@ -842,6 +842,8 @@ def _get_apps_config(source, target_env, ref_env, local_config_path, local_confi
     for app_name, app_config in apps_config.items():
         for component in app_config["components"]:
             # validate the config for a component
+            if not component.get("name"):
+                raise FatalError(f"{SYNTAX_ERR}, component is missing 'name'")
             try:
                 RepoFile.from_config(component)
             except FatalError as err:

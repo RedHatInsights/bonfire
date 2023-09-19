@@ -60,7 +60,7 @@ def get_local_apps(config):
         raise FatalError(f"{SYNTAX_ERR}, expected local config to be a dictionary")
     if "apps" in config:
         config_apps = _parse_apps_in_cfg(config)
-        log.info("local app configuration overrides found for: %s", list(config_apps.keys()))
+        log.info("local configuration found for apps: %s", list(config_apps.keys()))
 
     return config_apps
 
