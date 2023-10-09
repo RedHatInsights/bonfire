@@ -14,20 +14,32 @@ objects:
       iqe:
         debug: ${{DEBUG}}
         imageTag: ${IMAGE_TAG}
-        marker: ${MARKER}
-        filter: ${FILTER}
-        plugins: ${PLUGINS}
-        dynaconfEnvName: ${ENV_NAME}
-        requirements: ${{REQUIREMENTS}}
-        requirementsPriority: ${{REQUIREMENTS_PRIORITY}}
-        testImportance: ${{TEST_IMPORTANCE}}
-        parallelEnabled: ${{PARALLEL_ENABLED}}
-        parallelWorkerCount: ${{PARALLEL_WORKER_COUNT}}
-        rpArgs: ${{RP_ARGS}}
-        ibutsuSource: ${{IBUTSU_SOURCE}}
         ui:
           selenium:
             deploy: ${{DEPLOY_SELENIUM}}
+        env:
+          - name: IQE_MARKER_EXPRESSION
+            value: ${MARKER}
+          - name: IQE_FILTER_EXPRESSION
+            value: ${FILTER}
+          - name: IQE_PLUGINS
+            value: ${PLUGINS}
+          - name: ENV_FOR_DYNACONF
+            value: ${ENV_NAME}
+          - name: IQE_REQUIREMENTS
+            value: ${REQUIREMENTS}
+          - name: IQE_REQUIREMENTS_PRIORITY
+            value: ${REQUIREMENTS_PRIORITY}
+          - name: IQE_TEST_IMPORTANCE
+            value: ${TEST_IMPORTANCE}
+          - name: IQE_PARALLEL_ENABLED
+            value: ${PARALLEL_ENABLED}
+          - name: IQE_PARALLEL_WORKER_COUNT
+            value: ${PARALLEL_WORKER_COUNT}
+          - name: IQE_RP_ARGS
+            value: ${RP_ARGS}
+          - name: IQE_IBUTSU_SOURCE
+            value: ${IBUTSU_SOURCE}
 
 parameters:
 - name: NAME
@@ -46,11 +58,11 @@ parameters:
   value: "clowder_smoke"
   required: true
 - name: REQUIREMENTS
-  value: "[]"
+  value: ""
 - name: REQUIREMENTS_PRIORITY
-  value: "[]"
+  value: ""
 - name: TEST_IMPORTANCE
-  value: "[]"
+  value: ""
 - name: PLUGINS
   value: ""
 - name: DEPLOY_SELENIUM
