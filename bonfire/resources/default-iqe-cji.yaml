@@ -14,18 +14,17 @@ objects:
       iqe:
         debug: ${{DEBUG}}
         imageTag: ${IMAGE_TAG}
-        env:
-          IQE_MARKER_EXPRESSION: ${MARKER}
-          IQE_FILTER_EXPRESSION: ${FILTER}
-          IQE_PLUGINS: ${PLUGINS}
-          ENV_FOR_DYNACONF: ${ENV_NAME}
-          IQE_REQUIREMENTS: ${{REQUIREMENTS}}
-          IQE_REQUIREMENTS_PRIORITY: ${{REQUIREMENTS_PRIORITY}}
-          IQE_TEST_IMPORTANCE: ${{TEST_IMPORTANCE}}
-          IQE_PARALLEL_ENABLED: ${{PARALLEL_ENABLED}}
-          IQE_PARALLEL_WORKER_COUNT: ${{PARALLEL_WORKER_COUNT}}
-          IQE_RP_ARGS: ${{RP_ARGS}}
-          IQE_IBUTSU_SOURCE: ${{IBUTSU_SOURCE}}
+        marker: ${MARKER}
+        filter: ${FILTER}
+        plugins: ${PLUGINS}
+        dynaconfEnvName: ${ENV_NAME}
+        requirements: ${{REQUIREMENTS}}
+        requirementsPriority: ${{REQUIREMENTS_PRIORITY}}
+        testImportance: ${{TEST_IMPORTANCE}}
+        parallelEnabled: ${{PARALLEL_ENABLED}}
+        parallelWorkerCount: ${{PARALLEL_WORKER_COUNT}}
+        rpArgs: ${{RP_ARGS}}
+        ibutsuSource: ${{IBUTSU_SOURCE}}
         ui:
           selenium:
             deploy: ${{DEPLOY_SELENIUM}}
@@ -64,3 +63,4 @@ parameters:
   value: ""
 - name: IBUTSU_SOURCE
   value: ""
+
