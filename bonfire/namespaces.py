@@ -381,20 +381,22 @@ def describe_namespace(project_name: str):
         raise FatalError(f"namespace '{project_name}' was not reserved with namespace operator")
 
     frontends = get_json("frontend", namespace=project_name)
+    clowdapps = get_json("clowdapp", namespace=project_name)
     fe_host, keycloak_url = parse_fe_env(project_name)
     kc_creds = get_keycloak_creds(project_name)
     project_url = get_console_url()
 
-    output = f"Current project: {project_name}\n"
+    output = f"\nCurrent project: {project_name}\n"
     if project_url:
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
         output += f"Project URL: {ns_url}\n"
     output += f"Keycloak admin route: {keycloak_url}\n"
     output += f"Keycloak admin login: {kc_creds['username']} | {kc_creds['password']}\n"
-    if frontends.get('items'):
-        output += f"Frontend route: https://{fe_host}\n"
-    else:
-        output += "No frontends deployed\n"
+    output += (
+        f"{len(clowdapps['items'])} ClowdApp(s), "
+        f"{len(frontends['items'])} Frontend(s) deployed\n"
+    )
+    output += f"Gateway route: https://{fe_host}\n"
     output += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
 
     return output
