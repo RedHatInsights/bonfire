@@ -342,6 +342,13 @@ def _validate_set_image_tag(ctx, param, value):
         raise click.BadParameter("format must be '<image uri>=<tag>'")
 
 
+def _validate_set_prefer(ctx, param, value):
+    try:
+        return split_equals(value)
+    except ValueError:
+        raise click.BadParameter("format must be '<parameter name>=<value>'")
+
+
 def _validate_opposing_opts(ctx, param, value):
     opposite_option = {
         "remove_resources": "no_remove_resources",
@@ -397,6 +404,16 @@ _app_source_options = [
         type=str,
         default=conf.EPHEMERAL_ENV_NAME,
         show_default=True,
+    ),
+    click.option(
+        "--prefer",
+        help=(
+            "Prefer deployment targets that have '<parameter name>=<value>' when duplicate"
+            f" deployment targets found in {APP_SRE_SRC}"
+        ),
+        multiple=True,
+        default=conf.BONFIRE_DEFAULT_PREFER,
+        callback=_validate_set_prefer,
     ),
 ]
 
@@ -815,14 +832,14 @@ def _describe_namespace(namespace):
     click.echo(describe_namespace(namespace))
 
 
-def _get_apps_config(source, target_env, ref_env, local_config_path, local_config_method):
+def _get_apps_config(source, target_env, ref_env, local_config_path, local_config_method, prefer):
     config = conf.load_config(local_config_path)
 
     if source == APP_SRE_SRC:
-        log.info("fetching apps config using source: %s, target env: %s", source, target_env)
+        log.info("fetching target env apps config using source: %s, env: %s", source, target_env)
         if not target_env:
             _error("target env must be supplied for source '{APP_SRE_SRC}'")
-        apps_config = get_apps_for_env(target_env)
+        apps_config = get_apps_for_env(target_env, preferred_params=prefer)
 
         if target_env == conf.EPHEMERAL_ENV_NAME and not ref_env:
             log.info("target env is 'ephemeral' with no ref env given, using 'master' for all apps")
@@ -851,8 +868,8 @@ def _get_apps_config(source, target_env, ref_env, local_config_path, local_confi
                 raise FatalError(f"{str(err)}, hit on app {app_name}")
 
     if ref_env:
-        log.info("subbing app template refs/image tags using environment: %s", ref_env)
-        apps_config = sub_refs(apps_config, ref_env)
+        log.info("subbing app template refs/image tags using env: %s", ref_env)
+        apps_config = sub_refs(apps_config, ref_env, preferred_params=prefer)
 
     return apps_config
 
@@ -889,9 +906,10 @@ def _process(
     component_filter,
     local,
     frontends,
+    prefer,
 ):
     apps_config = _get_apps_config(
-        source, target_env, ref_env, local_config_path, local_config_method
+        source, target_env, ref_env, local_config_path, local_config_method, prefer
     )
 
     processor = TemplateProcessor(
@@ -951,6 +969,7 @@ def _cmd_process(
     component_filter,
     local,
     frontends,
+    prefer,
 ):
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
@@ -976,6 +995,7 @@ def _cmd_process(
         component_filter,
         local,
         frontends,
+        prefer,
     )
     print(json.dumps(processed_templates, indent=2))
 
@@ -1145,6 +1165,7 @@ def _cmd_config_deploy(
     frontends,
     pool,
     force,
+    prefer,
 ):
     """Process app templates and deploy them to a cluster"""
     if not has_clowder():
@@ -1220,6 +1241,7 @@ def _cmd_config_deploy(
             component_filter,
             local,
             frontends,
+            prefer,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
@@ -1481,9 +1503,12 @@ def _cmd_apps_list(
     local_config_method,
     target_env,
     list_components,
+    prefer,
 ):
     """List names of all apps that are marked for deployment in given 'target_env'"""
-    apps = _get_apps_config(source, target_env, None, local_config_path, local_config_method)
+    apps = _get_apps_config(
+        source, target_env, None, local_config_path, local_config_method, prefer
+    )
 
     print("")
     sorted_keys = sorted(apps.keys())
@@ -1508,9 +1533,12 @@ def _cmd_apps_what_depends_on(
     local_config_method,
     target_env,
     component,
+    prefer,
 ):
     """Show any apps that depend on COMPONENT for deployments in given 'target_env'"""
-    apps = _get_apps_config(source, target_env, None, local_config_path, local_config_method)
+    apps = _get_apps_config(
+        source, target_env, None, local_config_path, local_config_method, prefer
+    )
     found = find_what_depends_on(apps, component)
     print("\n".join(found) or f"no apps depending on {component} found")
 

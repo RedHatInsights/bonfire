@@ -155,7 +155,7 @@ def _target_apps_w_refs_subbed():
     }
 
 
-def _mock_get_apps_for_env(env):
+def _mock_get_apps_for_env(env, preferred_params):
     if env is None or env == "test_env_with_no_apps":
         return {}
     elif env == "test_target_env":
@@ -193,6 +193,7 @@ def test_local_no_remote_target_apps_found(monkeypatch, source, local_config_met
         ref_env=None,
         local_config_path="na",
         local_config_method=local_config_method,
+        prefer={},
     )
     assert actual == _target_apps()
 
@@ -222,6 +223,7 @@ def test_new_local_app_added_to_remote_apps(monkeypatch, source, local_config_me
         ref_env=None,
         local_config_path="na",
         local_config_method=local_config_method,
+        prefer={},
     )
     expected = _target_apps()
     expected["appC"] = local_cfg["apps"][0]
@@ -252,6 +254,7 @@ def test_new_local_component_merged(monkeypatch, source):
         ref_env=None,
         local_config_path="na",
         local_config_method="merge",
+        prefer={},
     )
     expected = _target_apps()
     expected["appB"]["components"].append(local_cfg["apps"][0]["components"][0])
@@ -269,6 +272,7 @@ def test_empty_local_config(monkeypatch, source, local_config_method):
         ref_env="test_ref_env",
         local_config_path="na",
         local_config_method=local_config_method,
+        prefer={},
     )
     assert actual == _target_apps_w_refs_subbed()
 
@@ -297,6 +301,7 @@ def test_bad_local_config(monkeypatch, source, local_config_method, bad_local_cf
             ref_env=None,
             local_config_path="na",
             local_config_method=local_config_method,
+            prefer={},
         )
         assert str(exc).startswith(bonfire.utils.SYNTAX_ERR)
 
@@ -313,6 +318,7 @@ def test_master_branch_used_when_no_reference_app_found(monkeypatch, source, loc
         ref_env="test_env_with_no_apps",
         local_config_path="na",
         local_config_method=local_config_method,
+        prefer={},
     )
 
     expected = _target_apps_w_refs_subbed()
@@ -356,6 +362,7 @@ def test_local_config_merge(monkeypatch, source):
         ref_env=None,
         local_config_path="na",
         local_config_method="merge",
+        prefer={},
     )
 
     expected = _target_apps()
@@ -400,6 +407,7 @@ def test_local_config_override(monkeypatch, source):
         ref_env=None,
         local_config_path="na",
         local_config_method="override",
+        prefer={},
     )
 
     expected = _target_apps()
@@ -435,6 +443,7 @@ def test_local_config_merge_update_param(monkeypatch, source):
         ref_env=None,
         local_config_path="na",
         local_config_method="merge",
+        prefer={},
     )
 
     expected = _target_apps()
