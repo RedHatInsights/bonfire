@@ -2,7 +2,7 @@ import logging
 
 import yaml
 
-from bonfire.utils import FatalError, RepoFile, get_dupes
+from bonfire.utils import FatalError, RepoFile, get_dupes, SYNTAX_ERR
 
 log = logging.getLogger(__name__)
 
@@ -21,42 +21,60 @@ def _fetch_apps_file(config):
     fetched_apps = yaml.safe_load(content)
 
     if "apps" not in fetched_apps:
-        raise FatalError("fetched apps file has no 'apps' key")
+        raise FatalError(f"{SYNTAX_ERR}, fetched apps file has no 'apps' key")
 
     app_names = [a["name"] for a in fetched_apps["apps"]]
     dupes = get_dupes(app_names)
     if dupes:
-        raise FatalError("duplicate app names found in fetched apps file: {dupes}")
+        raise FatalError(f"{SYNTAX_ERR}, duplicate app names found in fetched apps file: {dupes}")
 
     return {a["name"]: a for a in fetched_apps["apps"]}
 
 
 def _parse_apps_in_cfg(config):
-    app_names = [a["name"] for a in config["apps"]]
+    app_names = []
+
+    for app in config["apps"]:
+        if not isinstance(app, dict):
+            raise FatalError(f"{SYNTAX_ERR} app type should be a dict type")
+        if "components" not in app:
+            raise FatalError(f"{SYNTAX_ERR} 'components' missing from an app")
+        for component in app["components"]:
+            if not isinstance(component, dict):
+                raise FatalError(f"{SYNTAX_ERR} component should be a dict type")
+        app_names.append(app["name"])
+
     dupes = get_dupes(app_names)
     if dupes:
-        raise FatalError("duplicate app names found in config: {dupes}")
+        raise FatalError(f"{SYNTAX_ERR} duplicate app names found in config: {dupes}")
+
     return {a["name"]: a for a in config["apps"]}
 
 
-def get_local_apps(config, fetch_remote=True):
-    # get any apps set directly in config
+def get_local_apps(config):
+    """
+    Get apps defined locally under 'apps' section of config
+    """
     config_apps = {}
+    if not isinstance(config, dict):
+        raise FatalError(f"{SYNTAX_ERR}, expected local config to be a dictionary")
     if "apps" in config:
         config_apps = _parse_apps_in_cfg(config)
-        log.info("local app configuration overrides found for: %s", list(config_apps.keys()))
+        log.info("local configuration found for apps: %s", list(config_apps.keys()))
 
-    if not fetch_remote:
-        final_apps = config_apps
-    else:
-        # fetch apps from repo if appsFile is provided in config
-        fetched_apps = {}
-        if "appsFile" in config:
-            log.info("local config has a remote 'appsFile' defined, fetching it...")
-            fetched_apps = _fetch_apps_file(config)
+    return config_apps
 
-        # override fetched apps with local apps if any were defined
-        fetched_apps.update(config_apps)
-        final_apps = fetched_apps
 
-    return final_apps
+def get_appsfile_apps(config):
+    """
+    Fetch apps from repo based on appsFile provided in config
+    """
+    if not isinstance(config, dict):
+        raise FatalError(f"{SYNTAX_ERR}, expected local config to be a dictionary")
+
+    if "appsFile" not in config:
+        raise FatalError(f"{SYNTAX_ERR}, config has no 'appsFile' defined")
+
+    log.info("local config has a remote 'appsFile' defined, fetching it...")
+    fetched_apps = _fetch_apps_file(config)
+    return fetched_apps
