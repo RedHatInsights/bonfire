@@ -94,7 +94,9 @@ class Client:
         """Get insights env configuration."""
         for env_data in self.client.execute(ENVS_QUERY)["envs"]:
             if env_data["name"] == env:
-                env_data["namespaces"] = {ns["path"]: ns["name"] for ns in env_data["namespaces"]}
+                env_data["namespaces"] = {
+                    ns["path"]: ns["name"] for ns in env_data.get("namespaces", [])
+                }
                 break
         else:
             raise ValueError(f"cannot find env '{env}'")
@@ -268,6 +270,11 @@ def _add_component(
 
 
 def get_apps_for_env(env_name, preferred_params):
+    if not env_name:
+        return {}
+
+    log.info("fetching app deployment configs for env '%s'", env_name)
+
     client = get_client()
     all_apps = client.get_apps()
     env = client.get_env(env_name)
@@ -291,7 +298,7 @@ def get_apps_for_env(env_name, preferred_params):
                     ns = target.get("namespace") or {}
                     ns_name = ns.get("name")
                     ns_path = ns.get("path")
-                    if ns_path not in env["namespaces"]:
+                    if ns_path not in env.get("namespaces", []):
                         # this deploy target ns is not in the environment
                         continue
                     # this target ns belongs to the environment
@@ -337,42 +344,93 @@ def get_apps_for_env(env_name, preferred_params):
     return apps
 
 
-def sub_refs(apps, ref_env_name, preferred_params):
-    ref_env_apps = get_apps_for_env(ref_env_name, preferred_params)
+def _find_ref_target_and_update_component(
+    final_apps,
+    ref_env_apps,
+    fallback_ref_env_apps,
+    ref_env,
+    fallback_ref_env,
+    app_name,
+    component_idx,
+    component_name,
+):
+    log_prefix = f"app: '{app_name}' component: '{component_name}' --"
+
+    ref_component = _find_matching_component(ref_env_apps, app_name, component_name)
+
+    if not ref_component and fallback_ref_env:
+        log.debug(
+            "%s no deploy cfg found in ref env '%s', trying fallback ref '%s'",
+            log_prefix,
+            ref_env,
+            fallback_ref_env,
+        )
+        ref_component = _find_matching_component(fallback_ref_env_apps, app_name, component_name)
+
+    if not ref_component:
+        log.debug(
+            "%s no deploy cfg found in ref env '%s' nor fallback '%s', using git ref 'master'",
+            log_prefix,
+            ref_env,
+            fallback_ref_env or "(none)",
+        )
+        final_apps[app_name]["components"][component_idx]["ref"] = "master"
+
+    else:
+        # use git ref from reference deployment config
+        final_component = final_apps[app_name]["components"][component_idx]
+        final_component["ref"] = ref_component["ref"]
+
+        # fetch any param starting with 'IMAGE_TAG' from the reference deployment config
+        # and update the component's parameters with the new parameter values.
+        image_tags = {}
+        parameters = ref_component.get("parameters", {})
+        for param, val in parameters.items():
+            if param.startswith("IMAGE_TAG"):
+                image_tags[param] = val
+        if image_tags:
+            if "parameters" not in final_component:
+                final_component["parameters"] = {}
+            final_component["parameters"].update(image_tags)
+
+        log.debug(
+            "%s using git ref/image tag from env '%s': %s%s",
+            log_prefix,
+            ref_env,
+            final_component["ref"],
+            f", {image_tags}" if image_tags else "",
+        )
+
+
+def sub_refs(apps, ref_env, fallback_ref_env=None, preferred_params=None):
+    if not preferred_params:
+        preferred_params = {}
+
+    if fallback_ref_env == ref_env:
+        # it would be a waste of time to try to fall back to the same env
+        log.debug("ref env and fallback ref env are the same, setting fallback to 'None'")
+        fallback_ref_env = None
 
     final_apps = copy.deepcopy(apps)
-    for app_name, app in apps.items():
-        for idx, component in enumerate(app["components"]):
-            component_name = component["name"]
-            ref_component = _find_matching_component(ref_env_apps, app_name, component_name)
+    log.info(
+        "setting git refs/image tags to match deploy config found in env: %s, fallback env: %s",
+        ref_env,
+        fallback_ref_env or "(none)",
+    )
+    ref_env_apps = get_apps_for_env(ref_env, preferred_params)
+    fallback_ref_env_apps = get_apps_for_env(fallback_ref_env, preferred_params)
 
-            if ref_component:
-                final_component = final_apps[app_name]["components"][idx]
-                final_component["ref"] = ref_component["ref"]
-                image_tags = {}
-                parameters = ref_component.get("parameters", {})
-                for param, val in parameters.items():
-                    if param.startswith("IMAGE_TAG"):
-                        image_tags[param] = val
-                if image_tags:
-                    if "parameters" not in final_component:
-                        final_component["parameters"] = {}
-                    final_component["parameters"].update(image_tags)
-                log.debug(
-                    "app: '%s' component: '%s' -- using ref from env '%s': %s%s",
-                    app_name,
-                    component_name,
-                    ref_env_name,
-                    final_component["ref"],
-                    f", {image_tags}" if image_tags else "",
-                )
-            else:
-                log.debug(
-                    "app: '%s' component: '%s' -- no deploy cfg for env '%s', using ref 'master'",
-                    app_name,
-                    component_name,
-                    ref_env_name,
-                )
-                final_apps[app_name]["components"][idx]["ref"] = "master"
+    for app_name, app in apps.items():
+        for component_idx, component in enumerate(app["components"]):
+            _find_ref_target_and_update_component(
+                final_apps,
+                ref_env_apps,
+                fallback_ref_env_apps,
+                ref_env,
+                fallback_ref_env,
+                app_name,
+                component_idx,
+                component["name"],
+            )
 
     return final_apps

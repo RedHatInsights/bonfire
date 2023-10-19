@@ -58,6 +58,11 @@ BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
 BONFIRE_BOT = os.getenv("BONFIRE_BOT")
 
 BONFIRE_DEFAULT_PREFER = str(os.getenv("BONFIRE_DEFAULT_PREFER", "ENV_NAME=frontends")).split(",")
+BONFIRE_DEFAULT_REF_ENV = str(os.getenv("BONFIRE_DEFAULT_REF_ENV", "insights-stage"))
+BONFIRE_DEFAULT_FALLBACK_REF_ENV = str(
+    os.getenv("BONFIRE_DEFAULT_FALLBACK_REF_ENV", "insights-stage")
+)
+
 
 DEFAULT_FRONTEND_DEPENDENCIES = (
     "chrome-service",

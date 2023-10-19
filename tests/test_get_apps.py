@@ -6,6 +6,9 @@ def _mock_envs_gql_resp():
     return {
         "envs": [
             {
+                "name": "env_with_no_apps",
+            },
+            {
                 "name": "ephemeral",
                 "parameters": '{"PARAM_1":"ephemeral1","PARAM_2":"ephemeral2","PARAM_3":100}',
                 "namespaces": [
@@ -159,7 +162,7 @@ def test_no_pref(monkeypatch):
         }
     }
     ephemeral_apps = get_apps_for_env(env_name="ephemeral", preferred_params={})
-    final_apps = sub_refs(ephemeral_apps, "stage", preferred_params={})
+    final_apps = sub_refs(ephemeral_apps, "stage", None, preferred_params={})
 
     assert final_apps == expected_apps
 
@@ -190,7 +193,7 @@ def test_preferred_ref(monkeypatch):
     }
     prefer = {"FAVORED_PARAM": "favored.value"}
     ephemeral_apps = get_apps_for_env(env_name="ephemeral", preferred_params=prefer)
-    final_apps = sub_refs(ephemeral_apps, "stage", preferred_params=prefer)
+    final_apps = sub_refs(ephemeral_apps, "stage", None, preferred_params=prefer)
 
     assert final_apps == expected_apps
 
@@ -221,6 +224,38 @@ def test_prefer_replicas(monkeypatch):
     }
     prefer = {"FAVORED_PARAM": "favored"}
     ephemeral_apps = get_apps_for_env(env_name="ephemeral", preferred_params=prefer)
-    final_apps = sub_refs(ephemeral_apps, "prod", preferred_params=prefer)
+    final_apps = sub_refs(ephemeral_apps, "prod", None, preferred_params=prefer)
+
+    assert final_apps == expected_apps
+
+
+def test_fallback_with_preference(monkeypatch):
+    """
+    Test that git ref from stage target with FAVORED_PARAM=favored.value is chosen when
+    ref env is set to 'prod' but no deploy config is present for the component in 'prod'
+    """
+    monkeypatch.setattr(bonfire.qontract, "get_client", _mock_get_client)
+    expected_apps = {
+        "app1": {
+            "name": "app1",
+            "components": [
+                {
+                    "name": "component1",
+                    "path": "/deploy/template.yml",
+                    "host": "github",
+                    "repo": "Org/Repo",
+                    "ref": "abc1234",
+                    "parameters": {
+                        "PARAM_1": "ephemeral1",
+                        "PARAM_2": "ephemeral2",
+                        "PARAM_3": 100,
+                    },
+                }
+            ],
+        }
+    }
+    prefer = {"FAVORED_PARAM": "favored.value"}
+    ephemeral_apps = get_apps_for_env(env_name="ephemeral", preferred_params=prefer)
+    final_apps = sub_refs(ephemeral_apps, "env_with_no_apps", "stage", preferred_params=prefer)
 
     assert final_apps == expected_apps
