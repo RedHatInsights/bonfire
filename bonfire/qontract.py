@@ -26,6 +26,7 @@ ENVS_QUERY = gql(
         parameters
         namespaces {
           name
+          path
         }
       }
     }
@@ -52,6 +53,7 @@ APPS_QUERY = gql(
             targets {
               namespace {
                 name
+                path
                 cluster {
                   name
                 }
@@ -59,22 +61,6 @@ APPS_QUERY = gql(
               ref
               parameters
             }
-          }
-        }
-      }
-    }
-    """
-)
-
-NAMESPACE_QUERY = gql(
-    """
-    {
-      namespaces: namespaces_v1 {
-        name
-        openshiftResources {
-          ... on NamespaceOpenshiftResourceVaultSecret_v1 {
-            name
-            path
           }
         }
       }
@@ -108,7 +94,9 @@ class Client:
         """Get insights env configuration."""
         for env_data in self.client.execute(ENVS_QUERY)["envs"]:
             if env_data["name"] == env:
-                env_data["namespaces"] = set(n["name"] for n in env_data["namespaces"])
+                env_data["namespaces"] = {
+                    ns["path"]: ns["name"] for ns in env_data.get("namespaces", [])
+                }
                 break
         else:
             raise ValueError(f"cannot find env '{env}'")
@@ -117,11 +105,6 @@ class Client:
 
     def get_apps(self):
         return self.client.execute(APPS_QUERY)["apps"]
-
-    def get_namespace(self, name):
-        for ns in self.client.execute(NAMESPACE_QUERY)["namespaces"]:
-            if ns["name"] == name:
-                return ns
 
 
 _client = None
@@ -145,63 +128,75 @@ def _find_matching_component(apps, app_name, component_name):
             return component
 
 
-def _check_replace_other(other_params, this_params):
-    this_clowder_enabled = bool(this_params.get("CLOWDER_ENABLED"))
-    other_clowder_enabled = bool(other_params.get("CLOWDER_ENABLED"))
-    if this_clowder_enabled and not other_clowder_enabled:
-        return True
+def _check_replace_other(other_params, this_params, preferred_params):
+    """
+    Compare parameters of "this" component with parameters of the "other" component.
+    Assign points to the component if it is using a preferred parameter value. The component
+    with the higher number of points will be selected.
+    """
+    this_weight = 0
+    other_weight = 0
 
-    this_replicas = int(this_params.get("REPLICAS", 1))
-    other_replicas = int(other_params.get("REPLICAS", 1))
-    if other_replicas < 1 and this_replicas > 1:
-        return True
+    # prefer deployment targets that have CLOWDER_ENABLED=true
+    # TODO: a relic of the past and at this point probably no longer needed, remove in a follow-up
+    preferred_params["CLOWDER_ENABLED"] = preferred_params.get("CLOWDER_ENABLED", "true")
 
-    this_replicas = int(this_params.get("MIN_REPLICAS", 1))
-    other_replicas = int(other_params.get("MIN_REPLICAS", 1))
-    if other_replicas < 1 and this_replicas > 1:
+    # check if target is configured with preferred parameters
+    for param_name, param_value in preferred_params.items():
+        if str(this_params.get(param_name)).lower() == str(param_value).lower():
+            log.debug("    `-- 'this' weight +1 for %s=%s", param_name, param_value)
+            this_weight += 1
+        if str(other_params.get(param_name)).lower() == str(param_value).lower():
+            log.debug("    `-- 'other' weight +1 for %s=%s", param_name, param_value)
+            other_weight += 1
+
+    # prefer deployment targets that have REPLICAS >= 1
+    for param_name in ("REPLICAS", "MIN_REPLICAS"):
+        this_replicas = int(this_params.get(param_name, 0))
+        other_replicas = int(other_params.get(param_name, 0))
+        if this_replicas >= 1:
+            log.debug("    `-- 'this' weight +1 for %s>=1", param_name)
+            this_weight += 1
+        if other_replicas >= 1:
+            log.debug("    `-- 'other' weight +1 for %s>=1", param_name)
+            other_weight += 1
+
+    log.debug("    `-- final: 'this' weight: %d, 'other' weight: %d", this_weight, other_weight)
+
+    if this_weight > other_weight:
         return True
 
     return False
 
 
 def _add_component_if_priority_higher(
-    apps, app_name, component_name, env_name, saas_file, component, defined_multiple
+    apps,
+    app_name,
+    component_name,
+    component,
+    defined_multiple,
+    preferred_params,
 ):
-    add_component = True
     existing_match = _find_matching_component(apps, app_name, component_name)
-
-    if existing_match:
+    if not existing_match:
+        apps[app_name]["name"] = app_name
+        apps[app_name]["components"].append(component)
+    else:
         # this app/component is defined multiple times in the environment
         # look at the parameters set on it to decide which definition to prioritize
         defined_multiple.add((app_name, component_name))
         other_params = existing_match["parameters"]
         this_params = component["parameters"]
-        add_component = _check_replace_other(other_params, this_params)
-        if add_component:
-            log.debug(
-                "app: '%s' component: '%s' defined in saas file '%s' takes priority",
-                app_name,
-                component_name,
-                saas_file["path"],
-            )
-        else:
-            log.debug(
-                "app: '%s' component: '%s' defined in saas file '%s' has lower priority, skipped",
-                app_name,
-                component_name,
-                saas_file["path"],
-            )
+        log.debug("  `-- this is a duplicate target, checking if this replaces existing other")
 
-    if add_component:
-        apps[app_name]["name"] = app_name
-        apps[app_name]["components"].append(component)
-        log.debug(
-            "app: '%s' component: '%s' added for env '%s' using saas file: %s",
-            app_name,
-            component_name,
-            env_name,
-            saas_file["name"],
-        )
+        replace = _check_replace_other(other_params, this_params, preferred_params)
+
+        if replace:
+            log.debug("  `-- this is weighted higher, replaces other")
+            apps[app_name]["components"].remove(existing_match)
+            apps[app_name]["components"].append(component)
+        else:
+            log.debug("  `-- this is weighted equal/lower, not replacing")
 
 
 def _process_env_parameters(parameters):
@@ -219,9 +214,17 @@ def _process_env_parameters(parameters):
                     )
 
 
-def _add_component(apps, env, app_name, saas_file, resource_template, target, defined_multiple):
+def _add_component(
+    apps,
+    env,
+    app_name,
+    saas_file,
+    resource_template,
+    target,
+    defined_multiple,
+    preferred_params,
+):
     component_name = resource_template["name"]
-    env_name = env["name"]
     saas_file_path = saas_file["path"]
 
     if app_name not in apps:
@@ -257,18 +260,28 @@ def _add_component(apps, env, app_name, saas_file, resource_template, target, de
     }
 
     _add_component_if_priority_higher(
-        apps, app_name, component_name, env_name, saas_file, component, defined_multiple
+        apps,
+        app_name,
+        component_name,
+        component,
+        defined_multiple,
+        preferred_params,
     )
 
 
-def get_apps_for_env(env_name):
+def get_apps_for_env(env_name, preferred_params):
+    if not env_name:
+        return {}
+
+    log.info("fetching app deployment configs for env '%s'", env_name)
+
     client = get_client()
     all_apps = client.get_apps()
     env = client.get_env(env_name)
 
     # work-around to only show apps with an ephemeral deploy target
     if env_name == conf.EPHEMERAL_ENV_NAME:
-        env["namespaces"] = [conf.BASE_NAMESPACE_NAME]
+        env["namespaces"] = [conf.BASE_NAMESPACE_PATH]
 
     apps = {}
     ignored_apps = set()
@@ -280,19 +293,38 @@ def get_apps_for_env(env_name):
             continue
         saas_files = app.get("saasFiles", [])
         for saas_file in saas_files:
-            for resource_template in saas_file.get("resourceTemplates", []):
-                for target in resource_template.get("targets", []):
-                    if target.get("namespace") and target["namespace"]["name"] in env["namespaces"]:
-                        # this target belongs to the environment
-                        _add_component(
-                            apps,
-                            env,
-                            app["name"],
-                            saas_file,
-                            resource_template,
-                            target,
-                            defined_multiple,
-                        )
+            for rt_idx, resource_template in enumerate(saas_file.get("resourceTemplates", [])):
+                for target_idx, target in enumerate(resource_template.get("targets", [])):
+                    ns = target.get("namespace") or {}
+                    ns_name = ns.get("name")
+                    ns_path = ns.get("path")
+                    if ns_path not in env.get("namespaces", []):
+                        # this deploy target ns is not in the environment
+                        continue
+                    # this target ns belongs to the environment
+                    log.debug(
+                        "app '%s' component '%s' found in saas file '%s'",
+                        app["name"],
+                        resource_template["name"],
+                        saas_file["path"],
+                    )
+                    log.debug(
+                        "  position: .resourceTemplates[%d].targets[%d] (env '%s', ns '%s')",
+                        rt_idx,
+                        target_idx,
+                        env_name,
+                        ns_name,
+                    )
+                    _add_component(
+                        apps,
+                        env,
+                        app["name"],
+                        saas_file,
+                        resource_template,
+                        target,
+                        defined_multiple,
+                        preferred_params,
+                    )
 
     if ignored_apps:
         log.debug(
@@ -312,65 +344,93 @@ def get_apps_for_env(env_name):
     return apps
 
 
-def sub_refs(apps, ref_env_name):
-    ref_env_apps = get_apps_for_env(ref_env_name)
+def _find_ref_target_and_update_component(
+    final_apps,
+    ref_env_apps,
+    fallback_ref_env_apps,
+    ref_env,
+    fallback_ref_env,
+    app_name,
+    component_idx,
+    component_name,
+):
+    log_prefix = f"app: '{app_name}' component: '{component_name}' --"
+
+    ref_component = _find_matching_component(ref_env_apps, app_name, component_name)
+
+    if not ref_component and fallback_ref_env:
+        log.debug(
+            "%s no deploy cfg found in ref env '%s', trying fallback ref '%s'",
+            log_prefix,
+            ref_env,
+            fallback_ref_env,
+        )
+        ref_component = _find_matching_component(fallback_ref_env_apps, app_name, component_name)
+
+    if not ref_component:
+        log.debug(
+            "%s no deploy cfg found in ref env '%s' nor fallback '%s', using git ref 'master'",
+            log_prefix,
+            ref_env,
+            fallback_ref_env or "(none)",
+        )
+        final_apps[app_name]["components"][component_idx]["ref"] = "master"
+
+    else:
+        # use git ref from reference deployment config
+        final_component = final_apps[app_name]["components"][component_idx]
+        final_component["ref"] = ref_component["ref"]
+
+        # fetch any param starting with 'IMAGE_TAG' from the reference deployment config
+        # and update the component's parameters with the new parameter values.
+        image_tags = {}
+        parameters = ref_component.get("parameters", {})
+        for param, val in parameters.items():
+            if param.startswith("IMAGE_TAG"):
+                image_tags[param] = val
+        if image_tags:
+            if "parameters" not in final_component:
+                final_component["parameters"] = {}
+            final_component["parameters"].update(image_tags)
+
+        log.debug(
+            "%s using git ref/image tag from env '%s': %s%s",
+            log_prefix,
+            ref_env,
+            final_component["ref"],
+            f", {image_tags}" if image_tags else "",
+        )
+
+
+def sub_refs(apps, ref_env, fallback_ref_env=None, preferred_params=None):
+    if not preferred_params:
+        preferred_params = {}
+
+    if fallback_ref_env == ref_env:
+        # it would be a waste of time to try to fall back to the same env
+        log.debug("ref env and fallback ref env are the same, setting fallback to 'None'")
+        fallback_ref_env = None
 
     final_apps = copy.deepcopy(apps)
-    for app_name, app in apps.items():
-        for idx, component in enumerate(app["components"]):
-            component_name = component["name"]
-            ref_component = _find_matching_component(ref_env_apps, app_name, component_name)
+    log.info(
+        "setting git refs/image tags to match deploy config found in env: %s, fallback env: %s",
+        ref_env,
+        fallback_ref_env or "(none)",
+    )
+    ref_env_apps = get_apps_for_env(ref_env, preferred_params)
+    fallback_ref_env_apps = get_apps_for_env(fallback_ref_env, preferred_params)
 
-            if ref_component:
-                final_component = final_apps[app_name]["components"][idx]
-                final_component["ref"] = ref_component["ref"]
-                image_tags = {}
-                parameters = ref_component.get("parameters", {})
-                for param, val in parameters.items():
-                    if param.startswith("IMAGE_TAG"):
-                        image_tags[param] = val
-                if image_tags:
-                    if "parameters" not in final_component:
-                        final_component["parameters"] = {}
-                    final_component["parameters"].update(image_tags)
-                log.debug(
-                    "app: '%s' component: '%s' -- using ref from env '%s': %s%s",
-                    app_name,
-                    component_name,
-                    ref_env_name,
-                    final_component["ref"],
-                    f", {image_tags}" if image_tags else "",
-                )
-            else:
-                log.debug(
-                    "app: '%s' component: '%s' -- no deploy cfg for env '%s', using ref 'master'",
-                    app_name,
-                    component_name,
-                    ref_env_name,
-                )
-                final_apps[app_name]["components"][idx]["ref"] = "master"
+    for app_name, app in apps.items():
+        for component_idx, component in enumerate(app["components"]):
+            _find_ref_target_and_update_component(
+                final_apps,
+                ref_env_apps,
+                fallback_ref_env_apps,
+                ref_env,
+                fallback_ref_env,
+                app_name,
+                component_idx,
+                component["name"],
+            )
 
     return final_apps
-
-
-def get_namespaces_for_env(environment_name):
-    client = get_client()
-
-    namespaces = client.get_env(environment_name)["namespaces"]
-    results = list(namespaces)
-    log.debug("namespaces listed in qontract for environment '%s': %s", environment_name, results)
-    return results
-
-
-def get_secret_names_in_namespace(namespace_name):
-    client = get_client()
-
-    secret_names = []
-    namespace = client.get_namespace(namespace_name)
-    for resource in namespace["openshiftResources"]:
-        if not resource:
-            # query returns {} if resource is not 'NamespaceOpenshiftResourceVaultSecret_v1'
-            continue
-        name = resource["name"] or resource["path"].split("/")[-1]
-        secret_names.append(name)
-    return secret_names

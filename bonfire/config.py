@@ -45,7 +45,10 @@ QONTRACT_USERNAME = os.getenv("QONTRACT_USERNAME", APP_INTERFACE_USERNAME or Non
 QONTRACT_PASSWORD = os.getenv("QONTRACT_PASSWORD", APP_INTERFACE_PASSWORD or None)
 QONTRACT_TOKEN = os.getenv("QONTRACT_TOKEN")
 
-BASE_NAMESPACE_NAME = os.getenv("BASE_NAMESPACE_NAME", "ephemeral-base")
+BASE_NAMESPACE_PATH = os.getenv(
+    "BASE_NAMESPACE_PATH",
+    "/services/insights/ephemeral/namespaces/ephemeral-base.yml",
+)
 EPHEMERAL_ENV_NAME = os.getenv("EPHEMERAL_ENV_NAME", "insights-ephemeral")
 ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")
 
@@ -53,6 +56,13 @@ ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")
 BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
 # set to true when bonfire is running via automation using a bot acct (not an end user)
 BONFIRE_BOT = os.getenv("BONFIRE_BOT")
+
+BONFIRE_DEFAULT_PREFER = str(os.getenv("BONFIRE_DEFAULT_PREFER", "ENV_NAME=frontends")).split(",")
+BONFIRE_DEFAULT_REF_ENV = str(os.getenv("BONFIRE_DEFAULT_REF_ENV", "insights-stage"))
+BONFIRE_DEFAULT_FALLBACK_REF_ENV = str(
+    os.getenv("BONFIRE_DEFAULT_FALLBACK_REF_ENV", "insights-stage")
+)
+
 
 DEFAULT_FRONTEND_DEPENDENCIES = (
     "chrome-service",
