@@ -342,11 +342,18 @@ def _validate_set_image_tag(ctx, param, value):
         raise click.BadParameter("format must be '<image uri>=<tag>'")
 
 
-def _validate_set_prefer(ctx, param, value):
+def _validate_set_preferred_params(ctx, param, value):
     try:
         return split_equals(value)
     except ValueError:
         raise click.BadParameter("format must be '<parameter name>=<value>'")
+
+
+def _validate_set_env_var(ctx, param, value):
+    try:
+        return split_equals(value)
+    except ValueError:
+        raise click.BadParameter("format must be 'ENV_VAR_NAME=<value>'")
 
 
 def _validate_opposing_opts(ctx, param, value):
@@ -407,13 +414,14 @@ _app_source_options = [
     ),
     click.option(
         "--prefer",
+        "preferred_params",
         help=(
             f"When there are multiple deployment targets found in {APP_SRE_SRC}, prefer the ones "
             "that have '<parameter name>=<value>' set. Can be specified multiple times."
         ),
         multiple=True,
         default=conf.BONFIRE_DEFAULT_PREFER,
-        callback=_validate_set_prefer,
+        callback=_validate_set_preferred_params,
     ),
 ]
 
@@ -695,6 +703,16 @@ _iqe_cji_process_options = [
         type=str,
         default="",
     ),
+    click.option(
+        "--env-var",
+        "custom_env_vars",
+        help=(
+            "Define a custom env var to set on the IQE pod in the format of ENV_VAR_NAME=value "
+            "(can be specified multiple times)"
+        ),
+        multiple=True,
+        callback=_validate_set_env_var,
+    ),
     _local_option,
 ]
 
@@ -842,7 +860,13 @@ def _describe_namespace(namespace):
 
 
 def _get_apps_config(
-    source, target_env, ref_env, fallback_ref_env, local_config_path, local_config_method, prefer
+    source,
+    target_env,
+    ref_env,
+    fallback_ref_env,
+    local_config_path,
+    local_config_method,
+    preferred_params,
 ):
     config = conf.load_config(local_config_path)
 
@@ -850,7 +874,7 @@ def _get_apps_config(
         log.info("fetching target env apps config using source: %s", source)
         if not target_env:
             _error("target env must be supplied for source '{APP_SRE_SRC}'")
-        apps_config = get_apps_for_env(target_env, preferred_params=prefer)
+        apps_config = get_apps_for_env(target_env, preferred_params)
 
         if not ref_env and target_env == conf.EPHEMERAL_ENV_NAME:
             # set git target to 'master' because ephemeral targets have no git ref defined
@@ -884,7 +908,7 @@ def _get_apps_config(
 
     # handle git ref/image substitutions if reference environment was provided
     if ref_env:
-        apps_config = sub_refs(apps_config, ref_env, fallback_ref_env, preferred_params=prefer)
+        apps_config = sub_refs(apps_config, ref_env, fallback_ref_env, preferred_params)
 
     return apps_config
 
@@ -922,7 +946,7 @@ def _process(
     component_filter,
     local,
     frontends,
-    prefer,
+    preferred_params,
 ):
     apps_config = _get_apps_config(
         source,
@@ -931,7 +955,7 @@ def _process(
         fallback_ref_env,
         local_config_path,
         local_config_method,
-        prefer,
+        preferred_params,
     )
 
     processor = TemplateProcessor(
@@ -992,7 +1016,7 @@ def _cmd_process(
     component_filter,
     local,
     frontends,
-    prefer,
+    preferred_params,
 ):
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
@@ -1019,7 +1043,7 @@ def _cmd_process(
         component_filter,
         local,
         frontends,
-        prefer,
+        preferred_params,
     )
     print(json.dumps(processed_templates, indent=2))
 
@@ -1190,7 +1214,7 @@ def _cmd_config_deploy(
     frontends,
     pool,
     force,
-    prefer,
+    preferred_params,
 ):
     """Process app templates and deploy them to a cluster"""
     if not has_clowder():
@@ -1267,7 +1291,7 @@ def _cmd_config_deploy(
             component_filter,
             local,
             frontends,
-            prefer,
+            preferred_params,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
@@ -1395,6 +1419,7 @@ def _cmd_process_iqe_cji(
     parallel_worker_count,
     rp_args,
     ibutsu_source,
+    custom_env_vars,
 ):
     """Process IQE ClowdJobInvocation template and print output"""
     cji_config = process_iqe_cji(
@@ -1416,6 +1441,7 @@ def _cmd_process_iqe_cji(
         parallel_worker_count,
         rp_args,
         ibutsu_source,
+        custom_env_vars,
     )
     print(json.dumps(cji_config, indent=2))
 
@@ -1450,6 +1476,7 @@ def _cmd_deploy_iqe_cji(
     parallel_worker_count,
     rp_args,
     ibutsu_source,
+    custom_env_vars,
     pool,
     force,
 ):
@@ -1478,6 +1505,7 @@ def _cmd_deploy_iqe_cji(
         parallel_worker_count,
         rp_args,
         ibutsu_source,
+        custom_env_vars,
     )
 
     log.debug("processed CJI config:\n%s", cji_config)
@@ -1529,11 +1557,11 @@ def _cmd_apps_list(
     local_config_method,
     target_env,
     list_components,
-    prefer,
+    preferred_params,
 ):
     """List names of all apps that are marked for deployment in given 'target_env'"""
     apps = _get_apps_config(
-        source, target_env, None, None, local_config_path, local_config_method, prefer
+        source, target_env, None, None, local_config_path, local_config_method, preferred_params
     )
 
     print("")
@@ -1559,11 +1587,11 @@ def _cmd_apps_what_depends_on(
     local_config_method,
     target_env,
     component,
-    prefer,
+    preferred_params,
 ):
     """Show any apps that depend on COMPONENT for deployments in given 'target_env'"""
     apps = _get_apps_config(
-        source, target_env, None, None, local_config_path, local_config_method, prefer
+        source, target_env, None, None, local_config_path, local_config_method, preferred_params
     )
     found = find_what_depends_on(apps, component)
     print("\n".join(found) or f"no apps depending on {component} found")

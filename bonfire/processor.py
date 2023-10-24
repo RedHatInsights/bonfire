@@ -144,6 +144,7 @@ def process_iqe_cji(
     parallel_worker_count="",
     rp_args="",
     ibutsu_source="",
+    custom_env_vars=None,
 ):
     log.info("processing IQE ClowdJobInvocation")
 
@@ -177,6 +178,13 @@ def process_iqe_cji(
 
     if not processed_template.get("items"):
         raise FatalError("Processed CJI template has no items")
+
+    if custom_env_vars:
+        for resource in processed_template["items"]:
+            if resource.get("kind") == "ClowdJobInvocation":
+                env = resource.get("spec", {}).get("testing", {}).get("iqe", {}).get("env", [])
+                for var_name, var_value in custom_env_vars.items():
+                    env.append({"name": str(var_name), "value": str(var_value)})
 
     return processed_template
 
