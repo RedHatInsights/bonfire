@@ -335,25 +335,19 @@ def _validate_set_parameter(ctx, param, value):
         raise click.BadParameter("format must be '<component>/<param>=<value>'")
 
 
-def _validate_set_image_tag(ctx, param, value):
+def _validate_split_equals(ctx, param, value):
     try:
         return split_equals(value)
     except ValueError:
-        raise click.BadParameter("format must be '<image uri>=<tag>'")
-
-
-def _validate_set_preferred_params(ctx, param, value):
-    try:
-        return split_equals(value)
-    except ValueError:
-        raise click.BadParameter("format must be '<parameter name>=<value>'")
-
-
-def _validate_set_env_var(ctx, param, value):
-    try:
-        return split_equals(value)
-    except ValueError:
-        raise click.BadParameter("format must be 'ENV_VAR_NAME=<value>'")
+        msg = "format must be '<name>=<value>'"
+        name = param.name
+        if name == "set_image_tag":
+            msg = "format must be '<image uri>=<tag>', example: 'quay.io/org/repo=latest'"
+        elif name == "preferred_params":
+            msg = "format must be 'PARAMETER_NAME=value'"
+        elif name == "custom_env_vars":
+            msg = "format must be 'ENV_VAR_NAME=value'"
+        raise click.BadParameter(msg)
 
 
 def _validate_opposing_opts(ctx, param, value):
@@ -421,7 +415,7 @@ _app_source_options = [
         ),
         multiple=True,
         default=conf.BONFIRE_DEFAULT_PREFER,
-        callback=_validate_set_preferred_params,
+        callback=_validate_split_equals,
     ),
 ]
 
@@ -454,7 +448,7 @@ _process_options = _app_source_options + [
         "-i",
         help=("Override image tag for an image using format '<image uri>=<tag>'"),
         multiple=True,
-        callback=_validate_set_image_tag,
+        callback=_validate_split_equals,
     ),
     click.option(
         "--set-template-ref",
@@ -711,7 +705,7 @@ _iqe_cji_process_options = [
             "(can be specified multiple times)"
         ),
         multiple=True,
-        callback=_validate_set_env_var,
+        callback=_validate_split_equals,
     ),
     _local_option,
 ]
