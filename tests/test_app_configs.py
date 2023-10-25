@@ -194,7 +194,7 @@ def test_local_no_remote_target_apps_found(monkeypatch, source, local_config_met
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method=local_config_method,
-        prefer={},
+        preferred_params={},
     )
     assert actual == _target_apps()
 
@@ -225,7 +225,7 @@ def test_new_local_app_added_to_remote_apps(monkeypatch, source, local_config_me
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method=local_config_method,
-        prefer={},
+        preferred_params={},
     )
     expected = _target_apps()
     expected["appC"] = local_cfg["apps"][0]
@@ -257,7 +257,7 @@ def test_new_local_component_merged(monkeypatch, source):
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method="merge",
-        prefer={},
+        preferred_params={},
     )
     expected = _target_apps()
     expected["appB"]["components"].append(local_cfg["apps"][0]["components"][0])
@@ -276,7 +276,7 @@ def test_empty_local_config(monkeypatch, source, local_config_method):
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method=local_config_method,
-        prefer={},
+        preferred_params={},
     )
     assert actual == _target_apps_w_refs_subbed()
 
@@ -306,7 +306,7 @@ def test_bad_local_config(monkeypatch, source, local_config_method, bad_local_cf
             fallback_ref_env=None,
             local_config_path="na",
             local_config_method=local_config_method,
-            prefer={},
+            preferred_params={},
         )
         assert str(exc).startswith(bonfire.utils.SYNTAX_ERR)
 
@@ -324,7 +324,7 @@ def test_master_branch_used_when_no_reference_app_found(monkeypatch, source, loc
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method=local_config_method,
-        prefer={},
+        preferred_params={},
     )
 
     expected = _target_apps_w_refs_subbed()
@@ -348,7 +348,7 @@ def test_fallback_reference_env(monkeypatch, source, local_config_method):
         fallback_ref_env="test_ref_env",
         local_config_path="na",
         local_config_method=local_config_method,
-        prefer={},
+        preferred_params={},
     )
 
     assert apps_config == _target_apps_w_refs_subbed()
@@ -388,7 +388,7 @@ def test_local_config_merge(monkeypatch, source):
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method="merge",
-        prefer={},
+        preferred_params={},
     )
 
     expected = _target_apps()
@@ -434,7 +434,7 @@ def test_local_config_override(monkeypatch, source):
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method="override",
-        prefer={},
+        preferred_params={},
     )
 
     expected = _target_apps()
@@ -471,7 +471,7 @@ def test_local_config_merge_update_param(monkeypatch, source):
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method="merge",
-        prefer={},
+        preferred_params={},
     )
 
     expected = _target_apps()

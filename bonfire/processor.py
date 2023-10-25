@@ -144,6 +144,7 @@ def process_iqe_cji(
     parallel_worker_count="",
     rp_args="",
     ibutsu_source="",
+    custom_env_vars=None,
 ):
     log.info("processing IQE ClowdJobInvocation")
 
@@ -155,12 +156,8 @@ def process_iqe_cji(
     with template_path.open() as fp:
         template_data = yaml.safe_load(fp)
 
-    requirements = requirements.split(",") if requirements else []
-    requirements_priority = requirements_priority.split(",") if requirements_priority else []
-    test_importance = test_importance.split(",") if test_importance else []
-
     params = dict()
-    params["DEBUG"] = str(debug).lower()
+    params["DEBUG"] = json.dumps(debug)
     params["MARKER"] = marker
     params["FILTER"] = filter
     params["ENV_NAME"] = env
@@ -168,19 +165,26 @@ def process_iqe_cji(
     params["PLUGINS"] = plugins
     params["NAME"] = cji_name or f"iqe-{str(uuid.uuid4()).split('-')[0]}"
     params["APP_NAME"] = clowd_app_name
-    params["REQUIREMENTS"] = json.dumps(requirements)
-    params["REQUIREMENTS_PRIORITY"] = json.dumps(requirements_priority)
-    params["TEST_IMPORTANCE"] = json.dumps(test_importance)
+    params["REQUIREMENTS"] = requirements
+    params["REQUIREMENTS_PRIORITY"] = requirements_priority
+    params["TEST_IMPORTANCE"] = test_importance
     params["DEPLOY_SELENIUM"] = json.dumps(selenium)
-    params["PARALLEL_ENABLED"] = json.dumps(parallel_enabled)
-    params["PARALLEL_WORKER_COUNT"] = json.dumps(parallel_worker_count)
-    params["RP_ARGS"] = json.dumps(rp_args)
-    params["IBUTSU_SOURCE"] = json.dumps(ibutsu_source)
+    params["PARALLEL_ENABLED"] = parallel_enabled
+    params["PARALLEL_WORKER_COUNT"] = parallel_worker_count
+    params["RP_ARGS"] = rp_args
+    params["IBUTSU_SOURCE"] = ibutsu_source
 
     processed_template = _process_template(template_data, params=params, local=local)
 
     if not processed_template.get("items"):
         raise FatalError("Processed CJI template has no items")
+
+    if custom_env_vars:
+        for resource in processed_template["items"]:
+            if resource.get("kind") == "ClowdJobInvocation":
+                env = resource.get("spec", {}).get("testing", {}).get("iqe", {}).get("env", [])
+                for var_name, var_value in custom_env_vars.items():
+                    env.append({"name": str(var_name), "value": str(var_value)})
 
     return processed_template
 
