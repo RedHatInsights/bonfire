@@ -383,12 +383,18 @@ def get_dependencies(items, optional=False):
     clowdapp_items = [item for item in items if item.get("kind").lower() == "clowdapp"]
 
     deps_for_app = dict()
-
+    
     for clowdapp in clowdapp_items:
         name = clowdapp["metadata"]["name"]
         dependencies = {d for d in clowdapp["spec"].get(key, [])}
         log.debug("clowdapp '%s' has %s: %s", name, key, list(dependencies))
         deps_for_app[name] = dependencies
+
+    for item in items:
+        name = item.get("metadata", {}).get("name")
+        bonfire_deps = list(filter(lambda x: x != '', item.get("metadata", {}).get("annotations",{}).get("bonfire.dependencies","").split(',')))
+        if name and bonfire_deps:
+            deps_for_app[name].update(bonfire_deps)
 
     return deps_for_app
 
