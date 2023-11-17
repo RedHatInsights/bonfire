@@ -371,7 +371,7 @@ class RepoFile:
             return commit, fp.read()
 
 
-def get_dependencies(items, optional=False):
+def get_clowdapp_dependencies(items, optional=False):
     """
     Returns dict of clowdapp_name: set of dependencies found for any ClowdApps in 'items'
 
@@ -393,6 +393,30 @@ def get_dependencies(items, optional=False):
     return deps_for_app
 
 
+def get_dependencies(items):
+    """
+    Returns set of dependencies found when looking at 'bonfire.dependencies' annotation on resources
+    """
+    deps = set()
+
+    for item in items:
+        kind = item.get("kind", "")
+        metadata = item.get("metadata", {})
+        name = metadata.get("name")
+        bonfire_deps = metadata.get("annotations", {}).get("bonfire.dependencies", "").split(",")
+        filtered_bonfire_deps = [dep for dep in bonfire_deps if dep]
+        if name and filtered_bonfire_deps:
+            log.debug(
+                "resource %s/%s has bonfire.dependencies: %s",
+                kind.lower(),
+                name,
+                list(filtered_bonfire_deps),
+            )
+            deps.update(filtered_bonfire_deps)
+
+    return deps
+
+
 def find_what_depends_on(apps_config, clowdapp_name):
     found = set()
     sorted_keys = sorted(apps_config.keys())
@@ -409,8 +433,8 @@ def find_what_depends_on(apps_config, clowdapp_name):
             template = yaml.safe_load(template_content)
             items = template.get("objects", [])
 
-            dependencies = get_dependencies(items)
-            optional_dependencies = get_dependencies(items, optional=True)
+            dependencies = get_clowdapp_dependencies(items)
+            optional_dependencies = get_clowdapp_dependencies(items, optional=True)
 
             all_dependencies = {}
             all_keys = dependencies.keys() | optional_dependencies.keys()
