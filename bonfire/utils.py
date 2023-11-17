@@ -383,7 +383,7 @@ def get_dependencies(items, optional=False):
     clowdapp_items = [item for item in items if item.get("kind").lower() == "clowdapp"]
 
     deps_for_app = dict()
-    
+
     for clowdapp in clowdapp_items:
         name = clowdapp["metadata"]["name"]
         dependencies = {d for d in clowdapp["spec"].get(key, [])}
