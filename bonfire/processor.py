@@ -13,7 +13,9 @@ from sh import ErrorReturnCode
 import bonfire.config as conf
 from bonfire.openshift import whoami
 from bonfire.utils import FatalError, RepoFile
+from bonfire.utils import get_clowdapp_dependencies
 from bonfire.utils import get_dependencies as utils_get_dependencies
+
 
 log = logging.getLogger(__name__)
 
@@ -586,15 +588,19 @@ class TemplateProcessor:
         if processed_component.deps_handled:
             log.debug("already handled dependencies for component '%s'", component_name)
         else:
-            dependencies_for_app = utils_get_dependencies(items)
+            # check ClowdApp dependencies
+            dependencies_for_app = get_clowdapp_dependencies(items)
             for _, deps in dependencies_for_app.items():
                 all_dependencies = all_dependencies.union(deps)
+            # check bonfire.dependencies annotations
+            all_dependencies.update(utils_get_dependencies(items))
             processed_component.deps_handled = True
 
         if processed_component.optional_deps_handled:
             log.debug("already handled optionalDependencies for component '%s'", component_name)
         elif self._should_fetch_optional_deps(app_name, component_name, in_recursion):
-            dependencies_for_app = utils_get_dependencies(items, optional=True)
+            # check ClowdApp optionalDependencies
+            dependencies_for_app = get_clowdapp_dependencies(items, optional=True)
             for _, deps in dependencies_for_app.items():
                 all_dependencies = all_dependencies.union(deps)
             processed_component.optional_deps_handled = True
