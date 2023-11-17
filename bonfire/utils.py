@@ -392,7 +392,8 @@ def get_dependencies(items, optional=False):
 
     for item in items:
         name = item.get("metadata", {}).get("name")
-        bonfire_deps = item.get("metadata", {}).get("annotations",{}).get("bonfire.dependencies","").split(',')
+        bonfire_deps = item.get("metadata", {}).get("annotations", {}) \
+        .get("bonfire.dependencies", "").split(',')
         filtered_bonfire_deps = list(filter(lambda x: x != '', bonfire_deps))
         if name and filtered_bonfire_deps:
             deps_for_app[name].update(filtered_bonfire_deps)
