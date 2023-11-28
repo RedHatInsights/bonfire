@@ -350,29 +350,59 @@ def _validate_split_equals(ctx, param, value):
         raise click.BadParameter(msg)
 
 
-def _validate_opposing_opts(ctx, param, value):
+def _translate_to_dict(value_list):
+    value_dict = {"apps": [], "components": []}
+    for value in value_list:
+        if value.startswith("app:"):
+            value_dict["apps"].append(value.split(":")[1])
+        else:
+            value_dict["components"].append(value)
+    return value_dict
+
+
+def _app_or_component_selector(ctx, param, values):
+    if any([val.startswith("-") for val in values]):
+        raise click.BadParameter("requires a component name or keyword 'all'")
+
+    # check if 'app:' syntax has been used and translate input values to apps/components dictionary
+    values = _translate_to_dict(values)
+
     opposite_option = {
         "remove_resources": "no_remove_resources",
         "no_remove_resources": "remove_resources",
         "remove_dependencies": "no_remove_dependencies",
         "no_remove_dependencies": "remove_dependencies",
     }
-    opposite_option_value = ctx.params.get(opposite_option[param.name], "")
 
-    if any([val.startswith("-") for val in value]):
-        raise click.BadParameter("requires a component name or keyword 'all'")
-    if "all" in value and "all" in opposite_option_value:
-        raise click.BadParameter(
-            f"'{param.opts[0]}' and its opposite option can't be both set to 'all'"
-        )
+    # validate that opposing options are not both set to 'all'
+    opposite_option_val = ctx.params.get(opposite_option[param.name])
+    if opposite_option_val:
+        opposite_option_components = opposite_option_val["components"]
+        if "all" in values["components"] and "all" in opposite_option_components:
+            raise click.BadParameter(
+                f"'{param.opts[0]}' and its opposite option can't be both set to 'all'"
+            )
 
-    # default values
-    if param.name == "remove_resources" and not value and not opposite_option_value:
-        value = ("all",)
-    if param.name == "no_remove_dependencies" and not value and not opposite_option_value:
-        value = ("all",)
+    # logic to set default values
+    empty = False
+    if not values["apps"] and not values["components"]:
+        empty = True
 
-    return value
+    opposite_empty = False
+    if not opposite_option_val:
+        opposite_empty = True
+    elif not opposite_option_val["apps"] and not opposite_option_val["components"]:
+        opposite_empty = True
+
+    # set default value for --remove-resources to 'all' if --no-remove-resources is also unset
+    if param.name == "remove_resources" and empty and opposite_empty:
+        values = {"apps": [], "components": ["all"]}
+
+    # set default value for --no-remove-dependencies to 'all' if --remove-dependencies is unset
+    if param.name == "no_remove_dependencies" and empty and opposite_empty:
+        values = {"apps": [], "components": ["all"]}
+
+    return values
 
 
 _app_source_options = [
@@ -495,7 +525,7 @@ _process_options = _app_source_options + [
         ),
         type=str,
         multiple=True,
-        callback=_validate_opposing_opts,
+        callback=_app_or_component_selector,
     ),
     click.option(
         "--no-remove-resources",
@@ -505,7 +535,7 @@ _process_options = _app_source_options + [
         ),
         type=str,
         multiple=True,
-        callback=_validate_opposing_opts,
+        callback=_app_or_component_selector,
     ),
     click.option(
         "--remove-dependencies",
@@ -515,7 +545,7 @@ _process_options = _app_source_options + [
         ),
         type=str,
         multiple=True,
-        callback=_validate_opposing_opts,
+        callback=_app_or_component_selector,
     ),
     click.option(
         "--no-remove-dependencies",
@@ -525,7 +555,7 @@ _process_options = _app_source_options + [
         ),
         type=str,
         multiple=True,
-        callback=_validate_opposing_opts,
+        callback=_app_or_component_selector,
     ),
     click.option(
         "--single-replicas/--no-single-replicas",

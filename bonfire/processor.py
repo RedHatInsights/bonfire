@@ -480,7 +480,7 @@ class TemplateProcessor:
                 )
                 params[param_name] = value
 
-    def _get_component_items(self, component_name):
+    def _get_component_items(self, component_name, app_name):
         component = self._get_component_config(component_name)
         try:
             rf = RepoFile.from_config(component)
@@ -623,7 +623,7 @@ class TemplateProcessor:
             processed_component = self.processed_components[component_name]
         else:
             log.info("processing component %s", component_name)
-            items = self._get_component_items(component_name)
+            items = self._get_component_items(component_name, app_name)
 
             # ignore frontends if we're not supposed to deploy them
             if self._frontend_found(items) and not self.frontends:
