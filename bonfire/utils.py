@@ -403,7 +403,8 @@ def get_dependencies(items):
         kind = item.get("kind", "")
         metadata = item.get("metadata", {})
         name = metadata.get("name")
-        bonfire_deps = metadata.get("annotations", {}).get("bonfire.dependencies", "").split(",")
+        annotations = metadata.get("annotations") or {}
+        bonfire_deps = annotations.get("bonfire.dependencies", "").split(",")
         filtered_bonfire_deps = [dep for dep in bonfire_deps if dep]
         if name and filtered_bonfire_deps:
             log.debug(
