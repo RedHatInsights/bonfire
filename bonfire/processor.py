@@ -12,7 +12,7 @@ from sh import ErrorReturnCode
 
 import bonfire.config as conf
 from bonfire.openshift import whoami
-from bonfire.utils import FatalError, RepoFile
+from bonfire.utils import AppOrComponentSelector, FatalError, RepoFile
 from bonfire.utils import get_clowdapp_dependencies
 from bonfire.utils import get_dependencies as utils_get_dependencies
 
@@ -305,8 +305,17 @@ class TemplateProcessor:
                     f"component given for {name} not found in app config: {component_name}"
                 )
 
-    def _validate_component_options(self, all_components, data, name):
-        if isinstance(data, dict):
+    @staticmethod
+    def _validate_app_list(all_apps, app_list, name):
+        for app_name in app_list:
+            if app_name not in all_apps:
+                raise FatalError(f"app given for {name} not found in app config: {app_name}")
+
+    def _validate_selector_options(self, all_apps, all_components, data, name):
+        if isinstance(data, AppOrComponentSelector):
+            self._validate_app_list(all_apps, data.apps, name)
+            self._validate_component_list(all_components, data.components, name)
+        elif isinstance(data, dict):
             self._validate_component_dict(all_components, data, name)
         else:
             self._validate_component_list(all_components, data, name)
@@ -350,34 +359,38 @@ class TemplateProcessor:
         # Check that each component name is unique across the whole config
         self._find_dupe_components(components_for_app)
 
-        # Check that CLI params requiring a component use a valid component name
+        # Check that CLI params requiring a component use a valid component name or app name
         all_components = []
         for _, app_components in components_for_app.items():
             all_components.extend(app_components)
 
-        log.debug("components found: %s", all_components)
+        all_apps = list(components_for_app.keys())
 
-        self._validate_component_options(
-            all_components, self.template_ref_overrides, "--set-template-ref"
+        self._validate_selector_options(
+            all_apps, all_components, self.template_ref_overrides, "--set-template-ref"
         )
-        self._validate_component_options(all_components, self.param_overrides, "--set-parameter")
+        self._validate_selector_options(
+            all_apps, all_components, self.param_overrides, "--set-parameter"
+        )
 
-        # 'all' is a valid component keyword for these options below
+        self._validate_selector_options(
+            all_apps, all_components, self.remove_resources, "--remove-resources"
+        )
+        self._validate_selector_options(
+            all_apps, all_components, self.no_remove_resources, "--no-remove-resources"
+        )
+        self._validate_selector_options(
+            all_apps, all_components, self.remove_dependencies, "--remove-dependencies"
+        )
+        self._validate_selector_options(
+            all_apps, all_components, self.no_remove_dependencies, "--no-remove-dependencies"
+        )
+
+        # 'all' is a valid component keyword for this option below
         all_components.append("all")
-
-        self._validate_component_options(
-            all_components, self.remove_resources, "--remove-resources"
+        self._validate_selector_options(
+            all_apps, all_components, self.component_filter, "--component"
         )
-        self._validate_component_options(
-            all_components, self.no_remove_resources, "--no-remove-resources"
-        )
-        self._validate_component_options(
-            all_components, self.remove_dependencies, "--remove-dependencies"
-        )
-        self._validate_component_options(
-            all_components, self.no_remove_dependencies, "--no-remove-dependencies"
-        )
-        self._validate_component_options(all_components, self.component_filter, "--component")
 
     def __init__(
         self,
@@ -389,10 +402,10 @@ class TemplateProcessor:
         template_ref_overrides,
         param_overrides,
         clowd_env,
-        remove_resources,
-        no_remove_resources,
-        remove_dependencies,
-        no_remove_dependencies,
+        remove_resources: AppOrComponentSelector,
+        no_remove_resources: AppOrComponentSelector,
+        remove_dependencies: AppOrComponentSelector,
+        no_remove_dependencies: AppOrComponentSelector,
         single_replicas,
         component_filter,
         local,
@@ -416,6 +429,10 @@ class TemplateProcessor:
         self.frontends = frontends
 
         self._validate()
+
+        import sys
+
+        sys.exit(0)
 
         self.k8s_list = {
             "kind": "List",

@@ -13,7 +13,7 @@ from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.local import get_local_apps, get_appsfile_apps
-from bonfire.utils import RepoFile, SYNTAX_ERR
+from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
 from bonfire.namespaces import (
     Namespace,
     extend_namespace,
@@ -350,22 +350,26 @@ def _validate_split_equals(ctx, param, value):
         raise click.BadParameter(msg)
 
 
-def _translate_to_dict(value_list):
-    value_dict = {"apps": [], "components": []}
+def _translate_to_obj(value_list):
+    apps = []
+    components = []
+    select_all = False
     for value in value_list:
         if value.startswith("app:"):
-            value_dict["apps"].append(value.split(":")[1])
+            apps.append(value.split(":")[1])
         else:
-            value_dict["components"].append(value)
-    return value_dict
+            components.append(value)
+    if "all" in components:
+        select_all = True
+    return AppOrComponentSelector(select_all, apps, components)
 
 
-def _app_or_component_selector(ctx, param, values):
-    if any([val.startswith("-") for val in values]):
+def _app_or_component_selector(ctx, param, this_value):
+    if any([val.startswith("-") for val in this_value]):
         raise click.BadParameter("requires a component name or keyword 'all'")
 
     # check if 'app:' syntax has been used and translate input values to apps/components dictionary
-    values = _translate_to_dict(values)
+    this_value = _translate_to_obj(this_value)
 
     opposite_option = {
         "remove_resources": "no_remove_resources",
@@ -375,34 +379,20 @@ def _app_or_component_selector(ctx, param, values):
     }
 
     # validate that opposing options are not both set to 'all'
-    opposite_option_val = ctx.params.get(opposite_option[param.name])
-    if opposite_option_val:
-        opposite_option_components = opposite_option_val["components"]
-        if "all" in values["components"] and "all" in opposite_option_components:
+    other_value = ctx.params.get(opposite_option[param.name])
+    if other_value:
+        if this_value.select_all and other_value.select_all:
             raise click.BadParameter(
                 f"'{param.opts[0]}' and its opposite option can't be both set to 'all'"
             )
 
-    # logic to set default values
-    empty = False
-    if not values["apps"] and not values["components"]:
-        empty = True
-
-    opposite_empty = False
-    if not opposite_option_val:
-        opposite_empty = True
-    elif not opposite_option_val["apps"] and not opposite_option_val["components"]:
-        opposite_empty = True
-
     # set default value for --remove-resources to 'all' if --no-remove-resources is also unset
-    if param.name == "remove_resources" and empty and opposite_empty:
-        values = {"apps": [], "components": ["all"]}
-
     # set default value for --no-remove-dependencies to 'all' if --remove-dependencies is unset
-    if param.name == "no_remove_dependencies" and empty and opposite_empty:
-        values = {"apps": [], "components": ["all"]}
+    options = ("remove_resources", "no_remove_dependencies")
+    if param.name in options and this_value.empty and other_value.empty:
+        this_value.select_all = True
 
-    return values
+    return this_value
 
 
 _app_source_options = [
