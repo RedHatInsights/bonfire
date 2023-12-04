@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import inspect
 import json
 import logging
 import sys
@@ -84,6 +85,28 @@ def current_namespace_or_error():
             " Please specify namespace using options/arguments."
         )
     return namespace
+
+
+def option_usage_wrapper(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Inspect the function signature
+        signature = inspect.signature(func)
+        bound_args = signature.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        # Check each parameter for non-empty values
+        non_empty_params = {}
+        for option_name, option_value in bound_args.arguments.items():
+            if option_value:
+                non_empty_params[option_name] = option_value
+                # Perform an action here for non-empty parameters
+                es_telemetry.info(f"option '{option_name}': {option_value}")
+
+        # Call the original function with the provided arguments
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def click_exception_wrapper(command):
@@ -812,6 +835,7 @@ def _list_namespaces(available, mine, output):
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("namespace reserve")
+@option_usage_wrapper
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
     ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
