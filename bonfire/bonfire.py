@@ -91,21 +91,19 @@ def option_usage_wrapper(command):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            # Inspect the function signature
             signature = inspect.signature(f)
             bound_args = signature.bind(*args, **kwargs)
             bound_args.apply_defaults()
 
             # Check each parameter for non-empty values
-            non_empty_params = {}
+            options_used = []
             for option_name, option_value in bound_args.arguments.items():
                 if option_value:
-                    non_empty_params[option_name] = option_value
-                    # Perform an action here for non-empty parameters
+                    options_used.append(option_name)
 
             
-            es_telemetry.info(f"{command} called with options '{non_empty_params.keys()}'")
-            # Call the original function with the provided arguments
+            es_telemetry.info(f"{command} called with options '{', '.join(options_used)}'")
+
             return f(*args, **kwargs)
 
         return wrapper
