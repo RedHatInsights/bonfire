@@ -91,15 +91,27 @@ def option_usage_wrapper(command):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            signature = inspect.signature(f)
-            bound_args = signature.bind(*args, **kwargs)
-            bound_args.apply_defaults()
-
-            # Check each parameter for non-empty values
+            command = sys.argv[1]
+    
             options_used = []
-            for option_name, option_value in bound_args.arguments.items():
-                if option_value:
-                    options_used.append(option_name)
+            is_parameter = False
+            for arg in sys.argv[2:]:
+                if is_parameter:
+                    options_used.append(arg.split('=')[0])
+                    is_parameter = False
+                elif arg == '-p' or arg == '--set-parameter':
+                    is_parameter = True
+
+            # signature = inspect.signature(f)
+            # bound_args = signature.bind(*args, **kwargs)
+            # bound_args.apply_defaults()
+
+            # # Check each parameter for non-empty values
+            # options_used = []
+            # for option_name, option_value in bound_args.arguments.items():
+            #     if option_value:
+            #         print(f"{option_value} | {option_name}")
+            #         options_used.append(option_name)
 
             
             es_telemetry.info(f"{command} called with options '{', '.join(options_used)}'")
