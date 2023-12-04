@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from pkg_resources import resource_filename
 
 from bonfire.utils import FatalError, get_config_path, load_file
-from bonfire.elastic_logging import AsyncElasticsearchHandler
 
 log = logging.getLogger(__name__)
 
@@ -81,9 +80,6 @@ DEFAULT_FRONTEND_DEPENDENCIES = (
     "host-inventory-frontend",
     "unleash-proxy",
 )
-
-es_handler = AsyncElasticsearchHandler(ELASTICSEARCH_HOST)
-log.addHandler(es_handler)
 
 def _get_auto_added_frontend_dependencies():
     env_var = os.getenv("BONFIRE_FRONTEND_DEPENDENCIES")

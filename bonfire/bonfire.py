@@ -54,9 +54,9 @@ from bonfire.elastic_logging import AsyncElasticsearchHandler
 
 
 log = logging.getLogger(__name__)
-if not any(isinstance(h, AsyncElasticsearchHandler) for h in log.handlers):
-    es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
-    log.addHandler(es_handler)
+es_telemetry = logging.getLogger("elasticsearch")
+es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
+es_telemetry.addHandler(es_handler)
 
 APP_SRE_SRC = "appsre"
 FILE_SRC = "file"
