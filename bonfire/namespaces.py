@@ -16,9 +16,14 @@ from bonfire.openshift import (
 )
 from bonfire.processor import process_reservation
 from bonfire.utils import FatalError, hms_to_seconds
+from bonfire.elastic_logging import AsyncElasticsearchHandler
 
 
 log = logging.getLogger(__name__)
+if not any(isinstance(h, AsyncElasticsearchHandler) for h in log.handlers):
+    es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
+    log.addHandler(es_handler)
+
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 

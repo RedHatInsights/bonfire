@@ -16,10 +16,13 @@ from bonfire.openshift import whoami
 from bonfire.utils import AppOrComponentSelector, FatalError, RepoFile
 from bonfire.utils import get_clowdapp_dependencies
 from bonfire.utils import get_dependencies as utils_get_dependencies
+from bonfire.elastic_logging import AsyncElasticsearchHandler
 
 
 log = logging.getLogger(__name__)
-
+if not any(isinstance(h, AsyncElasticsearchHandler) for h in log.handlers):
+    es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
+    log.addHandler(es_handler)
 
 def _process_template(*args, **kwargs):
     # run process_template with prettier error handling

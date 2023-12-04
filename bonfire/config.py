@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from pkg_resources import resource_filename
 
 from bonfire.utils import FatalError, get_config_path, load_file
+from bonfire.elastic_logging import AsyncElasticsearchHandler
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yam
 DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservation-template.yaml")
 
 DEFAULT_GRAPHQL_URL = "https://app-interface.apps.appsrep05ue1.zqxk.p1.openshiftapps.com/graphql"
+
+DEFAULT_ELASTICSEARCH_HOST = "https://localhost:9200/search-bonfire/_doc"
 
 ENV_FILE = str(DEFAULT_ENV_PATH.absolute()) if DEFAULT_ENV_PATH.exists() else ""
 load_dotenv(ENV_FILE)
@@ -63,6 +66,8 @@ BONFIRE_DEFAULT_FALLBACK_REF_ENV = str(
     os.getenv("BONFIRE_DEFAULT_FALLBACK_REF_ENV", "insights-stage")
 )
 
+ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", DEFAULT_ELASTICSEARCH_HOST)
+ELASTICSEARCH_APIKEY = os.getenv("ELASTICSEARCH_APIKEY")
 
 DEFAULT_FRONTEND_DEPENDENCIES = (
     "chrome-service",
@@ -77,6 +82,8 @@ DEFAULT_FRONTEND_DEPENDENCIES = (
     "unleash-proxy",
 )
 
+es_handler = AsyncElasticsearchHandler(ELASTICSEARCH_HOST)
+log.addHandler(es_handler)
 
 def _get_auto_added_frontend_dependencies():
     env_var = os.getenv("BONFIRE_FRONTEND_DEPENDENCIES")
