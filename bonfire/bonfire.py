@@ -87,26 +87,30 @@ def current_namespace_or_error():
     return namespace
 
 
-def option_usage_wrapper(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        # Inspect the function signature
-        signature = inspect.signature(func)
-        bound_args = signature.bind(*args, **kwargs)
-        bound_args.apply_defaults()
+def option_usage_wrapper(command):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            # Inspect the function signature
+            signature = inspect.signature(f)
+            bound_args = signature.bind(*args, **kwargs)
+            bound_args.apply_defaults()
 
-        # Check each parameter for non-empty values
-        non_empty_params = {}
-        for option_name, option_value in bound_args.arguments.items():
-            if option_value:
-                non_empty_params[option_name] = option_value
-                # Perform an action here for non-empty parameters
-                es_telemetry.info(f"option '{option_name}': {option_value}")
+            # Check each parameter for non-empty values
+            non_empty_params = {}
+            for option_name, option_value in bound_args.arguments.items():
+                if option_value:
+                    non_empty_params[option_name] = option_value
+                    # Perform an action here for non-empty parameters
 
-        # Call the original function with the provided arguments
-        return func(*args, **kwargs)
+            
+            es_telemetry.info(f"{command} called with options '{non_empty_params.keys()}'")
+            # Call the original function with the provided arguments
+            return f(*args, **kwargs)
 
-    return wrapper
+        return wrapper
+    
+    return decorator
 
 
 def click_exception_wrapper(command):
@@ -793,6 +797,7 @@ def options(options_list):
 
 @namespace.command("list")
 @options(_ns_list_options)
+@option_usage_wrapper("namespace list")
 def _list_namespaces(available, mine, output):
     """Get list of ephemeral namespaces"""
     if not has_ns_operator():
@@ -835,7 +840,7 @@ def _list_namespaces(available, mine, output):
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("namespace reserve")
-@option_usage_wrapper
+@option_usage_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
     ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
@@ -853,6 +858,7 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, forc
 )
 @options([_local_option])
 @click_exception_wrapper("namespace release")
+@option_usage_wrapper("namespace release")
 def _cmd_namespace_release(namespace, force, local):
     """Remove reservation from an ephemeral namespace"""
     if not has_ns_operator():
@@ -882,6 +888,7 @@ def _cmd_namespace_release(namespace, force, local):
 )
 @options([_local_option])
 @click_exception_wrapper("namespace extend")
+@option_usage_wrapper("namespace extend")
 def _cmd_namespace_extend(namespace, duration, local):
     """Extend a reservation of an ephemeral namespace"""
     if not has_ns_operator():
@@ -902,6 +909,7 @@ def _cmd_namespace_extend(namespace, duration, local):
     help="Only wait for DB resources owned by ClowdApps to be ready",
 )
 @options(_timeout_option)
+@option_usage_wrapper("namespace wait-on-resources")
 def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     """Wait for rolled out resources to be ready in namespace"""
     if not namespace:
@@ -915,6 +923,7 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
 
 @namespace.command("describe")
 @click.argument("namespace", required=False, type=str)
+@option_usage_wrapper("namespace describe")
 def _describe_namespace(namespace):
     """Get current namespace info"""
     if not namespace:
@@ -1057,6 +1066,7 @@ def _cmd_pool_types():
     help="Namespace you intend to deploy to (default: none)",
     type=str,
 )
+@option_usage_wrapper("process")
 def _cmd_process(
     app_names,
     source,
@@ -1242,6 +1252,7 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
 )
 @options(_ns_reserve_options)
 @options(_timeout_option)
+@option_usage_wrapper("deploy")
 def _cmd_config_deploy(
     app_names,
     source,
@@ -1393,6 +1404,7 @@ def _process_clowdenv(target_namespace, quay_user, env_name, template_file, loca
 
 @main.command("process-env")
 @options(_clowdenv_process_options)
+@option_usage_wrapper("process-env")
 def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local):
     """Process ClowdEnv template and print output"""
     clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
@@ -1416,6 +1428,7 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("deploy-env")
+@option_usage_wrapper("deploy-env")
 def _cmd_deploy_clowdenv(
     namespace,
     quay_user,
@@ -1461,6 +1474,7 @@ def _cmd_deploy_clowdenv(
 
 @main.command("process-iqe-cji")
 @options(_iqe_cji_process_options)
+@option_usage_wrapper("process-iqe-cji")
 def _cmd_process_iqe_cji(
     clowd_app_name,
     debug,
@@ -1513,6 +1527,7 @@ def _cmd_process_iqe_cji(
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("deploy-iqe-cji")
+@option_usage_wrapper("deploy-iqe-cji")
 def _cmd_deploy_iqe_cji(
     namespace,
     clowd_app_name,
@@ -1612,6 +1627,7 @@ def _cmd_edit_default_config(path):
     help="List components contained within each app group",
 )
 @apps.command("list")
+@option_usage_wrapper("apps list")
 def _cmd_apps_list(
     source,
     local_config_path,
@@ -1642,6 +1658,7 @@ def _cmd_apps_list(
     type=str,
 )
 @apps.command("what-depends-on")
+@option_usage_wrapper("apps what-depends-on")
 def _cmd_apps_what_depends_on(
     source,
     local_config_path,
