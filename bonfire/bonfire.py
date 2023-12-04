@@ -356,6 +356,7 @@ def _translate_to_obj(value_list):
     select_all = False
     for value in value_list:
         if value.startswith("app:"):
+            select_all = True
             apps.append(value.split(":")[1])
         else:
             components.append(value)
@@ -386,10 +387,13 @@ def _app_or_component_selector(ctx, param, this_value):
                 f"'{param.opts[0]}' and its opposite option can't be both set to 'all'"
             )
 
+    print("param.name")
+    print(param.name)
+    
     # set default value for --remove-resources to 'all' if --no-remove-resources is also unset
     # set default value for --no-remove-dependencies to 'all' if --remove-dependencies is unset
     options = ("remove_resources", "no_remove_dependencies")
-    if param.name in options and this_value.empty and other_value.empty:
+    if param.name in options and not this_value.components and not other_value:
         this_value.select_all = True
 
     return this_value

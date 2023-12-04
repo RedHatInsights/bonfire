@@ -430,10 +430,6 @@ class TemplateProcessor:
 
         self._validate()
 
-        import sys
-
-        sys.exit(0)
-
         self.k8s_list = {
             "kind": "List",
             "apiVersion": "v1",
@@ -530,20 +526,26 @@ class TemplateProcessor:
         # override the tags for all occurences of an image if requested
         new_items = self._sub_image_tags(new_items)
 
-        remove_all_resources = "all" in self.remove_resources or not self.remove_resources
-        remove_all_dependencies = "all" in self.remove_dependencies
+        print()
+        print("YES")
+        print(self.no_remove_resources.select_all)
+        print()
 
+        remove_all_resources = "all" in self.remove_resources.components or not self.remove_resources
+        remove_all_dependencies = "all" in self.remove_dependencies.components
+        
         if (
-            "all" not in self.no_remove_resources
-            and (remove_all_resources or component_name in self.remove_resources)
-            and component_name not in self.no_remove_resources
+            "all" not in self.no_remove_resources.components
+            and (remove_all_resources or component_name in self.remove_resources.components)
+            and component_name not in self.no_remove_resources.components
+            and self.remove_resources.select_all is not True
         ):
             _remove_resource_config(new_items)
 
         if (
-            "all" not in self.no_remove_dependencies
-            and (remove_all_dependencies or component_name in self.remove_dependencies)
-            and component_name not in self.no_remove_dependencies
+            "all" not in self.no_remove_dependencies.components
+            and (remove_all_dependencies or component_name in self.remove_dependencies.components)
+            and component_name not in self.no_remove_dependencies.components
         ):
             _remove_dependency_config(new_items)
 
@@ -661,6 +663,8 @@ class TemplateProcessor:
     def _process_app(self, app_name):
         log.info("processing app '%s'", app_name)
         app_cfg = self._get_app_config(app_name)
+        print("We are here")
+        print(app_cfg)
         for component in app_cfg["components"]:
             component_name = component["name"]
             log.debug("app '%s' has component '%s'", app_name, component_name)
