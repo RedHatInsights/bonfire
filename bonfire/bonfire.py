@@ -6,6 +6,8 @@ import logging
 import sys
 import warnings
 from functools import wraps
+import uuid
+import time
 
 import click
 from ocviapy import apply_config, get_current_namespace, StatusError
@@ -56,7 +58,7 @@ from bonfire.elastic_logging import AsyncElasticsearchHandler
 
 log = logging.getLogger(__name__)
 es_telemetry = logging.getLogger("elasticsearch")
-es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
+es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST, str(uuid.uuid4()))
 es_telemetry.addHandler(es_handler)
 
 APP_SRE_SRC = "appsre"
@@ -72,6 +74,7 @@ _local_option = click.option(
 
 
 def _error(msg):
+    es_telemetry.info(f"ERROR: {msg}")
     click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
 
@@ -92,7 +95,7 @@ def option_usage_wrapper(command):
         @wraps(f)
         def wrapper(*args, **kwargs):
             command = sys.argv[1]
-    
+
             options_used = []
             is_parameter = False
             for arg in sys.argv[2:]:
@@ -113,10 +116,18 @@ def option_usage_wrapper(command):
             #         print(f"{option_value} | {option_name}")
             #         options_used.append(option_name)
 
-            
-            es_telemetry.info(f"{command} called with options '{', '.join(options_used)}'")
+            if options_used:
+                es_telemetry.info(f"{command} called with options '{', '.join(options_used)}'")
+            else:
+                es_telemetry.info(f"{command} called with no options'")
 
-            return f(*args, **kwargs)
+            start = time.time()
+            result = f(*args, **kwargs)
+            end = time.time()
+            
+            es_telemetry.info(f"{command} completed in {end - start} seconds")
+
+            return result
 
         return wrapper
     

@@ -7,9 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 import bonfire.config as conf
 
 class AsyncElasticsearchHandler(logging.Handler):
-    def __init__(self, es_url):
+    def __init__(self, es_url, transaction_id):
         super().__init__()
         self.es_url = es_url
+        self.transaction_id = transaction_id
         self.executor = ThreadPoolExecutor(max_workers=10)
 
     def emit(self, record):
@@ -21,7 +22,7 @@ class AsyncElasticsearchHandler(logging.Handler):
         try:
             headers = {"Authorization": conf.ELASTICSEARCH_APIKEY,
                        "Content-Type": "application/json"}
-            log = {"timestamp": datetime.datetime.now().isoformat(), "message": log_entry}
+            log = {"uuid": self.transaction_id, "timestamp": datetime.datetime.now().isoformat(), "message": log_entry}
             response = requests.post(self.es_url, headers=headers, data=json.dumps(log), verify=False)
             response.raise_for_status()
         except Exception as e:
