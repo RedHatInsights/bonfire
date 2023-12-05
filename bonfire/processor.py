@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 
 import yaml
+from cached_property import cached_property
 from ocviapy import process_template
 from sh import ErrorReturnCode
 
@@ -320,16 +321,8 @@ class TemplateProcessor:
         else:
             self._validate_component_list(all_components, data, name)
 
-    def _validate(self):
-        """
-        Validate app configurations and options passed to the TemplateProcessor
-
-        1. Check that each app has required keys
-        2. Check that each app name is unique
-        3. Check that each component in an app has required keys
-        4. Check that each component is a unique name across the whole config
-        5. Check that CLI params requiring a component use a valid component name
-        """
+    @cached_property
+    def _components_for_app(self):
         components_for_app = {}
 
         for app_name, app_cfg in self.apps_config.items():
@@ -356,15 +349,27 @@ class TemplateProcessor:
                 comp_name = component["name"]
                 components_for_app[app_name].append(comp_name)
 
+        return components_for_app
+
+    def _validate(self):
+        """
+        Validate app configurations and options passed to the TemplateProcessor
+
+        1. Check that each app has required keys
+        2. Check that each app name is unique
+        3. Check that each component in an app has required keys
+        4. Check that each component is a unique name across the whole config
+        5. Check that CLI params requiring a component use a valid component name
+        """
         # Check that each component name is unique across the whole config
-        self._find_dupe_components(components_for_app)
+        self._find_dupe_components(self._components_for_app)
 
         # Check that CLI params requiring a component use a valid component name or app name
         all_components = []
-        for _, app_components in components_for_app.items():
+        for _, app_components in self._components_for_app.items():
             all_components.extend(app_components)
 
-        all_apps = list(components_for_app.keys())
+        all_apps = list(self._components_for_app.keys())
 
         self._validate_selector_options(
             all_apps, all_components, self.template_ref_overrides, "--set-template-ref"
@@ -493,7 +498,12 @@ class TemplateProcessor:
                 )
                 params[param_name] = value
 
-    def _get_component_items(self, component_name, app_name):
+    def _get_app_for_component(self, component_name):
+        for app_name, components in self._components_for_app.items():
+            if component_name in components:
+                return app_name
+
+    def _get_component_items(self, component_name):
         component = self._get_component_config(component_name)
         try:
             rf = RepoFile.from_config(component)
@@ -526,27 +536,57 @@ class TemplateProcessor:
         # override the tags for all occurences of an image if requested
         new_items = self._sub_image_tags(new_items)
 
-        print()
-        print("YES")
-        print(self.no_remove_resources.select_all)
-        print()
+        app_name = self._get_app_for_component(component_name)
 
-        remove_all_resources = "all" in self.remove_resources.components or not self.remove_resources
-        remove_all_dependencies = "all" in self.remove_dependencies.components
-        
-        if (
-            "all" not in self.no_remove_resources.components
-            and (remove_all_resources or component_name in self.remove_resources.components)
-            and component_name not in self.no_remove_resources.components
-            and self.remove_resources.select_all is not True
-        ):
+        log.debug(
+            "APP NAME %s REMOVE_APPS %s NO_REMOVE_APPS %s NO_REMOVE_RESOURCES_SELECT_ALL %s",
+            app_name,
+            self.remove_resources.apps,
+            self.no_remove_resources.apps,
+            self.no_remove_resources.select_all,
+        )
+
+        select_none = self.no_remove_resources.select_all and not self.remove_resources.select_all
+        select_app = (
+            app_name in self.remove_resources.apps or app_name not in self.no_remove_resources.apps
+        ) and not self.no_remove_resources.select_all
+        select_component = (
+            component_name in self.remove_resources.components
+            or component_name not in self.no_remove_resources.components
+        ) and not self.no_remove_resources.select_all
+        log.debug(
+            "app %s component %s -- select for remove resources, none: %s, app: %s, component: %s",
+            app_name,
+            component_name,
+            select_none,
+            select_app,
+            select_component,
+        )
+
+        if not select_none and (select_component or select_app):
             _remove_resource_config(new_items)
 
-        if (
-            "all" not in self.no_remove_dependencies.components
-            and (remove_all_dependencies or component_name in self.remove_dependencies.components)
-            and component_name not in self.no_remove_dependencies.components
-        ):
+        select_none = (
+            self.no_remove_dependencies.select_all and not self.remove_dependencies.select_all
+        )
+        select_app = (
+            app_name in self.remove_dependencies.apps
+            or app_name not in self.no_remove_dependencies.apps
+        ) and not self.no_remove_dependencies.select_all
+        select_component = (
+            component_name in self.remove_dependencies.components
+            or component_name not in self.no_remove_dependencies.components
+        ) and not self.no_remove_dependencies.select_all
+        log.debug(
+            "app %s component %s -- select for remove deps, none: %s, app: %s, component: %s",
+            app_name,
+            component_name,
+            select_none,
+            select_app,
+            select_component,
+        )
+
+        if not select_none and (select_component or select_app):
             _remove_dependency_config(new_items)
 
         if self.single_replicas:
@@ -642,7 +682,7 @@ class TemplateProcessor:
             processed_component = self.processed_components[component_name]
         else:
             log.info("processing component %s", component_name)
-            items = self._get_component_items(component_name, app_name)
+            items = self._get_component_items(component_name)
 
             # ignore frontends if we're not supposed to deploy them
             if self._frontend_found(items) and not self.frontends:

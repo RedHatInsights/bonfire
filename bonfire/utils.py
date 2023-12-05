@@ -102,10 +102,12 @@ log = logging.getLogger(__name__)
 
 
 class AppOrComponentSelector:
-    def __init__(self, select_all: bool, apps: List[str], components: List[str]):
+    def __init__(
+        self, select_all: bool = False, apps: List[str] = None, components: List[str] = None
+    ):
         self.select_all = select_all
-        self.apps = apps
-        self.components = components
+        self.apps = apps or []
+        self.components = components or []
 
     @property
     def empty(self):

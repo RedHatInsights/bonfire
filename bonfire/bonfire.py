@@ -356,7 +356,6 @@ def _translate_to_obj(value_list):
     select_all = False
     for value in value_list:
         if value.startswith("app:"):
-            select_all = True
             apps.append(value.split(":")[1])
         else:
             components.append(value)
@@ -379,21 +378,38 @@ def _app_or_component_selector(ctx, param, this_value):
         "no_remove_dependencies": "remove_dependencies",
     }
 
+    this_param_name = param.name
+    other_param_name = opposite_option[this_param_name]
+
+    other_value = ctx.params.get(other_param_name, AppOrComponentSelector())
+
     # validate that opposing options are not both set to 'all'
-    other_value = ctx.params.get(opposite_option[param.name])
-    if other_value:
-        if this_value.select_all and other_value.select_all:
+    if this_value.select_all and other_value.select_all:
+        raise click.BadParameter(
+            f"'all' cannot be specified on both this option"
+            f" and its opposite '{other_param_name}'"
+        )
+
+    # validate that the same app was not used in opposing options
+    for app in this_value.apps:
+        if app in other_value.apps:
             raise click.BadParameter(
-                f"'{param.opts[0]}' and its opposite option can't be both set to 'all'"
+                f"app '{app}' cannot be specified on both this option"
+                f" and its opposite '{other_param_name}'"
             )
 
-    print("param.name")
-    print(param.name)
-    
-    # set default value for --remove-resources to 'all' if --no-remove-resources is also unset
-    # set default value for --no-remove-dependencies to 'all' if --remove-dependencies is unset
-    options = ("remove_resources", "no_remove_dependencies")
-    if param.name in options and not this_value.components and not other_value:
+    # validate that the same component was not used in opposing options
+    for component in this_value.components:
+        if component in other_value.components:
+            raise click.BadParameter(
+                f"component '{component}' cannot be specified on both this option"
+                f" and its opposite '{other_param_name}'"
+            )
+
+    # set default value for --remove-resources to 'all' if it was not specified
+    # set default value for --no-remove-dependencies to 'all' if it was not specified
+    options_w_defaults = ("remove_resources", "no_remove_dependencies")
+    if this_param_name in options_w_defaults and this_value.empty:
         this_value.select_all = True
 
     return this_value
