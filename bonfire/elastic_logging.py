@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import bonfire.config as conf
 
+
 class AsyncElasticsearchHandler(logging.Handler):
     def __init__(self, es_url):
         super().__init__()
