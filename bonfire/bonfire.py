@@ -109,9 +109,6 @@ def option_usage_wrapper(command):
         @wraps(f)
         def wrapper(*args, **kwargs):
             # only gather telemetry if enabled and a bot run
-            if not conf.ENABLE_TELEMETRY and not conf.BONFIRE_BOT:
-                return f(*args, **kwargs)
-
             options_used = []
             is_parameter = False
             for arg in sys.argv[2:]:

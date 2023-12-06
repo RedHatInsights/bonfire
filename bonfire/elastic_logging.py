@@ -15,7 +15,8 @@ class AsyncElasticsearchHandler(logging.Handler):
 
     def emit(self, record):
         log_entry = self.format(record)
-        self.executor.submit(self.send_to_es, log_entry)
+        if conf.ENABLE_TELEMETRY == 'true' and conf.BONFIRE_BOT:
+            self.executor.submit(self.send_to_es, log_entry)
 
     def start_command_log(self, start_time, command, options_used):
         self.start_time = start_time
@@ -23,10 +24,6 @@ class AsyncElasticsearchHandler(logging.Handler):
         self.options_used = options_used
     
     def send_to_es(self, log_entry):
-        # don't
-        if not self.start_time:
-            return
-
         # Convert log_entry to JSON and send to Elasticsearch
         try:
             headers = {"Authorization": conf.ELASTICSEARCH_APIKEY, 
