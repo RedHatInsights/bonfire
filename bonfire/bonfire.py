@@ -8,6 +8,7 @@ import warnings
 from functools import wraps
 import uuid
 import time
+import datetime
 
 import click
 from ocviapy import apply_config, get_current_namespace, StatusError
@@ -58,7 +59,7 @@ from bonfire.elastic_logging import AsyncElasticsearchHandler
 
 log = logging.getLogger(__name__)
 es_telemetry = logging.getLogger("elasticsearch")
-es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST, str(uuid.uuid4()))
+es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
 es_telemetry.addHandler(es_handler)
 
 APP_SRE_SRC = "appsre"
@@ -74,7 +75,20 @@ _local_option = click.option(
 
 
 def _error(msg):
-    es_telemetry.info(f"ERROR: {msg}")
+    if es_handler.start_time:
+        # failure path
+        log = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "duration_seconds": time.time() - es_handler.start_time,
+            "bot": conf.BONFIRE_BOT,
+            "error": msg,
+            "succeeded": False,
+            "command": es_handler.command,
+            "options": es_handler.options_used,
+        }
+
+        es_telemetry.info(json.dumps(log))
+
     click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
 
@@ -94,7 +108,6 @@ def option_usage_wrapper(command):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            command = sys.argv[1]
 
             options_used = []
             is_parameter = False
@@ -105,27 +118,21 @@ def option_usage_wrapper(command):
                 elif arg == '-p' or arg == '--set-parameter':
                     is_parameter = True
 
-            # signature = inspect.signature(f)
-            # bound_args = signature.bind(*args, **kwargs)
-            # bound_args.apply_defaults()
+            es_handler.start_command_log(time.time(), command, options_used)
 
-            # # Check each parameter for non-empty values
-            # options_used = []
-            # for option_name, option_value in bound_args.arguments.items():
-            #     if option_value:
-            #         print(f"{option_value} | {option_name}")
-            #         options_used.append(option_name)
-
-            if options_used:
-                es_telemetry.info(f"{command} called with options '{', '.join(options_used)}'")
-            else:
-                es_telemetry.info(f"{command} called with no options'")
-
-            start = time.time()
             result = f(*args, **kwargs)
-            end = time.time()
             
-            es_telemetry.info(f"{command} completed in {end - start} seconds")
+            # successful path
+            log = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "duration_seconds": time.time() - es_handler.start_time,
+                "bot": conf.BONFIRE_BOT,
+                "error": "",
+                "succeeded": True,
+                "command": es_handler.command,
+                "options": es_handler.options_used,
+            }
+            es_telemetry.info(json.dumps(log))
 
             return result
 
