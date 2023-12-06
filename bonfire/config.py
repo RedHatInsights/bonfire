@@ -31,6 +31,7 @@ DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservati
 DEFAULT_GRAPHQL_URL = "https://app-interface.apps.appsrep05ue1.zqxk.p1.openshiftapps.com/graphql"
 
 DEFAULT_ELASTICSEARCH_HOST = "https://localhost:9200/search-bonfire/_doc"
+DEFAULT_ENABLE_TELEMETRY = True
 
 ENV_FILE = str(DEFAULT_ENV_PATH.absolute()) if DEFAULT_ENV_PATH.exists() else ""
 load_dotenv(ENV_FILE)
@@ -67,6 +68,7 @@ BONFIRE_DEFAULT_FALLBACK_REF_ENV = str(
 
 ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", DEFAULT_ELASTICSEARCH_HOST)
 ELASTICSEARCH_APIKEY = os.getenv("ELASTICSEARCH_APIKEY")
+ENABLE_TELEMETRY = os.getenv("ENABLE_TELEMETRY", DEFAULT_ENABLE_TELEMETRY)
 
 DEFAULT_FRONTEND_DEPENDENCIES = (
     "chrome-service",
