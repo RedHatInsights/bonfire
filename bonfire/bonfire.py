@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
-import inspect
+import datetime
 import json
 import logging
 import sys
+import time
 import warnings
 from functools import wraps
-import uuid
-import time
-import datetime
 
 import click
 from ocviapy import apply_config, get_current_namespace, StatusError
@@ -16,6 +14,7 @@ from tabulate import tabulate
 from wait_for import TimedOutError
 
 import bonfire.config as conf
+from bonfire.elastic_logging import AsyncElasticsearchHandler
 from bonfire.local import get_local_apps, get_appsfile_apps
 from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
 from bonfire.namespaces import (
@@ -54,7 +53,6 @@ from bonfire.utils import (
     validate_time_string,
     merge_app_configs,
 )
-from bonfire.elastic_logging import AsyncElasticsearchHandler
 
 
 log = logging.getLogger(__name__)
