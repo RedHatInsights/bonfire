@@ -240,49 +240,55 @@ def _should_remove(
     app_name: str,
     component_name: str,
 ) -> bool:
-    remove_for_all = remove_option.select_all
-    remove_for_none = no_remove_option.select_all
     remove_for_app = app_name in remove_option.apps
     no_remove_for_app = app_name in no_remove_option.apps
     remove_for_component = component_name in remove_option.components
     no_remove_for_component = component_name in no_remove_option.components
-    remove_for_all_except_this = remove_for_all and (no_remove_for_app or no_remove_for_component)
-    remove_for_none_except_this = remove_for_none and (remove_for_app or remove_for_component)
+    remove_for_this = remove_for_app or remove_for_component
+    no_remove_for_this = no_remove_for_app or no_remove_for_component
+
+    remove_for_all_no_exceptions = remove_option.select_all and no_remove_option.empty
+    remove_for_none_no_exceptions = no_remove_option.select_all and remove_option.empty
+    remove_for_all_except_this = remove_option.select_all and remove_for_this
+    remove_for_none_except_this = no_remove_option.select_all and no_remove_for_this
 
     log.debug(
-        "\n\n*** Component Name: ['%s']\n*** remove_for_all: '%s'\n*** remove_for_none: '%s'\n*** remove_for_app: %s\n*** remove_for_component: '%s'\n*** no_remove_for_component: '%s'\n*** remove_for_all_except_this: '%s'\n*** remove_for_none_except_this: '%s'\n",
+        ("\n\n*** App Name: ['%s']"
+        "\n*** Component Name: ['%s']"
+        "\n*** remove_option: %s"
+        "\n*** no_remove_option: %s"
+        "\n*** remove_for_app: '%s'"
+        "\n*** no_remove_for_app: '%s'"
+        "\n*** remove_for_component: '%s'"
+        "\n*** no_remove_for_component: '%s'"
+        "\n*** remove_for_all_no_exceptions: '%s'"
+        "\n*** remove_for_none_no_exceptions: '%s'"
+        "\n*** remove_for_all_except_this: %s"
+        "\n*** remove_for_none_except_this: '%s'")
+        app_name,
         component_name,
-        remove_for_all,
-        remove_for_none,
+        remove_option,
+        no_remove_option,
         remove_for_app,
         no_remove_for_app,
         remove_for_component,
+        no_remove_for_component,
+        remove_for_all_no_exceptions,
+        remove_for_none_no_exceptions,
         remove_for_all_except_this,
         remove_for_none_except_this
     )
 
-    if remove_for_all:
-        log.debug(
-            "app '%s' component '%s' remove for all except this: %s",
-            app_name,
-            component_name,
-            remove_for_all_except_this,
-        )
-    if remove_for_none:
-        log.debug(
-            "app '%s' component '%s' remove for none except this: %s",
-            app_name,
-            component_name,
-            remove_for_none_except_this,
-        )
-
     # returns True if:
-    # "--remove-option all" is set
-    # "--remove-option all --no-remove-option x" is set and app/component does NOT match 'x'
-    # "--no-remove-option all" is set
-    # "--no-remove-option all --remove-option x" is set and app/component matches 'x'
-    return (remove_for_all or not remove_for_all_except_this) or (
-        not remove_for_none or remove_for_none_except_this
+    #   "--remove-option all" is set
+    #   "--remove-option all --no-remove-option x" is set and app/component does NOT match 'x'
+    #   "--no-remove-option all" is NOT set
+    #   "--no-remove-option all --remove-option x" is set and app/component matches 'x'
+    return (
+        remove_for_all_no_exceptions
+        or not remove_for_all_except_this
+        or not remove_for_none_no_exceptions
+        or remove_for_none_except_this
     )
 
 
