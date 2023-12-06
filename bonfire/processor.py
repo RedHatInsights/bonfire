@@ -249,6 +249,18 @@ def _should_remove(
     remove_for_all_except_this = remove_for_all and (no_remove_for_app or no_remove_for_component)
     remove_for_none_except_this = remove_for_none and (remove_for_app or remove_for_component)
 
+    log.debug(
+        "\n\n*** Component Name: ['%s']\n*** remove_for_all: '%s'\n*** remove_for_none: '%s'\n*** remove_for_app: %s\n*** remove_for_component: '%s'\n*** no_remove_for_component: '%s'\n*** remove_for_all_except_this: '%s'\n*** remove_for_none_except_this: '%s'\n",
+        component_name,
+        remove_for_all,
+        remove_for_none,
+        remove_for_app,
+        no_remove_for_app,
+        remove_for_component,
+        remove_for_all_except_this,
+        remove_for_none_except_this
+    )
+
     if remove_for_all:
         log.debug(
             "app '%s' component '%s' remove for all except this: %s",

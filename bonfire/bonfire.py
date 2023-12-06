@@ -378,8 +378,8 @@ def _app_or_component_selector(ctx, param, this_value):
         "no_remove_dependencies": "remove_dependencies",
     }
 
-    this_param_name = param.name
-    other_param_name = opposite_option[this_param_name]
+    this_param_name: str = param.name
+    other_param_name: str = opposite_option[this_param_name]
 
     other_value = ctx.params.get(other_param_name, AppOrComponentSelector())
 
