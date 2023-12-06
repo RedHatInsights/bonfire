@@ -10,18 +10,15 @@ class AsyncElasticsearchHandler(logging.Handler):
         self.es_url = es_url
         self.executor = ThreadPoolExecutor(max_workers=10)
 
-
     def emit(self, record):
         log_entry = self.format(record)
         if conf.ENABLE_TELEMETRY == 'true' and conf.BONFIRE_BOT:
             self.executor.submit(self.send_to_es, log_entry)
 
-
     def start_command_log(self, start_time, command, options_used):
         self.start_time = start_time
         self.command = command
         self.options_used = options_used
-
 
     def send_to_es(self, log_entry):
         # Convert log_entry to JSON and send to Elasticsearch

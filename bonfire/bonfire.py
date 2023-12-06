@@ -119,7 +119,7 @@ def option_usage_wrapper(command):
             es_handler.start_command_log(time.time(), command, options_used)
 
             result = f(*args, **kwargs)
-            
+
             # successful path
             log = {
                 "timestamp": datetime.datetime.now().isoformat(),
@@ -135,7 +135,7 @@ def option_usage_wrapper(command):
             return result
 
         return wrapper
-    
+
     return decorator
 
 

@@ -20,6 +20,7 @@ from bonfire.utils import get_dependencies as utils_get_dependencies
 
 log = logging.getLogger(__name__)
 
+
 def _process_template(*args, **kwargs):
     # run process_template with prettier error handling
     try:

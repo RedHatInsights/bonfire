@@ -83,6 +83,7 @@ DEFAULT_FRONTEND_DEPENDENCIES = (
     "unleash-proxy",
 )
 
+
 def _get_auto_added_frontend_dependencies():
     env_var = os.getenv("BONFIRE_FRONTEND_DEPENDENCIES")
 
