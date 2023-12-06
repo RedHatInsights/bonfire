@@ -234,6 +234,46 @@ class ProcessedComponent:
         self.optional_deps_handled = optional_deps_handled
 
 
+def _should_remove(
+    remove_option: AppOrComponentSelector,
+    no_remove_option: AppOrComponentSelector,
+    app_name: str,
+    component_name: str,
+) -> bool:
+    remove_for_all = remove_option.select_all
+    remove_for_none = no_remove_option.select_all
+    remove_for_app = app_name in remove_option.apps
+    no_remove_for_app = app_name in no_remove_option.apps
+    remove_for_component = component_name in remove_option.components
+    no_remove_for_component = component_name in no_remove_option.components
+    remove_for_all_except_this = remove_for_all and (no_remove_for_app or no_remove_for_component)
+    remove_for_none_except_this = remove_for_none and (remove_for_app or remove_for_component)
+
+    if remove_for_all:
+        log.debug(
+            "app '%s' component '%s' remove for all except this: %s",
+            app_name,
+            component_name,
+            remove_for_all_except_this,
+        )
+    if remove_for_none:
+        log.debug(
+            "app '%s' component '%s' remove for none except this: %s",
+            app_name,
+            component_name,
+            remove_for_none_except_this,
+        )
+
+    # returns True if:
+    # "--remove-option all" is set
+    # "--remove-option all --no-remove-option x" is set and app/component does NOT match 'x'
+    # "--no-remove-option all" is set
+    # "--no-remove-option all --remove-option x" is set and app/component matches 'x'
+    return (remove_for_all or not remove_for_all_except_this) or (
+        not remove_for_none or remove_for_none_except_this
+    )
+
+
 class TemplateProcessor:
     @staticmethod
     def _parse_app_names(app_names):
@@ -536,57 +576,16 @@ class TemplateProcessor:
         # override the tags for all occurences of an image if requested
         new_items = self._sub_image_tags(new_items)
 
+        # evaluate --remove-resources/--no-remove-resources and
+        # --remove-dependencies/--no-remove-dependencies
         app_name = self._get_app_for_component(component_name)
-
-        log.debug(
-            "APP NAME %s REMOVE_APPS %s NO_REMOVE_APPS %s NO_REMOVE_RESOURCES_SELECT_ALL %s",
-            app_name,
-            self.remove_resources.apps,
-            self.no_remove_resources.apps,
-            self.no_remove_resources.select_all,
-        )
-
-        select_none = self.no_remove_resources.select_all and not self.remove_resources.select_all
-        select_app = (
-            app_name in self.remove_resources.apps or app_name not in self.no_remove_resources.apps
-        ) and not self.no_remove_resources.select_all
-        select_component = (
-            component_name in self.remove_resources.components
-            or component_name not in self.no_remove_resources.components
-        ) and not self.no_remove_resources.select_all
-        log.debug(
-            "app %s component %s -- select for remove resources, none: %s, app: %s, component: %s",
-            app_name,
-            component_name,
-            select_none,
-            select_app,
-            select_component,
-        )
-
-        if not select_none and (select_component or select_app):
+        if _should_remove(
+            self.remove_resources, self.no_remove_resources, app_name, component_name
+        ):
             _remove_resource_config(new_items)
-
-        select_none = (
-            self.no_remove_dependencies.select_all and not self.remove_dependencies.select_all
-        )
-        select_app = (
-            app_name in self.remove_dependencies.apps
-            or app_name not in self.no_remove_dependencies.apps
-        ) and not self.no_remove_dependencies.select_all
-        select_component = (
-            component_name in self.remove_dependencies.components
-            or component_name not in self.no_remove_dependencies.components
-        ) and not self.no_remove_dependencies.select_all
-        log.debug(
-            "app %s component %s -- select for remove deps, none: %s, app: %s, component: %s",
-            app_name,
-            component_name,
-            select_none,
-            select_app,
-            select_component,
-        )
-
-        if not select_none and (select_component or select_app):
+        if _should_remove(
+            self.remove_dependencies, self.no_remove_dependencies, app_name, component_name
+        ):
             _remove_dependency_config(new_items)
 
         if self.single_replicas:

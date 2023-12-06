@@ -406,8 +406,8 @@ def _app_or_component_selector(ctx, param, this_value):
                 f" and its opposite '{other_param_name}'"
             )
 
-    # set default value for --remove-resources to 'all' if it was not specified
-    # set default value for --no-remove-dependencies to 'all' if it was not specified
+    # set default value for --remove-resources to 'all' if option was unspecified
+    # set default value for --no-remove-dependencies to 'all' if option was unspecified
     options_w_defaults = ("remove_resources", "no_remove_dependencies")
     if this_param_name in options_w_defaults and this_value.empty:
         this_value.select_all = True
