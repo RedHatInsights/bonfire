@@ -355,12 +355,13 @@ def _translate_to_obj(value_list):
     components = []
     select_all = False
     for value in value_list:
-        if value.startswith("app:"):
+        if value == "all":
+            # all is a special keyword
+            select_all = True
+        elif value.startswith("app:"):
             apps.append(value.split(":")[1])
         else:
             components.append(value)
-    if "all" in components:
-        select_all = True
     return AppOrComponentSelector(select_all, apps, components)
 
 
