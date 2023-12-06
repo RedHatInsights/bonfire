@@ -73,20 +73,6 @@ _local_option = click.option(
 
 
 def _error(msg):
-    if es_handler.log_started:
-        # failure path
-        log = {
-            "timestamp": datetime.datetime.now().isoformat(),
-            "duration_seconds": time.time() - es_handler.start_time,
-            "bot": conf.BONFIRE_BOT,
-            "error": msg,
-            "succeeded": False,
-            "command": es_handler.command,
-            "options": es_handler.options_used,
-        }
-
-        es_telemetry.info(json.dumps(log))
-
     click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
 
@@ -116,21 +102,29 @@ def option_usage_wrapper(command):
                 elif arg == '-p' or arg == '--set-parameter':
                     is_parameter = True
 
-            es_handler.start_command_log(time.time(), command, options_used)
+            start_time = time.time()
 
-            result = f(*args, **kwargs)
-
-            # successful path
-            log = {
+            log_entry = {
                 "timestamp": datetime.datetime.now().isoformat(),
-                "duration_seconds": time.time() - es_handler.start_time,
+                "duration_seconds": time.time() - start_time,
                 "bot": conf.BONFIRE_BOT,
-                "error": "",
-                "succeeded": True,
-                "command": es_handler.command,
-                "options": es_handler.options_used,
+                "command": command,
+                "options": options_used,
             }
-            es_telemetry.info(json.dumps(log))
+
+            try:
+                result = f(*args, **kwargs)
+                # successful path
+                log_entry["succeeded"] = True
+                log_entry["error"] = ""
+                es_telemetry.info(json.dumps(log_entry))
+            except Exception as e:
+                # fail path
+                log_entry["succeeded"] = False
+                log_entry["error"] = str(e)
+                es_telemetry.info(json.dumps(log_entry))
+                # propagate exception for click_exception_wrapper
+                raise e
 
             return result
 
