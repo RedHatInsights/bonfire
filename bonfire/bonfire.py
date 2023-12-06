@@ -73,7 +73,7 @@ _local_option = click.option(
 
 
 def _error(msg):
-    if es_handler.start_time:
+    if es_handler.log_started:
         # failure path
         log = {
             "timestamp": datetime.datetime.now().isoformat(),

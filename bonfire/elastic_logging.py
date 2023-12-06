@@ -10,6 +10,7 @@ class AsyncElasticsearchHandler(logging.Handler):
         super().__init__()
         self.es_url = es_url
         self.executor = ThreadPoolExecutor(max_workers=10)
+        self.log_started = False
 
     def emit(self, record):
         log_entry = self.format(record)
@@ -17,6 +18,7 @@ class AsyncElasticsearchHandler(logging.Handler):
             self.executor.submit(self.send_to_es, log_entry)
 
     def start_command_log(self, start_time, command, options_used):
+        self.log_started = True
         self.start_time = start_time
         self.command = command
         self.options_used = options_used
