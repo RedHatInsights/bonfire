@@ -57,6 +57,7 @@ from bonfire.utils import (
 
 log = logging.getLogger(__name__)
 es_telemetry = logging.getLogger("elasticsearch")
+es_telemetry.propagate = False
 es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
 es_telemetry.addHandler(es_handler)
 
