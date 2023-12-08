@@ -5,6 +5,9 @@ from concurrent.futures import ThreadPoolExecutor
 import bonfire.config as conf
 
 
+log = logging.getLogger(__name__)
+
+
 class AsyncElasticsearchHandler(logging.Handler):
     def __init__(self, es_url):
         super().__init__()
@@ -13,7 +16,7 @@ class AsyncElasticsearchHandler(logging.Handler):
 
     def emit(self, record):
         log_entry = self.format(record)
-        if conf.ENABLE_TELEMETRY == 'true' and conf.BONFIRE_BOT:
+        if conf.ENABLE_TELEMETRY:
             self.executor.submit(self.send_to_es, log_entry)
 
     def send_to_es(self, log_entry):
@@ -26,5 +29,4 @@ class AsyncElasticsearchHandler(logging.Handler):
             response.raise_for_status()
         except Exception as e:
             # Handle exceptions (e.g., network issues, Elasticsearch down)
-            print(f"Error sending data to elasticsearch: {e}")
-            pass
+            log.error("Error sending data to elasticsearch: %s", e)
