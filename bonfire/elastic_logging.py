@@ -17,7 +17,7 @@ class ElasticLogger():
         self.es_telemetry = logging.getLogger("elasicsearch")
         metadata = {
             "uuid": str(uuid.uuid4()),
-            "start_time": datetime.now().isoformat(),
+            "start_time": dt.now().isoformat(),
             "bot": conf.BONFIRE_BOT,
             "command": self._mask_parameter_values(sys.argv[1:])
         }
