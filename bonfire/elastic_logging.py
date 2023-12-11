@@ -66,7 +66,6 @@ class AsyncElasticsearchHandler(logging.Handler):
             # Handle exceptions (e.g., network issues, Elasticsearch down)
             log.error("Error sending data to elasticsearch: %s", e)
 
-    
     @staticmethod
     def _mask_parameter_values(cli_args):
         masked_list = []
