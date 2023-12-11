@@ -34,7 +34,7 @@ class AsyncElasticsearchHandler(logging.Handler):
             headers = {"Authorization": conf.ELASTICSEARCH_APIKEY,
                        "Content-Type": "application/json"}
 
-            response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1, verify=False)
+            response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1)
             response.raise_for_status()
         except Exception as e:
             # Handle exceptions (e.g., network issues, Elasticsearch down)
