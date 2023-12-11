@@ -17,7 +17,7 @@ class ElasticLogger():
         self.es_telemetry = logging.getLogger("elasicsearch")
         metadata = {
             "uuid": str(uuid.uuid4()),
-            "start_time": dt.now().isoformat(),
+            "start_time": dt.now(),
             "bot": conf.BONFIRE_BOT,
             "command": self._mask_parameter_values(sys.argv[1:])
         }
@@ -30,7 +30,8 @@ class ElasticLogger():
         self.es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST, metadata)
         self.es_telemetry.addHandler(self.es_handler)
 
-    def _mask_parameter_values(self, cli_args):
+    @staticmethod
+    def _mask_parameter_values(cli_args):
         masked_list = []
 
         is_parameter = False
@@ -59,10 +60,14 @@ class AsyncElasticsearchHandler(logging.Handler):
         self.executor = ThreadPoolExecutor(max_workers=10)
 
     def emit(self, record):
-        self.metadata["time_of_logging"] = dt.now().isoformat()
-        self.metadata["duration"] = str(dt.now() - dt.fromisoformat(self.metadata["start_time"]))
+        self.metadata["@timestamp"] = dt.now().isoformat()
+        self.metadata["elapsed_sec"] = (dt.now() - self.metadata["start_time"]).total_seconds()
 
-        log_entry = {"log": self.format(record), "metadata": self.metadata}
+        # copy and modify metadata for json formatting
+        metadata = self.metadata
+        metadata["start_time"] = metadata["start_time"].isoformat()
+
+        log_entry = {"log": self.format(record), "metadata": metadata}
         if conf.ENABLE_TELEMETRY:
             self.executor.submit(self.send_to_es, json.dumps(log_entry))
 
