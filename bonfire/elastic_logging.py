@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime as dt
 import logging
 import json
 import requests
@@ -59,8 +59,8 @@ class AsyncElasticsearchHandler(logging.Handler):
         self.executor = ThreadPoolExecutor(max_workers=10)
 
     def emit(self, record):
-        self.metadata["time_of_logging"] = datetime.now().isoformat()
-        self.metadata["duration"] = str(datetime.now()- datetime.fromisoformat(self.metadata["start_time"]))
+        self.metadata["time_of_logging"] = dt.now().isoformat()
+        self.metadata["duration"] = str(dt.now() - dt.fromisoformat(self.metadata["start_time"]))
 
         log_entry = {"log": self.format(record), "metadata": self.metadata}
         if conf.ENABLE_TELEMETRY:
