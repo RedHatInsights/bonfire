@@ -16,13 +16,14 @@ class ElasticLogger():
     def __init__(self):
         self.es_telemetry = logging.getLogger("elasicsearch")
 
-        es_handler = next((h for h in self.es_telemetry.handlers
-                           if type(h) is AsyncElasticsearchHandler), None)
-        if es_handler:
-            log.warning("AsyncElasticsearchHandler already configured for current logger")
-
-        self.es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
-        self.es_telemetry.addHandler(self.es_handler)
+        # prevent duplicate handlers
+        self.es_handler = next(
+            (h for h in self.es_telemetry.handlers if type(h) is AsyncElasticsearchHandler),
+            None
+        )
+        if not self.es_handler:
+            self.es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
+            self.es_telemetry.addHandler(self.es_handler)
 
     def send_telemetry(self, log_message, success=True):
         self.es_handler.set_success_status(success)
@@ -39,7 +40,7 @@ class AsyncElasticsearchHandler(logging.Handler):
         self.metadata = {
             "uuid": str(uuid.uuid4()),
             "start_time": self.start_time.isoformat(),
-            "bot": (conf.BONFIRE_BOT.lower() == 'true'),
+            "bot": conf.BONFIRE_BOT,
             "command": self._mask_parameter_values(sys.argv[1:])
         }
 

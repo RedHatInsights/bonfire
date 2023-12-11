@@ -58,7 +58,7 @@ ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")
 # can be used to set name of 'requester' on namespace reservations
 BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
 # set to true when bonfire is running via automation using a bot acct (not an end user)
-BONFIRE_BOT = os.getenv("BONFIRE_BOT")
+BONFIRE_BOT = os.getenv("BONFIRE_BOT", "false").lower() == "true"
 
 BONFIRE_DEFAULT_PREFER = str(os.getenv("BONFIRE_DEFAULT_PREFER", "ENV_NAME=frontends")).split(",")
 BONFIRE_DEFAULT_REF_ENV = str(os.getenv("BONFIRE_DEFAULT_REF_ENV", "insights-stage"))
