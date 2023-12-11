@@ -4,7 +4,7 @@ import datetime
 import json
 import logging
 import sys
-import time
+import uuid
 import warnings
 from functools import wraps
 
@@ -57,9 +57,6 @@ from bonfire.utils import (
 
 log = logging.getLogger(__name__)
 es_telemetry = logging.getLogger("elasticsearch")
-es_telemetry.propagate = False
-es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
-es_telemetry.addHandler(es_handler)
 
 APP_SRE_SRC = "appsre"
 FILE_SRC = "file"
@@ -74,6 +71,7 @@ _local_option = click.option(
 
 
 def _error(msg):
+    send_telemetry(msg, success=False)
     click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
 
@@ -89,57 +87,13 @@ def current_namespace_or_error():
     return namespace
 
 
-def option_usage_wrapper(command):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            # only gather telemetry if enabled and a bot run
-            options_used = []
-            is_parameter = False
-            for arg in sys.argv[2:]:
-                if is_parameter:
-                    options_used.append(arg.split('=')[0])
-                    is_parameter = False
-                elif arg == '-p' or arg == '--set-parameter':
-                    is_parameter = True
-
-            start_time = time.time()
-
-            log_entry = {
-                "timestamp": datetime.datetime.now().isoformat(),
-                "duration_seconds": time.time() - start_time,
-                "bot": conf.BONFIRE_BOT,
-                "command": command,
-                "options": options_used,
-            }
-
-            try:
-                result = f(*args, **kwargs)
-                # successful path
-                log_entry["succeeded"] = True
-                log_entry["error"] = ""
-                es_telemetry.info(json.dumps(log_entry))
-            except Exception as e:
-                # fail path
-                log_entry["succeeded"] = False
-                log_entry["error"] = str(e)
-                es_telemetry.info(json.dumps(log_entry))
-                # propagate exception for click_exception_wrapper
-                raise e
-
-            return result
-
-        return wrapper
-
-    return decorator
-
-
 def click_exception_wrapper(command):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
             try:
-                return f(*args, **kwargs)
+                result = f(*args, **kwargs)
+                return result
             except KeyboardInterrupt:
                 _error(f"{command}: aborted by keyboard interrupt")
             except TimedOutError as err:
@@ -818,7 +772,6 @@ def options(options_list):
 
 @namespace.command("list")
 @options(_ns_list_options)
-@option_usage_wrapper("namespace list")
 def _list_namespaces(available, mine, output):
     """Get list of ephemeral namespaces"""
     if not has_ns_operator():
@@ -861,7 +814,6 @@ def _list_namespaces(available, mine, output):
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("namespace reserve")
-@option_usage_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
     ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
@@ -879,7 +831,6 @@ def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, forc
 )
 @options([_local_option])
 @click_exception_wrapper("namespace release")
-@option_usage_wrapper("namespace release")
 def _cmd_namespace_release(namespace, force, local):
     """Remove reservation from an ephemeral namespace"""
     if not has_ns_operator():
@@ -909,7 +860,6 @@ def _cmd_namespace_release(namespace, force, local):
 )
 @options([_local_option])
 @click_exception_wrapper("namespace extend")
-@option_usage_wrapper("namespace extend")
 def _cmd_namespace_extend(namespace, duration, local):
     """Extend a reservation of an ephemeral namespace"""
     if not has_ns_operator():
@@ -930,7 +880,6 @@ def _cmd_namespace_extend(namespace, duration, local):
     help="Only wait for DB resources owned by ClowdApps to be ready",
 )
 @options(_timeout_option)
-@option_usage_wrapper("namespace wait-on-resources")
 def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     """Wait for rolled out resources to be ready in namespace"""
     if not namespace:
@@ -944,7 +893,6 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
 
 @namespace.command("describe")
 @click.argument("namespace", required=False, type=str)
-@option_usage_wrapper("namespace describe")
 def _describe_namespace(namespace):
     """Get current namespace info"""
     if not namespace:
@@ -1087,7 +1035,6 @@ def _cmd_pool_types():
     help="Namespace you intend to deploy to (default: none)",
     type=str,
 )
-@option_usage_wrapper("process")
 def _cmd_process(
     app_names,
     source,
@@ -1273,7 +1220,6 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
 )
 @options(_ns_reserve_options)
 @options(_timeout_option)
-@option_usage_wrapper("deploy")
 def _cmd_config_deploy(
     app_names,
     source,
@@ -1411,6 +1357,7 @@ def _cmd_config_deploy(
         _err_handler(err)
     else:
         log.info("successfully deployed to namespace %s", ns)
+        send_telemetry("successful deployment")
         url = get_console_url()
         if url:
             ns_url = f"{url}/k8s/cluster/projects/{ns}"
@@ -1425,7 +1372,6 @@ def _process_clowdenv(target_namespace, quay_user, env_name, template_file, loca
 
 @main.command("process-env")
 @options(_clowdenv_process_options)
-@option_usage_wrapper("process-env")
 def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local):
     """Process ClowdEnv template and print output"""
     clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
@@ -1449,7 +1395,6 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("deploy-env")
-@option_usage_wrapper("deploy-env")
 def _cmd_deploy_clowdenv(
     namespace,
     quay_user,
@@ -1495,7 +1440,6 @@ def _cmd_deploy_clowdenv(
 
 @main.command("process-iqe-cji")
 @options(_iqe_cji_process_options)
-@option_usage_wrapper("process-iqe-cji")
 def _cmd_process_iqe_cji(
     clowd_app_name,
     debug,
@@ -1548,7 +1492,6 @@ def _cmd_process_iqe_cji(
 @options(_ns_reserve_options)
 @options(_timeout_option)
 @click_exception_wrapper("deploy-iqe-cji")
-@option_usage_wrapper("deploy-iqe-cji")
 def _cmd_deploy_iqe_cji(
     namespace,
     clowd_app_name,
@@ -1648,7 +1591,6 @@ def _cmd_edit_default_config(path):
     help="List components contained within each app group",
 )
 @apps.command("list")
-@option_usage_wrapper("apps list")
 def _cmd_apps_list(
     source,
     local_config_path,
@@ -1679,7 +1621,6 @@ def _cmd_apps_list(
     type=str,
 )
 @apps.command("what-depends-on")
-@option_usage_wrapper("apps what-depends-on")
 def _cmd_apps_what_depends_on(
     source,
     local_config_path,
@@ -1696,7 +1637,44 @@ def _cmd_apps_what_depends_on(
     print("\n".join(found) or f"no apps depending on {component} found")
 
 
+def _mask_parameter_values(cli_args):
+    masked_list = []
+
+    is_parameter = False
+    for arg in cli_args:
+        if is_parameter:
+            masked_arg = f"{arg.split('=')[0]}=*******"
+            masked_list.append(masked_arg)
+            is_parameter = False
+        else:
+            masked_list.append(arg)
+            is_parameter = arg == '-p' or arg == '--set-parameter'
+
+    return masked_list
+
+
+def send_telemetry(log_message, success=True):
+    es_handler = next((h for h in es_telemetry.handlers if type(h) == AsyncElasticsearchHandler), None)
+
+    if not es_handler:
+        es_telemetry.warning("AsyncElasticsearchHandler not configured on telemetry logger")
+
+    es_handler.set_success_status(success)
+
+    es_telemetry.info(log_message)
+
+
 def main_with_handler():
+    metadata = {
+        "uuid": str(uuid.uuid4()),
+        "start_time": datetime.datetime.now().isoformat(),
+        "bot": conf.BONFIRE_BOT,
+        "command": _mask_parameter_values(sys.argv[1:])
+    }
+
+    es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST, metadata)
+    es_telemetry.addHandler(es_handler)
+
     try:
         main()
     except FatalError as err:
