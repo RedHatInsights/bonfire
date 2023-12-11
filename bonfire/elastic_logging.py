@@ -18,7 +18,7 @@ class ElasticLogger():
         metadata = {
             "uuid": str(uuid.uuid4()),
             "start_time": dt.now(),
-            "bot": conf.BONFIRE_BOT,
+            "bot": (conf.BONFIRE_BOT.lower() == 'true'),
             "command": self._mask_parameter_values(sys.argv[1:])
         }
 
