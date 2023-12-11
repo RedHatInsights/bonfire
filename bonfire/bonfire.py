@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
-import datetime
 import json
 import logging
 import sys
-import uuid
 import warnings
 from functools import wraps
 
@@ -14,7 +12,7 @@ from tabulate import tabulate
 from wait_for import TimedOutError
 
 import bonfire.config as conf
-from bonfire.elastic_logging import AsyncElasticsearchHandler
+from bonfire.elastic_logging import ElasticLogger
 from bonfire.local import get_local_apps, get_appsfile_apps
 from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
 from bonfire.namespaces import (
@@ -56,7 +54,7 @@ from bonfire.utils import (
 
 
 log = logging.getLogger(__name__)
-es_telemetry = logging.getLogger("elasticsearch")
+es_telemetry = ElasticLogger()
 
 APP_SRE_SRC = "appsre"
 FILE_SRC = "file"
@@ -71,7 +69,7 @@ _local_option = click.option(
 
 
 def _error(msg):
-    send_telemetry(msg, success=False)
+    es_telemetry.send_telemetry(msg, success=False)
     click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
 
@@ -1357,7 +1355,7 @@ def _cmd_config_deploy(
         _err_handler(err)
     else:
         log.info("successfully deployed to namespace %s", ns)
-        send_telemetry("successful deployment")
+        es_telemetry.send_telemetry("successful deployment")
         url = get_console_url()
         if url:
             ns_url = f"{url}/k8s/cluster/projects/{ns}"
@@ -1637,44 +1635,7 @@ def _cmd_apps_what_depends_on(
     print("\n".join(found) or f"no apps depending on {component} found")
 
 
-def _mask_parameter_values(cli_args):
-    masked_list = []
-
-    is_parameter = False
-    for arg in cli_args:
-        if is_parameter:
-            masked_arg = f"{arg.split('=')[0]}=*******"
-            masked_list.append(masked_arg)
-            is_parameter = False
-        else:
-            masked_list.append(arg)
-            is_parameter = arg == '-p' or arg == '--set-parameter'
-
-    return masked_list
-
-
-def send_telemetry(log_message, success=True):
-    es_handler = next((h for h in es_telemetry.handlers if type(h) == AsyncElasticsearchHandler), None)
-
-    if not es_handler:
-        es_telemetry.warning("AsyncElasticsearchHandler not configured on telemetry logger")
-
-    es_handler.set_success_status(success)
-
-    es_telemetry.info(log_message)
-
-
 def main_with_handler():
-    metadata = {
-        "uuid": str(uuid.uuid4()),
-        "start_time": datetime.datetime.now().isoformat(),
-        "bot": conf.BONFIRE_BOT,
-        "command": _mask_parameter_values(sys.argv[1:])
-    }
-
-    es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST, metadata)
-    es_telemetry.addHandler(es_handler)
-
     try:
         main()
     except FatalError as err:

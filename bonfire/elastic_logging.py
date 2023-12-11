@@ -2,12 +2,52 @@ from datetime import datetime
 import logging
 import json
 import requests
+import sys
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import bonfire.config as conf
 
 
 log = logging.getLogger(__name__)
+
+
+class ElasticLogger():
+    def __init__(self):
+        self.es_telemetry = logging.getLogger("elasicsearch")
+        metadata = {
+            "uuid": str(uuid.uuid4()),
+            "start_time": datetime.now().isoformat(),
+            "bot": conf.BONFIRE_BOT,
+            "command": self._mask_parameter_values(sys.argv[1:])
+        }
+
+        es_handler = next((h for h in self.es_telemetry.handlers if type(h) == AsyncElasticsearchHandler), None)
+        if es_handler:
+            log.warning("AsyncElasticsearchHandler already configured for current logger")
+
+        self.es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST, metadata)
+        self.es_telemetry.addHandler(self.es_handler)
+    
+    def _mask_parameter_values(self, cli_args):
+        masked_list = []
+
+        is_parameter = False
+        for arg in cli_args:
+            if is_parameter:
+                masked_arg = f"{arg.split('=')[0]}=*******"
+                masked_list.append(masked_arg)
+                is_parameter = False
+            else:
+                masked_list.append(arg)
+                is_parameter = arg == '-p' or arg == '--set-parameter'
+
+        return masked_list
+
+    def send_telemetry(self, log_message, success=True):
+        self.es_handler.set_success_status(success)
+
+        self.es_telemetry.info(log_message)
 
 
 class AsyncElasticsearchHandler(logging.Handler):
@@ -34,7 +74,7 @@ class AsyncElasticsearchHandler(logging.Handler):
             headers = {"Authorization": conf.ELASTICSEARCH_APIKEY,
                        "Content-Type": "application/json"}
 
-            response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1)
+            response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1, verify=False)
             response.raise_for_status()
         except Exception as e:
             # Handle exceptions (e.g., network issues, Elasticsearch down)
