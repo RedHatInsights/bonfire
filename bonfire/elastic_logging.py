@@ -22,7 +22,8 @@ class ElasticLogger():
             "command": self._mask_parameter_values(sys.argv[1:])
         }
 
-        es_handler = next((h for h in self.es_telemetry.handlers if type(h) is AsyncElasticsearchHandler), None)
+        es_handler = next((h for h in self.es_telemetry.handlers 
+                           if type(h) is AsyncElasticsearchHandler), None)
         if es_handler:
             log.warning("AsyncElasticsearchHandler already configured for current logger")
 
