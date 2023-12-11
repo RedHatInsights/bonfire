@@ -22,13 +22,13 @@ class ElasticLogger():
             "command": self._mask_parameter_values(sys.argv[1:])
         }
 
-        es_handler = next((h for h in self.es_telemetry.handlers if type(h) == AsyncElasticsearchHandler), None)
+        es_handler = next((h for h in self.es_telemetry.handlers if type(h) is AsyncElasticsearchHandler), None)
         if es_handler:
             log.warning("AsyncElasticsearchHandler already configured for current logger")
 
         self.es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST, metadata)
         self.es_telemetry.addHandler(self.es_handler)
-    
+
     def _mask_parameter_values(self, cli_args):
         masked_list = []
 
@@ -59,7 +59,7 @@ class AsyncElasticsearchHandler(logging.Handler):
 
     def emit(self, record):
         self.metadata["time_of_logging"] = datetime.now().isoformat()
-        self.metadata["duration"] = str(datetime.now() - datetime.fromisoformat(self.metadata["start_time"]))
+        self.metadata["duration"] = str(datetime.now()- datetime.fromisoformat(self.metadata["start_time"]))
 
         log_entry = {"log": self.format(record), "metadata": self.metadata}
         if conf.ENABLE_TELEMETRY:
@@ -74,7 +74,7 @@ class AsyncElasticsearchHandler(logging.Handler):
             headers = {"Authorization": conf.ELASTICSEARCH_APIKEY,
                        "Content-Type": "application/json"}
 
-            response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1, verify=False)
+            response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1)
             response.raise_for_status()
         except Exception as e:
             # Handle exceptions (e.g., network issues, Elasticsearch down)
