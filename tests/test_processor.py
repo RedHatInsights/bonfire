@@ -95,29 +95,69 @@ def processor():
         "app1": {
             "name": "app1",
             "components": [
-                {"name": "app1-component1", "host": "local", "repo": "test", "path": "test"},
-                {"name": "app1-component2", "host": "local", "repo": "test", "path": "test"},
+                {
+                    "name": "app1-component1",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+                {
+                    "name": "app1-component2",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
             ],
         },
         "app2": {
             "name": "app2",
             "components": [
-                {"name": "app2-component1", "host": "local", "repo": "test", "path": "test"},
-                {"name": "app2-component2", "host": "local", "repo": "test", "path": "test"},
+                {
+                    "name": "app2-component1",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+                {
+                    "name": "app2-component2",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
             ],
         },
         "app3": {
             "name": "app3",
             "components": [
-                {"name": "app3-component1", "host": "local", "repo": "test", "path": "test"},
-                {"name": "app3-component2", "host": "local", "repo": "test", "path": "test"},
+                {
+                    "name": "app3-component1",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+                {
+                    "name": "app3-component2",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
             ],
         },
         "app4": {
             "name": "app4",
             "components": [
-                {"name": "app4-component1", "host": "local", "repo": "test", "path": "test"},
-                {"name": "app4-component2", "host": "local", "repo": "test", "path": "test"},
+                {
+                    "name": "app4-component1",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+                {
+                    "name": "app4-component2",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
             ],
         },
     }
@@ -145,9 +185,33 @@ def processor():
 @pytest.mark.parametrize(
     "optional_deps_method,expected",
     [
-        ("all", ["app1-component1", "app1-component2", "app2-component2", "app3-component2"]),
-        ("hybrid", ["app1-component1", "app1-component2", "app2-component2", "app3-component2"]),
-        ("none", ["app1-component1", "app1-component2", "app2-component2", "app3-component2"]),
+        (
+            "all",
+            [
+                "app1-component1",
+                "app1-component2",
+                "app2-component2",
+                "app3-component2",
+            ],
+        ),
+        (
+            "hybrid",
+            [
+                "app1-component1",
+                "app1-component2",
+                "app2-component2",
+                "app3-component2",
+            ],
+        ),
+        (
+            "none",
+            [
+                "app1-component1",
+                "app1-component2",
+                "app2-component2",
+                "app3-component2",
+            ],
+        ),
     ],
 )
 def test_required_deps(mock_repo_file, processor, optional_deps_method, expected):
@@ -172,7 +236,15 @@ def test_required_deps(mock_repo_file, processor, optional_deps_method, expected
 @pytest.mark.parametrize(
     "optional_deps_method,expected",
     [
-        ("all", ["app1-component1", "app1-component2", "app2-component2", "app3-component2"]),
+        (
+            "all",
+            [
+                "app1-component1",
+                "app1-component2",
+                "app2-component2",
+                "app3-component2",
+            ],
+        ),
         ("hybrid", ["app1-component1", "app1-component2", "app2-component2"]),
         ("none", ["app1-component1", "app1-component2"]),
     ],
@@ -200,7 +272,8 @@ def test_optional_deps(mock_repo_file, processor, optional_deps_method, expected
 @pytest.mark.parametrize(
     "optional_deps_method,expected",
     [
-         ("all", 
+        (
+            "all",
             [
                 "app1-component1",
                 "app1-component2",
@@ -208,9 +281,10 @@ def test_optional_deps(mock_repo_file, processor, optional_deps_method, expected
                 "app2-component2",
                 "app3-component1",
                 "app3-component2",
-            ]
+            ],
         ),
-        ("hybrid",         
+        (
+            "hybrid",
             [
                 "app1-component1",
                 "app1-component2",
@@ -330,71 +404,122 @@ def test_mixed_deps_two_apps(mock_repo_file, processor, optional_deps_method, ex
 
 # Testing --no-remove-resources/dependency "app:" syntax
 def test_should_remove_remove_for_none_no_exceptions():
-    remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=[])   
-    no_remove_resources = AppOrComponentSelector(select_all=True, components=["component1"], apps=["app1"])
+    remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=[])
+    no_remove_resources = AppOrComponentSelector(
+        select_all=True, components=["component1"], apps=["app1"]
+    )
 
-    assert _should_remove(remove_resources, no_remove_resources, "component2", "app2") == False
-    assert _should_remove(remove_resources, no_remove_resources, "component1", "app2") == False
-    assert _should_remove(remove_resources, no_remove_resources, "whatever", "app1") == False
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "component2", "app2")
+        == False
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "component1", "app2")
+        == False
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "whatever", "app1")
+        == False
+    )
 
 
 def test_should_remove_remove_for_all_no_exceptions():
-    remove_resources = AppOrComponentSelector(select_all=True, components=["component1"], apps=["app1"])   
-    no_remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=[])
+    remove_resources = AppOrComponentSelector(
+        select_all=True, components=["component1"], apps=["app1"]
+    )
+    no_remove_resources = AppOrComponentSelector(
+        select_all=False, components=[], apps=[]
+    )
 
-    assert _should_remove(remove_resources, no_remove_resources, "component2", "app2") == True
-    assert _should_remove(remove_resources, no_remove_resources, "component1", "app2") == True
-    assert _should_remove(remove_resources, no_remove_resources, "whatever", "app1") == True
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "component2", "app2")
+        == True
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "component1", "app2")
+        == True
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "whatever", "app1")
+        == True
+    )
 
 
 def test_should_remove_remove_option_select_all():
-    assert _should_remove(
-        AppOrComponentSelector(select_all=True, components=[], apps=[]),                # remove-resources
-        AppOrComponentSelector(select_all=False, components=["component1"], apps=[]),   # no-remove-resources
-        "app2",
-        "component1"
-    ) == False
+    assert (
+        _should_remove(
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            AppOrComponentSelector(
+                select_all=False, components=["component1"], apps=[]
+            ),
+            "app2",
+            "component1",
+        )
+        == False
+    )
 
-    assert _should_remove(
-        AppOrComponentSelector(select_all=True, components=[], apps=[]), 
-        AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
-        "app1",
-        "component1"
-    ) == False
+    assert (
+        _should_remove(
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
+            "app1",
+            "component1",
+        )
+        == False
+    )
 
-    assert _should_remove(
-        AppOrComponentSelector(select_all=True, components=[], apps=[]), 
-        AppOrComponentSelector(select_all=False, components=[], apps=[]),
-        "app1",
-        "component2"
-    ) == True
+    assert (
+        _should_remove(
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            AppOrComponentSelector(select_all=False, components=[], apps=[]),
+            "app1",
+            "component2",
+        )
+        == True
+    )
 
 
 def test_should_remove_no_remove_option_select_all():
-    assert _should_remove(
-        AppOrComponentSelector(select_all=False, components=["component1"], apps=[]),
-        AppOrComponentSelector(select_all=True, components=[], apps=[]),
-        "app1",
-        "component1"
-    ) == True
+    assert (
+        _should_remove(
+            AppOrComponentSelector(
+                select_all=False, components=["component1"], apps=[]
+            ),
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            "app1",
+            "component1",
+        )
+        == True
+    )
 
-    assert _should_remove(
-        AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
-        AppOrComponentSelector(select_all=True, components=[], apps=[]),
-        "app1",
-        "component1"
-    ) == True
+    assert (
+        _should_remove(
+            AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            "app1",
+            "component1",
+        )
+        == True
+    )
 
-    assert _should_remove(
-        AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]), 
-        AppOrComponentSelector(select_all=True, components=[], apps=[]),
-        "app1",
-        "component1"
-    ) == True
+    assert (
+        _should_remove(
+            AppOrComponentSelector(
+                select_all=False, components=["component1"], apps=["app1"]
+            ),
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            "app1",
+            "component1",
+        )
+        == True
+    )
 
-    assert _should_remove(
-        AppOrComponentSelector(select_all=False, components=[], apps=[]), 
-        AppOrComponentSelector(select_all=True, components=[], apps=[]),
-        "app1",
-        "component1"
-    ) == False
+    assert (
+        _should_remove(
+            AppOrComponentSelector(select_all=False, components=[], apps=[]),
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            "app1",
+            "component1",
+        )
+        == False
+    )
