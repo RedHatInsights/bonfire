@@ -411,15 +411,15 @@ def test_should_remove_remove_for_none_no_exceptions():
 
     assert (
         _should_remove(remove_resources, no_remove_resources, "component2", "app2")
-        == False
+        is False
     )
     assert (
         _should_remove(remove_resources, no_remove_resources, "component1", "app2")
-        == False
+        is False
     )
     assert (
         _should_remove(remove_resources, no_remove_resources, "whatever", "app1")
-        == False
+        is False
     )
 
 
@@ -433,15 +433,15 @@ def test_should_remove_remove_for_all_no_exceptions():
 
     assert (
         _should_remove(remove_resources, no_remove_resources, "component2", "app2")
-        == True
+        is True
     )
     assert (
         _should_remove(remove_resources, no_remove_resources, "component1", "app2")
-        == True
+        is True
     )
     assert (
         _should_remove(remove_resources, no_remove_resources, "whatever", "app1")
-        == True
+        is True
     )
 
 
@@ -455,7 +455,7 @@ def test_should_remove_remove_option_select_all():
             "app2",
             "component1",
         )
-        == False
+        is False
     )
 
     assert (
@@ -465,7 +465,7 @@ def test_should_remove_remove_option_select_all():
             "app1",
             "component1",
         )
-        == False
+        is False
     )
 
     assert (
@@ -475,7 +475,7 @@ def test_should_remove_remove_option_select_all():
             "app1",
             "component2",
         )
-        == True
+        is True
     )
 
 
@@ -489,7 +489,7 @@ def test_should_remove_no_remove_option_select_all():
             "app1",
             "component1",
         )
-        == True
+        is True
     )
 
     assert (
@@ -499,7 +499,7 @@ def test_should_remove_no_remove_option_select_all():
             "app1",
             "component1",
         )
-        == True
+        is True
     )
 
     assert (
@@ -511,7 +511,7 @@ def test_should_remove_no_remove_option_select_all():
             "app1",
             "component1",
         )
-        == True
+        is True
     )
 
     assert (
@@ -521,5 +521,5 @@ def test_should_remove_no_remove_option_select_all():
             "app1",
             "component1",
         )
-        == False
+        is False
     )
