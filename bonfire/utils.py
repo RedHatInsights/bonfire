@@ -118,6 +118,9 @@ class AppOrComponentSelector:
             f"{self.__class__.__name__}"
             f"(select_all={self.select_all}, apps={self.apps}, components={self.components})"
         )
+    
+    def __len__(self):
+        return len(self.apps)
 
 
 def get_dupes(iterable):

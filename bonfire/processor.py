@@ -577,7 +577,7 @@ class TemplateProcessor:
 
         # evaluate --remove-resources/--no-remove-resources
         app_name = self._get_app_for_component(component_name)
-
+        print(new_items)
         should_remove_resources = _should_remove(
             self.remove_resources, self.no_remove_resources, app_name, component_name
         )
