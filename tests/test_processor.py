@@ -449,9 +449,7 @@ def test_should_remove_remove_option_select_all():
     assert (
         _should_remove(
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
-            AppOrComponentSelector(
-                select_all=False, components=["component1"], apps=[]
-            ),
+            AppOrComponentSelector(select_all=False, components=["component1"], apps=[]),
             "app2",
             "component1",
         )
@@ -482,9 +480,7 @@ def test_should_remove_remove_option_select_all():
 def test_should_remove_no_remove_option_select_all():
     assert (
         _should_remove(
-            AppOrComponentSelector(
-                select_all=False, components=["component1"], apps=[]
-            ),
+            AppOrComponentSelector(select_all=False, components=["component1"], apps=[]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app1",
             "component1",
@@ -504,9 +500,7 @@ def test_should_remove_no_remove_option_select_all():
 
     assert (
         _should_remove(
-            AppOrComponentSelector(
-                select_all=False, components=["component1"], apps=["app1"]
-            ),
+            AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app1",
             "component1",
