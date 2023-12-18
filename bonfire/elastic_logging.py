@@ -12,14 +12,13 @@ import bonfire.config as conf
 log = logging.getLogger(__name__)
 
 
-class ElasticLogger():
+class ElasticLogger:
     def __init__(self):
         self.es_telemetry = logging.getLogger("elasicsearch")
 
         # prevent duplicate handlers
         self.es_handler = next(
-            (h for h in self.es_telemetry.handlers if type(h) is AsyncElasticsearchHandler),
-            None
+            (h for h in self.es_telemetry.handlers if type(h) is AsyncElasticsearchHandler), None
         )
         if not self.es_handler:
             self.es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
@@ -41,7 +40,7 @@ class AsyncElasticsearchHandler(logging.Handler):
             "uuid": str(uuid.uuid4()),
             "start_time": self.start_time.isoformat(),
             "bot": conf.BONFIRE_BOT,
-            "command": self._mask_parameter_values(sys.argv[1:])
+            "command": self._mask_parameter_values(sys.argv[1:]),
         }
 
     def emit(self, record):
@@ -58,8 +57,10 @@ class AsyncElasticsearchHandler(logging.Handler):
     def send_to_es(self, log_entry):
         # Convert log_entry to JSON and send to Elasticsearch
         try:
-            headers = {"Authorization": conf.ELASTICSEARCH_APIKEY,
-                       "Content-Type": "application/json"}
+            headers = {
+                "Authorization": conf.ELASTICSEARCH_APIKEY,
+                "Content-Type": "application/json",
+            }
 
             response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1)
             response.raise_for_status()
@@ -79,6 +80,6 @@ class AsyncElasticsearchHandler(logging.Handler):
                 is_parameter = False
             else:
                 masked_list.append(arg)
-                is_parameter = arg == '-p' or arg == '--set-parameter'
+                is_parameter = arg == "-p" or arg == "--set-parameter"
 
         return masked_list
