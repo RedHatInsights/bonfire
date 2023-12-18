@@ -410,18 +410,9 @@ def test_should_remove_remove_for_none_no_exceptions():
         select_all=True, components=["component1"], apps=["app1"]
     )
 
-    assert (
-        _should_remove(remove_resources, no_remove_resources, "component2", "app2")
-        is False
-    )
-    assert (
-        _should_remove(remove_resources, no_remove_resources, "component1", "app2")
-        is False
-    )
-    assert (
-        _should_remove(remove_resources, no_remove_resources, "whatever", "app1")
-        is False
-    )
+    assert _should_remove(remove_resources, no_remove_resources, "component2", "app2") is False
+    assert _should_remove(remove_resources, no_remove_resources, "component1", "app2") is False
+    assert _should_remove(remove_resources, no_remove_resources, "whatever", "app1") is False
 
 
 def test_should_remove_remove_for_all_no_exceptions():
@@ -429,22 +420,11 @@ def test_should_remove_remove_for_all_no_exceptions():
     remove_resources = AppOrComponentSelector(
         select_all=True, components=["component1"], apps=["app1"]
     )
-    no_remove_resources = AppOrComponentSelector(
-        select_all=False, components=[], apps=[]
-    )
+    no_remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=[])
 
-    assert (
-        _should_remove(remove_resources, no_remove_resources, "component2", "app2")
-        is True
-    )
-    assert (
-        _should_remove(remove_resources, no_remove_resources, "component1", "app2")
-        is True
-    )
-    assert (
-        _should_remove(remove_resources, no_remove_resources, "whatever", "app1")
-        is True
-    )
+    assert _should_remove(remove_resources, no_remove_resources, "component2", "app2") is True
+    assert _should_remove(remove_resources, no_remove_resources, "component1", "app2") is True
+    assert _should_remove(remove_resources, no_remove_resources, "whatever", "app1") is True
 
 
 def test_should_remove_remove_option_select_all():
