@@ -1063,7 +1063,6 @@ def _get_namespace(
                 "current namespace could not be used (not reserved,"
                 " expired, or not owned), reserving a new one",
             )
-
         ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
         reserved_new_ns = True
 
@@ -1094,13 +1093,11 @@ def _check_and_use_namespace(requested_ns_name, using_current):
         ns = Namespace(name=requested_ns_name)
 
         if ns.owned_by_me:
-            if using_current:
-                log.info("current namespace '%s' is owned by this user", ns.name)
+            log.info("namespace '%s' is owned by this user", ns.name)
         else:
+            log.info("namespace '%s' is reserved by someone else", ns.name)
             if using_current:
-                log.info("current namespace '%s' is reserved by someone else", ns.name)
                 return None
-
             _warn_if_not_owned_by_me()
 
         if not ns.ready:
