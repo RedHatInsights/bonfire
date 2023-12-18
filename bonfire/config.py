@@ -30,6 +30,9 @@ DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservati
 
 DEFAULT_GRAPHQL_URL = "https://app-interface.apps.appsrep05ue1.zqxk.p1.openshiftapps.com/graphql"
 
+DEFAULT_ELASTICSEARCH_HOST = "https://localhost:9200/search-bonfire/_doc"
+DEFAULT_ENABLE_TELEMETRY = "false"
+
 ENV_FILE = str(DEFAULT_ENV_PATH.absolute()) if DEFAULT_ENV_PATH.exists() else ""
 load_dotenv(ENV_FILE)
 
@@ -55,7 +58,7 @@ ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")
 # can be used to set name of 'requester' on namespace reservations
 BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
 # set to true when bonfire is running via automation using a bot acct (not an end user)
-BONFIRE_BOT = os.getenv("BONFIRE_BOT")
+BONFIRE_BOT = os.getenv("BONFIRE_BOT", "false").lower() == "true"
 
 BONFIRE_DEFAULT_PREFER = str(os.getenv("BONFIRE_DEFAULT_PREFER", "ENV_NAME=frontends")).split(",")
 BONFIRE_DEFAULT_REF_ENV = str(os.getenv("BONFIRE_DEFAULT_REF_ENV", "insights-stage"))
@@ -63,6 +66,9 @@ BONFIRE_DEFAULT_FALLBACK_REF_ENV = str(
     os.getenv("BONFIRE_DEFAULT_FALLBACK_REF_ENV", "insights-stage")
 )
 
+ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", DEFAULT_ELASTICSEARCH_HOST)
+ELASTICSEARCH_APIKEY = os.getenv("ELASTICSEARCH_APIKEY")
+ENABLE_TELEMETRY = os.getenv("ENABLE_TELEMETRY", DEFAULT_ENABLE_TELEMETRY).lower() == "true"
 
 DEFAULT_FRONTEND_DEPENDENCIES = (
     "chrome-service",

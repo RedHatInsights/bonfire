@@ -19,6 +19,7 @@ from bonfire.utils import FatalError, hms_to_seconds
 
 
 log = logging.getLogger(__name__)
+
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 

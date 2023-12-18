@@ -12,6 +12,7 @@ from tabulate import tabulate
 from wait_for import TimedOutError
 
 import bonfire.config as conf
+from bonfire.elastic_logging import ElasticLogger
 from bonfire.local import get_local_apps, get_appsfile_apps
 from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
 from bonfire.namespaces import (
@@ -51,7 +52,9 @@ from bonfire.utils import (
     merge_app_configs,
 )
 
+
 log = logging.getLogger(__name__)
+es_telemetry = ElasticLogger()
 
 APP_SRE_SRC = "appsre"
 FILE_SRC = "file"
@@ -66,6 +69,7 @@ _local_option = click.option(
 
 
 def _error(msg):
+    es_telemetry.send_telemetry(msg, success=False)
     click.echo(f"ERROR: {msg}", err=True)
     sys.exit(1)
 
@@ -86,7 +90,8 @@ def click_exception_wrapper(command):
         @wraps(f)
         def wrapper(*args, **kwargs):
             try:
-                return f(*args, **kwargs)
+                result = f(*args, **kwargs)
+                return result
             except KeyboardInterrupt:
                 _error(f"{command}: aborted by keyboard interrupt")
             except TimedOutError as err:
@@ -1350,6 +1355,7 @@ def _cmd_config_deploy(
         _err_handler(err)
     else:
         log.info("successfully deployed to namespace %s", ns)
+        es_telemetry.send_telemetry("successful deployment")
         url = get_console_url()
         if url:
             ns_url = f"{url}/k8s/cluster/projects/{ns}"
