@@ -13,7 +13,7 @@ from wait_for import TimedOutError
 
 import bonfire.config as conf
 from bonfire.local import get_local_apps, get_appsfile_apps
-from bonfire.utils import RepoFile, SYNTAX_ERR
+from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
 from bonfire.namespaces import (
     Namespace,
     extend_namespace,
@@ -350,29 +350,70 @@ def _validate_split_equals(ctx, param, value):
         raise click.BadParameter(msg)
 
 
-def _validate_opposing_opts(ctx, param, value):
+def _translate_to_obj(value_list):
+    apps = []
+    components = []
+    select_all = False
+    for value in value_list:
+        if value == "all":
+            # all is a special keyword
+            select_all = True
+        elif value.startswith("app:"):
+            apps.append(value.split(":")[1])
+        else:
+            components.append(value)
+    return AppOrComponentSelector(select_all, apps, components)
+
+
+def _app_or_component_selector(ctx, param, this_value):
+    if any([val.startswith("-") for val in this_value]):
+        raise click.BadParameter("requires a component name or keyword 'all'")
+
+    # check if 'app:' syntax has been used and translate input values to apps/components dictionary
+    this_value = _translate_to_obj(this_value)
+
     opposite_option = {
         "remove_resources": "no_remove_resources",
         "no_remove_resources": "remove_resources",
         "remove_dependencies": "no_remove_dependencies",
         "no_remove_dependencies": "remove_dependencies",
     }
-    opposite_option_value = ctx.params.get(opposite_option[param.name], "")
 
-    if any([val.startswith("-") for val in value]):
-        raise click.BadParameter("requires a component name or keyword 'all'")
-    if "all" in value and "all" in opposite_option_value:
+    this_param_name: str = param.name
+    other_param_name: str = opposite_option[this_param_name]
+
+    other_value = ctx.params.get(other_param_name, AppOrComponentSelector())
+
+    # validate that opposing options are not both set to 'all'
+    if this_value.select_all and other_value.select_all:
         raise click.BadParameter(
-            f"'{param.opts[0]}' and its opposite option can't be both set to 'all'"
+            f"'all' cannot be specified on both this option"
+            f" and its opposite '{other_param_name}'"
         )
 
-    # default values
-    if param.name == "remove_resources" and not value and not opposite_option_value:
-        value = ("all",)
-    if param.name == "no_remove_dependencies" and not value and not opposite_option_value:
-        value = ("all",)
+    # validate that the same app was not used in opposing options
+    for app in this_value.apps:
+        if app in other_value.apps:
+            raise click.BadParameter(
+                f"app '{app}' cannot be specified on both this option"
+                f" and its opposite '{other_param_name}'"
+            )
 
-    return value
+    # validate that the same component was not used in opposing options
+    for component in this_value.components:
+        if component in other_value.components:
+            raise click.BadParameter(
+                f"component '{component}' cannot be specified on both this option"
+                f" and its opposite '{other_param_name}'"
+            )
+
+    # set default value for --remove-resources to 'all' if option was unspecified
+    # set default value for --no-remove-dependencies to 'all' if option was unspecified
+    options_w_defaults = ("remove_resources", "no_remove_dependencies")
+    if this_param_name in options_w_defaults and this_value.empty:
+        this_value.select_all = True
+
+    return this_value
 
 
 _app_source_options = [
@@ -495,7 +536,7 @@ _process_options = _app_source_options + [
         ),
         type=str,
         multiple=True,
-        callback=_validate_opposing_opts,
+        callback=_app_or_component_selector,
     ),
     click.option(
         "--no-remove-resources",
@@ -505,7 +546,7 @@ _process_options = _app_source_options + [
         ),
         type=str,
         multiple=True,
-        callback=_validate_opposing_opts,
+        callback=_app_or_component_selector,
     ),
     click.option(
         "--remove-dependencies",
@@ -515,7 +556,7 @@ _process_options = _app_source_options + [
         ),
         type=str,
         multiple=True,
-        callback=_validate_opposing_opts,
+        callback=_app_or_component_selector,
     ),
     click.option(
         "--no-remove-dependencies",
@@ -525,7 +566,7 @@ _process_options = _app_source_options + [
         ),
         type=str,
         multiple=True,
-        callback=_validate_opposing_opts,
+        callback=_app_or_component_selector,
     ),
     click.option(
         "--single-replicas/--no-single-replicas",

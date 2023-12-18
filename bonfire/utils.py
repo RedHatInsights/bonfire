@@ -14,6 +14,8 @@ from distutils.version import StrictVersion
 from pathlib import Path
 from urllib.parse import urlparse
 
+from typing import List
+
 import sys
 
 if sys.version_info >= (3, 8):
@@ -97,6 +99,28 @@ _RATE_LIMIT_ERR_MSG = (
 _PARAM_REGEX = re.compile(r"\${(\S+)}")
 
 log = logging.getLogger(__name__)
+
+
+class AppOrComponentSelector:
+    def __init__(
+        self, select_all: bool = False, apps: List[str] = None, components: List[str] = None
+    ):
+        self.select_all = select_all
+        self.apps = apps or []
+        self.components = components or []
+
+    @property
+    def empty(self):
+        return not self.select_all and not self.apps and not self.components
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"(select_all={self.select_all}, apps={self.apps}, components={self.components})"
+        )
+
+    def __len__(self):
+        return len(self.apps)
 
 
 def get_dupes(iterable):

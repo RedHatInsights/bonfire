@@ -7,12 +7,13 @@ import uuid
 from pathlib import Path
 
 import yaml
+from cached_property import cached_property
 from ocviapy import process_template
 from sh import ErrorReturnCode
 
 import bonfire.config as conf
 from bonfire.openshift import whoami
-from bonfire.utils import FatalError, RepoFile
+from bonfire.utils import AppOrComponentSelector, FatalError, RepoFile
 from bonfire.utils import get_clowdapp_dependencies
 from bonfire.utils import get_dependencies as utils_get_dependencies
 
@@ -233,6 +234,45 @@ class ProcessedComponent:
         self.optional_deps_handled = optional_deps_handled
 
 
+def _should_remove(
+    remove_option: AppOrComponentSelector,
+    no_remove_option: AppOrComponentSelector,
+    app_name: str,
+    component_name: str,
+) -> bool:
+    # 'should_remove' evaluates to true when:
+    #   "--remove-option all" is set
+    #   "--remove-option all --no-remove-option x" is set and app/component does NOT match 'x'
+    #   "--no-remove-option all --remove-option x" is set and app/component matches 'x'
+    remove_for_all_no_exceptions = remove_option.select_all and no_remove_option.empty
+    remove_for_none_no_exceptions = no_remove_option.select_all and remove_option.empty
+
+    log.debug(
+        "should_remove: app_name: %s, component_name: %s, remove_option: %s, no_remove_option: %s",
+        app_name,
+        component_name,
+        remove_option,
+        no_remove_option,
+    )
+
+    if remove_for_none_no_exceptions:
+        return False
+    if remove_for_all_no_exceptions:
+        return True
+    if remove_option.select_all:
+        if app_name in no_remove_option.apps or component_name in no_remove_option.components:
+            return False
+        return True
+    if no_remove_option.select_all:
+        if app_name in remove_option.apps or component_name in remove_option.components:
+            return True
+        return False
+
+    # in theory all use cases should be covered by the above logic, throw an exception
+    # so we can identify if we missed a use case
+    raise Exception("hit None condition evaluating should_remove")
+
+
 class TemplateProcessor:
     @staticmethod
     def _parse_app_names(app_names):
@@ -305,22 +345,23 @@ class TemplateProcessor:
                     f"component given for {name} not found in app config: {component_name}"
                 )
 
-    def _validate_component_options(self, all_components, data, name):
-        if isinstance(data, dict):
+    @staticmethod
+    def _validate_app_list(all_apps, app_list, name):
+        for app_name in app_list:
+            if app_name not in all_apps:
+                raise FatalError(f"app given for {name} not found in app config: {app_name}")
+
+    def _validate_selector_options(self, all_apps, all_components, data, name):
+        if isinstance(data, AppOrComponentSelector):
+            self._validate_app_list(all_apps, data.apps, name)
+            self._validate_component_list(all_components, data.components, name)
+        elif isinstance(data, dict):
             self._validate_component_dict(all_components, data, name)
         else:
             self._validate_component_list(all_components, data, name)
 
-    def _validate(self):
-        """
-        Validate app configurations and options passed to the TemplateProcessor
-
-        1. Check that each app has required keys
-        2. Check that each app name is unique
-        3. Check that each component in an app has required keys
-        4. Check that each component is a unique name across the whole config
-        5. Check that CLI params requiring a component use a valid component name
-        """
+    @cached_property
+    def _components_for_app(self):
         components_for_app = {}
 
         for app_name, app_cfg in self.apps_config.items():
@@ -347,37 +388,53 @@ class TemplateProcessor:
                 comp_name = component["name"]
                 components_for_app[app_name].append(comp_name)
 
-        # Check that each component name is unique across the whole config
-        self._find_dupe_components(components_for_app)
+        return components_for_app
 
-        # Check that CLI params requiring a component use a valid component name
+    def _validate(self):
+        """
+        Validate app configurations and options passed to the TemplateProcessor
+
+        1. Check that each app has required keys
+        2. Check that each app name is unique
+        3. Check that each component in an app has required keys
+        4. Check that each component is a unique name across the whole config
+        5. Check that CLI params requiring a component use a valid component name
+        """
+        # Check that each component name is unique across the whole config
+        self._find_dupe_components(self._components_for_app)
+
+        # Check that CLI params requiring a component use a valid component name or app name
         all_components = []
-        for _, app_components in components_for_app.items():
+        for _, app_components in self._components_for_app.items():
             all_components.extend(app_components)
 
-        log.debug("components found: %s", all_components)
+        all_apps = list(self._components_for_app.keys())
 
-        self._validate_component_options(
-            all_components, self.template_ref_overrides, "--set-template-ref"
+        self._validate_selector_options(
+            all_apps, all_components, self.template_ref_overrides, "--set-template-ref"
         )
-        self._validate_component_options(all_components, self.param_overrides, "--set-parameter")
+        self._validate_selector_options(
+            all_apps, all_components, self.param_overrides, "--set-parameter"
+        )
 
-        # 'all' is a valid component keyword for these options below
+        self._validate_selector_options(
+            all_apps, all_components, self.remove_resources, "--remove-resources"
+        )
+        self._validate_selector_options(
+            all_apps, all_components, self.no_remove_resources, "--no-remove-resources"
+        )
+        self._validate_selector_options(
+            all_apps, all_components, self.remove_dependencies, "--remove-dependencies"
+        )
+        self._validate_selector_options(
+            all_apps, all_components, self.no_remove_dependencies, "--no-remove-dependencies"
+        )
+
+        # 'all' is a valid component keyword for this option below
         all_components.append("all")
-
-        self._validate_component_options(
-            all_components, self.remove_resources, "--remove-resources"
+        self._validate_selector_options(
+            all_apps, all_components, self.component_filter, "--component"
         )
-        self._validate_component_options(
-            all_components, self.no_remove_resources, "--no-remove-resources"
-        )
-        self._validate_component_options(
-            all_components, self.remove_dependencies, "--remove-dependencies"
-        )
-        self._validate_component_options(
-            all_components, self.no_remove_dependencies, "--no-remove-dependencies"
-        )
-        self._validate_component_options(all_components, self.component_filter, "--component")
 
     def __init__(
         self,
@@ -389,10 +446,10 @@ class TemplateProcessor:
         template_ref_overrides,
         param_overrides,
         clowd_env,
-        remove_resources,
-        no_remove_resources,
-        remove_dependencies,
-        no_remove_dependencies,
+        remove_resources: AppOrComponentSelector,
+        no_remove_resources: AppOrComponentSelector,
+        remove_dependencies: AppOrComponentSelector,
+        no_remove_dependencies: AppOrComponentSelector,
         single_replicas,
         component_filter,
         local,
@@ -480,6 +537,11 @@ class TemplateProcessor:
                 )
                 params[param_name] = value
 
+    def _get_app_for_component(self, component_name):
+        for app_name, components in self._components_for_app.items():
+            if component_name in components:
+                return app_name
+
     def _get_component_items(self, component_name):
         component = self._get_component_config(component_name)
         try:
@@ -513,21 +575,21 @@ class TemplateProcessor:
         # override the tags for all occurences of an image if requested
         new_items = self._sub_image_tags(new_items)
 
-        remove_all_resources = "all" in self.remove_resources or not self.remove_resources
-        remove_all_dependencies = "all" in self.remove_dependencies
-
-        if (
-            "all" not in self.no_remove_resources
-            and (remove_all_resources or component_name in self.remove_resources)
-            and component_name not in self.no_remove_resources
-        ):
+        # evaluate --remove-resources/--no-remove-resources
+        app_name = self._get_app_for_component(component_name)
+        should_remove_resources = _should_remove(
+            self.remove_resources, self.no_remove_resources, app_name, component_name
+        )
+        log.debug("should_remove_resources evaluates to %s", should_remove_resources)
+        if should_remove_resources:
             _remove_resource_config(new_items)
 
-        if (
-            "all" not in self.no_remove_dependencies
-            and (remove_all_dependencies or component_name in self.remove_dependencies)
-            and component_name not in self.no_remove_dependencies
-        ):
+        # evaluate --remove-dependencies/--no-remove-dependencies
+        should_remove_deps = _should_remove(
+            self.remove_dependencies, self.no_remove_dependencies, app_name, component_name
+        )
+        log.debug("should_remove_dependencies evaluates to %s", should_remove_deps)
+        if should_remove_deps:
             _remove_dependency_config(new_items)
 
         if self.single_replicas:
@@ -622,7 +684,7 @@ class TemplateProcessor:
             log.debug("template already processed for component '%s'", component_name)
             processed_component = self.processed_components[component_name]
         else:
-            log.info("processing component %s", component_name)
+            log.info("--> processing component %s", component_name)
             items = self._get_component_items(component_name)
 
             # ignore frontends if we're not supposed to deploy them
