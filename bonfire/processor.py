@@ -577,7 +577,6 @@ class TemplateProcessor:
 
         # evaluate --remove-resources/--no-remove-resources
         app_name = self._get_app_for_component(component_name)
-        print(new_items)
         should_remove_resources = _should_remove(
             self.remove_resources, self.no_remove_resources, app_name, component_name
         )
@@ -707,8 +706,6 @@ class TemplateProcessor:
     def _process_app(self, app_name):
         log.info("processing app '%s'", app_name)
         app_cfg = self._get_app_config(app_name)
-        print("We are here")
-        print(app_cfg)
         for component in app_cfg["components"]:
             component_name = component["name"]
             log.debug("app '%s' has component '%s'", app_name, component_name)

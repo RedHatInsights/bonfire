@@ -404,6 +404,7 @@ def test_mixed_deps_two_apps(mock_repo_file, processor, optional_deps_method, ex
 
 # Testing --no-remove-resources/dependency "app:" syntax
 def test_should_remove_remove_for_none_no_exceptions():
+    # --no-remove-resources all --no-remove-resources component1 --no-remove-resources app1
     remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=[])
     no_remove_resources = AppOrComponentSelector(
         select_all=True, components=["component1"], apps=["app1"]
@@ -424,6 +425,7 @@ def test_should_remove_remove_for_none_no_exceptions():
 
 
 def test_should_remove_remove_for_all_no_exceptions():
+    # --remove-resources all --remove-resources component1 --remove-resources app1
     remove_resources = AppOrComponentSelector(
         select_all=True, components=["component1"], apps=["app1"]
     )
@@ -446,6 +448,7 @@ def test_should_remove_remove_for_all_no_exceptions():
 
 
 def test_should_remove_remove_option_select_all():
+    # --remove-resources all --no-remove-resources component1
     assert (
         _should_remove(
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
@@ -456,6 +459,7 @@ def test_should_remove_remove_option_select_all():
         is False
     )
 
+    # --remove-resources all --no-remove-resources app:app1
     assert (
         _should_remove(
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
@@ -466,6 +470,7 @@ def test_should_remove_remove_option_select_all():
         is False
     )
 
+    # --remove-resources all
     assert (
         _should_remove(
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
@@ -478,6 +483,7 @@ def test_should_remove_remove_option_select_all():
 
 
 def test_should_remove_no_remove_option_select_all():
+    # --remove-resources component1 --no-remove-resources all
     assert (
         _should_remove(
             AppOrComponentSelector(select_all=False, components=["component1"], apps=[]),
@@ -488,6 +494,7 @@ def test_should_remove_no_remove_option_select_all():
         is True
     )
 
+    # --remove-resources app:app1 --no-remove-resources all
     assert (
         _should_remove(
             AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
@@ -498,6 +505,7 @@ def test_should_remove_no_remove_option_select_all():
         is True
     )
 
+    # --remove-resources component1 --remove-resources app:app1 --no-remove-resources all
     assert (
         _should_remove(
             AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
@@ -508,7 +516,41 @@ def test_should_remove_no_remove_option_select_all():
         is True
     )
 
+    # --remove-resources component1 --remove-resources app:app2 --no-remove-resources all
     assert (
+        _should_remove(
+            AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            "app2",
+            "component1",
+        )
+        is True
+    )
+
+    # --remove-resources component2 --remove-resources app:app1 --no-remove-resources all
+    assert (
+        _should_remove(
+            AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            "app1",
+            "component2",
+        )
+        is True
+    )
+
+    # --remove-resources component2 --remove-resources app:app2 --no-remove-resources all
+    assert (
+        _should_remove(
+            AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
+            AppOrComponentSelector(select_all=True, components=[], apps=[]),
+            "app2",
+            "component2",
+        )
+        is False
+    )
+
+    assert (
+        # --no-remove-resources all
         _should_remove(
             AppOrComponentSelector(select_all=False, components=[], apps=[]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
