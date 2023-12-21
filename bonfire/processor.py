@@ -279,8 +279,6 @@ def _should_remove(
     if app_name in remove_option.apps:
         return True
 
-    # in theory all use cases should be covered by the above logic, throw an exception
-    # so we can identify if we missed a use case
     return default
 
 
