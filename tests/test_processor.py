@@ -404,27 +404,27 @@ def test_mixed_deps_two_apps(mock_repo_file, processor, optional_deps_method, ex
 
 # Testing --no-remove-resources/dependency "app:" syntax
 def test_should_remove_remove_for_none_no_exceptions():
-    # --no-remove-resources all --no-remove-resources component1 --no-remove-resources app1
+    # --no-remove-resources all --no-remove-resources component1 --no-remove-resources app:app1
     remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=[])
     no_remove_resources = AppOrComponentSelector(
         select_all=True, components=["component1"], apps=["app1"]
     )
 
-    assert _should_remove(remove_resources, no_remove_resources, "component2", "app2") is False
-    assert _should_remove(remove_resources, no_remove_resources, "component1", "app2") is False
-    assert _should_remove(remove_resources, no_remove_resources, "whatever", "app1") is False
+    assert _should_remove(remove_resources, no_remove_resources, "app2", "component2") is False
+    assert _should_remove(remove_resources, no_remove_resources, "app2", "component1") is False
+    assert _should_remove(remove_resources, no_remove_resources, "app1", "whatever") is False
 
 
 def test_should_remove_remove_for_all_no_exceptions():
-    # --remove-resources all --remove-resources component1 --remove-resources app1
+    # --remove-resources all --remove-resources component1 --remove-resources app:app1
     remove_resources = AppOrComponentSelector(
         select_all=True, components=["component1"], apps=["app1"]
     )
     no_remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=[])
 
-    assert _should_remove(remove_resources, no_remove_resources, "component2", "app2") is True
-    assert _should_remove(remove_resources, no_remove_resources, "component1", "app2") is True
-    assert _should_remove(remove_resources, no_remove_resources, "whatever", "app1") is True
+    assert _should_remove(remove_resources, no_remove_resources, "app2", "component2") is True
+    assert _should_remove(remove_resources, no_remove_resources, "app2", "component1") is True
+    assert _should_remove(remove_resources, no_remove_resources, "app1", "whatever") is True
 
 
 def test_should_remove_remove_option_select_all():
@@ -538,4 +538,53 @@ def test_should_remove_no_remove_option_select_all():
             "component1",
         )
         is False
+    )
+
+
+@pytest.mark.parametrize("default", (True, False), ids=("default=True", "default=False"))
+def test_should_remove_component_overrides_app(default):
+    # --no-remove-resources app:app1 --remove-resources component1
+    remove_resources = AppOrComponentSelector(select_all=False, components=["component2"], apps=[])
+    no_remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=["app1"])
+
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app1", "component1", default)
+        is False
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app1", "component2", default) is True
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "anything", "else", default)
+        is default
+    )
+
+
+@pytest.mark.parametrize("default", (True, False), ids=("default=True", "default=False"))
+def test_should_remove_component_app_combos(default):
+    # --no-remove-resources app:app2 --no-remove-resources component2 \
+    #   --remove-resources component1 --remove-resources app:app1
+    remove_resources = AppOrComponentSelector(
+        select_all=False, components=["component1"], apps=["app1"]
+    )
+    no_remove_resources = AppOrComponentSelector(
+        select_all=False, components=["component2"], apps=["app2"]
+    )
+
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app2", "component1", default) is True
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app1", "anything", default) is True
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app1", "component2", default)
+        is False
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app2", "anything", default) is False
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "anything", "else", default)
+        is default
     )
