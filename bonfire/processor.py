@@ -239,11 +239,13 @@ def _should_remove(
     no_remove_option: AppOrComponentSelector,
     app_name: str,
     component_name: str,
+    default: bool = True,
 ) -> bool:
     # 'should_remove' evaluates to true when:
     #   "--remove-option all" is set
     #   "--remove-option all --no-remove-option x" is set and app/component does NOT match 'x'
     #   "--no-remove-option all --remove-option x" is set and app/component matches 'x'
+    #   "--no-remove-option app1 --remove-option"
     remove_for_all_no_exceptions = remove_option.select_all and no_remove_option.empty
     remove_for_none_no_exceptions = no_remove_option.select_all and remove_option.empty
 
@@ -267,10 +269,18 @@ def _should_remove(
         if app_name in remove_option.apps or component_name in remove_option.components:
             return True
         return False
+    if component_name in no_remove_option.components:
+        return False
+    if component_name in remove_option.components:
+        return True
+    if app_name in no_remove_option.apps:
+        return False
+    if app_name in remove_option.apps:
+        return True
 
     # in theory all use cases should be covered by the above logic, throw an exception
     # so we can identify if we missed a use case
-    raise Exception("hit None condition evaluating should_remove")
+    return default
 
 
 class TemplateProcessor:
@@ -578,7 +588,7 @@ class TemplateProcessor:
         # evaluate --remove-resources/--no-remove-resources
         app_name = self._get_app_for_component(component_name)
         should_remove_resources = _should_remove(
-            self.remove_resources, self.no_remove_resources, app_name, component_name
+            self.remove_resources, self.no_remove_resources, app_name, component_name, default=True
         )
         log.debug("should_remove_resources evaluates to %s", should_remove_resources)
         if should_remove_resources:
@@ -586,7 +596,11 @@ class TemplateProcessor:
 
         # evaluate --remove-dependencies/--no-remove-dependencies
         should_remove_deps = _should_remove(
-            self.remove_dependencies, self.no_remove_dependencies, app_name, component_name
+            self.remove_dependencies,
+            self.no_remove_dependencies,
+            app_name,
+            component_name,
+            default=False,
         )
         log.debug("should_remove_dependencies evaluates to %s", should_remove_deps)
         if should_remove_deps:
