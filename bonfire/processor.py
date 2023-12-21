@@ -246,7 +246,7 @@ def _should_remove(
     #   "--remove-option all --no-remove-option x" is set and app/component does NOT match 'x'
     #   "--no-remove-option all --remove-option x" is set and app/component matches 'x'
     #   "--no-remove-option app1 --remove-option component" and component matches
-    #   none of the above conditions match and default=True
+    #   none of the setting permutations are matched and default=True
     remove_for_all_no_exceptions = remove_option.select_all and no_remove_option.empty
     remove_for_none_no_exceptions = no_remove_option.select_all and remove_option.empty
 
