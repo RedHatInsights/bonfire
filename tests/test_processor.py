@@ -558,3 +558,33 @@ def test_should_remove_component_overrides_app(default):
         _should_remove(remove_resources, no_remove_resources, "anything", "else", default)
         is default
     )
+
+
+@pytest.mark.parametrize("default", (True, False), ids=("default=True", "default=False"))
+def test_should_remove_component_app_combos(default):
+    # --no-remove-resources app:app2 --no-remove-resources component2 \
+    #   --remove-resources component1 --remove-resources app:app1
+    remove_resources = AppOrComponentSelector(
+        select_all=False, components=["component1"], apps=["app1"]
+    )
+    no_remove_resources = AppOrComponentSelector(
+        select_all=False, components=["component2"], apps=["app2"]
+    )
+
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app2", "component1", default) is True
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app1", "anything", default) is True
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app1", "component2", default)
+        is False
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "app2", "anything", default) is False
+    )
+    assert (
+        _should_remove(remove_resources, no_remove_resources, "anything", "else", default)
+        is default
+    )
