@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: bonfire-search
+objects:
+  - apiVersion: elasticsearch.k8s.elastic.co/v1
+    kind: Elasticsearch
+    metadata:
+      name: bonfire-elasticsearch
+    spec:
+      http:
+        service:
+          metadata:
+            creationTimestamp: null
+          spec: {}
+        tls:
+          selfSignedCertificate:
+            disabled: true
+      version: 8.11.0
+      nodeSets:
+        - name: default
+          podTemplate:
+            spec:
+              containers:
+                - name: elasticsearch
+                  env:
+                    - name: ES_JAVA_OPTS
+                      value: ${ES_JAVA_OPTS}
+                  resources:
+                    limits:
+                      cpu: ${ES_CPU_LIMITS}
+                      memory: ${ES_MEMORY_LIMITS}
+                    requests:
+                      cpu: ${ES_CPU_REQUESTS}
+                      memory: ${ES_MEMORY_REQUESTS}
+          count: 1
+          config:
+            node.store.allow_mmap: false
+parameters:
+  - name: ES_CPU_REQUESTS
+    value: 250m
+  - name: ES_CPU_LIMITS
+    value: "1"
+  - name: ES_MEMORY_REQUESTS
+    value: 1Gi
+  - name: ES_MEMORY_LIMITS
+    value: 2Gi
+  - name: ES_JAVA_OPTS
+    value: -Xms500m -Xmx500m
+  - name: ES_USERNAME
+    value: ""
+  - name: ES_PASSWORD
+    value: ""
