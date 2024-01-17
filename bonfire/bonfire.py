@@ -1059,7 +1059,10 @@ def _cmd_process(
     preferred_params,
 ):
     """Fetch and process application templates"""
-    clowd_env = _get_env_name(namespace, clowd_env)
+    if namespace is None:
+        clowd_env = None
+    else:
+        clowd_env = _get_env_name(namespace, clowd_env)
 
     processed_templates = _process(
         app_names,
