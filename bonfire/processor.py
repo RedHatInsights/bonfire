@@ -248,6 +248,11 @@ def _should_remove(
     #   "--no-remove-option x --remove-option y" and app/component matches 'y'
     #   "--remove-option x --no-remove-option y" and app/component matches 'x'
     #   none of the setting permutations are matched and default=True
+
+    if app_name in conf.TRUSTED_APPS or component_name in conf.TRUSTED_COMPONENTS:
+        # if app/component is trusted, do not remove its resources
+        return False
+
     remove_for_all_no_exceptions = remove_option.select_all and no_remove_option.empty
     remove_for_none_no_exceptions = no_remove_option.select_all and remove_option.empty
 
