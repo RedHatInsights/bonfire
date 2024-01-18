@@ -187,6 +187,12 @@ def wait_for_db_resources(namespace, timeout=600):
 def find_clowd_env_for_ns(ns):
     try:
         clowd_envs = get_json("clowdenvironment")
+    except ValueError as err:
+        if "unknown resource type" in str(err).lower():
+            log.error("hit unknown resource type error, possibly not logged in to cluster?")
+            clowd_envs = {"items": []}
+        else:
+            raise
     except ErrorReturnCode as err:
         log.debug("hit error running 'oc get clowdenvironment': %s", err)
         clowd_envs = {"items": []}
