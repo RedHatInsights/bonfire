@@ -248,11 +248,6 @@ def _should_remove(
     #   "--no-remove-option x --remove-option y" and app/component matches 'y'
     #   "--remove-option x --no-remove-option y" and app/component matches 'x'
     #   none of the setting permutations are matched and default=True
-
-    if app_name in conf.TRUSTED_APPS or component_name in conf.TRUSTED_COMPONENTS:
-        # if app/component is trusted, do not remove its resources
-        return False
-
     remove_for_all_no_exceptions = remove_option.select_all and no_remove_option.empty
     remove_for_none_no_exceptions = no_remove_option.select_all and remove_option.empty
 
@@ -592,9 +587,21 @@ class TemplateProcessor:
 
         # evaluate --remove-resources/--no-remove-resources
         app_name = self._get_app_for_component(component_name)
-        should_remove_resources = _should_remove(
-            self.remove_resources, self.no_remove_resources, app_name, component_name, default=True
-        )
+
+        # if app/component is trusted, do not remove its resources
+        should_remove_resources = False
+        if app_name in conf.TRUSTED_APPS:
+            log.debug("should_remove: app '%s' listed in trusted apps", app_name)
+        elif component_name in conf.TRUSTED_COMPONENTS:
+            log.debug("should_remove: component '%s' listed in trusted apps", component_name)
+        else:
+            should_remove_resources = _should_remove(
+                self.remove_resources,
+                self.no_remove_resources,
+                app_name,
+                component_name,
+                default=True,
+            )
         log.debug("should_remove_resources evaluates to %s", should_remove_resources)
         if should_remove_resources:
             _remove_resource_config(new_items)
