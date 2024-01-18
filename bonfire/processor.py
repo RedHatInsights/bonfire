@@ -593,7 +593,7 @@ class TemplateProcessor:
         if app_name in conf.TRUSTED_APPS:
             log.debug("should_remove: app '%s' listed in trusted apps", app_name)
         elif component_name in conf.TRUSTED_COMPONENTS:
-            log.debug("should_remove: component '%s' listed in trusted apps", component_name)
+            log.debug("should_remove: component '%s' listed in trusted components", component_name)
         else:
             should_remove_resources = _should_remove(
                 self.remove_resources,
