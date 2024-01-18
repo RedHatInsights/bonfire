@@ -961,7 +961,10 @@ def _get_env_name(ns, env_name):
             log.info("searching for ClowdEnvironment tied to ns '%s'...", ns)
             match = find_clowd_env_for_ns(ns)
             if not match:
-                log.warning("could not find a ClowdEnvironment tied to ns '%s'", ns)
+                _error(
+                    f"could not find a ClowdEnvironment with target ns '{ns}'.  "
+                    "Specify one with '--clowd-env' if needed."
+                )
             else:
                 env_name = match["metadata"]["name"]
         else:
@@ -1287,11 +1290,6 @@ def _cmd_config_deploy(
         import_secrets_from_dir(secrets_dir)
 
     clowd_env = _get_env_name(ns, clowd_env)
-    if not clowd_env:
-        _error(
-            f"could not find a ClowdEnvironment tied to ns '{ns}'.  Specify which env "
-            "to use with '--clowd-env'"
-        )
 
     def _err_handler(err):
         try:
