@@ -85,21 +85,35 @@ def _resources_for_ns_wait():
 def _all_resources_ready(namespace, timeout, watcher):
     already_waited_on = set()
 
-    # wait on ClowdEnvironment, if there's one using this ns as its targetNamespace
+    # wait on ClowdEnvironments if any ClowdApps reference one
     start = time.time()
 
-    clowd_env = find_clowd_env_for_ns(namespace)
-    if clowd_env:
+    clowd_envs = set()
+    clowdapps = get_json("clowdapp", namespace=namespace)
+
+    for clowdapp in clowdapps["items"]:
+        env_name = clowdapp["spec"]["envName"]
+        if env_name not in clowd_envs:
+            log.info(
+                "will wait on ClowdEnvironment '%s' found on ClowdApp's .spec.envName",
+                env_name,
+            )
+            clowd_envs.add(env_name)
+
+    env_waiters = []
+    for clowd_env in clowd_envs:
         waiter = ResourceWaiter(
             namespace,
             "clowdenvironment",
-            clowd_env["metadata"]["name"],
+            clowd_env,
             watch_owned=True,
             watcher=watcher,
         )
-        if not waiter.wait_for_ready(timeout):
-            return False
+        env_waiters.append(waiter)
+    if not wait_for_ready_threaded(env_waiters, timeout):
+        return False
 
+    for waiter in env_waiters:
         for key in waiter.observed_resources:
             already_waited_on.add(key)
 
@@ -111,7 +125,6 @@ def _all_resources_ready(namespace, timeout, watcher):
     start = time.time()
 
     waiters = []
-    clowdapps = get_json("clowdapp", namespace=namespace)
     for clowdapp in clowdapps["items"]:
         waiter = ResourceWaiter(
             namespace, "clowdapp", clowdapp["metadata"]["name"], watch_owned=True, watcher=watcher
@@ -187,6 +200,12 @@ def wait_for_db_resources(namespace, timeout=600):
 def find_clowd_env_for_ns(ns):
     try:
         clowd_envs = get_json("clowdenvironment")
+    except ValueError as err:
+        if "unknown resource type" in str(err).lower():
+            log.error("hit unknown resource type error, possibly not logged in to cluster?")
+            clowd_envs = {"items": []}
+        else:
+            raise
     except ErrorReturnCode as err:
         log.debug("hit error running 'oc get clowdenvironment': %s", err)
         clowd_envs = {"items": []}

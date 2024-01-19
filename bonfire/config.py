@@ -53,7 +53,6 @@ BASE_NAMESPACE_PATH = os.getenv(
     "/services/insights/ephemeral/namespaces/ephemeral-base.yml",
 )
 EPHEMERAL_ENV_NAME = os.getenv("EPHEMERAL_ENV_NAME", "insights-ephemeral")
-ENV_NAME_FORMAT = os.getenv("ENV_NAME_FORMAT", "env-{namespace}")
 
 # can be used to set name of 'requester' on namespace reservations
 BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")

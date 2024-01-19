@@ -516,7 +516,7 @@ _process_options = _app_source_options + [
         "--clowd-env",
         "-e",
         help=(
-            f"Name of ClowdEnvironment (default: if --namespace provided, {conf.ENV_NAME_FORMAT})"
+            "Name of ClowdEnvironment (default: if --namespace provided, will try to find match)"
         ),
         type=str,
         default=None,
@@ -601,8 +601,9 @@ _clowdenv_process_options = [
     click.option(
         "--namespace",
         "-n",
-        help="Target namespace of the ClowdEnvironment (default: none)",
+        help="Target namespace of the ClowdEnvironment",
         type=str,
+        required=True,
     ),
     click.option(
         "--quay-user",
@@ -613,7 +614,7 @@ _clowdenv_process_options = [
     click.option(
         "--clowd-env",
         "-e",
-        help=(f"Name of ClowdEnvironment (default: if target ns provided, {conf.ENV_NAME_FORMAT})"),
+        help=("Name of ClowdEnvironment (default: env-<namespace>)"),
         type=str,
         default=None,
     ),
@@ -953,15 +954,30 @@ def _get_apps_config(
     return apps_config
 
 
-def _get_env_name(target_namespace, env_name):
-    if not env_name:
-        if not target_namespace:
-            _error(
-                "unable to infer name of ClowdEnvironment if namespace not provided."
-                "  Please run with one of: --clowd-env or --namespace"
-            )
-        env_name = conf.ENV_NAME_FORMAT.format(namespace=target_namespace)
+def _log_and_return(env_name):
+    log.info("templates will be processed with parameter ENV_NAME='%s'", env_name)
     return env_name
+
+
+def _get_env_name(ns=None, env_name=None):
+    if env_name:
+        return _log_and_return(env_name)
+
+    if not ns:
+        log.warning("neither '--clowd-env' nor '--namespace' provided")
+        return _log_and_return(None)
+
+    log.info("searching for ClowdEnvironment tied to ns '%s'...", ns)
+    match = find_clowd_env_for_ns(ns)
+    if not match:
+        log.warning(
+            "could not find a ClowdEnvironment with target ns '%s'.  "
+            "Specify one with '--clowd-env' if needed.",
+            ns,
+        )
+        return _log_and_return(None)
+
+    return _log_and_return(match["metadata"]["name"])
 
 
 def _process(
@@ -1279,17 +1295,7 @@ def _cmd_config_deploy(
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
 
-    if not clowd_env:
-        # if no ClowdEnvironment name provided, see if a ClowdEnvironment is associated with this ns
-        match = find_clowd_env_for_ns(ns)
-        if not match:
-            _error(
-                f"could not find a ClowdEnvironment tied to ns '{ns}'.  Specify which one "
-                "if you have already deployed one with '--clowd-env' or deploy one with "
-                "'bonfire deploy-env'"
-            )
-        clowd_env = match["metadata"]["name"]
-        log.debug("inferred clowd_env: '%s'", clowd_env)
+    clowd_env = _get_env_name(ns, clowd_env)
 
     def _err_handler(err):
         try:
@@ -1363,9 +1369,10 @@ def _cmd_config_deploy(
         click.echo(ns)
 
 
-def _process_clowdenv(target_namespace, quay_user, env_name, template_file, local):
-    env_name = _get_env_name(target_namespace, env_name)
-    return process_clowd_env(target_namespace, quay_user, env_name, template_file, local)
+def _process_clowdenv(namespace, quay_user, clowd_env, template_file, local):
+    if not clowd_env:
+        clowd_env = f"env-{namespace}"
+    return process_clowd_env(namespace, quay_user, clowd_env, template_file, local)
 
 
 @main.command("process-env")
