@@ -960,8 +960,8 @@ def _get_env_name(ns, env_name):
             log.info("searching for ClowdEnvironment tied to ns '%s'...", ns)
             match = find_clowd_env_for_ns(ns)
             if not match:
-                _error(
-                    f"could not find a ClowdEnvironment with target ns '{ns}'.  "
+                log.warning(
+                    "could not find a ClowdEnvironment with target ns '%s'.  "
                     "Specify one with '--clowd-env' if needed."
                 )
             else:
