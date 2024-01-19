@@ -601,8 +601,9 @@ _clowdenv_process_options = [
     click.option(
         "--namespace",
         "-n",
-        help="Target namespace of the ClowdEnvironment (default: none)",
+        help="Target namespace of the ClowdEnvironment",
         type=str,
+        required=True,
     ),
     click.option(
         "--quay-user",
@@ -613,9 +614,7 @@ _clowdenv_process_options = [
     click.option(
         "--clowd-env",
         "-e",
-        help=(
-            "Name of ClowdEnvironment (default: if --namespace provided, will try to find match)"
-        ),
+        help=("Name of ClowdEnvironment (default: env-<namespace>)"),
         type=str,
         default=None,
     ),
@@ -1363,9 +1362,10 @@ def _cmd_config_deploy(
         click.echo(ns)
 
 
-def _process_clowdenv(target_namespace, quay_user, env_name, template_file, local):
-    env_name = _get_env_name(target_namespace, env_name)
-    return process_clowd_env(target_namespace, quay_user, env_name, template_file, local)
+def _process_clowdenv(namespace, quay_user, clowd_env, template_file, local):
+    if not clowd_env:
+        clowd_env = f"env-{namespace}"
+    return process_clowd_env(namespace, quay_user, clowd_env, template_file, local)
 
 
 @main.command("process-env")
