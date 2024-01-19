@@ -954,23 +954,30 @@ def _get_apps_config(
     return apps_config
 
 
-def _get_env_name(ns, env_name):
-    if not env_name:
-        if ns:
-            log.info("searching for ClowdEnvironment tied to ns '%s'...", ns)
-            match = find_clowd_env_for_ns(ns)
-            if not match:
-                log.warning(
-                    "could not find a ClowdEnvironment with target ns '%s'.  "
-                    "Specify one with '--clowd-env' if needed."
-                )
-            else:
-                env_name = match["metadata"]["name"]
-        else:
-            log.warning("neither '--clowd-env' nor '--namespace' provided")
-
+def _log_and_return(env_name):
     log.info("templates will be processed with parameter ENV_NAME='%s'", env_name)
     return env_name
+
+
+def _get_env_name(ns=None, env_name=None):
+    if env_name:
+        return _log_and_return(env_name)
+
+    if not ns:
+        log.warning("neither '--clowd-env' nor '--namespace' provided")
+        return _log_and_return(None)
+
+    log.info("searching for ClowdEnvironment tied to ns '%s'...", ns)
+    match = find_clowd_env_for_ns(ns)
+    if not match:
+        log.warning(
+            "could not find a ClowdEnvironment with target ns '%s'.  "
+            "Specify one with '--clowd-env' if needed.",
+            ns,
+        )
+        return _log_and_return(None)
+
+    return _log_and_return(match["metadata"]["name"])
 
 
 def _process(

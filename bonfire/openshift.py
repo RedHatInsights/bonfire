@@ -88,17 +88,17 @@ def _all_resources_ready(namespace, timeout, watcher):
     # wait on ClowdEnvironments if any ClowdApps reference one
     start = time.time()
 
-    clowd_envs = []
-
+    clowd_envs = set()
     clowdapps = get_json("clowdapp", namespace=namespace)
+
     for clowdapp in clowdapps["items"]:
         env_name = clowdapp["spec"]["envName"]
         if env_name not in clowd_envs:
             log.info(
-                "will wait on ClowdEnvironment '%s' found on ClowdApp .spec.envName",
+                "will wait on ClowdEnvironment '%s' found on ClowdApp's .spec.envName",
                 env_name,
             )
-            clowd_envs.append(env_name)
+            clowd_envs.add(env_name)
 
     env_waiters = []
     for clowd_env in clowd_envs:
