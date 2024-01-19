@@ -66,6 +66,16 @@ BONFIRE_DEFAULT_FALLBACK_REF_ENV = str(
     os.getenv("BONFIRE_DEFAULT_FALLBACK_REF_ENV", "insights-stage")
 )
 
+# list of apps we will not remove resource requests/limits for
+TRUSTED_APPS = ["host-inventory"]
+if os.getenv("BONFIRE_TRUSTED_APPS"):
+    TRUSTED_APPS = os.getenv("BONFIRE_TRUSTED_APPS").split(",")
+
+# list of components we will not remove requests/limits for
+TRUSTED_COMPONENTS = []
+if os.getenv("BONFIRE_TRUSTED_COMPONENTS"):
+    TRUSTED_COMPONENTS = os.getenv("BONFIRE_TRUSTED_COMPONENTS").split(",")
+
 ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", DEFAULT_ELASTICSEARCH_HOST)
 ELASTICSEARCH_APIKEY = os.getenv("ELASTICSEARCH_APIKEY")
 ENABLE_TELEMETRY = os.getenv("ENABLE_TELEMETRY", DEFAULT_ENABLE_TELEMETRY).lower() == "true"
