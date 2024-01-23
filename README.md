@@ -54,11 +54,16 @@ python3 -m venv $VENV_DIR
 pip install crc-bonfire
 ```
 
-To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs, [create a personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) on your GitHub account which grants bonfire read access to your repos. Configure bonfire to use the token with:
+To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs,
+[create a personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+on your GitHub account which grants bonfire read access to your repos.
+
+Configure bonfire to use the token with:
 ```
 echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
 ```
 
+**Please note**: When using the Github token (classic), it **must have** the `read:project` scope for the template fetching to work!
 
 # Quick Start
 
