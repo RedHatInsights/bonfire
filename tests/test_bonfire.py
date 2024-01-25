@@ -356,7 +356,7 @@ def test_remove_defaults(mocker):
     result = runner.invoke(bonfire.test, ["process", "some-app"])
     assert result.exit_code == 0
 
-    kwargs = get_return_args.call_args.args[1]
+    _, kwargs = get_return_args.call_args
     assert kwargs["remove_resources"].select_all is True
     assert kwargs["no_remove_resources"].select_all is False
     assert kwargs["remove_dependencies"].select_all is False
@@ -370,7 +370,7 @@ def test_remove_resources_all(mocker):
     result = runner.invoke(bonfire.test, ["process", "some-app", "--no-remove-resources", "all"])
     assert result.exit_code == 0
 
-    kwargs = get_return_args.call_args.args[1]
+    _, kwargs = get_return_args.call_args
     assert kwargs["remove_resources"].select_all is False
     assert kwargs["no_remove_resources"].select_all is True
     assert kwargs["remove_dependencies"].select_all is False
