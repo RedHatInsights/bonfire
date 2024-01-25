@@ -347,3 +347,35 @@ def test_describe_wrong_ns(mocker):
         print(result.output)
     except FatalError:
         assert True
+
+
+def test_remove_defaults(mocker):
+    get_return_args = mocker.patch("bonfire.bonfire._get_return_args")
+
+    runner = CliRunner()
+    result = runner.invoke(bonfire.test, ["process", "some-app"])
+    assert result.exit_code == 0
+
+    call = get_return_args.call_args
+    assert call
+    _, kwargs = call
+    assert kwargs["remove_resources"].select_all is True
+    assert kwargs["no_remove_resources"].select_all is False
+    assert kwargs["remove_dependencies"].select_all is False
+    assert kwargs["no_remove_dependencies"].select_all is True
+
+
+def test_remove_resources_all(mocker):
+    get_return_args = mocker.patch("bonfire.bonfire._get_return_args")
+
+    runner = CliRunner()
+    result = runner.invoke(bonfire.test, ["process", "some-app", "--no-remove-resources", "all"])
+    assert result.exit_code == 0
+
+    call = get_return_args.call_args
+    assert call
+    _, kwargs = call
+    assert kwargs["remove_resources"].select_all is False
+    assert kwargs["no_remove_resources"].select_all is True
+    assert kwargs["remove_dependencies"].select_all is False
+    assert kwargs["no_remove_dependencies"].select_all is True

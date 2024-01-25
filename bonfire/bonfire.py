@@ -132,6 +132,14 @@ def main(debug):
     check_pypi()
 
 
+@main.group(hidden=True)
+def test():
+    """
+    Used for unit testing
+    """
+    pass
+
+
 @main.group()
 def namespace():
     """Perform operations related to namespace reservation"""
@@ -415,7 +423,7 @@ def _app_or_component_selector(ctx, param, this_value):
     # set default value for --remove-resources to 'all' if option was unspecified
     # set default value for --no-remove-dependencies to 'all' if option was unspecified
     options_w_defaults = ("remove_resources", "no_remove_dependencies")
-    if this_param_name in options_w_defaults and this_value.empty:
+    if this_param_name in options_w_defaults and this_value.empty and other_value.empty:
         this_value.select_all = True
 
     return this_value
@@ -1039,6 +1047,18 @@ def _process(
 def _cmd_pool_types():
     """List all pool types"""
     click.echo("\n".join(get_namespace_pools()))
+
+
+def _get_return_args(*args, **kwargs):
+    """Dummy function used for unit testing process options"""
+    pass
+
+
+@test.command("process", hidden=True)
+@options(_process_options)
+def _cmd_test_process(*args, **kwargs):
+    """Dummy command used for unit testing process options"""
+    _get_return_args(*args, **kwargs)
 
 
 @main.command("process")
