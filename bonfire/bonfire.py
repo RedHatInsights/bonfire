@@ -1058,7 +1058,7 @@ def _get_return_args(*args, **kwargs):
 @options(_process_options)
 def _cmd_test_process(*args, **kwargs):
     """Dummy command used for unit testing process options"""
-    _get_return_args(args, kwargs)
+    _get_return_args(*args, **kwargs)
 
 
 @main.command("process")
