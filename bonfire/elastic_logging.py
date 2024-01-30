@@ -56,6 +56,7 @@ class AsyncElasticsearchHandler(logging.Handler):
 
     def send_to_es(self, log_entry):
         # Convert log_entry to JSON and send to Elasticsearch
+        log.info("Sending telemetry data...")
         try:
             headers = {
                 "Authorization": conf.ELASTICSEARCH_APIKEY,
@@ -64,6 +65,7 @@ class AsyncElasticsearchHandler(logging.Handler):
 
             response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1)
             response.raise_for_status()
+            log.info("Successfully sent telemetry data")
         except Exception as e:
             # Handle exceptions (e.g., network issues, Elasticsearch down)
             log.error("Error sending data to elasticsearch: %s", e)
