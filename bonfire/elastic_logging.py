@@ -21,7 +21,8 @@ class ElasticLogger:
             (h for h in self.es_telemetry.handlers if type(h) is AsyncElasticsearchHandler), None
         )
         if not self.es_handler:
-            self.es_handler = AsyncElasticsearchHandler(conf.ELASTICSEARCH_HOST)
+            self.es_handler = AsyncElasticsearchHandler(
+                f'{conf.ELASTICSEARCH_HOST}/{conf.ELASTICSEARCH_INDEX}/_doc/')
             self.es_telemetry.addHandler(self.es_handler)
 
     def send_telemetry(self, log_message, success=True):
