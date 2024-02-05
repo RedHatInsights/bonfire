@@ -44,6 +44,8 @@ A wide range of CLI options allow you to customize exactly what combination of c
 
 # Installation
 
+## Installing locally
+
 We'd recommend setting up a virtual environment for bonfire:
 
 ```bash
@@ -64,6 +66,26 @@ echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
 ```
 
 **Please note**: When using the Github token (classic), it **must have** the `read:project` scope for the template fetching to work!
+
+## Using Docker
+
+We provide a Docker image at quay.io/cloudservices/bonfire. The image wraps a Python virtual environment with **crc-bonfire** installed on it.
+
+In order to use Bonfire you have to provide either a valid KUBE_CONFIG or a URL and a TOKEN to connect to the target Openshift cluster.
+
+The container's entrypoint already invokes the **bonfire** CLI with the arguments passed to the container, so you should be able to run any bonfire command you'd typically run by using:
+
+```
+podman run -it --rm quay.io/cloudservices/bonfire --version
+```
+
+### Using credentials
+
+The Bonfire image expects the OC_LOGIN_SERVER and OC_LOGIN_TOKEN variables to be defined in order to connect to an Openshift cluster.
+
+```
+
+```
 
 # Quick Start
 
