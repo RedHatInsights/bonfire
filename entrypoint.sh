@@ -6,14 +6,11 @@ init_check() {
         return 0
     fi
 
-    if [ -z "$OC_LOGIN_SERVER" ]; then
-        echo "OC_LOGIN_SERVER environment variable not found"
-        return 1
-    fi
-
-    if [ -z "$OC_LOGIN_TOKEN" ]; then
-        echo "OC_LOGIN_TOKEN environment variable not found"
-        return 1
+    if openshift_credentials_present; then
+        if ! try_login_openshift; then
+            echo "Failed logging into Openshift!"
+            return 1
+        fi
     fi
 }
 
@@ -21,10 +18,16 @@ check_kube_config() {
     [[ -r "${HOME}/.kube/config" ]] || [[ -r "$KUBECONFIG" ]]
 }
 
+openshift_credentials_present() {
+    [[ -n "$OC_LOGIN_SERVER" ]] && [[ -n "$OC_LOGIN_TOKEN" ]]
+}
+
+try_login_openshift() {
+    oc login --server="$OC_LOGIN_SERVER" --token="$OC_LOGIN_TOKEN" 
+}
+
 if ! init_check; then
     exit 1
 fi
-
-oc login --server="$OC_LOGIN_SERVER" --token="$OC_LOGIN_TOKEN" 
 
 bonfire "$@"

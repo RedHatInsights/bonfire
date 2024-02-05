@@ -76,15 +76,32 @@ In order to use Bonfire you have to provide either a valid KUBE_CONFIG or a URL 
 The container's entrypoint already invokes the **bonfire** CLI with the arguments passed to the container, so you should be able to run any bonfire command you'd typically run by using:
 
 ```
-podman run -it --rm quay.io/cloudservices/bonfire --version
+podman run -it --rm quay.io/cloudservices/bonfire version
 ```
 
 ### Using credentials
 
-The Bonfire image expects the OC_LOGIN_SERVER and OC_LOGIN_TOKEN variables to be defined in order to connect to an Openshift cluster.
+The Bonfire image can use the `OC_LOGIN_SERVER` and `OC_LOGIN_TOKEN` variables to connect to an Openshift cluster.
 
 ```
+podman run -it --rm -e OC_LOGIN_SERVER=https://api.openshift.example.com:6443 \
+    -e OC_LOGIN_TOKEN=some-api-token \
+    quay.io/cloudservices/bonfire namespace list
+```
 
+It can also make use of a Kube config file by mounting it on the container's HOME:
+
+```
+podman run -it --rm -v $HOME/.kube/config:/opt/bonfire/.kube/config:Z,U \
+    quay.io/cloudservices/bonfire namespace list
+```
+
+Although you can define the KUBECONFIG location using a variable:
+
+```
+podman run -it --rm -v $HOME/.kube/config:/opt/kubeconfig:Z,U \
+    -e KUBECONFIG=/opt/kubeconfig \
+    quay.io/cloudservices/bonfire namespace list
 ```
 
 # Quick Start
