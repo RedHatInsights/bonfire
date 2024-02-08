@@ -57,7 +57,12 @@ class AsyncElasticsearchHandler(logging.Handler):
 
     def send_to_es(self, log_entry):
         # Convert log_entry to JSON and send to Elasticsearch
+        if not conf.ELASTICSEARCH_APIKEY or not conf.ELASTICSEARCH_HOST:
+            log.error("Bonfire telemetry secret(s) not set")
+            return
+        
         log.info("Sending telemetry data...")
+
         try:
             headers = {
                 "Authorization": conf.ELASTICSEARCH_APIKEY,
