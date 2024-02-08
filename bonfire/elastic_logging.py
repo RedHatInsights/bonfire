@@ -60,7 +60,7 @@ class AsyncElasticsearchHandler(logging.Handler):
         if not conf.ELASTICSEARCH_APIKEY or not conf.ELASTICSEARCH_HOST:
             log.error("Bonfire telemetry secret(s) not set")
             return
-        
+
         log.info("Sending telemetry data...")
 
         try:
