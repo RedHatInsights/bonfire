@@ -49,7 +49,12 @@ class AsyncElasticsearchHandler(logging.Handler):
         self.metadata["elapsed_sec"] = (dt.now() - self.start_time).total_seconds()
 
         log_entry = {"log": self.format(record), "metadata": self.metadata}
+
         if conf.ENABLE_TELEMETRY:
+            if not conf.ELASTICSEARCH_APIKEY or not conf.ELASTICSEARCH_HOST:
+                log.error("Bonfire telemetry secret(s) not set")
+                return
+
             self.executor.submit(self.send_to_es, json.dumps(log_entry))
 
     def set_success_status(self, run_status):
@@ -57,10 +62,6 @@ class AsyncElasticsearchHandler(logging.Handler):
 
     def send_to_es(self, log_entry):
         # Convert log_entry to JSON and send to Elasticsearch
-        if not conf.ELASTICSEARCH_APIKEY or not conf.ELASTICSEARCH_HOST:
-            log.error("Bonfire telemetry secret(s) not set")
-            return
-
         log.info("Sending telemetry data...")
 
         try:
