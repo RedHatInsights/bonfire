@@ -8,7 +8,7 @@ init_check() {
 
     if openshift_credentials_present; then
         if ! try_login_openshift; then
-            echo "Failed logging into Openshift!"
+            echo "Failed to log into OpenShift!"
             return 1
         fi
     fi
