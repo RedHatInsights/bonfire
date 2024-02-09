@@ -92,7 +92,7 @@ podman run -it --rm -e OC_LOGIN_SERVER=https://api.openshift.example.com:6443 \
 It can also make use of a Kube config file by mounting it on the container's HOME:
 
 ```
-podman run -it --rm -v $HOME/.kube/config:/opt/bonfire/.kube/config:Z,U \
+podman run -it --rm -v ${KUBECONFIG:="$HOME/.kube/config"}:/opt/bonfire/.kube/config:Z,U \
     quay.io/cloudservices/bonfire namespace list
 ```
 
