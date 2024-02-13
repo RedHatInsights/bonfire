@@ -44,6 +44,8 @@ A wide range of CLI options allow you to customize exactly what combination of c
 
 # Installation
 
+## Installing locally
+
 We'd recommend setting up a virtual environment for bonfire:
 
 ```bash
@@ -64,6 +66,43 @@ echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
 ```
 
 **Please note**: When using the Github token (classic), it **must have** the `read:project` scope for the template fetching to work!
+
+## Using a container image (podman/docker)
+
+We provide a container image at quay.io/cloudservices/bonfire. The image wraps a Python virtual environment with **crc-bonfire** installed on it.
+
+In order to use Bonfire you have to provide either a valid KUBECONFIG or a URL and a TOKEN to connect to the target OpenShift cluster.
+
+The container's entrypoint already invokes the **bonfire** CLI with the arguments passed to the container, so you should be able to run any bonfire command you'd typically run, for example:
+
+```
+podman run -it --rm quay.io/cloudservices/bonfire version
+```
+
+### Using credentials
+
+The Bonfire image can use the `OC_LOGIN_SERVER` and `OC_LOGIN_TOKEN` variables to connect to an Openshift cluster.
+
+```
+podman run -it --rm -e OC_LOGIN_SERVER=https://api.openshift.example.com:6443 \
+    -e OC_LOGIN_TOKEN=some-api-token \
+    quay.io/cloudservices/bonfire namespace list
+```
+
+You can also make use of the kubeconfig file on your host by mounting it into the container's `$HOME` directory:
+
+```
+podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v ${KUBECONFIG:="$HOME/.kube/config"}:/opt/bonfire/.kube/config:Z \
+    quay.io/cloudservices/bonfire namespace list
+```
+
+If you desire for the kubeconfig to live in a non-standard location in the container, you can mount the kubeconfig into another path in the container, and set the KUBECONFIG environment variable:
+
+```
+podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v $HOME/.kube/config:/opt/kubeconfig:Z \
+    -e KUBECONFIG=/opt/kubeconfig \
+    quay.io/cloudservices/bonfire namespace list
+```
 
 # Quick Start
 
