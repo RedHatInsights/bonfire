@@ -545,7 +545,8 @@ _process_options = _app_source_options + [
         "--remove-resources",
         help=(
             "Remove resource limits and requests on ClowdApp configs "
-            "for specific components (default: all)"
+            "for specific components or apps. Prefix the app name with "
+            "'app:', otherwise specify the component name. (default: all)"
         ),
         type=str,
         multiple=True,
@@ -555,7 +556,8 @@ _process_options = _app_source_options + [
         "--no-remove-resources",
         help=(
             "Don't remove resource limits and requests on ClowdApp configs "
-            "for specific components (default: none)"
+            "for specific components or apps. Prefix the app name with "
+            "'app:', otherwise specify the component name. (default: none)"
         ),
         type=str,
         multiple=True,
@@ -565,7 +567,8 @@ _process_options = _app_source_options + [
         "--remove-dependencies",
         help=(
             "Remove dependencies/optionalDependencies on ClowdApp configs "
-            "for specific components (default: none)"
+            "for specific components or apps. Prefix the app name with "
+            "'app:', otherwise specify the component name. (default: none)"
         ),
         type=str,
         multiple=True,
@@ -575,7 +578,8 @@ _process_options = _app_source_options + [
         "--no-remove-dependencies",
         help=(
             "Don't remove dependencies/optionalDependencies on ClowdApp configs "
-            "for specific components (default: all)"
+            "for specific components or apps. Prefix the app name with "
+            "'app:', otherwise specify the component name. (default: all)"
         ),
         type=str,
         multiple=True,
