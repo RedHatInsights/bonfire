@@ -1174,7 +1174,7 @@ def _check_and_use_namespace(requested_ns_name, using_current, requester):
 
         ns = Namespace(name=requested_ns_name)
 
-        if ns.owned_by_me or ns.name == requester:
+        if ns.owned_by_me or ns.requester == requester:
             log.info("namespace '%s' is owned by this user", ns.name)
         else:
             log.info("namespace '%s' is reserved by someone else", ns.name)
