@@ -545,7 +545,8 @@ _process_options = _app_source_options + [
         "--remove-resources",
         help=(
             "Remove resource limits and requests on ClowdApp configs "
-            "for specific components (default: all)"
+            "for specific components or apps. Prefix the app name with "
+            "'app:', otherwise specify the component name. (default: all)"
         ),
         type=str,
         multiple=True,
@@ -555,7 +556,8 @@ _process_options = _app_source_options + [
         "--no-remove-resources",
         help=(
             "Don't remove resource limits and requests on ClowdApp configs "
-            "for specific components (default: none)"
+            "for specific components or apps. Prefix the app name with "
+            "'app:', otherwise specify the component name. (default: none)"
         ),
         type=str,
         multiple=True,
@@ -565,7 +567,8 @@ _process_options = _app_source_options + [
         "--remove-dependencies",
         help=(
             "Remove dependencies/optionalDependencies on ClowdApp configs "
-            "for specific components (default: none)"
+            "for specific components or apps. Prefix the app name with "
+            "'app:', otherwise specify the component name. (default: none)"
         ),
         type=str,
         multiple=True,
@@ -575,7 +578,8 @@ _process_options = _app_source_options + [
         "--no-remove-dependencies",
         help=(
             "Don't remove dependencies/optionalDependencies on ClowdApp configs "
-            "for specific components (default: all)"
+            "for specific components or apps. Prefix the app name with "
+            "'app:', otherwise specify the component name. (default: all)"
         ),
         type=str,
         multiple=True,
@@ -1136,7 +1140,7 @@ def _get_namespace(
 
     ns = None
     if requested_ns_name:
-        ns = _check_and_use_namespace(requested_ns_name, using_current)
+        ns = _check_and_use_namespace(requested_ns_name, using_current, requester)
 
     reserved_new_ns = False
     if not ns:
@@ -1151,7 +1155,7 @@ def _get_namespace(
     return ns.name, reserved_new_ns
 
 
-def _check_and_use_namespace(requested_ns_name, using_current):
+def _check_and_use_namespace(requested_ns_name, using_current, requester):
     if using_current:
         log.info("attempting to use current namespace from oc/kubectl context...")
 
@@ -1174,7 +1178,7 @@ def _check_and_use_namespace(requested_ns_name, using_current):
 
         ns = Namespace(name=requested_ns_name)
 
-        if ns.owned_by_me:
+        if ns.owned_by_me or ns.requester == requester:
             log.info("namespace '%s' is owned by this user", ns.name)
         else:
             log.info("namespace '%s' is reserved by someone else", ns.name)
