@@ -1136,7 +1136,7 @@ def _get_namespace(
 
     ns = None
     if requested_ns_name:
-        ns = _check_and_use_namespace(requested_ns_name, using_current)
+        ns = _check_and_use_namespace(requested_ns_name, using_current, requester)
 
     reserved_new_ns = False
     if not ns:
@@ -1151,7 +1151,7 @@ def _get_namespace(
     return ns.name, reserved_new_ns
 
 
-def _check_and_use_namespace(requested_ns_name, using_current):
+def _check_and_use_namespace(requested_ns_name, using_current, requester):
     if using_current:
         log.info("attempting to use current namespace from oc/kubectl context...")
 
@@ -1174,7 +1174,7 @@ def _check_and_use_namespace(requested_ns_name, using_current):
 
         ns = Namespace(name=requested_ns_name)
 
-        if ns.owned_by_me:
+        if ns.name == requester or ns.owned_by_me:
             log.info("namespace '%s' is owned by this user", ns.name)
         else:
             log.info("namespace '%s' is reserved by someone else", ns.name)
