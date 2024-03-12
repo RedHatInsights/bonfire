@@ -904,12 +904,23 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
 
 @namespace.command("describe")
 @click.argument("namespace", required=False, type=str)
-def _describe_namespace(namespace):
+@click.option(
+        "--output",
+        "-o",
+        default="cli",
+        help="which output format to return the data in",
+        type=click.Choice(["cli", "json"], case_sensitive=False),
+)
+def _describe_namespace(namespace, output):
     """Get current namespace info"""
     if not namespace:
         namespace = current_namespace_or_error()
-
-    click.echo(describe_namespace(namespace))
+    if output == "json":
+        data = {}
+        data = describe_namespace(namespace, output)
+        click.echo(json.dumps(data, indent=2))
+    else:
+        click.echo(describe_namespace(namespace, output))
 
 
 def _get_apps_config(
