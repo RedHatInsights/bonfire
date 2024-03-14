@@ -1,4 +1,5 @@
 import copy
+import json
 import datetime
 import logging
 import base64
@@ -373,7 +374,7 @@ def extend_namespace(namespace, duration, local=True):
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
 
 
-def describe_namespace(project_name: str):
+def describe_namespace(project_name: str, output: str):
     ns_data = get_json("namespace", project_name)
     if not ns_data:
         raise FatalError(f"namespace '{project_name}' not found")
@@ -389,17 +390,30 @@ def describe_namespace(project_name: str):
     kc_creds = get_keycloak_creds(project_name)
     project_url = get_console_url()
 
-    output = f"\nCurrent project: {project_name}\n"
+    data = f"\nCurrent project: {project_name}\n"
     if project_url:
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
-        output += f"Project URL: {ns_url}\n"
-    output += f"Keycloak admin route: {keycloak_url}\n"
-    output += f"Keycloak admin login: {kc_creds['username']} | {kc_creds['password']}\n"
-    output += f"{num_clowdapps} ClowdApp(s), " f"{num_frontends} Frontend(s) deployed\n"
-    output += f"Gateway route: https://{fe_host}\n"
-    output += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
+        data += f"Project URL: {ns_url}\n"
+    data += f"Keycloak admin route: {keycloak_url}\n"
+    data += f"Keycloak admin login: {kc_creds['username']} | {kc_creds['password']}\n"
+    data += f"{num_clowdapps} ClowdApp(s), " f"{num_frontends} Frontend(s) deployed\n"
+    data += f"Gateway route: https://{fe_host}\n"
+    data += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
+    if output == "json":
+        data = {
+                "namespace": project_name,
+                "keycloak_admin_route": keycloak_url,
+                "keycloak_admin_username": kc_creds['username'],
+                "keycloak_admin_password": kc_creds['password'],
+                "clowdapps_deployed": num_clowdapps,
+                "frontends_deployed": num_frontends,
+                "default_username": kc_creds['defaultUsername'],
+                "default_password": kc_creds['defaultPassword'],
+                "gateway_route": f"https://{fe_host}",
+            }
+        data = json.dumps(data, indent=2)
 
-    return output
+    return data
 
 
 def parse_fe_env(project_name):
