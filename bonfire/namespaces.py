@@ -404,7 +404,8 @@ def describe_namespace(project_name: str, output: str):
                 "keycloak_admin_route": keycloak_url,
                 "keycloak_admin_username": kc_creds['username'],
                 "keycloak_admin_password": kc_creds['password'],
-                "clowdapps_frontends_deployed": num_frontends,
+                "clowdapps_deployed": num_clowdapps,
+                "frontends_deployed": num_frontends,
                 "default_username": kc_creds['defaultUsername'],
                 "defualt_password": kc_creds['defaultPassword'],
             }
