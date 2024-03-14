@@ -1,4 +1,5 @@
 import copy
+import json
 import datetime
 import logging
 import base64
@@ -407,8 +408,10 @@ def describe_namespace(project_name: str, output: str):
                 "clowdapps_deployed": num_clowdapps,
                 "frontends_deployed": num_frontends,
                 "default_username": kc_creds['defaultUsername'],
-                "defualt_password": kc_creds['defaultPassword'],
+                "default_password": kc_creds['defaultPassword'],
+                "gateway_route": f"https://{fe_host}",
             }
+        data = json.dumps(data, indent=2)
 
     return data
 

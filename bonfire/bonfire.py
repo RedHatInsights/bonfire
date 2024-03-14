@@ -915,12 +915,8 @@ def _describe_namespace(namespace, output):
     """Get current namespace info"""
     if not namespace:
         namespace = current_namespace_or_error()
-    if output == "json":
-        data = {}
-        data = describe_namespace(namespace, output)
-        click.echo(json.dumps(data, indent=2))
-    else:
-        click.echo(describe_namespace(namespace, output))
+
+    click.echo(describe_namespace(namespace, output))
 
 
 def _get_apps_config(
