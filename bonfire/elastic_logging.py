@@ -41,6 +41,7 @@ class AsyncElasticsearchHandler(logging.Handler):
             "uuid": str(uuid.uuid4()),
             "start_time": self.start_time.isoformat(),
             "bot": conf.BONFIRE_BOT,
+            "client_id": conf.CLIENT_ID,
             "command": self._mask_parameter_values(sys.argv[1:]),
         }
 
