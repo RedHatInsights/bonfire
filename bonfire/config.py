@@ -28,7 +28,7 @@ DEFAULT_IQE_CJI_TEMPLATE = resource_filename("bonfire", "resources/default-iqe-c
 DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yaml")
 DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservation-template.yaml")
 
-DEFAULT_GRAPHQL_URL = "https://app-interface.apps.appsrep05ue1.zqxk.p1.openshiftapps.com/graphql"
+DEFAULT_GRAPHQL_URL = "https://app-interface.apps.rosa.appsrep09ue1.03r5.p3.openshiftapps.com/graphql"
 
 DEFAULT_ELASTICSEARCH_HOST = "https://localhost:9200/"
 DEFAULT_ELASTICSEARCH_INDEX = "search-bonfire"
