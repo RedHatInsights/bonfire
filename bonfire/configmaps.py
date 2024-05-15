@@ -74,8 +74,9 @@ def import_configmaps_from_dir(path):
         log.info("loaded %d configmap(s) from file '%s'", len(confmaps_in_file), confmaps_file)
         for confmaps_name in confmaps_in_file:
             if confmaps_name in configmaps:
-                raise FatalError(f"configmap with name '{confmaps_name}' "
-                                 f"defined twice in configmaps dir")
+                raise FatalError(
+                    f"configmap with name '{confmaps_name}' defined twice in configmaps dir"
+                )
         configmaps.update(confmaps_in_file)
 
     for configmap_name, configmap_data in configmaps.items():

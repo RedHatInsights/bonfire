@@ -906,11 +906,11 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
 @namespace.command("describe")
 @click.argument("namespace", required=False, type=str)
 @click.option(
-        "--output",
-        "-o",
-        default="cli",
-        help="which output format to return the data in",
-        type=click.Choice(["cli", "json"], case_sensitive=False),
+    "--output",
+    "-o",
+    default="cli",
+    help="which output format to return the data in",
+    type=click.Choice(["cli", "json"], case_sensitive=False),
 )
 def _describe_namespace(namespace, output):
     """Get current namespace info"""
@@ -1269,7 +1269,8 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
     "--configmaps-dir",
     type=str,
     help="Directory to use for configmaps import \
-          (default: " "$XDG_CONFIG_HOME/bonfire/configmaps/)",
+          (default: "
+    "$XDG_CONFIG_HOME/bonfire/configmaps/)",
     default=conf.DEFAULT_CONFIGMAPS_DIR,
 )
 @click.option(
@@ -1456,8 +1457,11 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
 @click.option(
     "--configmaps-dir",
     type=str,
-    help=("Import configmaps from this directory \
-           (default: " "$XDG_CONFIG_HOME/bonfire/configmaps/)"),
+    help=(
+        "Import configmaps from this directory \
+           (default: "
+        "$XDG_CONFIG_HOME/bonfire/configmaps/)"
+    ),
     default=conf.DEFAULT_CONFIGMAPS_DIR,
 )
 @options(_ns_reserve_options)
