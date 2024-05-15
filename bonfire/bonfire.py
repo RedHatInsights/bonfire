@@ -42,6 +42,7 @@ from bonfire.openshift import (
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.qontract import get_apps_for_env, sub_refs
 from bonfire.secrets import import_secrets_from_dir
+from bonfire.configmaps import import_configmaps_from_dir
 from bonfire.utils import (
     FatalError,
     check_pypi,
@@ -1253,10 +1254,23 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
     default=False,
 )
 @click.option(
+    "--import-configmaps",
+    is_flag=True,
+    help="Import configmaps from local directory at deploy time",
+    default=False,
+)
+@click.option(
     "--secrets-dir",
     type=str,
     help="Directory to use for secrets import (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)",
     default=conf.DEFAULT_SECRETS_DIR,
+)
+@click.option(
+    "--configmaps-dir",
+    type=str,
+    help="Directory to use for configmaps import \
+          (default: " "$XDG_CONFIG_HOME/bonfire/configmaps/)",
+    default=conf.DEFAULT_CONFIGMAPS_DIR,
 )
 @click.option(
     "--no-release-on-fail",
@@ -1293,7 +1307,9 @@ def _cmd_config_deploy(
     no_release_on_fail,
     component_filter,
     import_secrets,
+    import_configmaps,
     secrets_dir,
+    configmaps_dir,
     local,
     frontends,
     pool,
@@ -1325,6 +1341,9 @@ def _cmd_config_deploy(
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
+
+    if import_configmaps:
+        import_configmaps_from_dir(configmaps_dir)
 
     clowd_env = _get_env_name(ns, clowd_env)
 
@@ -1423,10 +1442,23 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
     default=False,
 )
 @click.option(
+    "--import-configmaps",
+    is_flag=True,
+    help="Import configmaps from local directory at deploy time",
+    default=False,
+)
+@click.option(
     "--secrets-dir",
     type=str,
     help=("Import secrets from this directory (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)"),
     default=conf.DEFAULT_SECRETS_DIR,
+)
+@click.option(
+    "--configmaps-dir",
+    type=str,
+    help=("Import configmaps from this directory \
+           (default: " "$XDG_CONFIG_HOME/bonfire/configmaps/)"),
+    default=conf.DEFAULT_CONFIGMAPS_DIR,
 )
 @options(_ns_reserve_options)
 @options(_timeout_option)
@@ -1438,7 +1470,9 @@ def _cmd_deploy_clowdenv(
     template_file,
     timeout,
     import_secrets,
+    import_configmaps,
     secrets_dir,
+    configmaps_dir,
     name,
     requester,
     duration,
@@ -1454,6 +1488,9 @@ def _cmd_deploy_clowdenv(
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
+
+    if import_configmaps:
+        import_configmaps_from_dir(configmaps_dir)
 
     clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
 

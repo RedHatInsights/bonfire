@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 DEFAULT_CONFIG_PATH = get_config_path().joinpath("config.yaml")
 DEFAULT_ENV_PATH = get_config_path().joinpath("env")
 DEFAULT_SECRETS_DIR = get_config_path().joinpath("secrets")
+DEFAULT_CONFIGMAPS_DIR = get_config_path().joinpath("configmaps")
 
 DEFAULT_NAMESPACE_POOL = "default"
 
