@@ -401,16 +401,16 @@ def describe_namespace(project_name: str, output: str):
     data += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
     if output == "json":
         data = {
-                "namespace": project_name,
-                "keycloak_admin_route": keycloak_url,
-                "keycloak_admin_username": kc_creds['username'],
-                "keycloak_admin_password": kc_creds['password'],
-                "clowdapps_deployed": num_clowdapps,
-                "frontends_deployed": num_frontends,
-                "default_username": kc_creds['defaultUsername'],
-                "default_password": kc_creds['defaultPassword'],
-                "gateway_route": f"https://{fe_host}",
-            }
+            "namespace": project_name,
+            "keycloak_admin_route": keycloak_url,
+            "keycloak_admin_username": kc_creds["username"],
+            "keycloak_admin_password": kc_creds["password"],
+            "clowdapps_deployed": num_clowdapps,
+            "frontends_deployed": num_frontends,
+            "default_username": kc_creds["defaultUsername"],
+            "default_password": kc_creds["defaultPassword"],
+            "gateway_route": f"https://{fe_host}",
+        }
         data = json.dumps(data, indent=2)
 
     return data
