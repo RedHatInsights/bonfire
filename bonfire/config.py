@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 DEFAULT_CONFIG_PATH = get_config_path().joinpath("config.yaml")
 DEFAULT_ENV_PATH = get_config_path().joinpath("env")
 DEFAULT_SECRETS_DIR = get_config_path().joinpath("secrets")
+DEFAULT_CONFIGMAPS_DIR = get_config_path().joinpath("configmaps")
 
 DEFAULT_NAMESPACE_POOL = "default"
 
@@ -84,7 +85,7 @@ ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", DEFAULT_ELASTICSEARCH_HOST)
 ELASTICSEARCH_INDEX = os.getenv("ELASTICSEARCH_INDEX", DEFAULT_ELASTICSEARCH_INDEX)
 ELASTICSEARCH_APIKEY = os.getenv("ELASTICSEARCH_APIKEY")
 if ELASTICSEARCH_APIKEY:
-    ELASTICSEARCH_APIKEY = f'ApiKey {ELASTICSEARCH_APIKEY}'
+    ELASTICSEARCH_APIKEY = f"ApiKey {ELASTICSEARCH_APIKEY}"
 ENABLE_TELEMETRY = os.getenv("ENABLE_TELEMETRY", DEFAULT_ENABLE_TELEMETRY).lower() == "true"
 
 CLIENT_ID = os.getenv("CLIENT_ID", DEFAULT_CLIENT_ID)
@@ -100,7 +101,7 @@ DEFAULT_FRONTEND_DEPENDENCIES = (
     "host-inventory",
     "host-inventory-frontend",
     "unleash-proxy",
-    "service-accounts"
+    "service-accounts",
 )
 
 
