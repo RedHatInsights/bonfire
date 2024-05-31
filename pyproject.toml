@@ -65,3 +65,4 @@ Homepage = "https://www.github.com/RedHatInsights/bonfire"
 [tool.ruff]
 line-length = 100
 indent-width = 4
+
