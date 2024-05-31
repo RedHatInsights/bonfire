@@ -1,5 +1,63 @@
 [build-system]
-requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools >= 61.0", "setuptools_scm >= 8"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "crc-bonfire"
+dynamic = ["version"]
+description = "A CLI tool used to deploy ephemeral environments for testing cloud.redhat.com applications"
+readme = "README.md"
+license = { text= "MIT License" }
+requires-python = ">=3.6"
+authors = [
+    { name = "Brandon Squizzato", email = "bsquizza@redhat.com" },
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "app-common-python>=0.1.6",
+    "cached_property",
+    "chardet<4.0,>=2.0",
+    "click>=7.1.2",
+    "gql==3.0.0a6",
+    "importlib-metadata>=0.12;python_version<\"3.8\"",
+    "junitparser",
+    "multidict",
+    "ocviapy>=1.2.2",
+    "python-dotenv",
+    "PyYAML",
+    "requests",
+    "sh",
+    "tabulate",
+    "wait-for",
+]
+
+[project.scripts]
+bonfire = "bonfire.bonfire:main_with_handler"
+
 [tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+# package names should match these glob patterns (["*"] by default)
+include = ["bonfire*"]
+# exclude packages matching these glob patterns (empty by default)
+exclude = ["tests*"]
+# to disable scanning PEP 420 namespaces (true by default)
+namespaces = false
+
+[project.optional-dependencies]
+test = [
+    "mock",
+    "pytest",
+    "pytest-mock",
+]
+
+[project.urls]
+Homepage = "https://www.github.com/RedHatInsights/bonfire"
