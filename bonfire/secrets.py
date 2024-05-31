@@ -1,6 +1,7 @@
 """
 Handles importing of secrets from a local directory
 """
+
 import glob
 import json
 import logging
