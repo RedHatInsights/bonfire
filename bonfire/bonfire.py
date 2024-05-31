@@ -1268,9 +1268,7 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
 @click.option(
     "--configmaps-dir",
     type=str,
-    help=(
-        "Directory to use for configmaps import (default: $XDG_CONFIG_HOME/bonfire/configmaps/)"
-    ),
+    help=("Directory to use for configmaps import (default: $XDG_CONFIG_HOME/bonfire/configmaps/)"),
     default=conf.DEFAULT_CONFIGMAPS_DIR,
 )
 @click.option(

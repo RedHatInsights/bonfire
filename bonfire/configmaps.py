@@ -1,6 +1,7 @@
 """
 Handles importing of configmaps from a local directory
 """
+
 import glob
 import json
 import logging
@@ -71,7 +72,11 @@ def import_configmaps_from_dir(path):
     log.info("importing configmaps from local path: %s", path)
     for confmaps_file in files:
         confmaps_in_file = _parse_configmaps_file(confmaps_file)
-        log.info("loaded %d configmap(s) from file '%s'", len(confmaps_in_file), confmaps_file)
+        log.info(
+            "loaded %d configmap(s) from file '%s'",
+            len(confmaps_in_file),
+            confmaps_file,
+        )
         for confmaps_name in confmaps_in_file:
             if confmaps_name in configmaps:
                 raise FatalError(
