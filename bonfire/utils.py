@@ -552,8 +552,8 @@ def check_pypi():
         response = requests.get(PYPI_URL, timeout=5)
         response.raise_for_status()
         pkg_data = response.json()
-    except requests.exceptions.RequestException as e:
-        log.error("error fetching version from pypi: ", e.errno, e.message)
+    except requests.exceptions.RequestException as err:
+        log.error("error fetching version from pypi: %s", err)
     except ValueError:
         log.error("response was not valid json")
 
