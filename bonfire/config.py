@@ -88,6 +88,14 @@ TRUSTED_COMPONENTS = []
 if os.getenv("BONFIRE_TRUSTED_COMPONENTS"):
     TRUSTED_COMPONENTS = os.getenv("BONFIRE_TRUSTED_COMPONENTS").split(",")
 
+# regexes used to check for trusted resource request/limit
+TRUSTED_PARAM_REGEX_FOR_PATH = {
+    "resources.requests.cpu": r"\${(CPU_REQUEST[A-Z0-9_]+)}",
+    "resources.limits.cpu": r"\${(CPU_LIMIT[A-Z0-9_]+)}",
+    "resources.requests.mem": r"\${(MEM_REQUEST[A-Z0-9_]+)}",
+    "resources.limits.mem": r"\${(MEM_LIMIT[A-Z0-9_]+)}",
+}
+
 ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", DEFAULT_ELASTICSEARCH_HOST)
 ELASTICSEARCH_INDEX = os.getenv("ELASTICSEARCH_INDEX", DEFAULT_ELASTICSEARCH_INDEX)
 ELASTICSEARCH_APIKEY = os.getenv("ELASTICSEARCH_APIKEY")
