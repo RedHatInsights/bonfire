@@ -30,6 +30,19 @@ def _process_template(*args, **kwargs):
     return processed_template
 
 
+def _is_trusted_param(value, path, component_params):
+    trusted = False
+
+    for path_end, regex in conf.TRUSTED_PARAM_REGEX_FOR_PATH.items():
+        if path.endswith(path_end):
+            match = re.match(regex, value)
+            if match and match.groups()[0] in component_params:
+                trusted = True
+            log.debug("value '%s' at path '%s', trusted=%s", value, path, trusted)
+
+    return trusted
+
+
 def _label_trusted_resources(data, params, path=None):
     """
     Locate all instances of resource configurations within a template and label them as trusted
@@ -56,14 +69,9 @@ def _label_trusted_resources(data, params, path=None):
         for index, value in enumerate(data):
             _label_trusted_resources(value, params, path + f"[{index}]")
 
-    if path.endswith(".resources.limits.cpu"):
-        log.debug("found cpu limit config at %s: %s", path, data)
-    elif path.endswith(".resources.limits.memory"):
-        log.debug("found mem limit config at %s: %s", path, data)
-    elif path.endswith(".resources.requests.cpu"):
-        log.debug("found cpu request config at %s: %s", path, data)
-    elif path.endswith(".resources.requests.memory"):
-        log.debug("found mem limit config at %s: %s", path, data)
+    if _is_trusted_param(data, path, params):
+        # TODO: label it
+        pass
 
 
 def _remove_resource_config(items):
