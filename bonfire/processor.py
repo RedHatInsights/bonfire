@@ -30,6 +30,42 @@ def _process_template(*args, **kwargs):
     return processed_template
 
 
+def _label_trusted_resources(data, params, path=None):
+    """
+    Locate all instances of resource configurations within a template and label them as trusted
+    if:
+        1. the value is defined using a template parameter
+        2. the parameter follows the proper syntax convention
+        3. the parameter is defined on the component in its deployment config
+
+    Recursively iterates through the dictionary to find any items with a path ending in:
+    'resources.limits.cpu'
+    'resources.limits.memory'
+    'resources.requests.cpu'
+    'resources.requests.memory'
+    """
+
+    if not path:
+        path = ""
+
+    if isinstance(data, dict):
+        for key, value in data.items():
+            _label_trusted_resources(value, params, path + f".{key}")
+
+    elif isinstance(data, list):
+        for index, value in enumerate(data):
+            _label_trusted_resources(value, params, path + f"[{index}]")
+
+    if path.endswith(".resources.limits.cpu"):
+        log.debug("found cpu limit config at %s: %s", path, data)
+    elif path.endswith(".resources.limits.memory"):
+        log.debug("found mem limit config at %s: %s", path, data)
+    elif path.endswith(".resources.requests.cpu"):
+        log.debug("found cpu request config at %s: %s", path, data)
+    elif path.endswith(".resources.requests.memory"):
+        log.debug("found mem limit config at %s: %s", path, data)
+
+
 def _remove_resource_config(items):
     for i in items:
         if i["kind"] != "ClowdApp":
@@ -579,6 +615,9 @@ class TemplateProcessor:
         # override other specific parameters on this component if requested by user at runtime
         self._sub_params(component_name, params)
         log.debug("parameters for component '%s': %s", component_name, params)
+
+        # determine which cpu/mem resource parameters can be trusted in the template
+        _label_trusted_resources(template, params)
 
         new_items = _process_template(template, params, self.local)["items"]
 
