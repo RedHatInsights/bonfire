@@ -1416,9 +1416,9 @@ def _cmd_config_deploy(
             ns_url = f"{url}/k8s/cluster/projects/{ns}"
             log.info("namespace url: %s", ns_url)
             log.info(
-                "resource usage dashboard for namespace '%s': https://grafana.app-sre.devshift.net/d/jRY7KLnVz?var-namespace=%s",
+                "resource usage dashboard for namespace '%s': %s",
                 ns,
-                ns,
+                conf.RESOURCE_DASHBOARD_URL.format(namespace=ns),
             )
         click.echo(ns)
 
