@@ -30,23 +30,32 @@ def _process_template(*args, **kwargs):
     return processed_template
 
 
-def _is_trusted_param(value, path, component_params):
+def _is_untrusted_resource_config(value, regex, component_params, path):
+    """
+    Check for presence of a trusted param being used for the value.
+
+    Only check values if the path ends in one of those listed in TRUSTED_PARAM_REGEX_FOR_PATH
+
+    Returns True if we determine this is an untrusted value
+    """
     trusted = False
 
-    for path_end, regex in conf.TRUSTED_PARAM_REGEX_FOR_PATH.items():
-        if path.endswith(path_end):
-            match = re.match(regex, value)
-            if match and match.groups()[0] in component_params:
-                trusted = True
-            log.debug("value '%s' at path '%s', trusted=%s", value, path, trusted)
+    match = re.match(regex, value)
+    if match and match.groups()[0] in component_params:
+        trusted = True
 
-    return trusted
+    log.debug("value '%s' at path '%s', trusted=%s", value, path, trusted)
+
+    if not trusted:
+        # this config value is untrusted
+        return True
 
 
-def _label_trusted_resources(data, params, path=None):
+def _remove_untrusted_resources(data, params, path=None, current_dict=None, current_key=None):
     """
-    Locate all instances of resource configurations within a template and label them as trusted
-    if:
+    Locate all instances of resource configurations within 'data' and remove them if not trusted.
+
+    A resource configuration is trusted if:
         1. the value is defined using a template parameter
         2. the parameter follows the proper syntax convention
         3. the parameter is defined on the component in its deployment config
@@ -57,40 +66,38 @@ def _label_trusted_resources(data, params, path=None):
     'resources.requests.cpu'
     'resources.requests.memory'
     """
-
     if not path:
         path = ""
 
     if isinstance(data, dict):
-        for key, value in data.items():
-            _label_trusted_resources(value, params, path + f".{key}")
+        for key, value in copy.copy(data).items():
+            _remove_untrusted_resources(
+                value, params, path + f".{key}", current_dict=data, current_key=key
+            )
 
     elif isinstance(data, list):
-        for index, value in enumerate(data):
-            _label_trusted_resources(value, params, path + f"[{index}]")
+        for index, value in enumerate(copy.copy(data)):
+            _remove_untrusted_resources(value, params, path + f"[{index}]")
 
-    if _is_trusted_param(data, path, params):
-        # TODO: label it
-        pass
-
-
-def _remove_resource_config(items):
-    for i in items:
-        if i["kind"] != "ClowdApp":
+    # check if this value path is one of the ones we need to check
+    for path_end, regex in conf.TRUSTED_PARAM_REGEX_FOR_PATH.items():
+        if not path.endswith(path_end):
             continue
 
-        removed = False
-        for d in i["spec"].get("deployments", []):
-            if "resources" in d["podSpec"]:
-                del d["podSpec"]["resources"]
-                removed = True
-        for p in i["spec"].get("pods", []):
-            if "resources" in p:
-                del p["resources"]
-                removed = True
+        if _is_untrusted_resource_config(data, regex, params, path):
+            del current_dict[current_key]
+            log.debug("deleted %s", path)
 
-        if removed:
-            log.debug("removed resources from ClowdApp '%s'", i["metadata"]["name"])
+
+def _remove_untrusted_resources_for_template(template, params):
+    for obj in template.get("objects"):
+        kind = obj.get("kind")
+        if kind not in conf.KINDS_FOR_RESOURCE_CHECK:
+            continue
+
+        log.debug("checking resources on %s '%s'", kind, obj["metadata"]["name"])
+
+        _remove_untrusted_resources(obj, params)
 
 
 def _remove_dependency_config(items):
@@ -624,34 +631,32 @@ class TemplateProcessor:
         self._sub_params(component_name, params)
         log.debug("parameters for component '%s': %s", component_name, params)
 
-        # determine which cpu/mem resource parameters can be trusted in the template
-        _label_trusted_resources(template, params)
-
-        new_items = _process_template(template, params, self.local)["items"]
-
-        # override the tags for all occurences of an image if requested
-        new_items = self._sub_image_tags(new_items)
-
         # evaluate --remove-resources/--no-remove-resources
         app_name = self._get_app_for_component(component_name)
 
-        # if app/component is trusted, do not remove its resources
-        should_remove_resources = False
+        # if entire app or component is marked trusted, do not remove any resources
+        should_remove_untrusted_resources = False
         if app_name in conf.TRUSTED_APPS:
             log.debug("should_remove: app '%s' listed in trusted apps", app_name)
         elif component_name in conf.TRUSTED_COMPONENTS:
             log.debug("should_remove: component '%s' listed in trusted components", component_name)
         else:
-            should_remove_resources = _should_remove(
+            should_remove_untrusted_resources = _should_remove(
                 self.remove_resources,
                 self.no_remove_resources,
                 app_name,
                 component_name,
                 default=True,
             )
-        log.debug("should_remove_resources evaluates to %s", should_remove_resources)
-        if should_remove_resources:
-            _remove_resource_config(new_items)
+        log.debug("should_remove_resources evaluates to %s", should_remove_untrusted_resources)
+        if should_remove_untrusted_resources:
+            _remove_untrusted_resources_for_template(template, params)
+
+        # process the template
+        new_items = _process_template(template, params, self.local)["items"]
+
+        # override the tags for all occurences of an image if requested
+        new_items = self._sub_image_tags(new_items)
 
         # evaluate --remove-dependencies/--no-remove-dependencies
         should_remove_deps = _should_remove(
