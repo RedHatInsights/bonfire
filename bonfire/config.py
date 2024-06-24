@@ -92,9 +92,15 @@ if os.getenv("BONFIRE_TRUSTED_COMPONENTS"):
 TRUSTED_PARAM_REGEX_FOR_PATH = {
     "resources.requests.cpu": r"\${(CPU_REQUEST[A-Z0-9_]+)}",
     "resources.limits.cpu": r"\${(CPU_LIMIT[A-Z0-9_]+)}",
-    "resources.requests.mem": r"\${(MEM_REQUEST[A-Z0-9_]+)}",
-    "resources.limits.mem": r"\${(MEM_LIMIT[A-Z0-9_]+)}",
+    "resources.requests.memory": r"\${(MEM_REQUEST[A-Z0-9_]+)}",
+    "resources.limits.memory": r"\${(MEM_LIMIT[A-Z0-9_]+)}",
 }
+
+KINDS_FOR_RESOURCE_CHECK = ["ClowdApp", "ClowdJob", "ClowdJobInvocation"]
+
+RESOURCE_DASHBOARD_URL = (
+    "https://grafana.app-sre.devshift.net/d/jRY7KLnVz?var-namespace={namespace}"
+)
 
 ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST", DEFAULT_ELASTICSEARCH_HOST)
 ELASTICSEARCH_INDEX = os.getenv("ELASTICSEARCH_INDEX", DEFAULT_ELASTICSEARCH_INDEX)
