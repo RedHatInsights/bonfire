@@ -65,7 +65,9 @@ Configure bonfire to use the token with:
 echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
 ```
 
-**Please note**: When using the Github token (classic), it **must have** the `read:project` scope for the template fetching to work!
+**Please note**: When using the Github token (classic), it **must have** the `read:project` scope.
+In addition, since some projects may be private, you will need to add the `repo` (full control of private repositories) scope too.
+for the template fetching to work!
 
 ## Using a container image (podman/docker)
 
