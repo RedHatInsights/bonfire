@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.7-1107
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.10-896.1717584414
 
 ARG OC_CLI_VERSION=4.14
 
