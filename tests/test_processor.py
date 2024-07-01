@@ -124,7 +124,7 @@ def add_template(mock_repo_file, template_name, deps=None, optional_deps=None):
     )
 
 
-def get_processor(apps_config, remove_resources=None, no_remove_resources=None):
+def get_processor(apps_config):
     return TemplateProcessor(
         apps_config=apps_config,
         app_names=[],
@@ -134,8 +134,8 @@ def get_processor(apps_config, remove_resources=None, no_remove_resources=None):
         template_ref_overrides={},
         param_overrides={},
         clowd_env="some_env",
-        remove_resources=remove_resources or AppOrComponentSelector(True, [], []),
-        no_remove_resources=no_remove_resources or AppOrComponentSelector(False, [], []),
+        remove_resources=AppOrComponentSelector(True, [], []),
+        no_remove_resources=AppOrComponentSelector(False, [], []),
         remove_dependencies=AppOrComponentSelector(False, [], []),
         no_remove_dependencies=AppOrComponentSelector(True, [], []),
         single_replicas=True,
@@ -648,6 +648,9 @@ def get_apps_config_with_params(parameters=None):
 
 
 def test_remove_resources_untrusted_params(mock_repo_file):
+    """
+    Test that resource configs are removed if template's parameter values are not explicitly set
+    """
     add_template(mock_repo_file, "app1-component1")
     apps_config = get_apps_config_with_params(None)
     processor = get_processor(apps_config)
@@ -663,7 +666,12 @@ def test_remove_resources_untrusted_params(mock_repo_file):
     assert deployment2["podSpec"]["resources"]["limits"] == {}
 
 
-def test_no_remove_resources_trusted_params(mock_repo_file):
+def test_preserve_resources_trusted_params(mock_repo_file):
+    """
+    Test that using trusted parameters causes cpu/mem configurations to be preserved.
+
+    Ensures that a value set with an untrusted parameter name is still removed.
+    """
     add_template(mock_repo_file, "app1-component1")
     apps_config = get_apps_config_with_params(
         parameters={
@@ -692,3 +700,40 @@ def test_no_remove_resources_trusted_params(mock_repo_file):
     # deployment2 CPU param does not match trusted syntax for name
     assert "cpu" not in deployment2["podSpec"]["resources"]["requests"]
     assert "cpu" not in deployment2["podSpec"]["resources"]["limits"]
+
+
+@pytest.mark.parametrize(
+    "no_remove_resources",
+    (
+        # --no-remove-resources all
+        AppOrComponentSelector(select_all=True, components=[], apps=[]),
+        # --no-remove-resources app:app1
+        AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
+        # --no-remove-resources app1-component1
+        AppOrComponentSelector(select_all=False, components=["app1-component1"], apps=[]),
+    ),
+    ids=("all", "app", "component"),
+)
+def test_preserve_resources_cli_option(mock_repo_file, no_remove_resources):
+    """
+    Test that using "--no-remove-resources" causes cpu/mem configs to be preserved
+    """
+    add_template(mock_repo_file, "app1-component1")
+    apps_config = get_apps_config_with_params(parameters=None)
+    processor = get_processor(apps_config)
+    processor.requested_app_names = ["app1"]
+    processor.no_remove_resources = no_remove_resources
+    processor.remove_resources = AppOrComponentSelector(False, [], [])
+    result = processor.process()
+
+    deployments = result["items"][0]["spec"]["deployments"]
+    deployment1, deployment2 = deployments[0], deployments[1]
+
+    assert deployment1["podSpec"]["resources"]["requests"]["cpu"] == "1m"
+    assert deployment1["podSpec"]["resources"]["requests"]["memory"] == "1Mi"
+    assert deployment1["podSpec"]["resources"]["limits"]["cpu"] == "100m"
+    assert deployment1["podSpec"]["resources"]["limits"]["memory"] == "100Mi"
+    assert deployment2["podSpec"]["resources"]["requests"]["memory"] == "2Mi"
+    assert deployment2["podSpec"]["resources"]["requests"]["cpu"] == "2m"
+    assert deployment2["podSpec"]["resources"]["limits"]["memory"] == "200Mi"
+    assert deployment2["podSpec"]["resources"]["limits"]["cpu"] == "2m"
