@@ -643,21 +643,21 @@ class TemplateProcessor:
         app_name = self._get_app_for_component(component_name)
 
         # if entire app or component is marked trusted, do not remove any resources
-        should_remove_untrusted_configs = False
+        should_remove_resources = False
         if app_name in conf.TRUSTED_APPS:
             log.debug("should_remove: app '%s' listed in trusted apps", app_name)
         elif component_name in conf.TRUSTED_COMPONENTS:
             log.debug("should_remove: component '%s' listed in trusted components", component_name)
         else:
-            should_remove_untrusted_configs = _should_remove(
+            should_remove_resources = _should_remove(
                 self.remove_resources,
                 self.no_remove_resources,
                 app_name,
                 component_name,
                 default=True,
             )
-        log.debug("should_remove_resources evaluates to %s", should_remove_untrusted_configs)
-        if should_remove_untrusted_configs:
+        log.debug("should_remove_resources evaluates to %s", should_remove_resources)
+        if should_remove_resources:
             _remove_untrusted_configs_for_template(template, params)
 
         # process the template
