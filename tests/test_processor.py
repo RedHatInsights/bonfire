@@ -57,20 +57,20 @@ objects:
       podSpec:
         resources:
           limits:
-            cpu: ${{DEPLOYMENT1_CPU_LIMIT}}
-            memory: ${{DEPLOYMENT1_MEMORY_LIMIT}}
+            cpu: ${{CPU_LIMIT_DEPLOYMENT1}}
+            memory: ${{MEM_LIMIT_DEPLOYMENT1}}
           requests:
-            cpu: ${{DEPLOYMENT1_CPU_REQUEST}}
-            memory: ${{DEPLOYMENT1_MEMORY_REQUEST}}
+            cpu: ${{CPU_REQUEST_DEPLOYMENT1}}
+            memory: ${{MEM_REQUEST_DEPLOYMENT1}}
     - name: deployment2
       podSpec:
         resources:
           limits:
             cpu: ${{DEPLOYMENT2_WRONG_NAME_CPU}}
-            memory: ${{DEPLOYMENT2_MEMORY_LIMIT}}
+            memory: ${{MEM_LIMIT_DEPLOYMENT2}}
           requests:
             cpu: ${{DEPLOYMENT2_WRONG_NAME_CPU}}
-            memory: ${{DEPLOYMENT2_MEMORY_REQUEST}}
+            memory: ${{MEM_REQUEST_DEPLOYMENT2}}
 parameters:
 - description: Image tag
   name: IMAGE_TAG
@@ -78,20 +78,20 @@ parameters:
 - description: ClowdEnv Name
   name: ENV_NAME
   required: true
-- name: DEPLOYMENT1_CPU_LIMIT
+- name: CPU_LIMIT_DEPLOYMENT1
   value: 100m
-- name: DEPLOYMENT1_CPU_REQUEST
+- name: CPU_REQUEST_DEPLOYMENT1
   value: 1m
-- name: DEPLOYMENT1_MEMORY_REQUEST
+- name: MEM_REQUEST_DEPLOYMENT1
   value: 1Mi
-- name: DEPLOYMENT1_MEMORY_LIMIT
+- name: MEM_LIMIT_DEPLOYMENT1
   value: 100Mi
 - name: DEPLOYMENT2_WRONG_NAME_CPU
   value: 2m
-- name: DEPLOYMENT2_MEMORY_LIMIT
-  value: 200Mi
-- name: DEPLOYMENT2_MEMORY_REQUEST
+- name: MEM_REQUEST_DEPLOYMENT2
   value: 2Mi
+- name: MEM_LIMIT_DEPLOYMENT2
+  value: 200Mi
 """
 
 
@@ -647,7 +647,7 @@ def get_apps_config_with_params(parameters=None):
     }
 
 
-def test_remove_resources_no_trusted_params(mock_repo_file):
+def test_remove_resources_untrusted_params(mock_repo_file):
     add_template(mock_repo_file, "app1-component1")
     apps_config = get_apps_config_with_params(None)
     processor = get_processor(apps_config)
@@ -661,3 +661,34 @@ def test_remove_resources_no_trusted_params(mock_repo_file):
     assert deployment1["podSpec"]["resources"]["limits"] == {}
     assert deployment2["podSpec"]["resources"]["requests"] == {}
     assert deployment2["podSpec"]["resources"]["limits"] == {}
+
+
+def test_no_remove_resources_trusted_params(mock_repo_file):
+    add_template(mock_repo_file, "app1-component1")
+    apps_config = get_apps_config_with_params(
+        parameters={
+            "CPU_LIMIT_DEPLOYMENT1": "456m",
+            "CPU_REQUEST_DEPLOYMENT1": "123m",
+            "MEM_LIMIT_DEPLOYMENT1": "456Mi",
+            "MEM_REQUEST_DEPLOYMENT1": "123Mi",
+            "DEPLOYMENT2_WRONG_NAME_CPU": "1",
+            "MEM_LIMIT_DEPLOYMENT2": "910Mi",
+            "MEM_REQUEST_DEPLOYMENT2": "789Mi",
+        }
+    )
+    processor = get_processor(apps_config)
+    processor.requested_app_names = ["app1"]
+    result = processor.process()
+
+    deployments = result["items"][0]["spec"]["deployments"]
+    deployment1, deployment2 = deployments[0], deployments[1]
+
+    assert deployment1["podSpec"]["resources"]["requests"]["cpu"] == "123m"
+    assert deployment1["podSpec"]["resources"]["requests"]["memory"] == "123Mi"
+    assert deployment1["podSpec"]["resources"]["limits"]["cpu"] == "456m"
+    assert deployment1["podSpec"]["resources"]["limits"]["memory"] == "456Mi"
+    assert deployment2["podSpec"]["resources"]["requests"]["memory"] == "789Mi"
+    assert deployment2["podSpec"]["resources"]["limits"]["memory"] == "910Mi"
+    # deployment2 CPU param does not match trusted syntax for name
+    assert "cpu" not in deployment2["podSpec"]["resources"]["requests"]
+    assert "cpu" not in deployment2["podSpec"]["resources"]["limits"]

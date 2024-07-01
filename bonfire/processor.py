@@ -30,7 +30,7 @@ def _process_template(*args, **kwargs):
     return processed_template
 
 
-def _is_untrusted_config(value, regex, component_params, path):
+def _is_trusted_config(value, regex, component_params, path):
     """
     Check for presence of a trusted param being used for the value.
 
@@ -38,18 +38,18 @@ def _is_untrusted_config(value, regex, component_params, path):
     1. matching the expected regex pattern
     2. the parameter value is set in the component's deploy config
 
-    Returns True if we determine this is an untrusted value
+    Returns True if we determine this is a trusted value
     """
-    trusted = False
-
+    in_params = False
     match = re.match(regex, value)
     if match and match.groups()[0] in component_params:
-        trusted = True
+        in_params = True
 
-    log.debug("value '%s' at path '%s', trusted=%s", value, path, trusted)
+    log.debug(
+        "value '%s', regex r'%s', matches=%s, in params=%s", value, regex, bool(match), in_params
+    )
 
-    if not trusted:
-        # this config value is untrusted
+    if match and in_params:
         return True
 
 
@@ -81,9 +81,9 @@ def _remove_untrusted_configs(data, params, path=None, current_dict=None, curren
         if not path.endswith(path_end):
             continue
 
-        if _is_untrusted_config(data, regex, params, path):
+        if not _is_trusted_config(data, regex, params, path):
             del current_dict[current_key]
-            log.debug("deleted %s", path)
+            log.debug("deleted untrusted config at '%s'", path)
 
 
 def _remove_untrusted_configs_for_template(template, params):
