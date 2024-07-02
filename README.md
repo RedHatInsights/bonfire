@@ -232,6 +232,11 @@ Once you have audited your container CPU/mem usage in test environments and have
 If these steps are followed then your resource config is considered "trusted" and bonfire will not remove the requests/limits configurations.
 
 
+**NOTE:** a couple things that will change in the future:
+* The "host-inventory" app is trusted by default, but once their configurations are tweaked to be trusted we will remove this
+* Object types such as Deployment/StatefulSet/DaemonSet/etc. are not currently analyzed. In future once teams have audited all container resource configurations, we will begin to have bonfire check for trusted configurations on all object types.
+
+
 # Interactions with Ephemeral Namespace Operator
 
 `bonfire` creates/modifies `NamespaceReservation` resources on the cluster to reserve and release namespaces. The template for the object that bonfire applies into the cluster can be found [here](bonfire/resources/reservation-template.yaml)
