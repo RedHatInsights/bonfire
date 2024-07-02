@@ -545,9 +545,9 @@ _process_options = _app_source_options + [
     click.option(
         "--remove-resources",
         help=(
-            "Remove resource limits and requests on ClowdApp configs "
-            "for specific components or apps. Prefix the app name with "
-            "'app:', otherwise specify the component name. (default: all)"
+            "Remove untrusted (defined in README) resource limits/requests on "
+            "ClowdApp/ClowdJob/CJI objects for specific components or apps. Prefix the app name "
+            "with 'app:', otherwise specify the component name. (default: 'all')"
         ),
         type=str,
         multiple=True,
@@ -556,9 +556,9 @@ _process_options = _app_source_options + [
     click.option(
         "--no-remove-resources",
         help=(
-            "Don't remove resource limits and requests on ClowdApp configs "
-            "for specific components or apps. Prefix the app name with "
-            "'app:', otherwise specify the component name. (default: none)"
+            "Preserve resource limits/requests even if untrusted (defined in README) on "
+            "ClowdApp/ClowdJob/CJI objects for specific components or apps. Prefix the app name "
+            "with 'app:', otherwise specify the component name. (default: none)"
         ),
         type=str,
         multiple=True,
