@@ -72,7 +72,7 @@ BONFIRE_DEFAULT_FALLBACK_REF_ENV = str(
 )
 
 # list of apps we will not remove resource requests/limits for
-TRUSTED_APPS = []
+TRUSTED_APPS = ["host-inventory"]
 if os.getenv("BONFIRE_TRUSTED_APPS"):
     TRUSTED_APPS = os.getenv("BONFIRE_TRUSTED_APPS").split(",")
 
