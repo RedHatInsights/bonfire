@@ -9,10 +9,10 @@ from dotenv import load_dotenv
 from bonfire import resources
 from bonfire.utils import FatalError, get_config_path, load_file
 
-if sys.version_info > (3, 8):
-    import importlib.resources as importlib_resources
-else:
+if sys.version_info < (3, 9):
     import importlib_resources
+else:
+    import importlib.resources as importlib_resources
 
 log = logging.getLogger(__name__)
 
