@@ -38,6 +38,7 @@ dependencies = [
     "sh",
     "tabulate",
     "wait-for",
+    "packaging",
 ]
 
 [project.scripts]
@@ -58,6 +59,7 @@ test = [
     "mock",
     "pytest",
     "pytest-mock",
+    "requests-mock"
 ]
 
 [project.urls]

@@ -18,7 +18,7 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata
 
-from distutils.version import StrictVersion
+from packaging import version
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -486,14 +486,13 @@ def get_version():
 
 
 def _compare_version(pypi_version):
-    pypi_version = StrictVersion(pypi_version)
+    pypi_version = version.parse(pypi_version)
 
     local_version = get_version()
     try:
-        my_version = StrictVersion(local_version)
+        my_version = version.parse(local_version)
     except ValueError:
         log.info(f"version {local_version} seems to be a dev version, assuming up-to-date")
-        my_version = StrictVersion("999.999.999")
         return
 
     if my_version < pypi_version:
@@ -553,6 +552,7 @@ def check_pypi():
         pkg_data = response.json()
     except requests.exceptions.RequestException as err:
         log.error("error fetching version from pypi: %s", err)
+        return
     except ValueError:
         log.error("response was not valid json")
 
