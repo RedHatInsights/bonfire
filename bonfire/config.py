@@ -5,8 +5,8 @@ import subprocess
 from pathlib import Path
 
 from dotenv import load_dotenv
-from pkg_resources import resource_filename
-
+from importlib.resources import files
+from bonfire import resources
 from bonfire.utils import FatalError, get_config_path, load_file
 
 log = logging.getLogger(__name__)
@@ -19,16 +19,11 @@ DEFAULT_CONFIGMAPS_DIR = get_config_path().joinpath("configmaps")
 
 DEFAULT_NAMESPACE_POOL = "default"
 
-DEFAULT_CLOWDENV_TEMPLATE = resource_filename(
-    "bonfire", "resources/local-cluster-clowdenvironment.yaml"
-)
-EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE = resource_filename(
-    "bonfire", "resources/ephemeral-cluster-clowdenvironment.yaml"
-)
-DEFAULT_IQE_CJI_TEMPLATE = resource_filename("bonfire", "resources/default-iqe-cji.yaml")
-DEFAULT_CONFIG_DATA = resource_filename("bonfire", "resources/default_config.yaml")
-DEFAULT_RESERVATION_TEMPLATE = resource_filename("bonfire", "resources/reservation-template.yaml")
-
+DEFAULT_CLOWDENV_TEMPLATE = files(resources) / "local-cluster-clowdenvironment.yaml"
+EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE = files(resources) / "ephemeral-cluster-clowdenvironment.yaml"
+DEFAULT_IQE_CJI_TEMPLATE = files(resources) / "resources/default-iqe-cji.yaml"
+DEFAULT_CONFIG_DATA = files("bonfire.resources") / "default_config.yaml"
+DEFAULT_RESERVATION_TEMPLATE = files("bonfire.resources") / "resources/reservation-template.yaml"
 DEFAULT_GRAPHQL_URL = (
     "https://app-interface.apps.rosa.appsrep09ue1.03r5.p3.openshiftapps.com/graphql"
 )
