@@ -27,7 +27,7 @@ dependencies = [
     "chardet<4.0,>=2.0",
     "click>=7.1.2",
     "gql==3.0.0a6",
-    "importlib-metadata>=0.12;python_version<\"3.8\"",
+    "importlib-metadata>=0.12;python_version<\"3.10\"",
     "junitparser",
     "multidict",
     "ocviapy>=1.2.2",
