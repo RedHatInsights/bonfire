@@ -28,7 +28,7 @@ dependencies = [
     "click>=7.1.2",
     "gql==3.0.0a6",
     "importlib-metadata; python_version<'3.8'",
-    "importlib-resources; python_version<'3.7'",
+    "importlib-resources; python_version<'3.9'",
     "junitparser",
     "multidict",
     "ocviapy>=1.2.2",
