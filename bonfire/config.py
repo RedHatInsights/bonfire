@@ -2,17 +2,17 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-
 from bonfire import resources
 from bonfire.utils import FatalError, get_config_path, load_file
 
-try:
-    from importlib.resources import files
-except (ModuleNotFoundError, ImportError):
-    from importlib_resources import files
+if sys.version_info > (3, 8):
+    import importlib.resources as importlib_resources
+else:
+    import importlib_resources
 
 log = logging.getLogger(__name__)
 
@@ -24,11 +24,17 @@ DEFAULT_CONFIGMAPS_DIR = get_config_path().joinpath("configmaps")
 
 DEFAULT_NAMESPACE_POOL = "default"
 
-DEFAULT_CLOWDENV_TEMPLATE = files(resources) / "local-cluster-clowdenvironment.yaml"
-EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE = files(resources) / "ephemeral-cluster-clowdenvironment.yaml"
-DEFAULT_IQE_CJI_TEMPLATE = files(resources) / "resources/default-iqe-cji.yaml"
-DEFAULT_CONFIG_DATA = files("bonfire.resources") / "default_config.yaml"
-DEFAULT_RESERVATION_TEMPLATE = files("bonfire.resources") / "resources/reservation-template.yaml"
+DEFAULT_CLOWDENV_TEMPLATE = (
+    importlib_resources.files(resources) / "local-cluster-clowdenvironment.yaml"
+)
+EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE = (
+    importlib_resources.files(resources) / "ephemeral-cluster-clowdenvironment.yaml"
+)
+DEFAULT_IQE_CJI_TEMPLATE = importlib_resources.files(resources) / "resources/default-iqe-cji.yaml"
+DEFAULT_CONFIG_DATA = importlib_resources.files("bonfire.resources") / "default_config.yaml"
+DEFAULT_RESERVATION_TEMPLATE = (
+    importlib_resources.files("bonfire.resources") / "resources/reservation-template.yaml"
+)
 DEFAULT_GRAPHQL_URL = (
     "https://app-interface.apps.rosa.appsrep09ue1.03r5.p3.openshiftapps.com/graphql"
 )

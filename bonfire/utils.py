@@ -11,6 +11,12 @@ import subprocess
 import tempfile
 import time
 from urllib.request import urlretrieve
+import sys
+
+if sys.version_info >= (3, 8):
+    import importlib.metadata as importlib_metadata
+else:
+    import importlib_metadata
 
 from distutils.version import StrictVersion
 from pathlib import Path
@@ -19,13 +25,6 @@ from urllib.parse import urlparse
 from typing import List
 
 import sys
-
-if sys.version_info >= (3, 8):
-    import importlib.metadata
-
-    importlib_metadata = importlib.metadata
-else:
-    import importlib_metadata as importlib_metadata  # noqa: F401
 
 import requests
 import yaml
