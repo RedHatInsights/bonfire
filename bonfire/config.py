@@ -5,9 +5,14 @@ import subprocess
 from pathlib import Path
 
 from dotenv import load_dotenv
-from importlib.resources import files
+
 from bonfire import resources
 from bonfire.utils import FatalError, get_config_path, load_file
+
+try:
+    from importlib.resources import files
+except (ModuleNotFoundError, ImportError):
+    from importlib_resources import files
 
 log = logging.getLogger(__name__)
 
