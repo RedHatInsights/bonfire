@@ -111,15 +111,13 @@ def test_url_connection_dns_lookup_fails():
 
 
 def test_check_version_when_there_is_a_new_update(requests_mock, mocker):
-    PYPI_URL
-    path_mock = mocker.patch("bonfire.utils.Path")
+    mocker.patch("bonfire.utils.Path").exists.return_value = False
     log_mock = mocker.patch("bonfire.utils.log")
-    i_metadata_mock = mocker.patch("bonfire.utils.importlib_metadata")
-    i_metadata_mock.version.return_value = "1.0.0"
-
-    path_mock.exists.return_value = False
+    mocker.patch("bonfire.utils.importlib_metadata").version.return_value = "1.0.0"
     requests_mock.get(PYPI_URL, json={"info": {"version": "1.0.1"}})
+
     check_pypi()
+
     log_mock.info.assert_called()
     assert "checking pypi" in log_mock.info.call_args_list[0].args[0]
     assert "new release found" in log_mock.info.call_args_list[1].args[0]
@@ -127,15 +125,13 @@ def test_check_version_when_there_is_a_new_update(requests_mock, mocker):
 
 
 def test_check_version_when_there_are_no_updates(requests_mock, mocker):
-    PYPI_URL
-    path_mock = mocker.patch("bonfire.utils.Path")
+    mocker.patch("bonfire.utils.Path").exists.return_value = True
     log_mock = mocker.patch("bonfire.utils.log")
-    i_metadata_mock = mocker.patch("bonfire.utils.importlib_metadata")
-    i_metadata_mock.version.return_value = "1.0.0"
-
-    path_mock.exists.return_value = False
+    mocker.patch("bonfire.utils.importlib_metadata").version.return_value = "1.0.0"
     requests_mock.get(PYPI_URL, json={"info": {"version": "1.0.0"}})
+
     check_pypi()
+
     log_mock.info.assert_called()
     assert "checking pypi" in log_mock.info.call_args_list[0].args[0]
     assert "new release found" not in log_mock.info.call_args_list[1].args[0]
@@ -143,28 +139,24 @@ def test_check_version_when_there_are_no_updates(requests_mock, mocker):
 
 
 def test_check_version_unexpected_json(requests_mock, mocker):
-    PYPI_URL
-    path_mock = mocker.patch("bonfire.utils.Path")
+    mocker.patch("bonfire.utils.Path").exists.return_value = False
     log_mock = mocker.patch("bonfire.utils.log")
-    i_metadata_mock = mocker.patch("bonfire.utils.importlib_metadata")
-    i_metadata_mock.version.return_value = "1.0.0"
-
-    path_mock.exists.return_value = False
+    mocker.patch("bonfire.utils.importlib_metadata").version.return_value = "1.0.0"
     requests_mock.get(PYPI_URL, json={"woops": "not found"})
+
     check_pypi()
+
     log_mock.error.assert_called_once()
     assert "unable to parse version info" in log_mock.error.call_args_list[0].args[0]
 
 
 def test_check_version_invalid_response(requests_mock, mocker):
-    PYPI_URL
-    path_mock = mocker.patch("bonfire.utils.Path")
+    mocker.patch("bonfire.utils.Path").exists.return_value = False
     log_mock = mocker.patch("bonfire.utils.log")
-    i_metadata_mock = mocker.patch("bonfire.utils.importlib_metadata")
-    i_metadata_mock.version.return_value = "1.0.0"
-
-    path_mock.exists.return_value = False
+    mocker.patch("bonfire.utils.importlib_metadata").version.return_value = "1.0.0"
     requests_mock.get(PYPI_URL, text="nothing!")
+
     check_pypi()
+
     log_mock.error.assert_called_once()
     assert "error fetching version from pypi" in log_mock.error.call_args_list[0].args[0]
