@@ -227,6 +227,10 @@ Once you have audited your container CPU/mem usage in test environments and have
 * `MEM_REQUEST_<NAME>`
 * `MEM_LIMIT_<NAME>`
 
+Where `<NAME>` can be whatever arbitrary name you'd like to use containing `A-Z`, `0-9,` and `_`. For example, either of these would be valid:
+* `CPU_REQUEST_MQ_CONSUMER`
+* `MEM_LIMIT_API`
+
 2. Your deployment configuration for the component must explicitly define values for these parameters. For ephemeral environments normally this will mean that your parameters are defined under the ephemeral deploy target in app-interface.
 
 If these steps are followed then your resource config is considered "trusted" and bonfire will not remove the requests/limits configurations.

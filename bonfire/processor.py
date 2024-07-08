@@ -40,20 +40,25 @@ def _is_trusted_config(value, regex, component_params, path):
 
     Returns True if we determine this is a trusted value
     """
+    if not regex or not isinstance(regex, str):
+        raise ValueError("string value for 'regex' must be supplied")
+
+    match = False
     in_params = False
-    match = re.match(regex, value)
-    if match and match.groups()[0] in component_params:
-        in_params = True
+
+    if value:
+        match = re.match(regex, value)
+        if match and match.groups()[0] in component_params:
+            in_params = True
 
     log.debug(
         "value '%s', regex r'%s', matches=%s, in params=%s", value, regex, bool(match), in_params
     )
 
-    if match and in_params:
-        return True
+    return match and in_params
 
 
-def _remove_untrusted_configs(data, params, path=None, current_dict=None, current_key=None):
+def _remove_untrusted_configs(data, params, path="", current_dict=None, current_key=None):
     """
     Locate configurations within 'data' and remove them if not trusted.
 
@@ -61,9 +66,6 @@ def _remove_untrusted_configs(data, params, path=None, current_dict=None, curren
     found within 'data' dictionary and ensures the regex matches and that the parameter value is
     set on the component's deploy config.
     """
-    if not path:
-        path = ""
-
     if isinstance(data, dict):
         for key, value in copy.copy(data).items():
             _remove_untrusted_configs(
@@ -98,12 +100,13 @@ def _remove_untrusted_configs_for_template(template, params):
     Checks template to see if any resources of kind listed in 'config.TRUSTED_CHECK_KINDS'
     are found. If so, analyzes the config on those resources to see if any need to be removed.
     """
-    for obj in template.get("objects"):
+    for obj in template.get("objects", []):
         kind = obj.get("kind")
         if kind not in conf.TRUSTED_CHECK_KINDS:
             continue
 
-        log.debug("checking resources on %s '%s'", kind, obj["metadata"]["name"])
+        name = obj.get("metadata", {}).get("name")
+        log.debug("checking resources on %s '%s'", kind, name)
 
         _remove_untrusted_configs(obj, params)
 
