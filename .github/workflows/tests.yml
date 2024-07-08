@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
 
     - name: Checkout to master
@@ -37,7 +37,7 @@ jobs:
         path: dist
 
   build_check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [build]
     steps:
     - uses: actions/setup-python@v5
@@ -51,12 +51,12 @@ jobs:
     - run: pipx run twine check --strict dist/*
 
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [build]
     strategy:
       matrix:
         # todo: extract from source
-        python-version: [ 3.6, 3.7, 3.8, 3.9, '3.10', '3.11', '3.12' ]
+        python-version: [ 3.8, 3.9, '3.10', '3.11', '3.12' ]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
