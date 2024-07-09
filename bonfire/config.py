@@ -92,8 +92,8 @@ if os.getenv("BONFIRE_TRUSTED_COMPONENTS"):
 TRUSTED_REGEX_FOR_PATH = {
     "resources.requests.cpu": r"\${(CPU_REQUEST[A-Z0-9_]+)}",
     "resources.limits.cpu": r"\${(CPU_LIMIT[A-Z0-9_]+)}",
-    "resources.requests.memory": r"\${(MEM_REQUEST[A-Z0-9_]+)}",
-    "resources.limits.memory": r"\${(MEM_LIMIT[A-Z0-9_]+)}",
+    "resources.requests.memory": r"\${(MEM(?:ORY)?_REQUEST[A-Z0-9_]+)}",
+    "resources.limits.memory": r"\${(MEM(?:ORY)?_LIMIT[A-Z0-9_]+)}",
 }
 
 TRUSTED_CHECK_KINDS = ["ClowdApp", "ClowdJob", "ClowdJobInvocation"]
