@@ -18,6 +18,7 @@ As an example, typing `bonfire deploy host-inventory` leads to the host-inventor
 - [Examples for Common Use Cases](#examples-for-common-use-cases)
 - [Commonly Used CLI Options](#commonly-used-cli-options)
   - [Deploying/Processing](#deployingprocessing)
+  - [Trusted/Untrusted Resource Configurations](#trusteduntrusted-resource-configurations)
 - [Interactions with Ephemeral Namespace Operator](#interactions-with-ephemeral-namespace-operator)
 - [Interactions with Clowder Operator](#interactions-with-clowder-operator)
   - [ClowdEnvironments](#clowdenvironments)
@@ -120,7 +121,7 @@ Once logged in, you should be able to type `bonfire deploy advisor`
 
 This will cause `bonfire` to do the following:
 1. reserve a namespace
-2. fetch the templates for all components in the 'advisor' app and process them. By default, bonfire will look up the template and commit hash using the 'main'/'master' branch of each component defined in the app. It will look up the git commit hash for this branch and automatically set the `IMAGE_TAG` parameter passed to the templates. 
+2. fetch the templates for all components in the 'advisor' app and process them. By default, bonfire will look up the template and commit hash using the 'main'/'master' branch of each component defined in the app. It will look up the git commit hash for this branch and automatically set the `IMAGE_TAG` parameter passed to the templates.
 3. if ClowdApp resources are found, figure out which additional ClowdApps to fetch and process
 4. apply all the processed template resources into your reserved namespace
 5. wait for all the resources to reach a 'ready' state
@@ -210,6 +211,35 @@ bonfire deploy advisor --set-image-tag quay.io/cloudservices/advisor-backend=my_
 * `--optional-deps-method <hybrid|all|none>` -- change the way that bonfire processes ClowdApp optional dependencies (see "Dependency Processing" section)
 * `--prefer PARAM_NAME=PARAM_VALUE` -- in cases where bonfire finds more than one deployment target, use this to set the parameter names and values that should be used to select a "preferred" deployment target. This option can be passed in multiple times. `bonfire` will select the target with the highest amount of "preferred parameters" on it. Default is currently set to `ENV_NAME=frontends` to select "stable" frontends in the consoledot environments.
 
+## Trusted/Untrusted Resource Configurations
+
+When templates are processed, bonfire removes all untrusted CPU/Memory requests and limits from ClowdApp/ClowdJob/ClowdJobInvocation objects within OpenShift templates (this is because the default value for `--remove-resources` is `all`). If the resource config is unset in a ClowdApp, Clowder will set the deployments to use default values defined in the “ClowdEnvironment” to take effect.
+
+ The reason for this behavior is because many app templates tend to request far more CPU/memory in their template compared to what they actually need in a test environment.
+
+You can use the `--no-remove-resources` option to turn this behavior off for certain apps or components but the preferred approach is to audit your CPU/memory configurations and set up a resource configuration that bonfire trusts.
+
+Once you have audited your container CPU/mem usage in test environments and have determined efficient values that you want to use, you can indicate that bonfire should trust the CPU/Memory requests and limits by adhering to the following requirements:
+
+1. Any ClowdApp/ClowdJob/ClowdJobInvocation in your template asking for CPU/mem using requests or limits should use a parameter with a name formatted like this:
+* `CPU_REQUEST_<NAME>`
+* `CPU_LIMIT_<NAME>`
+* `MEM_REQUEST_<NAME>`
+* `MEM_LIMIT_<NAME>`
+
+Where `<NAME>` can be whatever arbitrary name you'd like to use containing `A-Z`, `0-9,` and `_`. For example, either of these would be valid:
+* `CPU_REQUEST_MQ_CONSUMER`
+* `MEM_LIMIT_API`
+
+2. Your deployment configuration for the component must explicitly define values for these parameters. For ephemeral environments normally this will mean that your parameters are defined under the ephemeral deploy target in app-interface.
+
+If these steps are followed then your resource config is considered "trusted" and bonfire will not remove the requests/limits configurations.
+
+
+**NOTE:** a couple things that will change in the future:
+* The "host-inventory" app is trusted by default, but once their configurations are tweaked to be trusted we will remove this
+* Object types such as Deployment/StatefulSet/DaemonSet/etc. are not currently analyzed. In future once teams have audited all container resource configurations, we will begin to have bonfire check for trusted configurations on all object types.
+
 
 # Interactions with Ephemeral Namespace Operator
 
@@ -243,7 +273,7 @@ When bonfire processes templates, if it finds a ClowdApp, it will do the followi
     * You will end up with all components of `app-a`, `app-b-clowdapp`, AND `app-c-clowdapp` deployed into the namespace.
   * `none`: `bonfire` will ignore the `optionalDependencies` on all ClowdApps that it encounters
 
-# Configuration Details 
+# Configuration Details
 
 > NOTE: for information related to app-interface configurations, see the internal [ConsoleDot Docs](https://consoledot.pages.redhat.com/)
 
@@ -266,7 +296,7 @@ By default, if app components use `ClowdApp` resources in their templates, then 
 
 `bonfire` ships with a [default config](bonfire/resources/default_config.yaml) that should be enough to get started for most internal Red Hat employees.
 
-By default, the configuration file will be stored in `~/.config/bonfire/config.yaml`. 
+By default, the configuration file will be stored in `~/.config/bonfire/config.yaml`.
 
 If you wish to override any app configurations, you can edit your local configuration file by typing `bonfire config edit`. You can then define an app under the `apps` key of the config. You can reset the config to default at any time using `bonfire config write-default`.
 

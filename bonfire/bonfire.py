@@ -545,9 +545,9 @@ _process_options = _app_source_options + [
     click.option(
         "--remove-resources",
         help=(
-            "Remove resource limits and requests on ClowdApp configs "
-            "for specific components or apps. Prefix the app name with "
-            "'app:', otherwise specify the component name. (default: all)"
+            "Remove untrusted (defined in README) resource limits/requests on "
+            "ClowdApp/ClowdJob/CJI objects for specific components or apps. Prefix the app name "
+            "with 'app:', otherwise specify the component name. (default: 'all')"
         ),
         type=str,
         multiple=True,
@@ -556,9 +556,9 @@ _process_options = _app_source_options + [
     click.option(
         "--no-remove-resources",
         help=(
-            "Don't remove resource limits and requests on ClowdApp configs "
-            "for specific components or apps. Prefix the app name with "
-            "'app:', otherwise specify the component name. (default: none)"
+            "Preserve resource limits/requests even if untrusted (defined in README) on "
+            "ClowdApp/ClowdJob/CJI objects for specific components or apps. Prefix the app name "
+            "with 'app:', otherwise specify the component name. (default: none)"
         ),
         type=str,
         multiple=True,
@@ -1416,9 +1416,9 @@ def _cmd_config_deploy(
             ns_url = f"{url}/k8s/cluster/projects/{ns}"
             log.info("namespace url: %s", ns_url)
             log.info(
-                "resource usage dashboard for namespace '%s': https://grafana.app-sre.devshift.net/d/jRY7KLnVz?var-namespace=%s",
+                "resource usage dashboard for namespace '%s': %s",
                 ns,
-                ns,
+                conf.RESOURCE_DASHBOARD_URL.format(namespace=ns),
             )
         click.echo(ns)
 

@@ -52,6 +52,25 @@ objects:
     envName: ${{ENV_NAME}}
     dependencies: {deps}
     optionalDependencies: {optional_deps}
+    deployments:
+    - name: deployment1
+      podSpec:
+        resources:
+          limits:
+            cpu: ${{CPU_LIMIT_DEPLOYMENT1}}
+            memory: ${{MEM_LIMIT_DEPLOYMENT1}}
+          requests:
+            cpu: ${{CPU_REQUEST_DEPLOYMENT1}}
+            memory: ${{MEM_REQUEST_DEPLOYMENT1}}
+    - name: deployment2
+      podSpec:
+        resources:
+          limits:
+            cpu: ${{DEPLOYMENT2_WRONG_NAME_CPU}}
+            memory: ${{MEM_LIMIT_DEPLOYMENT2}}
+          requests:
+            cpu: ${{DEPLOYMENT2_WRONG_NAME_CPU}}
+            memory: ${{MEM_REQUEST_DEPLOYMENT2}}
 parameters:
 - description: Image tag
   name: IMAGE_TAG
@@ -59,6 +78,20 @@ parameters:
 - description: ClowdEnv Name
   name: ENV_NAME
   required: true
+- name: CPU_LIMIT_DEPLOYMENT1
+  value: 100m
+- name: CPU_REQUEST_DEPLOYMENT1
+  value: 1m
+- name: MEM_REQUEST_DEPLOYMENT1
+  value: 1Mi
+- name: MEM_LIMIT_DEPLOYMENT1
+  value: 100Mi
+- name: DEPLOYMENT2_WRONG_NAME_CPU
+  value: 2m
+- name: MEM_REQUEST_DEPLOYMENT2
+  value: 2Mi
+- name: MEM_LIMIT_DEPLOYMENT2
+  value: 200Mi
 """
 
 
@@ -81,17 +114,39 @@ def assert_clowdapps(items, app_list):
         raise AssertionError("apps present more than once in processed output")
 
 
-def add_template(mock_repo_file, app_name, deps=[], optional_deps=[]):
+def add_template(mock_repo_file, template_name, deps=None, optional_deps=None):
+    deps = deps or []
+    optional_deps = optional_deps or []
     mock_repo_file.add_template(
-        app_name,
+        template_name,
         uuid.uuid4().hex[0:6],
-        SIMPLE_CLOWDAPP.format(name=app_name, deps=deps, optional_deps=optional_deps),
+        SIMPLE_CLOWDAPP.format(name=template_name, deps=deps, optional_deps=optional_deps),
     )
 
 
-@pytest.fixture()
-def processor():
-    apps_config = {
+def get_processor(apps_config):
+    return TemplateProcessor(
+        apps_config=apps_config,
+        app_names=[],
+        get_dependencies=True,
+        optional_deps_method="hybrid",
+        image_tag_overrides={},
+        template_ref_overrides={},
+        param_overrides={},
+        clowd_env="some_env",
+        remove_resources=AppOrComponentSelector(True, [], []),
+        no_remove_resources=AppOrComponentSelector(False, [], []),
+        remove_dependencies=AppOrComponentSelector(False, [], []),
+        no_remove_dependencies=AppOrComponentSelector(True, [], []),
+        single_replicas=True,
+        component_filter=[],
+        local=True,
+        frontends=False,
+    )
+
+
+def get_apps_config():
+    return {
         "app1": {
             "name": "app1",
             "components": [
@@ -161,25 +216,6 @@ def processor():
             ],
         },
     }
-    tp = TemplateProcessor(
-        apps_config=apps_config,
-        app_names=[],
-        get_dependencies=True,
-        optional_deps_method="hybrid",
-        image_tag_overrides={},
-        template_ref_overrides={},
-        param_overrides={},
-        clowd_env="some_env",
-        remove_resources=AppOrComponentSelector(True, [], []),
-        no_remove_resources=AppOrComponentSelector(False, [], []),
-        remove_dependencies=AppOrComponentSelector(False, [], []),
-        no_remove_dependencies=AppOrComponentSelector(True, [], []),
-        single_replicas=True,
-        component_filter=[],
-        local=True,
-        frontends=False,
-    )
-    return tp
 
 
 @pytest.mark.parametrize(
@@ -214,7 +250,7 @@ def processor():
         ),
     ],
 )
-def test_required_deps(mock_repo_file, processor, optional_deps_method, expected):
+def test_required_deps(mock_repo_file, optional_deps_method, expected):
     """
     app1-component1 has 'app2-component2' listed under 'dependencies'
     app2-component2 has 'app3-component2' listed under 'dependencies'
@@ -227,6 +263,7 @@ def test_required_deps(mock_repo_file, processor, optional_deps_method, expected
     # template for app3-component2 will contain a dep we've already handled
     add_template(mock_repo_file, "app3-component2", deps=["app1-component1"])
 
+    processor = get_processor(get_apps_config())
     processor.optional_deps_method = optional_deps_method
     processor.requested_app_names = ["app1"]
     processed = processor.process()
@@ -249,7 +286,7 @@ def test_required_deps(mock_repo_file, processor, optional_deps_method, expected
         ("none", ["app1-component1", "app1-component2"]),
     ],
 )
-def test_optional_deps(mock_repo_file, processor, optional_deps_method, expected):
+def test_optional_deps(mock_repo_file, optional_deps_method, expected):
     """
     app1-component1 has 'app2-component2' listed under 'optionalDependencies'
     app2-component2 has 'app3-component2' listed under 'optionalDependencies'
@@ -263,6 +300,7 @@ def test_optional_deps(mock_repo_file, processor, optional_deps_method, expected
     # template for app3-component2 will contain a dep we've already handled
     add_template(mock_repo_file, "app3-component2", deps=["app1-component1"])
 
+    processor = get_processor(get_apps_config())
     processor.optional_deps_method = optional_deps_method
     processor.requested_app_names = ["app1"]
     processed = processor.process()
@@ -296,7 +334,7 @@ def test_optional_deps(mock_repo_file, processor, optional_deps_method, expected
         ("none", ["app1-component1", "app1-component2", "app3-component1"]),
     ],
 )
-def test_mixed_deps(mock_repo_file, processor, optional_deps_method, expected):
+def test_mixed_deps(mock_repo_file, optional_deps_method, expected):
     """
     app1-component1 has 'app3-component1' listed under 'dependencies'
     app1-component1 has 'app2-component1' listed under 'optionalDependencies'
@@ -324,6 +362,7 @@ def test_mixed_deps(mock_repo_file, processor, optional_deps_method, expected):
     add_template(mock_repo_file, "app3-component1")
     add_template(mock_repo_file, "app3-component2")
 
+    processor = get_processor(get_apps_config())
     processor.optional_deps_method = optional_deps_method
     processor.requested_app_names = ["app1"]
     processed = processor.process()
@@ -369,7 +408,7 @@ def test_mixed_deps(mock_repo_file, processor, optional_deps_method, expected):
         ),
     ],
 )
-def test_mixed_deps_two_apps(mock_repo_file, processor, optional_deps_method, expected):
+def test_mixed_deps_two_apps(mock_repo_file, optional_deps_method, expected):
     """
     app1-component1 has 'app2-component1' listed under 'dependencies'
     app1-component1 has 'app3-component1' listed under 'optionalDependencies'
@@ -396,6 +435,7 @@ def test_mixed_deps_two_apps(mock_repo_file, processor, optional_deps_method, ex
     add_template(mock_repo_file, "app4-component1")
     add_template(mock_repo_file, "app4-component2")
 
+    processor = get_processor(get_apps_config())
     processor.optional_deps_method = optional_deps_method
     processor.requested_app_names = ["app1", "app3"]
     processed = processor.process()
@@ -588,3 +628,112 @@ def test_should_remove_component_app_combos(default):
         _should_remove(remove_resources, no_remove_resources, "anything", "else", default)
         is default
     )
+
+
+def get_apps_config_with_params(parameters=None):
+    return {
+        "app1": {
+            "name": "app1",
+            "components": [
+                {
+                    "name": "app1-component1",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                    "parameters": parameters or {},
+                },
+            ],
+        },
+    }
+
+
+def test_remove_resources_untrusted_params(mock_repo_file):
+    """
+    Test that resource configs are removed if template's parameter values are not explicitly set
+    """
+    add_template(mock_repo_file, "app1-component1")
+    apps_config = get_apps_config_with_params(None)
+    processor = get_processor(apps_config)
+    processor.requested_app_names = ["app1"]
+    result = processor.process()
+
+    deployments = result["items"][0]["spec"]["deployments"]
+    deployment1, deployment2 = deployments[0], deployments[1]
+
+    assert deployment1["podSpec"]["resources"]["requests"] == {}
+    assert deployment1["podSpec"]["resources"]["limits"] == {}
+    assert deployment2["podSpec"]["resources"]["requests"] == {}
+    assert deployment2["podSpec"]["resources"]["limits"] == {}
+
+
+def test_preserve_resources_trusted_params(mock_repo_file):
+    """
+    Test that using trusted parameters causes cpu/mem configurations to be preserved.
+
+    Ensures that a value set with an untrusted parameter name is still removed.
+    """
+    add_template(mock_repo_file, "app1-component1")
+    apps_config = get_apps_config_with_params(
+        parameters={
+            "CPU_LIMIT_DEPLOYMENT1": "456m",
+            "CPU_REQUEST_DEPLOYMENT1": "123m",
+            "MEM_LIMIT_DEPLOYMENT1": "456Mi",
+            "MEM_REQUEST_DEPLOYMENT1": "123Mi",
+            "DEPLOYMENT2_WRONG_NAME_CPU": "1",
+            "MEM_LIMIT_DEPLOYMENT2": "910Mi",
+            "MEM_REQUEST_DEPLOYMENT2": "789Mi",
+        }
+    )
+    processor = get_processor(apps_config)
+    processor.requested_app_names = ["app1"]
+    result = processor.process()
+
+    deployments = result["items"][0]["spec"]["deployments"]
+    deployment1, deployment2 = deployments[0], deployments[1]
+
+    assert deployment1["podSpec"]["resources"]["requests"]["cpu"] == "123m"
+    assert deployment1["podSpec"]["resources"]["requests"]["memory"] == "123Mi"
+    assert deployment1["podSpec"]["resources"]["limits"]["cpu"] == "456m"
+    assert deployment1["podSpec"]["resources"]["limits"]["memory"] == "456Mi"
+    assert deployment2["podSpec"]["resources"]["requests"]["memory"] == "789Mi"
+    assert deployment2["podSpec"]["resources"]["limits"]["memory"] == "910Mi"
+    # deployment2 CPU param does not match trusted syntax for name
+    assert "cpu" not in deployment2["podSpec"]["resources"]["requests"]
+    assert "cpu" not in deployment2["podSpec"]["resources"]["limits"]
+
+
+@pytest.mark.parametrize(
+    "no_remove_resources",
+    (
+        # --no-remove-resources all
+        AppOrComponentSelector(select_all=True, components=[], apps=[]),
+        # --no-remove-resources app:app1
+        AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
+        # --no-remove-resources app1-component1
+        AppOrComponentSelector(select_all=False, components=["app1-component1"], apps=[]),
+    ),
+    ids=("all", "app", "component"),
+)
+def test_preserve_resources_cli_option(mock_repo_file, no_remove_resources):
+    """
+    Test that using "--no-remove-resources" causes cpu/mem configs to be preserved
+    """
+    add_template(mock_repo_file, "app1-component1")
+    apps_config = get_apps_config_with_params(parameters=None)
+    processor = get_processor(apps_config)
+    processor.requested_app_names = ["app1"]
+    processor.no_remove_resources = no_remove_resources
+    processor.remove_resources = AppOrComponentSelector(False, [], [])
+    result = processor.process()
+
+    deployments = result["items"][0]["spec"]["deployments"]
+    deployment1, deployment2 = deployments[0], deployments[1]
+
+    assert deployment1["podSpec"]["resources"]["requests"]["cpu"] == "1m"
+    assert deployment1["podSpec"]["resources"]["requests"]["memory"] == "1Mi"
+    assert deployment1["podSpec"]["resources"]["limits"]["cpu"] == "100m"
+    assert deployment1["podSpec"]["resources"]["limits"]["memory"] == "100Mi"
+    assert deployment2["podSpec"]["resources"]["requests"]["memory"] == "2Mi"
+    assert deployment2["podSpec"]["resources"]["requests"]["cpu"] == "2m"
+    assert deployment2["podSpec"]["resources"]["limits"]["memory"] == "200Mi"
+    assert deployment2["podSpec"]["resources"]["limits"]["cpu"] == "2m"

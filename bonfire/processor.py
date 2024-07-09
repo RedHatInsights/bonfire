@@ -30,23 +30,85 @@ def _process_template(*args, **kwargs):
     return processed_template
 
 
-def _remove_resource_config(items):
-    for i in items:
-        if i["kind"] != "ClowdApp":
+def _is_trusted_config(value, regex, component_params, path):
+    """
+    Check for presence of a trusted param being used for the value.
+
+    A trusted parameter is defined as:
+    1. matching the expected regex pattern
+    2. the parameter value is set in the component's deploy config
+
+    Returns True if we determine this is a trusted value
+    """
+    if not regex or not isinstance(regex, str):
+        raise ValueError("string value for 'regex' must be supplied")
+
+    match = False
+    in_params = False
+
+    if value:
+        match = re.match(regex, value)
+        if match and match.groups()[0] in component_params:
+            in_params = True
+
+    log.debug(
+        "value '%s', regex r'%s', matches=%s, in params=%s", value, regex, bool(match), in_params
+    )
+
+    return match and in_params
+
+
+def _remove_untrusted_configs(data, params, path="", current_dict=None, current_key=None):
+    """
+    Locate configurations within 'data' and remove them if not trusted.
+
+    Checks to see if any config matching a path listed in 'config.TRUSTED_PARAM_REGEX_FOR_PATH' is
+    found within 'data' dictionary and ensures the regex matches and that the parameter value is
+    set on the component's deploy config.
+    """
+    if isinstance(data, dict):
+        for key, value in copy.copy(data).items():
+            _remove_untrusted_configs(
+                value, params, path + f".{key}", current_dict=data, current_key=key
+            )
+
+    elif isinstance(data, list):
+        for index, value in enumerate(copy.copy(data)):
+            _remove_untrusted_configs(value, params, path + f"[{index}]")
+
+    # check if this value is at a path where we need to see a certain parameter in use
+    # in order to preserve it
+    for path_end, regex in conf.TRUSTED_REGEX_FOR_PATH.items():
+        # only check values if the path end is listed in TRUSTED_PARAM_REGEX_FOR_PATH
+        if not path.endswith(path_end):
             continue
 
-        removed = False
-        for d in i["spec"].get("deployments", []):
-            if "resources" in d["podSpec"]:
-                del d["podSpec"]["resources"]
-                removed = True
-        for p in i["spec"].get("pods", []):
-            if "resources" in p:
-                del p["resources"]
-                removed = True
+        if not _is_trusted_config(data, regex, params, path):
+            del current_dict[current_key]
+            log.debug("deleted untrusted config at '%s'", path)
 
-        if removed:
-            log.debug("removed resources from ClowdApp '%s'", i["metadata"]["name"])
+
+def _remove_untrusted_configs_for_template(template, params):
+    """
+    Removes untrusted configurations within the template.
+
+        A configuration is trusted if:
+        1. the value is defined using a template parameter
+        2. the parameter follows the proper syntax convention
+        3. the parameter is defined on the component in its deployment config
+
+    Checks template to see if any resources of kind listed in 'config.TRUSTED_CHECK_KINDS'
+    are found. If so, analyzes the config on those resources to see if any need to be removed.
+    """
+    for obj in template.get("objects", []):
+        kind = obj.get("kind")
+        if kind not in conf.TRUSTED_CHECK_KINDS:
+            continue
+
+        name = obj.get("metadata", {}).get("name")
+        log.debug("checking resources on %s '%s'", kind, name)
+
+        _remove_untrusted_configs(obj, params)
 
 
 def _remove_dependency_config(items):
@@ -580,15 +642,10 @@ class TemplateProcessor:
         self._sub_params(component_name, params)
         log.debug("parameters for component '%s': %s", component_name, params)
 
-        new_items = _process_template(template, params, self.local)["items"]
-
-        # override the tags for all occurences of an image if requested
-        new_items = self._sub_image_tags(new_items)
-
         # evaluate --remove-resources/--no-remove-resources
         app_name = self._get_app_for_component(component_name)
 
-        # if app/component is trusted, do not remove its resources
+        # if entire app or component is marked trusted, do not remove any resources
         should_remove_resources = False
         if app_name in conf.TRUSTED_APPS:
             log.debug("should_remove: app '%s' listed in trusted apps", app_name)
@@ -604,7 +661,13 @@ class TemplateProcessor:
             )
         log.debug("should_remove_resources evaluates to %s", should_remove_resources)
         if should_remove_resources:
-            _remove_resource_config(new_items)
+            _remove_untrusted_configs_for_template(template, params)
+
+        # process the template
+        new_items = _process_template(template, params, self.local)["items"]
+
+        # override the tags for all occurences of an image if requested
+        new_items = self._sub_image_tags(new_items)
 
         # evaluate --remove-dependencies/--no-remove-dependencies
         should_remove_deps = _should_remove(
