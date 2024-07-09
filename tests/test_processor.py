@@ -70,7 +70,7 @@ objects:
             memory: ${{MEM_LIMIT_DEPLOYMENT2}}
           requests:
             cpu: ${{DEPLOYMENT2_WRONG_NAME_CPU}}
-            memory: ${{MEM_REQUEST_DEPLOYMENT2}}
+            memory: ${{MEMORY_REQUEST_DEPLOYMENT2}}
 parameters:
 - description: Image tag
   name: IMAGE_TAG
@@ -88,7 +88,7 @@ parameters:
   value: 100Mi
 - name: DEPLOYMENT2_WRONG_NAME_CPU
   value: 2m
-- name: MEM_REQUEST_DEPLOYMENT2
+- name: MEMORY_REQUEST_DEPLOYMENT2
   value: 2Mi
 - name: MEM_LIMIT_DEPLOYMENT2
   value: 200Mi
@@ -681,7 +681,7 @@ def test_preserve_resources_trusted_params(mock_repo_file):
             "MEM_REQUEST_DEPLOYMENT1": "123Mi",
             "DEPLOYMENT2_WRONG_NAME_CPU": "1",
             "MEM_LIMIT_DEPLOYMENT2": "910Mi",
-            "MEM_REQUEST_DEPLOYMENT2": "789Mi",
+            "MEMORY_REQUEST_DEPLOYMENT2": "789Mi",
         }
     )
     processor = get_processor(apps_config)

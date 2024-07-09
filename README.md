@@ -224,12 +224,14 @@ Once you have audited your container CPU/mem usage in test environments and have
 1. Any ClowdApp/ClowdJob/ClowdJobInvocation in your template asking for CPU/mem using requests or limits should use a parameter with a name formatted like this:
 * `CPU_REQUEST_<NAME>`
 * `CPU_LIMIT_<NAME>`
-* `MEM_REQUEST_<NAME>`
-* `MEM_LIMIT_<NAME>`
+* `MEM_REQUEST_<NAME>` or `MEMORY_REQUEST_<NAME>`
+* `MEM_LIMIT_<NAME>` or `MEMORY_LIMIT_<NAME>`
 
-Where `<NAME>` can be whatever arbitrary name you'd like to use containing `A-Z`, `0-9,` and `_`. For example, either of these would be valid:
-* `CPU_REQUEST_MQ_CONSUMER`
-* `MEM_LIMIT_API`
+  Where `<NAME>` can be whatever arbitrary name you'd like to use containing `A-Z`, `0-9,` and `_`. For example, either of these would be valid:
+  * `CPU_REQUEST_MQ_CONSUMER`
+  * `MEM_LIMIT_API`
+
+  **NOTE:** If you only have a single component in your template, you can omit `_<NAME>` from the parameter names if you desire.
 
 2. Your deployment configuration for the component must explicitly define values for these parameters. For ephemeral environments normally this will mean that your parameters are defined under the ephemeral deploy target in app-interface.
 
