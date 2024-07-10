@@ -123,6 +123,7 @@ DEFAULT_FRONTEND_DEPENDENCIES = (
     "host-inventory-frontend",
     "unleash-proxy",
     "service-accounts",
+    "widget-layout",
 )
 
 
