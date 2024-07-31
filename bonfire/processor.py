@@ -30,7 +30,7 @@ def _process_template(*args, **kwargs):
     return processed_template
 
 
-def _is_trusted_config(value, regex, component_params, path):
+def _is_trusted_config(value, regex, component_params):
     """
     Check for presence of a trusted param being used for the value.
 
@@ -47,7 +47,7 @@ def _is_trusted_config(value, regex, component_params, path):
     in_params = False
 
     if value:
-        match = re.match(regex, value)
+        match = re.match(regex, str(value))
         if match and match.groups()[0] in component_params:
             in_params = True
 
@@ -83,7 +83,7 @@ def _remove_untrusted_configs(data, params, path="", current_dict=None, current_
         if not path.endswith(path_end):
             continue
 
-        if not _is_trusted_config(data, regex, params, path):
+        if not _is_trusted_config(data, regex, params):
             del current_dict[current_key]
             log.debug("deleted untrusted config at '%s'", path)
 
