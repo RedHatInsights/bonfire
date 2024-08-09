@@ -1,3 +1,5 @@
+a change
+
 # bonfire <!-- omit in toc -->
 
 A CLI tool used by Red Hat engineers to deploy console.redhat.com applications into kubernetes/OpenShift. This tool is mainly used for the purpose of creating ephemeral test environments.
