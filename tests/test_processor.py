@@ -155,7 +155,7 @@ parameters:
 
 TEMPLATES = {
     "simple_clowdapp": SIMPLE_CLOWDAPP,
-    "clowdapp_w_untrusted_param": "CLOWDAPP_W_UNTRUSTED_PARAM",
+    "clowdapp_w_untrusted_param": CLOWDAPP_W_UNTRUSTED_PARAM,
 }
 
 

@@ -46,7 +46,6 @@ def _get_trusted_config(data: dict, key1: str, key2: str, path: str, component_p
         raise ValueError("not able to find conf.TRUSTED_RESOURCE_REGEX[{key1}][{key2}]")
 
     value = data.get(key1, {}).get(key2)
-    print(data)
     if value:
         match = False
         in_params = False
@@ -88,9 +87,9 @@ def _remove_untrusted_configs(
     if path.endswith(".resources"):
         resources = current_dict["resources"]
         cpu_request = _get_trusted_config(resources, "requests", "cpu", path, params)
-        cpu_limit = _get_trusted_config(resources, "requests", "cpu", path, params)
-        mem_request = _get_trusted_config(resources, "requests", "cpu", path, params)
-        mem_limit = _get_trusted_config(resources, "requests", "cpu", path, params)
+        cpu_limit = _get_trusted_config(resources, "limits", "cpu", path, params)
+        mem_request = _get_trusted_config(resources, "requests", "memory", path, params)
+        mem_limit = _get_trusted_config(resources, "limits", "memory", path, params)
 
         if any([cpu_request, cpu_limit]) and not all([cpu_request, cpu_limit]):
             log.debug("'%s' cpu config needs both request and limit, removing cpu config", path)
