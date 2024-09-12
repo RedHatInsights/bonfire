@@ -58,7 +58,15 @@ def _is_trusted_config(value, regex, component_params):
     return match and in_params
 
 
-def _remove_untrusted_configs(data, params, path="", current_dict=None, current_key=None):
+def _remove_untrusted_configs(
+    data,
+    params,
+    path="",
+    current_dict=None,
+    current_key=None,
+    paths_preserved=None,
+    paths_removed=None,
+):
     """
     Locate configurations within 'data' and remove them if not trusted.
 
@@ -66,6 +74,8 @@ def _remove_untrusted_configs(data, params, path="", current_dict=None, current_
     found within 'data' dictionary and ensures the regex matches and that the parameter value is
     set on the component's deploy config.
     """
+    paths_preserved = paths_preserved or []
+    paths_removed = paths_removed or []
     if isinstance(data, dict):
         for key, value in copy.copy(data).items():
             _remove_untrusted_configs(
@@ -83,9 +93,51 @@ def _remove_untrusted_configs(data, params, path="", current_dict=None, current_
         if not path.endswith(path_end):
             continue
 
-        if not _is_trusted_config(data, regex, params):
+        if _is_trusted_config(data, regex, params):
+            paths_preserved.append(path)
+        else:
             del current_dict[current_key]
             log.debug("deleted untrusted config at '%s'", path)
+            paths_removed.append(path)
+
+    return paths_preserved, paths_removed
+
+
+def _check_requests_and_limits_both_set(paths, name):
+    requests_end = f"resources.requests.{name}"
+    limits_end = f"resources.limits.{name}"
+    requests_paths = [p for p in paths if p.endswith(requests_end)]
+    limits_paths = [p for p in paths if p.endswith(limits_end)]
+
+    no_matching_limits = []
+    for rp in requests_paths:
+        prefix, _ = rp.split(requests_end)
+        for lp in limits_paths:
+            if lp.startswith(prefix):
+                break
+        else:
+            no_matching_limits.append(rp)
+
+    no_matching_requests = []
+    for lp in limits_paths:
+        prefix, _ = lp.split(limits_end)
+        for rp in requests_paths:
+            if rp.startswith(prefix):
+                break
+        else:
+            no_matching_requests.append(lp)
+
+    if no_matching_limits:
+        log.error(
+            "%s requests config at paths %s have no related limit set", name, no_matching_limits
+        )
+    if no_matching_requests:
+        log.error(
+            "%s limits config at paths %s have no related limit set", name, no_matching_requests
+        )
+    if no_matching_limits or no_matching_requests:
+        return False
+    return True
 
 
 def _remove_untrusted_configs_for_template(template, params):
@@ -108,7 +160,24 @@ def _remove_untrusted_configs_for_template(template, params):
         name = obj.get("metadata", {}).get("name")
         log.debug("checking resources on %s '%s'", kind, name)
 
-        _remove_untrusted_configs(obj, params)
+        new_obj = copy.deepcopy(obj)
+        paths_preserved, paths_removed = _remove_untrusted_configs(new_obj, params)
+
+        log.debug("paths preserved on %s '%s': ", kind, name, paths_preserved)
+        log.debug("paths removed on %s '%s': ", kind, name, paths_removed)
+
+        cpu_requests_and_limits_both_set = _check_requests_and_limits_both_set(
+            paths_preserved, "cpu"
+        )
+        mem_requests_and_limits_both_set = _check_requests_and_limits_both_set(
+            paths_preserved, "memory"
+        )
+
+        if cpu_requests_and_limits_both_set and mem_requests_and_limits_both_set:
+            obj = new_obj
+        else:
+            # TODO... error case
+            log.debug("")
 
 
 def _remove_dependency_config(items):
