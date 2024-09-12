@@ -95,6 +95,70 @@ parameters:
 """
 
 
+CLOWDAPP_W_UNTRUSTED_PARAM = """
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: {name}-template
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: {name}
+  spec:
+    envName: ${{ENV_NAME}}
+    dependencies: {deps}
+    optionalDependencies: {optional_deps}
+    deployments:
+    - name: deployment1
+      podSpec:
+        resources:
+          limits:
+            cpu: ${{CPU_LIMIT_DEPLOYMENT1}}
+            memory: ${{MEM_LIMIT_DEPLOYMENT1}}
+          requests:
+            cpu: ${{INVALID_PARAMETER_HERE}}
+            memory: ${{MEM_REQUEST_DEPLOYMENT1}}
+    - name: deployment2
+      podSpec:
+        resources:
+          limits:
+            cpu: ${{DEPLOYMENT2_WRONG_NAME_CPU}}
+            memory: ${{MEM_LIMIT_DEPLOYMENT2}}
+          requests:
+            cpu: ${{DEPLOYMENT2_WRONG_NAME_CPU}}
+            memory: ${{MEMORY_REQUEST_DEPLOYMENT2}}
+parameters:
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+- description: ClowdEnv Name
+  name: ENV_NAME
+  required: true
+- name: CPU_LIMIT_DEPLOYMENT1
+  value: 100m
+- name: CPU_REQUEST_DEPLOYMENT1
+  value: 1m
+- name: MEM_REQUEST_DEPLOYMENT1
+  value: 1Mi
+- name: MEM_LIMIT_DEPLOYMENT1
+  value: 100Mi
+- name: DEPLOYMENT2_WRONG_NAME_CPU
+  value: 2m
+- name: MEMORY_REQUEST_DEPLOYMENT2
+  value: 2Mi
+- name: MEM_LIMIT_DEPLOYMENT2
+  value: 200Mi
+"""
+
+
+TEMPLATES = {
+    "simple_clowdapp": SIMPLE_CLOWDAPP,
+    "clowdapp_w_untrusted_param": "CLOWDAPP_W_UNTRUSTED_PARAM",
+}
+
+
 def assert_clowdapps(items, app_list):
     found_apps = AppOrComponentSelector().apps
     for i in items:
@@ -114,13 +178,16 @@ def assert_clowdapps(items, app_list):
         raise AssertionError("apps present more than once in processed output")
 
 
-def add_template(mock_repo_file, template_name, deps=None, optional_deps=None):
+def add_template(
+    mock_repo_file, template_name, deps=None, optional_deps=None, template_key="simple_clowdapp"
+):
     deps = deps or []
     optional_deps = optional_deps or []
+    template = TEMPLATES[template_key]
     mock_repo_file.add_template(
         template_name,
         uuid.uuid4().hex[0:6],
-        SIMPLE_CLOWDAPP.format(name=template_name, deps=deps, optional_deps=optional_deps),
+        template.format(name=template_name, deps=deps, optional_deps=optional_deps),
     )
 
 
@@ -694,6 +761,42 @@ def test_preserve_resources_trusted_params(mock_repo_file):
     assert deployment1["podSpec"]["resources"]["requests"]["cpu"] == "123m"
     assert deployment1["podSpec"]["resources"]["requests"]["memory"] == "123Mi"
     assert deployment1["podSpec"]["resources"]["limits"]["cpu"] == "456m"
+    assert deployment1["podSpec"]["resources"]["limits"]["memory"] == "456Mi"
+    assert deployment2["podSpec"]["resources"]["requests"]["memory"] == "789Mi"
+    assert deployment2["podSpec"]["resources"]["limits"]["memory"] == "910Mi"
+    # deployment2 CPU param does not match trusted syntax for name
+    assert "cpu" not in deployment2["podSpec"]["resources"]["requests"]
+    assert "cpu" not in deployment2["podSpec"]["resources"]["limits"]
+
+
+def test_remove_resources_without_corresponding_config(mock_repo_file):
+    """
+    Test that using trusted parameters causes cpu/mem configurations to be preserved.
+
+    Ensures that a value set with an untrusted parameter name is still removed.
+    """
+    add_template(mock_repo_file, "app1-component1", template_key="clowdapp_w_untrusted_param")
+    apps_config = get_apps_config_with_params(
+        parameters={
+            "CPU_LIMIT_DEPLOYMENT1": "456m",
+            "CPU_REQUEST_DEPLOYMENT1": "123m",  # invalid param name present in template
+            "MEM_LIMIT_DEPLOYMENT1": "456Mi",
+            "MEM_REQUEST_DEPLOYMENT1": "123Mi",
+            "DEPLOYMENT2_WRONG_NAME_CPU": "1",
+            "MEM_LIMIT_DEPLOYMENT2": "910Mi",
+            "MEMORY_REQUEST_DEPLOYMENT2": "789Mi",
+        }
+    )
+    processor = get_processor(apps_config)
+    processor.requested_app_names = ["app1"]
+    result = processor.process()
+
+    deployments = result["items"][0]["spec"]["deployments"]
+    deployment1, deployment2 = deployments[0], deployments[1]
+
+    assert "cpu" not in deployment1["podSpec"]["resources"]["requests"]
+    assert deployment1["podSpec"]["resources"]["requests"]["memory"] == "123Mi"
+    assert "cpu" not in deployment1["podSpec"]["resources"]["limits"]
     assert deployment1["podSpec"]["resources"]["limits"]["memory"] == "456Mi"
     assert deployment2["podSpec"]["resources"]["requests"]["memory"] == "789Mi"
     assert deployment2["podSpec"]["resources"]["limits"]["memory"] == "910Mi"
