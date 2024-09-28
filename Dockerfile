@@ -1,8 +1,8 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:8.10-1052.1724178568
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.10-1086
 
-ARG OC_CLI_VERSION=4.14
+ARG OC_CLI_VERSION=4.16
 
-RUN microdnf install python3 shadow-utils tar gzip && \
+RUN microdnf install python3.12 python3.12-pip shadow-utils tar gzip && \
     microdnf clean all
 
 RUN groupadd -r -g 1000 bonfire && \
