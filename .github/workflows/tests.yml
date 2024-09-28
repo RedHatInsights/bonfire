@@ -71,7 +71,7 @@ jobs:
     - name: Install CLI tools from OpenShift Mirror
       uses: redhat-actions/openshift-tools-installer@v1
       with:
-        oc: "latest"
+        oc: "4.16"
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
