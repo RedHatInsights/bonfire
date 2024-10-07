@@ -1,0 +1,6 @@
+*
+!.git
+!bonfire
+!utils
+!pyproject.toml
+!entrypoint.sh
