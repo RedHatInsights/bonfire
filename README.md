@@ -70,6 +70,13 @@ echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
 In addition, since some projects may be private, you will need to add the `repo` (full control of private repositories) scope too.
 for the template fetching to work!
 
+## Using homebrew
+
+```bash
+brew tap redhatinsights/bonfire https://github.com/RedHatInsights/homebrew-bonfire.git
+brew install bonfire
+```
+
 ## Using a container image (podman/docker)
 
 We provide a container image at quay.io/cloudservices/bonfire. The image wraps a Python virtual environment with **crc-bonfire** installed on it.
