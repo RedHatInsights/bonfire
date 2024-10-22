@@ -73,7 +73,7 @@ for the template fetching to work!
 ## Using homebrew
 
 ```bash
-brew tap redhatinsights/bonfire https://github.com/RedHatInsights/homebrew-bonfire.git
+brew tap redhatinsights/bonfire
 brew install bonfire
 ```
 
