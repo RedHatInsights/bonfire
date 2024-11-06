@@ -11,7 +11,7 @@ jobs:
   build-and-publish:
     name: Build and publish to PyPI
     if: startsWith(github.event.ref, 'refs/tags')
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     environment:
       name: release
       url: https://pypi.org/p/crc-bonfire
