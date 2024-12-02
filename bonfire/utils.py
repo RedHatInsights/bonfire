@@ -1,9 +1,11 @@
 import atexit
 import copy
+import difflib
 from functools import lru_cache
 import json
 import logging
 import os
+import pprint
 import re
 import shlex
 import socket
@@ -12,8 +14,6 @@ import tempfile
 import time
 from urllib.request import urlretrieve
 import sys
-import difflib
-import pprint
 
 if sys.version_info >= (3, 8):
     import importlib.metadata as importlib_metadata

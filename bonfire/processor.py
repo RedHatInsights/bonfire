@@ -651,9 +651,7 @@ class TemplateProcessor:
             # override template ref if requested
             self._sub_ref(component_name, rf)
             log.debug(
-                "component: '%s' fetching template using git ref '%s'",
-                component_name,
-                rf.ref
+                "component: '%s' fetching template using git ref '%s'", component_name, rf.ref
             )
             commit, template_content = rf.fetch()
         except Exception as err:
