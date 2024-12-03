@@ -951,6 +951,14 @@ def _get_apps_config(
         log.info("fetching apps config using source: %s", source)
         apps_config = get_appsfile_apps(config)
 
+    # handle git ref/image substitutions if reference environment was provided
+    if ref_env:
+        apps_config = sub_refs(apps_config, ref_env, fallback_ref_env, preferred_params)
+
+    # merge remote apps config with local app config
+    local_apps = get_local_apps(config)
+    apps_config = merge_app_configs(apps_config, local_apps, local_config_method)
+
     # validate the components look ok after merging
     for app_name, app_config in apps_config.items():
         for component in app_config["components"]:
@@ -962,14 +970,6 @@ def _get_apps_config(
             except FatalError as err:
                 # re-raise with a bit more context
                 raise FatalError(f"{str(err)}, hit on app {app_name}")
-
-    # handle git ref/image substitutions if reference environment was provided
-    if ref_env:
-        apps_config = sub_refs(apps_config, ref_env, fallback_ref_env, preferred_params)
-
-    # merge remote apps config with local app config
-    local_apps = get_local_apps(config)
-    apps_config = merge_app_configs(apps_config, local_apps, local_config_method)
 
     return apps_config
 

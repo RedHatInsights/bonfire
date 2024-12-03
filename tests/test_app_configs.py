@@ -299,7 +299,7 @@ def test_empty_local_config(monkeypatch, source, local_config_method):
 def test_bad_local_config(monkeypatch, source, local_config_method, bad_local_cfg):
     _setup_monkeypatch(monkeypatch, source, bad_local_cfg)
     with pytest.raises(bonfire.utils.FatalError) as exc:
-        _get_apps_config(
+        output = _get_apps_config(
             source=source,
             target_env="test_env_with_no_apps",
             ref_env=None,
@@ -308,6 +308,8 @@ def test_bad_local_config(monkeypatch, source, local_config_method, bad_local_cf
             local_config_method=local_config_method,
             preferred_params={},
         )
+        from pprint import pprint
+        pprint(output)
         assert str(exc).startswith(bonfire.utils.SYNTAX_ERR)
 
 
