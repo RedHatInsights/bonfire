@@ -204,6 +204,8 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path, local=True)
 
     params = dict()
     params["ENV_NAME"] = env_name
+    # TODO: revisit need for below param once FEO has a more developed config management system
+    params["FRONTEND_CONTEXT_NAME"] = env_name
     if quay_user:
         quay_user = quay_user.replace("_", "-")
         params["PULL_SECRET_NAME"] = f"{quay_user}-pull-secret"
