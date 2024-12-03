@@ -24,6 +24,10 @@ class MockRepoFile:
     def add_template(cls, name, template_commit, template_data):
         cls.templates[name] = {"commit": template_commit, "data": template_data}
 
+    @property
+    def ref(self):
+        return self.templates[self.name]["commit"]
+
     def fetch(self):
         return self.templates[self.name]["commit"], self.templates[self.name]["data"]
 

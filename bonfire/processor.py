@@ -650,6 +650,9 @@ class TemplateProcessor:
             rf = RepoFile.from_config(component)
             # override template ref if requested
             self._sub_ref(component_name, rf)
+            log.debug(
+                "component: '%s' fetching template using git ref '%s'", component_name, rf.ref
+            )
             commit, template_content = rf.fetch()
         except Exception as err:
             log.error("failed to fetch template file for %s", component_name)

@@ -1,9 +1,11 @@
 import atexit
 import copy
+import difflib
 from functools import lru_cache
 import json
 import logging
 import os
+import pprint
 import re
 import shlex
 import socket
@@ -637,14 +639,25 @@ def object_merge(old, new, merge_lists=True):
     return new
 
 
+def _log_diff(old_apps_config, new_apps_config):
+    old_lines = pprint.pformat(old_apps_config).splitlines()
+    new_lines = pprint.pformat(new_apps_config).splitlines()
+    compare_result = difflib.unified_diff(old_lines, new_lines)
+    diff = "\n".join(compare_result)
+    log.info("diff in apps config after merging local config into remote config:\n%s", diff)
+
+
 def merge_app_configs(apps_config, new_apps, method="merge"):
     """
     Merge configurations found in new_apps into apps_config
     """
+    old_apps_config = copy.deepcopy(apps_config)
+
     if method == "override":
         # with this method, any app defined in 'new_apps' completely overrides
         # the config in 'apps_config'
         apps_config.update(new_apps)
+        _log_diff(old_apps_config, apps_config)
         return apps_config
 
     for app_name, new_app_cfg in new_apps.items():
@@ -685,4 +698,5 @@ def merge_app_configs(apps_config, new_apps, method="merge"):
                     f"more than once in app '{app_name}'"
                 )
 
+    _log_diff(old_apps_config, apps_config)
     return apps_config

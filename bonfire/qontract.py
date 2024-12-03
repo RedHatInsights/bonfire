@@ -394,7 +394,7 @@ def _find_ref_target_and_update_component(
             final_component["parameters"].update(image_tags)
 
         log.debug(
-            "%s using git ref/image tag from env '%s': %s%s",
+            "%s git ref/image tag found for env '%s': %s%s",
             log_prefix,
             ref_env,
             final_component["ref"],

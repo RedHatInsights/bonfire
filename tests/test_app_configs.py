@@ -384,14 +384,14 @@ def test_local_config_merge(monkeypatch, source):
     actual = _get_apps_config(
         source=source,
         target_env="test_target_env",
-        ref_env=None,
+        ref_env="test_ref_env",
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method="merge",
         preferred_params={},
     )
 
-    expected = _target_apps()
+    expected = _target_apps_w_refs_subbed()
     for _, app_config in expected.items():
         for component in app_config["components"]:
             if component["name"] == "appBcomponent1":
@@ -430,14 +430,14 @@ def test_local_config_override(monkeypatch, source):
     actual = _get_apps_config(
         source=source,
         target_env="test_target_env",
-        ref_env=None,
+        ref_env="test_ref_env",
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method="override",
         preferred_params={},
     )
 
-    expected = _target_apps()
+    expected = _target_apps_w_refs_subbed()
     expected["appB"] = app_b
 
     assert actual == expected
@@ -467,14 +467,14 @@ def test_local_config_merge_update_param(monkeypatch, source):
     actual = _get_apps_config(
         source=source,
         target_env="test_target_env",
-        ref_env=None,
+        ref_env="test_ref_env",
         fallback_ref_env=None,
         local_config_path="na",
         local_config_method="merge",
         preferred_params={},
     )
 
-    expected = _target_apps()
+    expected = _target_apps_w_refs_subbed()
     component1_found = False
     for _, app_config in expected.items():
         for component in app_config["components"]:
