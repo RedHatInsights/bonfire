@@ -122,7 +122,6 @@ DEFAULT_FRONTEND_DEPENDENCIES = (
     "insights-dashboard",
     "rbac",
     "rbac-frontend",
-    "settings-frontend",
     "host-inventory",
     "host-inventory-frontend",
     "unleash-proxy",
