@@ -672,6 +672,8 @@ class TemplateProcessor:
 
         # always override ENV_NAME
         params["ENV_NAME"] = self.clowd_env
+        # TODO: revisit need for below param once FEO has a more developed config management system
+        params["FRONTEND_CONTEXT_NAME"] = self.clowd_env
 
         # override other specific parameters on this component if requested by user at runtime
         self._sub_params(component_name, params)
