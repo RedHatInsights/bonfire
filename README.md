@@ -114,6 +114,19 @@ podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v $HOME/.kube/config:/op
     quay.io/cloudservices/bonfire namespace list
 ```
 
+# Local development
+
+To install local changes and use local version of bonfire, switch to the root directory of this repository, switch to virtual environment and install bonfire package with local changes:
+
+```bash
+VENV_DIR=~/bonfire_venv
+mkdir -p $VENV_DIR
+python3 -m venv $VENV_DIR
+. $VENV_DIR/bin/activate
+pip install -e .
+```
+
+
 # Quick Start
 
 Start with `bonfire --help` to familiarize yourself with the basic command groups. Don't forget to use the `--help` flag on sub-commmands as well if you are curious to learn more about different CLI commands, options, and arguments.
