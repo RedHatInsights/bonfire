@@ -317,7 +317,7 @@ class RepoFile:
 
     def _gh_get(self, *args, **kwargs):
         """Send a GET to github with handler for 403/429 rate limit errors."""
-        attempt = kwargs.pop("_attempt") or 1
+        attempt = kwargs.pop("_attempt", 1)
 
         if attempt > 3:
             raise Exception(
@@ -336,8 +336,10 @@ class RepoFile:
                 sleep_seconds = reset_time - time.time()
 
             log.warning("exceeded rate limit, retrying after %d sec", sleep_seconds)
+
             time.sleep(sleep_seconds)
-            return self._gh_get(*args, _attempt=attempt + 1, **kwargs)
+            kwargs["_attempt"] = attempt + 1
+            return self._gh_get(*args, **kwargs)
 
         return response
 
