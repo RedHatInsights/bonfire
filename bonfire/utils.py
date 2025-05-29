@@ -266,11 +266,11 @@ class RepoFile:
         group, project = self.org, self.repo
         url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
         check_url_connection(url)
-        response = self._session.get(url, verify=self._gl_certfile)
+        response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
             # use a different path
-            response = self._session.get(
+            response = self._get(
                 GL_PROJECTS_URL.format(type="users", group=group, name=project),
                 verify=self._gl_certfile,
             )
@@ -289,7 +289,7 @@ class RepoFile:
             )
 
         def get_ref_func(ref):
-            return self._session.get(
+            return self._get(
                 GL_BRANCH_URL.format(id=project_id, branch=ref), verify=self._gl_certfile
             )
 
@@ -304,7 +304,7 @@ class RepoFile:
 
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
-        response = self._session.get(url, verify=self._gl_certfile)
+        response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             log.warning(
                 "http response 404 for url %s, checking for template in current working dir...", url
@@ -315,31 +315,33 @@ class RepoFile:
 
         return commit, response.content
 
-    def _gh_get(self, *args, **kwargs):
-        """Send a GET to github with handler for 403/429 rate limit errors."""
+    def _get(self, *args, **kwargs):
+        """Send a GET with handler for 403/429 rate limit errors."""
         attempt = kwargs.pop("_attempt", 1)
-
-        if attempt > 3:
-            raise Exception(
-                "github request continues to hit rate limit after 3 attempts, is GITHUB_TOKEN set?"
-            )
 
         response = self._session.get(*args, **kwargs)
         status = response.status_code
+        url = response.request.url
 
         if status == 429 or (status == 403 and "api rate limit exceeded" in response.text.lower()):
+            if attempt == 3:
+                raise Exception(f"GET {url} continues to hit rate limit after 3 attempts")
+
             if "retry-after" in response.headers:
                 sleep_seconds = int(response.headers["retry-after"])
 
-            if response.headers.get("x-ratelimit-remaining") == "0":
+            elif response.headers.get("x-ratelimit-remaining") == "0":
                 reset_time = int(response.headers["x-ratelimit-reset"]) or time.time() + 60
                 sleep_seconds = reset_time - time.time()
 
-            log.warning("exceeded rate limit, retrying after %d sec", sleep_seconds)
+            else:
+                sleep_seconds = 60
+
+            log.warning("GET %s exceeded rate limit, retrying after %d sec", url, sleep_seconds)
 
             time.sleep(sleep_seconds)
             kwargs["_attempt"] = attempt + 1
-            return self._gh_get(*args, **kwargs)
+            return self._get(*args, **kwargs)
 
         return response
 
@@ -347,7 +349,7 @@ class RepoFile:
         def get_ref_func(ref):
             url = GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref)
             check_url_connection(url)
-            return self._gh_get(url, headers=self._gh_auth_headers)
+            return self._get(url, headers=self._gh_auth_headers)
 
         response = self._get_ref(get_ref_func)
         response_json = response.json()
@@ -363,7 +365,7 @@ class RepoFile:
 
         url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
-        response = self._gh_get(url, headers=self._gh_auth_headers)
+        response = self._get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
             log.warning(
                 "http response 404 for url %s, checking for template in current working dir...", url
