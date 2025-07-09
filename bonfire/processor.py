@@ -558,6 +558,7 @@ class TemplateProcessor:
         component_filter,
         local,
         frontends,
+        namespace=None,
     ):
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
@@ -575,6 +576,7 @@ class TemplateProcessor:
         self.component_filter = component_filter
         self.local = local
         self.frontends = frontends
+        self.namespace = namespace
 
         self._validate()
 
@@ -669,6 +671,10 @@ class TemplateProcessor:
         # set IMAGE_TAG on this component only if it is currently unset
         if "IMAGE_TAG" not in params:
             params["IMAGE_TAG"] = commit[:7]
+
+        # set NAMESPACE on this component only if it is current unset
+        if "NAMESPACE" not in params:
+            params["NAMESPACE"] = self.namespace
 
         # always override ENV_NAME
         params["ENV_NAME"] = self.clowd_env
