@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 class ElasticLogger:
     def __init__(self):
         self.es_telemetry = logging.getLogger("elasicsearch")
+        self.es_telemetry.propagate = False
 
         # prevent duplicate handlers
         self.es_handler = next(
