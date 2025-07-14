@@ -71,7 +71,7 @@ _local_option = click.option(
 
 def _error(msg):
     es_telemetry.send_telemetry(msg, success=False)
-    click.echo(f"ERROR: {msg}", err=True)
+    click.echo(f"\nERROR: {msg}", err=True)
     sys.exit(1)
 
 
@@ -95,12 +95,8 @@ def click_exception_wrapper(command):
                 return result
             except KeyboardInterrupt:
                 _error(f"{command}: aborted by keyboard interrupt")
-            except TimedOutError as err:
-                _error(f"{command}: hit timeout error: {err}")
-            except FatalError as err:
-                _error(f"{command}: hit fatal error: {err}")
-            except StatusError as err:
-                _error(f"{command}: hit status error: {err}")
+            except (TimedOutError, FatalError, StatusError) as err:
+                _error(f"{command}: hit error: {err}")
             except Exception as err:
                 log.exception("hit unexpected error")
                 _error(f"{command}: hit unexpected error: {err}")
@@ -899,6 +895,9 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
     except TimedOutError as err:
         log.error("Hit timeout error: %s", err)
         _error("namespace wait timed out")
+    except StatusError as err:
+        log.error("Hit status error: %s", err)
+        _error("resources hit urgent status errors, exiting immediately")
 
 
 @namespace.command("describe")
@@ -1355,7 +1354,10 @@ def _cmd_config_deploy(
                 log.info("releasing namespace '%s'", ns)
                 release_reservation(namespace=ns)
         finally:
-            msg = "deploy failed"
+            if isinstance(err, KeyboardInterrupt):
+                msg = "keyboard interrupt"
+            else:
+                msg = "deploy failed"
             if str(err):
                 msg += f": {str(err)}"
             _error(msg)
@@ -1396,16 +1398,10 @@ def _cmd_config_deploy(
             log.info("waiting on resources for max of %dsec...", timeout)
             _wait_on_namespace_resources(ns, timeout)
     except KeyboardInterrupt as err:
-        log.error("aborted by keyboard interrupt!")
+        log.error("keyboard interrupt")
         _err_handler(err)
-    except TimedOutError as err:
-        log.error("hit timeout error: %s", err)
-        _err_handler(err)
-    except FatalError as err:
-        log.error("hit fatal error: %s", err)
-        _err_handler(err)
-    except StatusError as err:
-        log.error("hit status error: %s", err)
+    except (TimedOutError, FatalError, StatusError) as err:
+        log.error("hit error: %s", err)
         _err_handler(err)
     except Exception as err:
         log.exception("hit unexpected error!")
@@ -1722,7 +1718,7 @@ def _cmd_apps_what_depends_on(
 def main_with_handler():
     try:
         main()
-    except FatalError as err:
+    except (StatusError, FatalError) as err:
         _error(str(err))
 
 
