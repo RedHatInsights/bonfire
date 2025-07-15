@@ -87,7 +87,7 @@ def _all_resources_ready(namespace, timeout, watcher):
 
     # wait on ClowdEnvironments if any ClowdApps reference one
     start = time.time()
-
+    log.info("checking for ClowdEnvironments to wait on...")
     clowd_envs = set()
     clowdapps = get_json("clowdapp", namespace=namespace)
 
@@ -110,40 +110,49 @@ def _all_resources_ready(namespace, timeout, watcher):
             watcher=watcher,
         )
         env_waiters.append(waiter)
-    if not wait_for_ready_threaded(env_waiters, timeout):
-        return False
 
-    for waiter in env_waiters:
-        for key in waiter.observed_resources:
-            already_waited_on.add(key)
+    if env_waiters:
+        log.info("waiting up to %dsec on resources owned by ClowdEnvironment...", timeout)
+        wait_for_ready_threaded(env_waiters, timeout)
+        for waiter in env_waiters:
+            for key in waiter.observed_resources:
+                already_waited_on.add(key)
 
     end = time.time()
     elapsed = end - start
-    timeout = int(timeout - elapsed)
+    timeout = timeout - elapsed
+    if timeout <= 0:
+        raise TimedOutError("timed out waiting for ClowdEnvironment-owned resources")
 
     # wait on all ClowdApps in this namespace
     start = time.time()
-
+    log.info("checking for ClowdApps to wait on...")
     waiters = []
+
     for clowdapp in clowdapps["items"]:
         waiter = ResourceWaiter(
             namespace, "clowdapp", clowdapp["metadata"]["name"], watch_owned=True, watcher=watcher
         )
         waiters.append(waiter)
-    if not wait_for_ready_threaded(waiters, timeout):
-        return False
 
-    for waiter in waiters:
-        for key in waiter.observed_resources:
-            already_waited_on.add(key)
+    if waiters:
+        log.info("waiting up to %dsec on resources owned by ClowdApps...", timeout)
+        wait_for_ready_threaded(waiters, timeout)
+        for waiter in waiters:
+            for key in waiter.observed_resources:
+                already_waited_on.add(key)
 
     end = time.time()
     elapsed = end - start
-    timeout = int(timeout - elapsed)
+    timeout = timeout - elapsed
+    if timeout <= 0:
+        raise TimedOutError("timed out waiting for ClowdApp-owned resources")
 
     # wait on anything else not covered by the above
+    log.info("checking for remaining namespace resources to wait on...")
     waiters = []
-    for k, r in watcher.resources.copy().items():
+
+    for _, r in watcher.resources.copy().items():
         if r.restype in _resources_for_ns_wait() and r.key not in already_waited_on:
             waiter = ResourceWaiter(
                 r.namespace,
@@ -154,22 +163,23 @@ def _all_resources_ready(namespace, timeout, watcher):
             )
             waiters.append(waiter)
 
-    return wait_for_ready_threaded(waiters, timeout)
+    if waiters:
+        log.info("waiting up to %dsec on remaining namespace resources...", timeout)
+
+    wait_for_ready_threaded(waiters, timeout)
 
 
 def wait_for_all_resources(namespace, timeout=600):
-    # wrap the other wait_fors in 1 wait_for so overall timeout is honored
-    # wait_for returns a tuple of the return code and the time taken
     watcher = ResourceWatcher(namespace)
+    watcher.update_resources()
+
+    if not watcher.resources:
+        raise TimedOutError("no resources to wait for observed in namespace")
+
     watcher.start()
 
     try:
-        wait_for(
-            _all_resources_ready,
-            func_args=(namespace, timeout, watcher),
-            message="wait for all deployed resources to be ready",
-            timeout=timeout,
-        )
+        _all_resources_ready(namespace, timeout, watcher)
     finally:
         watcher.stop()
 

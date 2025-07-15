@@ -1023,6 +1023,7 @@ def _process(
     local,
     frontends,
     preferred_params,
+    namespace,
 ):
     apps_config = _get_apps_config(
         source,
@@ -1051,6 +1052,7 @@ def _process(
         component_filter,
         local,
         frontends,
+        namespace,
     )
     return processor.process()
 
@@ -1132,6 +1134,7 @@ def _cmd_process(
         local,
         frontends,
         preferred_params,
+        namespace,
     )
     print(json.dumps(processed_templates, indent=2))
 
@@ -1384,6 +1387,7 @@ def _cmd_config_deploy(
             local,
             frontends,
             preferred_params,
+            namespace,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
