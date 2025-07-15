@@ -82,7 +82,7 @@ def _resources_for_ns_wait():
     return resources
 
 
-def _all_resources_ready(namespace, timeout, watcher):
+def _all_resources_ready(namespace, timeout, watcher, defer_status_errors=False):
     already_waited_on = set()
 
     # wait on ClowdEnvironments if any ClowdApps reference one
@@ -113,7 +113,7 @@ def _all_resources_ready(namespace, timeout, watcher):
 
     if env_waiters:
         log.info("waiting up to %dsec on resources owned by ClowdEnvironment...", timeout)
-        wait_for_ready_threaded(env_waiters, timeout)
+        wait_for_ready_threaded(env_waiters, timeout, defer_status_errors)
         for waiter in env_waiters:
             for key in waiter.observed_resources:
                 already_waited_on.add(key)
@@ -137,7 +137,7 @@ def _all_resources_ready(namespace, timeout, watcher):
 
     if waiters:
         log.info("waiting up to %dsec on resources owned by ClowdApps...", timeout)
-        wait_for_ready_threaded(waiters, timeout)
+        wait_for_ready_threaded(waiters, timeout, defer_status_errors)
         for waiter in waiters:
             for key in waiter.observed_resources:
                 already_waited_on.add(key)
@@ -166,10 +166,10 @@ def _all_resources_ready(namespace, timeout, watcher):
     if waiters:
         log.info("waiting up to %dsec on remaining namespace resources...", timeout)
 
-    wait_for_ready_threaded(waiters, timeout)
+    wait_for_ready_threaded(waiters, timeout, defer_status_errors)
 
 
-def wait_for_all_resources(namespace, timeout=600):
+def wait_for_all_resources(namespace, timeout=600, defer_status_errors=False):
     watcher = ResourceWatcher(namespace)
     watcher.update_resources()
 
@@ -179,12 +179,12 @@ def wait_for_all_resources(namespace, timeout=600):
     watcher.start()
 
     try:
-        _all_resources_ready(namespace, timeout, watcher)
+        _all_resources_ready(namespace, timeout, watcher, defer_status_errors)
     finally:
         watcher.stop()
 
 
-def wait_for_db_resources(namespace, timeout=600):
+def wait_for_db_resources(namespace, timeout=600, defer_status_errors=False):
     clowdapps = get_json("clowdapp", namespace=namespace).get("items", [])
     if len(clowdapps) == 0:
         raise ValueError(f"no clowdapps found in ns '{namespace}', no DB's to wait for")
@@ -204,7 +204,7 @@ def wait_for_db_resources(namespace, timeout=600):
             f"no clowdapps with db configurations found in '{namespace}', no DB's to wait for"
         )
 
-    wait_for_ready_threaded(waiters, timeout)
+    wait_for_ready_threaded(waiters, timeout, defer_status_errors)
 
 
 def find_clowd_env_for_ns(ns):
@@ -249,7 +249,7 @@ def wait_for_clowd_env_target_ns(clowd_env_name):
     ).out
 
 
-def wait_on_cji(namespace, cji_name, timeout):
+def wait_on_cji(namespace, cji_name, timeout, defer_status_errors=False):
     # wait for job associated with this CJI to appear
     log.info("waiting for Job to appear owned by CJI '%s'", cji_name)
 
@@ -298,7 +298,8 @@ def wait_on_cji(namespace, cji_name, timeout):
     remaining_time = remaining_time - elapsed
 
     waiter = ResourceWaiter(namespace, "pod", pod_name)
-    waiter.wait_for_ready(remaining_time, reraise=True)
+
+    waiter.wait_for_ready(remaining_time, reraise=True, defer_status_errors=defer_status_errors)
 
     return pod_name
 

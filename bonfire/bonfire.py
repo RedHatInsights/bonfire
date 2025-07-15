@@ -209,11 +209,11 @@ def _get_requester():
     return requester
 
 
-def _wait_on_namespace_resources(namespace, timeout, db_only=False):
+def _wait_on_namespace_resources(namespace, timeout, db_only=False, defer_status_errors=False):
     if db_only:
-        wait_for_db_resources(namespace, timeout)
+        wait_for_db_resources(namespace, timeout, defer_status_errors)
     else:
-        wait_for_all_resources(namespace, timeout)
+        wait_for_all_resources(namespace, timeout, defer_status_errors)
 
 
 def _validate_reservation_duration(ctx, param, value):
@@ -287,7 +287,7 @@ _ns_list_options = [
     ),
 ]
 
-_timeout_option = [
+_timeout_options = [
     click.option(
         "--timeout",
         "-t",
@@ -295,7 +295,13 @@ _timeout_option = [
         type=int,
         default=600,
         help="timeout in sec (default = 600) to wait for resources to be ready",
-    )
+    ),
+    click.option(
+        "--defer-status-errors",
+        is_flag=True,
+        default=False,
+        help="do not exit immediately if status errors seen (e.g. ImagePullBackOff). Default: false",
+    ),
 ]
 
 
@@ -818,7 +824,7 @@ def _list_namespaces(available, mine, output):
 
 @namespace.command("reserve")
 @options(_ns_reserve_options)
-@options(_timeout_option)
+@options(_timeout_options)
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
     """Reserve an ephemeral namespace"""
@@ -885,19 +891,19 @@ def _cmd_namespace_extend(namespace, duration, local):
     default=False,
     help="Only wait for DB resources owned by ClowdApps to be ready",
 )
-@options(_timeout_option)
-def _cmd_namespace_wait_on_resources(namespace, timeout, db_only):
+@options(_timeout_options)
+def _cmd_namespace_wait_on_resources(namespace, timeout, db_only, defer_status_errors):
     """Wait for rolled out resources to be ready in namespace"""
     if not namespace:
         namespace = current_namespace_or_error()
     try:
-        _wait_on_namespace_resources(namespace, timeout, db_only=db_only)
+        _wait_on_namespace_resources(namespace, timeout, db_only, defer_status_errors)
     except TimedOutError as err:
-        log.error("Hit timeout error: %s", err)
+        log.error("hit timeout error: %s", err)
         _error("namespace wait timed out")
     except StatusError as err:
-        log.error("Hit status error: %s", err)
-        _error("resources hit urgent status errors, exiting immediately")
+        log.error("hit status error: %s", err)
+        _error("namespace resources have status errors")
 
 
 @namespace.command("describe")
@@ -1228,6 +1234,30 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
     return reserve_namespace(name, requester, duration, pool, timeout, local)
 
 
+def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
+    if isinstance(err, KeyboardInterrupt):
+        msg = "keyboard interrupt"
+    else:
+        msg = "deploy failed"
+
+    if str(err):
+        msg += f": {str(err)}"
+
+    if isinstance(err, (KeyboardInterrupt, TimedOutError, FatalError, StatusError)):
+        log.error(msg)
+    else:
+        log.exception("hit unexpected error!")
+
+    try:
+        if not no_release_on_fail and reserved_new_ns and not reserve:
+            # if we auto-reserved this ns, auto-release it on failure unless
+            # --no-release-on-fail was requested
+            log.info("releasing namespace '%s'", ns)
+            release_reservation(namespace=ns)
+    finally:
+        _error(msg)
+
+
 @main.command("deploy")
 @options(_process_options)
 @click.option(
@@ -1277,7 +1307,7 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
     help="Do not release namespace reservation if deployment fails",
 )
 @options(_ns_reserve_options)
-@options(_timeout_option)
+@options(_timeout_options)
 def _cmd_config_deploy(
     app_names,
     source,
@@ -1314,6 +1344,7 @@ def _cmd_config_deploy(
     pool,
     force,
     preferred_params,
+    defer_status_errors,
 ):
     """Process app templates and deploy them to a cluster"""
     if not has_clowder():
@@ -1345,22 +1376,6 @@ def _cmd_config_deploy(
         import_configmaps_from_dir(configmaps_dir)
 
     clowd_env = _get_env_name(ns, clowd_env)
-
-    def _err_handler(err):
-        try:
-            if not no_release_on_fail and reserved_new_ns and not reserve:
-                # if we auto-reserved this ns, auto-release it on failure unless
-                # --no-release-on-fail was requested
-                log.info("releasing namespace '%s'", ns)
-                release_reservation(namespace=ns)
-        finally:
-            if isinstance(err, KeyboardInterrupt):
-                msg = "keyboard interrupt"
-            else:
-                msg = "deploy failed"
-            if str(err):
-                msg += f": {str(err)}"
-            _error(msg)
 
     try:
         log.info("processing app templates...")
@@ -1396,16 +1411,9 @@ def _cmd_config_deploy(
             log.info("applying app configs...")
             apply_config(ns, apps_config)
             log.info("waiting on resources for max of %dsec...", timeout)
-            _wait_on_namespace_resources(ns, timeout)
-    except KeyboardInterrupt as err:
-        log.error("keyboard interrupt")
-        _err_handler(err)
-    except (TimedOutError, FatalError, StatusError) as err:
-        log.error("hit error: %s", err)
-        _err_handler(err)
-    except Exception as err:
-        log.exception("hit unexpected error!")
-        _err_handler(err)
+            _wait_on_namespace_resources(ns, timeout, False, defer_status_errors)
+    except (KeyboardInterrupt, Exception) as err:
+        _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns)
     else:
         log.info("successfully deployed to namespace %s", ns)
         es_telemetry.send_telemetry("successful deployment")
@@ -1466,7 +1474,7 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
     default=conf.DEFAULT_CONFIGMAPS_DIR,
 )
 @options(_ns_reserve_options)
-@options(_timeout_option)
+@options(_timeout_options)
 @click_exception_wrapper("deploy-env")
 def _cmd_deploy_clowdenv(
     namespace,
@@ -1484,6 +1492,7 @@ def _cmd_deploy_clowdenv(
     local,
     pool,
     force,
+    defer_status_errors,
 ):
     """Process ClowdEnv template and deploy to a cluster"""
     if not has_clowder():
@@ -1508,7 +1517,7 @@ def _cmd_deploy_clowdenv(
         namespace = wait_for_clowd_env_target_ns(clowd_env)
 
     log.info("waiting on resources for max of %dsec...", timeout)
-    _wait_on_namespace_resources(namespace, timeout)
+    _wait_on_namespace_resources(namespace, timeout, False, defer_status_errors)
 
     clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
 
@@ -1568,7 +1577,7 @@ def _cmd_process_iqe_cji(
 @click.option("--namespace", "-n", help="Namespace to deploy to", type=str, required=True)
 @options(_iqe_cji_process_options)
 @options(_ns_reserve_options)
-@options(_timeout_option)
+@options(_timeout_options)
 @click_exception_wrapper("deploy-iqe-cji")
 def _cmd_deploy_iqe_cji(
     namespace,
@@ -1597,6 +1606,7 @@ def _cmd_deploy_iqe_cji(
     custom_env_vars,
     pool,
     force,
+    defer_status_errors,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
     if not has_clowder():
@@ -1636,7 +1646,7 @@ def _cmd_deploy_iqe_cji(
     apply_config(namespace, cji_config)
 
     log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
-    pod_name = wait_on_cji(namespace, cji_name, timeout)
+    pod_name = wait_on_cji(namespace, cji_name, timeout, defer_status_errors)
     log.info("pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace)
     click.echo(pod_name)
 
