@@ -311,7 +311,7 @@ def wait_on_reservation(res_name, timeout):
         res = get_json("reservation", name=res_name)
         return res.get("status", {}).get("namespace", False) or False
 
-    ns_name, elapsed = wait_for(
+    ns_name, _ = wait_for(
         _find_reservation,
         num_sec=timeout,
         message=f"waiting for namespace to be allocated to reservation '{res_name}'",

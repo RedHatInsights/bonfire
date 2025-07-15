@@ -826,7 +826,9 @@ def _list_namespaces(available, mine, output):
 @options(_ns_reserve_options)
 @options(_timeout_options)
 @click_exception_wrapper("namespace reserve")
-def _cmd_namespace_reserve(name, requester, duration, pool, timeout, local, force):
+def _cmd_namespace_reserve(
+    name, requester, duration, pool, timeout, local, force, defer_status_errors
+):
     """Reserve an ephemeral namespace"""
     ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
     click.echo(ns.name)
