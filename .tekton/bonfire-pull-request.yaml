@@ -534,7 +534,7 @@ spec:
     - name: netrc
       optional: true
   taskRunTemplate:
-    serviceAccountName: build-pipeline-tangerine-backend
+    serviceAccountName: build-pipeline-bonfire
   workspaces:
   - name: workspace
     volumeClaimTemplate:
