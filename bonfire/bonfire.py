@@ -401,8 +401,7 @@ def _app_or_component_selector(ctx, param, this_value):
     # validate that opposing options are not both set to 'all'
     if this_value.select_all and other_value.select_all:
         raise click.BadParameter(
-            f"'all' cannot be specified on both this option"
-            f" and its opposite '{other_param_name}'"
+            f"'all' cannot be specified on both this option and its opposite '{other_param_name}'"
         )
 
     # validate that the same app was not used in opposing options
@@ -515,8 +514,7 @@ _process_options = _app_source_options + [
         "--set-parameter",
         "-p",
         help=(
-            "Override parameter for a component using format "
-            "'<component>/<parameter name>=<value>'"
+            "Override parameter for a component using format '<component>/<parameter name>=<value>'"
         ),
         multiple=True,
         callback=_validate_set_parameter,
@@ -1458,7 +1456,7 @@ def _cmd_process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
 @click.option(
     "--secrets-dir",
     type=str,
-    help=("Import secrets from this directory (default: " "$XDG_CONFIG_HOME/bonfire/secrets/)"),
+    help=("Import secrets from this directory (default: $XDG_CONFIG_HOME/bonfire/secrets/)"),
     default=conf.DEFAULT_SECRETS_DIR,
 )
 @click.option(

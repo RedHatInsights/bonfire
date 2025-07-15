@@ -290,8 +290,7 @@ def reserve_namespace(name, requester, duration, pool, timeout, local=True):
         res_name = res_config["items"][0]["metadata"]["name"]
     except (KeyError, IndexError):
         raise Exception(
-            "error parsing name of Reservation from processed template, "
-            "check Reservation template"
+            "error parsing name of Reservation from processed template, check Reservation template"
         )
 
     apply_config(None, list_resource=res_config)
@@ -396,7 +395,7 @@ def describe_namespace(project_name: str, output: str):
         data += f"Project URL: {ns_url}\n"
     data += f"Keycloak admin route: {keycloak_url}\n"
     data += f"Keycloak admin login: {kc_creds['username']} | {kc_creds['password']}\n"
-    data += f"{num_clowdapps} ClowdApp(s), " f"{num_frontends} Frontend(s) deployed\n"
+    data += f"{num_clowdapps} ClowdApp(s), {num_frontends} Frontend(s) deployed\n"
     data += f"Gateway route: https://{fe_host}\n"
     data += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
     if output == "json":
