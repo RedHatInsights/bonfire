@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import traceback
+from typing import Optional
 import uuid
 from pathlib import Path
 
@@ -388,6 +389,23 @@ class TemplateProcessor:
         return parsed_app_names
 
     @staticmethod
+    def _parse_exclude_components(exclude_components):
+        """Parse exclude_components which can be None, a string, or a list."""
+        if exclude_components is None:
+            return None
+
+        if isinstance(exclude_components, str):
+            # Handle comma-separated string
+            return [
+                component.strip()
+                for component in exclude_components.split(",")
+                if component.strip()
+            ]
+
+        # Assume it's already a list
+        return list(exclude_components)
+
+    @staticmethod
     def _find_dupe_components(components_for_app):
         """Make sure no component is listed more than once across all apps."""
         for app_name, components in components_for_app.items():
@@ -559,6 +577,7 @@ class TemplateProcessor:
         local,
         frontends,
         namespace=None,
+        exclude_components=None,
     ):
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
@@ -577,6 +596,7 @@ class TemplateProcessor:
         self.local = local
         self.frontends = frontends
         self.namespace = namespace
+        self.exclude_components = self._parse_exclude_components(exclude_components)
 
         self._validate()
 
@@ -841,12 +861,28 @@ class TemplateProcessor:
         for component in app_cfg["components"]:
             component_name = component["name"]
             log.debug("app '%s' has component '%s'", app_name, component_name)
-            if self.component_filter and component_name not in self.component_filter:
-                log.debug(
-                    "skipping component '%s', not found in --component filter", component_name
-                )
+            reason = self._component_skip_check(component_name)
+            if reason:
+                log.info("skipping component '%s', %s", component_name, reason)
                 continue
             self._process_component(component_name, app_name, in_recursion=False)
+
+    def _component_skip_check(self, component_name) -> Optional[str]:
+        skip_reasons = [
+            (
+                self.component_filter and component_name not in self.component_filter,
+                "not found in --component filter",
+            ),
+            (
+                self.exclude_components and component_name in self.exclude_components,
+                "found in --exclude-components list",
+            ),
+        ]
+
+        for condition, reason in skip_reasons:
+            if condition:
+                return reason
+        return None
 
     def process(self, app_names=None):
         if not app_names:

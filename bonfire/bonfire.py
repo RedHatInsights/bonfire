@@ -1029,6 +1029,7 @@ def _process(
     frontends,
     preferred_params,
     namespace,
+    exclude_components,
 ):
     apps_config = _get_apps_config(
         source,
@@ -1058,6 +1059,7 @@ def _process(
         local,
         frontends,
         namespace,
+        exclude_components,
     )
     return processor.process()
 
@@ -1308,6 +1310,11 @@ def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
     is_flag=True,
     help="Do not release namespace reservation if deployment fails",
 )
+@click.option(
+    "--exclude-components",
+    type=str,
+    help="Comma-separated list of components to exclude from deployment.",
+)
 @options(_ns_reserve_options)
 @options(_timeout_options)
 def _cmd_config_deploy(
@@ -1336,6 +1343,7 @@ def _cmd_config_deploy(
     duration,
     timeout,
     no_release_on_fail,
+    exclude_components,
     component_filter,
     import_secrets,
     import_configmaps,
@@ -1405,6 +1413,7 @@ def _cmd_config_deploy(
             frontends,
             preferred_params,
             namespace,
+            exclude_components,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
