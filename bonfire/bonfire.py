@@ -600,6 +600,11 @@ _process_options = _app_source_options + [
         multiple=True,
     ),
     click.option(
+        "--exclude-components",
+        type=str,
+        help="Comma-separated list of components to exclude from deployment",
+    ),
+    click.option(
         "--frontends",
         "-F",
         help="Deploy frontends (default: false)",
@@ -1114,6 +1119,7 @@ def _cmd_process(
     local,
     frontends,
     preferred_params,
+    exclude_components,
 ):
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
@@ -1142,6 +1148,7 @@ def _cmd_process(
         frontends,
         preferred_params,
         namespace,
+        exclude_components,
     )
     print(json.dumps(processed_templates, indent=2))
 
@@ -1309,11 +1316,6 @@ def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
     "--no-release-on-fail",
     is_flag=True,
     help="Do not release namespace reservation if deployment fails",
-)
-@click.option(
-    "--exclude-components",
-    type=str,
-    help="Comma-separated list of components to exclude from deployment.",
 )
 @options(_ns_reserve_options)
 @options(_timeout_options)
