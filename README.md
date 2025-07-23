@@ -219,6 +219,11 @@ bonfire deploy advisor --set-parameter advisor-backend/REPLICAS=3
 bonfire deploy advisor --set-image-tag quay.io/cloudservices/advisor-backend=my_tag
 ```
 
+* Exclude components of a app
+```
+bonfire deploy advisor --exclude-components advisor-backend-component
+```
+
 # Commonly Used CLI Options
 ## Deploying/Processing
 
@@ -230,6 +235,7 @@ bonfire deploy advisor --set-image-tag quay.io/cloudservices/advisor-backend=my_
 * `--set-parameter <component>/<name>=<value>` -- use this to set a parameter value on a specific component's template.
 * `--optional-deps-method <hybrid|all|none>` -- change the way that bonfire processes ClowdApp optional dependencies (see "Dependency Processing" section)
 * `--prefer PARAM_NAME=PARAM_VALUE` -- in cases where bonfire finds more than one deployment target, use this to set the parameter names and values that should be used to select a "preferred" deployment target. This option can be passed in multiple times. `bonfire` will select the target with the highest amount of "preferred parameters" on it. Default is currently set to `ENV_NAME=frontends` to select "stable" frontends in the consoledot environments.
+* `--exclude-components` -- exclude a list of components to prevent them from being processed and deployed.
 
 ## Trusted/Untrusted Resource Configurations
 

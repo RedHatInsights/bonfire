@@ -600,6 +600,11 @@ _process_options = _app_source_options + [
         multiple=True,
     ),
     click.option(
+        "--exclude-components",
+        type=str,
+        help="Comma-separated list of components to exclude from deployment",
+    ),
+    click.option(
         "--frontends",
         "-F",
         help="Deploy frontends (default: false)",
@@ -1029,6 +1034,7 @@ def _process(
     frontends,
     preferred_params,
     namespace,
+    exclude_components,
 ):
     apps_config = _get_apps_config(
         source,
@@ -1058,6 +1064,7 @@ def _process(
         local,
         frontends,
         namespace,
+        exclude_components,
     )
     return processor.process()
 
@@ -1112,6 +1119,7 @@ def _cmd_process(
     local,
     frontends,
     preferred_params,
+    exclude_components,
 ):
     """Fetch and process application templates"""
     clowd_env = _get_env_name(namespace, clowd_env)
@@ -1140,6 +1148,7 @@ def _cmd_process(
         frontends,
         preferred_params,
         namespace,
+        exclude_components,
     )
     print(json.dumps(processed_templates, indent=2))
 
@@ -1336,6 +1345,7 @@ def _cmd_config_deploy(
     duration,
     timeout,
     no_release_on_fail,
+    exclude_components,
     component_filter,
     import_secrets,
     import_configmaps,
@@ -1405,6 +1415,7 @@ def _cmd_config_deploy(
             frontends,
             preferred_params,
             namespace,
+            exclude_components,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
