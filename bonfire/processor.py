@@ -683,7 +683,11 @@ class TemplateProcessor:
             log.debug(traceback.format_exc())
             raise FatalError(err)
 
-        template = yaml.safe_load(template_content)
+        try:
+            template = yaml.safe_load(template_content)
+        except Exception as err:
+            log.exception("failed to parse template content to yaml for %s", component_name)
+            raise FatalError(err)
 
         # fetch component parameters
         params = component.get("parameters", {})
@@ -847,9 +851,13 @@ class TemplateProcessor:
                 )
                 items = []
 
-            self.k8s_list["items"].extend(items)
             processed_component = ProcessedComponent(component_name, items)
             self.processed_components[component_name] = processed_component
+            reason = self._component_skip_check(component_name)
+            if reason:
+                log.info("skipping component '%s', %s", component_name, reason)
+            else:
+                self.k8s_list["items"].extend(items)
 
         if self.get_dependencies:
             # recursively process to add config for dependent apps to self.k8s_list
@@ -861,10 +869,6 @@ class TemplateProcessor:
         for component in app_cfg["components"]:
             component_name = component["name"]
             log.debug("app '%s' has component '%s'", app_name, component_name)
-            reason = self._component_skip_check(component_name)
-            if reason:
-                log.info("skipping component '%s', %s", component_name, reason)
-                continue
             self._process_component(component_name, app_name, in_recursion=False)
 
     def _component_skip_check(self, component_name) -> Optional[str]:
