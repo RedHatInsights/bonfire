@@ -188,7 +188,8 @@ class RepoFile:
             # {..'org' group including subgroup...}/{.......repo...........}
             last_slash_pos = repo.rindex("/")
             org = repo[:last_slash_pos]
-            repo = repo[last_slash_pos+1:]
+            next_after_slash = last_slash_pos + 1
+            repo = repo[next_after_slash:]
         elif d["host"] == "local":
             org = "local"
 
