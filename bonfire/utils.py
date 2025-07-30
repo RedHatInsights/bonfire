@@ -183,8 +183,12 @@ class RepoFile:
                     f"{SYNTAX_ERR}, invalid value for repo '{repo}', required format: "
                     "<org>/<repo name>"
                 )
-            org = repo.split("/")[0]
-            repo = "/".join(repo.split("/")[1:])  # supports gitlab subgroups
+            # Gitlab allows the 'group' to include subgroups: in e.g.
+            # insights-platform/insights-operations/advisor-backend-internal
+            # {..'org' group including subgroup...}/{.......repo...........}
+            last_slash_pos = repo.rindex("/")
+            org = repo[:last_slash_pos]
+            repo = repo[last_slash_pos+1:]
         elif d["host"] == "local":
             org = "local"
 
