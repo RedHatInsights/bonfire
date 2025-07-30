@@ -238,8 +238,9 @@ def _add_component(
     host = "github" if "github" in url else "gitlab"
 
     try:
-        parsed_url = urlparse(url)
-        org, repo = parsed_url.path.rstrip("/").split("/")[-2:]
+        parsed_url_parts = urlparse(url).path.strip("/").split("/")
+        org = parsed_url_parts[0]
+        repo = "/".join(parsed_url_parts[1:])  # supports gitlab subgroups
     except (ValueError, IndexError) as err:
         raise ValueError(f"invalid repo url '{url}': {err}")
 
