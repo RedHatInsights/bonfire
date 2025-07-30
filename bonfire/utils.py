@@ -22,7 +22,7 @@ else:
 
 from packaging import version
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from typing import List
 
@@ -158,6 +158,9 @@ class RepoFile:
 
         self.host = host
         self.org = org
+        # Note: the group may include a slash, so we need to quote it
+        # (changing the / to %27) if necessary.
+        self.safe_org = quote(org, safe='')
         self.repo = repo
         self.path = path
         self.ref = ref
@@ -264,7 +267,7 @@ class RepoFile:
         return response
 
     def _get_gl_commit_hash(self):
-        group, project = self.org, self.repo
+        group, project = self.safe_org, self.repo
         url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
         check_url_connection(url)
         response = self._get(url, verify=self._gl_certfile)
@@ -303,7 +306,7 @@ class RepoFile:
             # look up the commit hash for this branch
             commit = self._get_gl_commit_hash()
 
-        url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
+        url = GL_RAW_URL.format(group=self.safe_org, project=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
         response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
@@ -348,7 +351,7 @@ class RepoFile:
 
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
-            url = GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref)
+            url = GH_BRANCH_URL.format(org=self.safe_org, repo=self.repo, branch=ref)
             check_url_connection(url)
             return self._get(url, headers=self._gh_auth_headers)
 
@@ -364,7 +367,7 @@ class RepoFile:
             # look up the commit hash for this branch
             commit = self._get_gh_commit_hash()
 
-        url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
+        url = GH_RAW_URL.format(org=self.safe_org, repo=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
         response = self._get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
