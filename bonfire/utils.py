@@ -180,7 +180,8 @@ class RepoFile:
                     f"{SYNTAX_ERR}, invalid value for repo '{repo}', required format: "
                     "<org>/<repo name>"
                 )
-            org, repo = repo.split("/")
+            org = repo.split("/")[0]
+            repo = "/".join(repo.split("/")[1:])  # supports gitlab subgroups
         elif d["host"] == "local":
             org = "local"
 
