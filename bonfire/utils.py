@@ -159,8 +159,8 @@ class RepoFile:
         self.host = host
         self.org = org
         # Note: the group may include a slash, so we need to quote it
-        # (changing the / to %27) if necessary.
-        self.safe_org = quote(org, safe='')
+        # (changing the / to %2F) if necessary.
+        self.safe_org = quote(org, safe="")
         self.repo = repo
         self.path = path
         self.ref = ref
