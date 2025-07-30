@@ -306,7 +306,9 @@ class RepoFile:
             # look up the commit hash for this branch
             commit = self._get_gl_commit_hash()
 
-        url = GL_RAW_URL.format(group=self.safe_org, project=self.repo, ref=commit, path=self.path)
+        # Note that the raw URL alone allows '/' in the group section of the
+        # path, so we don't use self.safe_org here.
+        url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
         response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
