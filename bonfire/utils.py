@@ -158,9 +158,6 @@ class RepoFile:
 
         self.host = host
         self.org = org
-        # Note: the group may include a slash, so we need to quote it
-        # (changing the / to %2F) if necessary.
-        self.safe_org = quote(org, safe="")
         self.repo = repo
         self.path = path
         self.ref = ref
@@ -183,9 +180,10 @@ class RepoFile:
                     f"{SYNTAX_ERR}, invalid value for repo '{repo}', required format: "
                     "<org>/<repo name>"
                 )
-            # Gitlab allows the 'group' to include subgroups: in e.g.
-            # insights-platform/insights-operations/advisor-backend-internal
-            # {..'org' group including subgroup...}/{.......repo...........}
+            # Gitlab allows the 'group' to include subgroups: e.g.
+            # http://my-gitlab.com/group/subgroup/my-repo would translate to:
+            #   org = group/subgroup
+            #   repo = my-repo
             last_slash_pos = repo.rindex("/")
             org = repo[:last_slash_pos]
             next_after_slash = last_slash_pos + 1
@@ -272,7 +270,9 @@ class RepoFile:
         return response
 
     def _get_gl_commit_hash(self):
-        group, project = self.safe_org, self.repo
+        # Note: in cases of gitlab subgroups, the "org" contains a slash, so we need to quote it
+        # (changing the '/' to '%2F') if necessary.
+        group, project = quote(self.org, safe=""), self.repo
         url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
         check_url_connection(url)
         response = self._get(url, verify=self._gl_certfile)
@@ -311,8 +311,6 @@ class RepoFile:
             # look up the commit hash for this branch
             commit = self._get_gl_commit_hash()
 
-        # Note that the raw URL alone allows '/' in the group section of the
-        # path, so we don't use self.safe_org here.
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
         response = self._get(url, verify=self._gl_certfile)
@@ -358,7 +356,7 @@ class RepoFile:
 
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
-            url = GH_BRANCH_URL.format(org=self.safe_org, repo=self.repo, branch=ref)
+            url = GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref)
             check_url_connection(url)
             return self._get(url, headers=self._gh_auth_headers)
 
@@ -374,7 +372,7 @@ class RepoFile:
             # look up the commit hash for this branch
             commit = self._get_gh_commit_hash()
 
-        url = GH_RAW_URL.format(org=self.safe_org, repo=self.repo, ref=commit, path=self.path)
+        url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
         response = self._get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
