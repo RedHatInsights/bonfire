@@ -22,7 +22,7 @@ else:
 
 from packaging import version
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from typing import List
 
@@ -180,8 +180,14 @@ class RepoFile:
                     f"{SYNTAX_ERR}, invalid value for repo '{repo}', required format: "
                     "<org>/<repo name>"
                 )
-            org = repo.split("/")[0]
-            repo = "/".join(repo.split("/")[1:])  # supports gitlab subgroups
+            # Gitlab allows the 'group' to include subgroups: e.g.
+            # http://my-gitlab.com/group/subgroup/my-repo would translate to:
+            #   org = group/subgroup
+            #   repo = my-repo
+            last_slash_pos = repo.rindex("/")
+            org = repo[:last_slash_pos]
+            next_after_slash = last_slash_pos + 1
+            repo = repo[next_after_slash:]
         elif d["host"] == "local":
             org = "local"
 
@@ -264,7 +270,9 @@ class RepoFile:
         return response
 
     def _get_gl_commit_hash(self):
-        group, project = self.org, self.repo
+        # Note: in cases of gitlab subgroups, the "org" contains a slash, so we need to quote it
+        # (changing the '/' to '%2F') if necessary.
+        group, project = quote(self.org, safe=""), self.repo
         url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
         check_url_connection(url)
         response = self._get(url, verify=self._gl_certfile)
