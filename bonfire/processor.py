@@ -3,10 +3,11 @@ import json
 import logging
 import re
 import traceback
-from typing import Optional
+from typing import Optional, Set
 import uuid
 from pathlib import Path
 
+import click.exceptions
 import yaml
 from cached_property import cached_property
 from ocviapy import process_template
@@ -17,7 +18,6 @@ from bonfire.openshift import whoami
 from bonfire.utils import AppOrComponentSelector, FatalError, RepoFile
 from bonfire.utils import get_clowdapp_dependencies
 from bonfire.utils import get_dependencies as utils_get_dependencies
-
 
 log = logging.getLogger(__name__)
 
@@ -142,17 +142,109 @@ def _remove_untrusted_configs_for_template(template, params):
         _remove_untrusted_configs(obj, params)
 
 
-def _remove_dependency_config(items):
+def _resolve_dependency_overrides(
+    dependencies: Set[str], keep: Set[Optional[str]], remove: Set[Optional[str]]
+):
+    """
+    Perform final resolution of the dependencies to include.  The keep and
+    remove lists can be a list of [None], a list of length one with the only
+    item being an asterisk, or a list of dependency strings.  A list of [None]
+    represents a component that had no specific designation in the dependency
+    options.  I.e. it wasn't defined on the CLI.
+
+    The keep and remove lists may not share any elements in common (with the
+    expection that they may both be [None]).  The resolution rule is that
+    specific items take priority over wildcards.  So if the dependency list is
+    ["a", "b", "c"]; the keep list is ["*"], and the remove list is ["a"], then
+    the result is ["b", "c"].
+
+    If an item is not represented in either list, the behavior is to keep the
+    item. If the dependency list is ["a", "b", "c"]; the keep list is ["a"],
+    and the remove list is ["b"], then the result is ["a", "c"].
+    """
+
+    # These validations are much earlier during option parsing, but it is
+    # worth double-checking
+    if not keep or not remove:
+        raise click.ClickException(
+            f"Invalid value passed to dependency resolution: {keep} and "
+            f"{remove} cannot be None or an empty list"
+        )
+    if dependencies is None:
+        raise click.ClickException("None type passed for list of dependencies")
+
+    common_elements = list(keep.intersection(remove))
+    # If the dependencies options are not given at all, both lists will be [None] so we need to
+    # allow an exception for that
+    if common_elements != [None] and len(common_elements) > 0:
+        raise click.ClickException(
+            "There are elements listed in both the list of dependencies to "
+            "keep and the list to remove.  Cannot resolve dependency list."
+        )
+
+    for modification_set in [keep, remove]:
+        # Something like ["*", "foo"] isn't valid.  Wildcards can't be mixed
+        # with specific dependency names
+        if "*" in modification_set and len(modification_set) > 1:
+            raise click.ClickException(
+                f"Invalid dependency modification specifier: {modification_set}"
+            )
+
+    # Equivalent to
+    # if {"*"} == keep_set:
+    #     # No case for {"*"} == remove since remove and keep can't both be a
+    #     # wildcard
+    #     result = dependency_set.difference(remove_set)
+    # elif {None} == keep_set:
+    #     if {"*"} == remove_set:
+    #         result = set()
+    #     else:
+    #         result = dependency_set.difference(remove_set)
+    # else:
+    #     if {"*"} == remove_set:
+    #         result = keep_set
+    #     else:
+    #         result = dependency_set.difference(remove_set)
+    if {"*"} == remove:
+        result = dependencies.intersection(keep)
+    else:
+        result = dependencies.difference(remove)
+    return result
+
+
+def _alter_dependency_config(items, component_name, keep, remove):
+    special_designations = [{None}, {"*"}]
     for i in items:
         if i["kind"] != "ClowdApp":
             continue
+        name = i["metadata"]["name"]
+        if name == component_name:
+            deps = set(i["spec"].get("dependencies", []))
+            optional_deps = set(i["spec"].get("optionalDependencies", []))
 
-        if i["spec"].get("dependencies"):
-            del i["spec"]["dependencies"]
-            log.debug("removed dependencies from ClowdApp '%s'", i["metadata"]["name"])
-        if i["spec"].get("optionalDependencies"):
-            del i["spec"]["optionalDependencies"]
-            log.debug("removed optionalDependencies from ClowdApp '%s'", i["metadata"]["name"])
+            all_deps = deps.union(optional_deps)
+            for modification_set in [keep, remove]:
+                if modification_set not in special_designations and not modification_set.issubset(
+                    all_deps
+                ):
+                    raise click.ClickException(
+                        f"Elements listed in {modification_set} not present in "
+                        f"dependencies {all_deps}"
+                    )
+
+            modified_dependencies = _resolve_dependency_overrides(
+                set(i["spec"].get("dependencies", [])), keep, remove
+            )
+            i["spec"]["dependencies"] = list(modified_dependencies)
+            log.debug(f"set dependencies for ClowdApp {name} to {modified_dependencies}")
+
+            modified_optional_dependencies = _resolve_dependency_overrides(
+                set(i["spec"].get("optionalDependencies", [])), keep, remove
+            )
+            i["spec"]["optionalDependencies"] = list(modified_optional_dependencies)
+            log.debug(
+                f"set optionalDependencies for ClowdApp {name} to {modified_optional_dependencies}"
+            )
 
 
 def _set_replicas(items):
@@ -322,18 +414,22 @@ def process_reservation(name, requester, duration, pool=None, template_path=None
 
 
 class ProcessedComponent:
-    def __init__(self, name, items, deps_handled=False, optional_deps_handled=False):
+    def __init__(
+        self, name, items, deps_handled=False, optional_deps_handled=False, should_apply=False
+    ):
         self.name = name
         self.items = items
         self.deps_handled = deps_handled
         self.optional_deps_handled = optional_deps_handled
+        self.should_apply = should_apply
 
 
-def _should_remove(
+def _should_alter(
     remove_option: AppOrComponentSelector,
     no_remove_option: AppOrComponentSelector,
     app_name: str,
     component_name: str,
+    mutually_exclusive: bool,
     default: bool = True,
 ) -> bool:
     # 'should_remove' evaluates to true when:
@@ -343,6 +439,16 @@ def _should_remove(
     #   "--no-remove-option x --remove-option y" and app/component matches 'y'
     #   "--remove-option x --no-remove-option y" and app/component matches 'x'
     #   none of the setting permutations are matched and default=True
+
+    # The mutually_exclusive parameter is meant to handle the case where the user has requested all
+    # dependencies for a component be removed except for those explicitly enumerated.  For example
+    # --remove-dependencies x --no-remove-dependencies x/dep1.  In this case, "x" appears in both
+    # the key list of remove items and the key list of no_remove items (the "dep1" portion) is
+    # stored in the values for the no_remove items dictionary.  We don't want x's appearance in both
+    # the no_remove list to mark this component ineligible for alteration, so we use the
+    # mutually_exclusive variable to indicate that presence in either list is sufficient grounds
+    # for alteration.
+
     remove_for_all_no_exceptions = remove_option.select_all and no_remove_option.empty
     remove_for_none_no_exceptions = no_remove_option.select_all and remove_option.empty
 
@@ -359,16 +465,23 @@ def _should_remove(
     if remove_for_all_no_exceptions:
         return True
     if remove_option.select_all:
-        if app_name in no_remove_option.apps or component_name in no_remove_option.components:
+        components = no_remove_option.components.keys()
+        if app_name in no_remove_option.apps or component_name in components:
             return False
         return True
     if no_remove_option.select_all:
-        if app_name in remove_option.apps or component_name in remove_option.components:
+        components = remove_option.components.keys()
+        if app_name in remove_option.apps or component_name in components:
             return True
         return False
-    if component_name in no_remove_option.components:
+    if not mutually_exclusive and (
+        component_name in no_remove_option.components.keys()
+        or component_name in remove_option.components.keys()
+    ):
+        return True
+    if mutually_exclusive and component_name in no_remove_option.components.keys():
         return False
-    if component_name in remove_option.components:
+    if mutually_exclusive and component_name in remove_option.components.keys():
         return True
     if app_name in no_remove_option.apps:
         return False
@@ -379,6 +492,18 @@ def _should_remove(
 
 
 class TemplateProcessor:
+    @staticmethod
+    def _dedupe_items(items):
+        """Return a new list with order-preserving uniqueness for a list of dicts."""
+        unique = []
+        seen = set()
+        for item in items:
+            key = json.dumps(item, sort_keys=True)
+            if key not in seen:
+                unique.append(item)
+                seen.add(key)
+        return unique
+
     @staticmethod
     def _parse_app_names(app_names):
         parsed_app_names = set()
@@ -713,21 +838,22 @@ class TemplateProcessor:
         app_name = self._get_app_for_component(component_name)
 
         # if entire app or component is marked trusted, do not remove any resources
-        should_remove_resources = False
+        should_alter_resources = False
         if app_name in conf.TRUSTED_APPS:
             log.debug("should_remove: app '%s' listed in trusted apps", app_name)
         elif component_name in conf.TRUSTED_COMPONENTS:
             log.debug("should_remove: component '%s' listed in trusted components", component_name)
         else:
-            should_remove_resources = _should_remove(
+            should_alter_resources = _should_alter(
                 self.remove_resources,
                 self.no_remove_resources,
                 app_name,
                 component_name,
+                mutually_exclusive=True,
                 default=True,
             )
-        log.debug("should_remove_resources evaluates to %s", should_remove_resources)
-        if should_remove_resources:
+        log.debug(f"should_alter_resources evaluates to {should_alter_resources}")
+        if should_alter_resources:
             _remove_untrusted_configs_for_template(template, params)
 
         # process the template
@@ -737,16 +863,19 @@ class TemplateProcessor:
         new_items = self._sub_image_tags(new_items)
 
         # evaluate --remove-dependencies/--no-remove-dependencies
-        should_remove_deps = _should_remove(
+        should_alter_deps = _should_alter(
             self.remove_dependencies,
             self.no_remove_dependencies,
             app_name,
             component_name,
+            mutually_exclusive=False,
             default=False,
         )
-        log.debug("should_remove_dependencies evaluates to %s", should_remove_deps)
-        if should_remove_deps:
-            _remove_dependency_config(new_items)
+        log.debug(f"should_remove_dependencies evaluates to {should_alter_deps}")
+        if should_alter_deps:
+            keep = self.no_remove_dependencies.components[component_name]
+            remove = self.remove_dependencies.components[component_name]
+            _alter_dependency_config(new_items, component_name, keep, remove)
 
         if self.single_replicas:
             _set_replicas(new_items)
@@ -848,6 +977,16 @@ class TemplateProcessor:
         if component_name in self.processed_components:
             log.debug("template already processed for component '%s'", component_name)
             processed_component = self.processed_components[component_name]
+
+            skip_further_processing = self._component_skip_check(component_name, dependency_chain)
+            if not skip_further_processing:
+                log.info(
+                    "previously skipped component '%s' is a dependency.  Adding.", component_name
+                )
+                processed_component.should_apply = True
+
+            # If this component is being reprocessed, skip_further_processing will be false which
+            # will cause the code to go into self._handle_dependencies later on.
         else:
             log.info("--> processing component %s", component_name)
             items = self._get_component_items(component_name)
@@ -862,13 +1001,21 @@ class TemplateProcessor:
 
             processed_component = ProcessedComponent(component_name, items)
             self.processed_components[component_name] = processed_component
-            reason = self._component_skip_check(component_name, dependency_chain)
-            if reason:
-                log.info("skipping component '%s', %s", component_name, reason)
+            skip_further_processing = self._component_skip_check(component_name, dependency_chain)
+            if skip_further_processing:
+                log.info("skipping component '%s', %s", component_name, skip_further_processing)
             else:
-                self.k8s_list["items"].extend(items)
+                processed_component.should_apply = True
 
-        if self.get_dependencies:
+        # Any dependency changes made on the command line will have already
+        # modified the data sent in to create the processed_component.
+        #
+        # If this component is to be skipped, do not process the dependencies.  Processing the
+        # dependencies will result in them being marked as processed, and if they are
+        # dependencies of a skipped component, they won't be added to self.k8s_list["items"].  If
+        # later on, there is an included component that has the same dependency, the dependency will
+        # already show as being processed and won't be added to self.k8s_list["items"]
+        if self.get_dependencies and not skip_further_processing:
             # recursively process to add config for dependent apps to self.k8s_list
             self._handle_dependencies(app_name, processed_component, in_recursion, dependency_chain)
 
@@ -881,6 +1028,10 @@ class TemplateProcessor:
             self._process_component(
                 component_name, app_name, in_recursion=False, dependency_chain=[component_name]
             )
+        for x in self.processed_components.values():
+            if x.should_apply:
+                # Append items; we will de-duplicate in a single pass later
+                self.k8s_list["items"].extend(x.items)
 
     def _component_skip_check(self, component_name, dependency_chain) -> Optional[str]:
         skip_reasons = [
@@ -917,5 +1068,6 @@ class TemplateProcessor:
                 {images_with_no_subs}. Check the arguments to --set-image-tag
                 and try again."""
             )
-
+        # ensure uniqueness of dicts in items while preserving order
+        self.k8s_list["items"] = self._dedupe_items(self.k8s_list["items"])
         return self.k8s_list
