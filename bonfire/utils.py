@@ -602,12 +602,12 @@ def hms_to_seconds(s):
         return seconds
 
     parts = split.groupdict()
-    if parts['hours']:
-        seconds += int(parts['hours']) * 3600
-    if parts['minutes']:
-        seconds += int(parts['minutes']) * 60
-    if parts['seconds']:
-        seconds += int(parts['seconds'])
+    if parts["hours"]:
+        seconds += int(parts["hours"]) * 3600
+    if parts["minutes"]:
+        seconds += int(parts["minutes"]) * 60
+    if parts["seconds"]:
+        seconds += int(parts["seconds"])
 
     return seconds
 
