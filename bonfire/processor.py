@@ -979,7 +979,7 @@ class TemplateProcessor:
             processed_component = self.processed_components[component_name]
 
             skip_further_processing = self._component_skip_check(component_name, dependency_chain)
-            if not skip_further_processing:
+            if not skip_further_processing and not processed_component.should_apply:
                 log.info(
                     "previously skipped component '%s' is a dependency.  Adding.", component_name
                 )
