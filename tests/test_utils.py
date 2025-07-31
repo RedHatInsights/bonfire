@@ -8,7 +8,7 @@ from bonfire.utils import (
     check_pypi,
     PYPI_URL,
 )
-from bonfire.utils import check_url_connection, FatalError
+from bonfire.utils import check_url_connection, FatalError, AppOrComponentSelector
 
 
 @pytest.mark.parametrize(
@@ -161,3 +161,9 @@ def test_check_version_invalid_response(requests_mock, mocker):
 
     log_mock.error.assert_called_once()
     assert "error fetching version from pypi" in log_mock.error.call_args_list[0].args[0]
+
+
+def test_selector_defaults():
+    selector = AppOrComponentSelector(False, None, ["hello/world"])
+    assert selector.flattened_components == ["hello/world"]
+    assert selector.components == {"hello": {"world"}}
