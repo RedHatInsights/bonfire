@@ -824,7 +824,7 @@ class TemplateProcessor:
             processed_component.optional_deps_handled = True
 
         for component_name in all_dependencies:
-            self._process_component(component_name, app_name, in_recursion=True)
+            self._process_component(component_name, app_name, in_recursion=True, is_dependency=True)
 
     def _handle_dependencies(self, app_name, processed_component, in_recursion):
         items = processed_component.items
@@ -832,10 +832,10 @@ class TemplateProcessor:
             for name in conf.AUTO_ADDED_FRONTEND_DEPENDENCIES:
                 if name not in self.processed_components:
                     log.info("auto-adding %s as dependency for frontend resource", name)
-                    self._process_component(name, app_name, in_recursion)
+                    self._process_component(name, app_name, in_recursion, is_dependency=True)
         self._add_dependencies_to_config(app_name, processed_component, in_recursion)
 
-    def _process_component(self, component_name, app_name, in_recursion):
+    def _process_component(self, component_name, app_name, in_recursion, is_dependency=False):
         if component_name in self.processed_components:
             log.debug("template already processed for component '%s'", component_name)
             processed_component = self.processed_components[component_name]
@@ -853,7 +853,7 @@ class TemplateProcessor:
 
             processed_component = ProcessedComponent(component_name, items)
             self.processed_components[component_name] = processed_component
-            reason = self._component_skip_check(component_name)
+            reason = self._component_skip_check(component_name, is_dependency)
             if reason:
                 log.info("skipping component '%s', %s", component_name, reason)
             else:
@@ -869,12 +869,16 @@ class TemplateProcessor:
         for component in app_cfg["components"]:
             component_name = component["name"]
             log.debug("app '%s' has component '%s'", app_name, component_name)
-            self._process_component(component_name, app_name, in_recursion=False)
+            self._process_component(
+                component_name, app_name, in_recursion=False, is_dependency=False
+            )
 
-    def _component_skip_check(self, component_name) -> Optional[str]:
+    def _component_skip_check(self, component_name, is_dependency) -> Optional[str]:
         skip_reasons = [
             (
-                self.component_filter and component_name not in self.component_filter,
+                not is_dependency
+                and self.component_filter
+                and component_name not in self.component_filter,
                 "not found in --component filter",
             ),
             (
