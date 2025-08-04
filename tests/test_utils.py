@@ -70,6 +70,7 @@ def test_get_version():
         ("45m", 2700),
         ("65s", 65),
         ("1h30m", 5400),
+        ("foo", 0),
     ],
 )
 def test_hms_to_seconds(seconds: str, expected: int):

@@ -592,20 +592,20 @@ def check_pypi():
 
 
 def hms_to_seconds(s):
-    fmt = r"^(\d+h)?(\d+m)?(\d+s)?$"
+    fmt = r"^(?:(?P<hours>\d+)h)?(?:(?P<minutes>\d+)m)?(?:(?P<seconds>\d+)s)?$"
 
-    split = re.split(fmt, s)
+    split = re.match(fmt, s)
 
     seconds = 0
 
-    for group in split:
-        if group:  # to ignore 'None' groups when all units aren't present
-            if "h" in group:
-                seconds += int(group.split("h")[0]) * 3600
-            elif "m" in group:
-                seconds += int(group.split("m")[0]) * 60
-            elif "s" in group:
-                seconds += int(group.split("s")[0])
+    if split:
+        parts = split.groupdict()
+        if parts["hours"]:
+            seconds += int(parts["hours"]) * 3600
+        if parts["minutes"]:
+            seconds += int(parts["minutes"]) * 60
+        if parts["seconds"]:
+            seconds += int(parts["seconds"])
 
     return seconds
 
