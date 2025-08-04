@@ -70,6 +70,13 @@ echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
 In addition, since some projects may be private, you will need to add the `repo` (full control of private repositories) scope too.
 for the template fetching to work!
 
+## Using UV
+
+If you have `uv` installed on your system, you can also quickly install the bonfire tool globally on your system with:
+```
+uv tool install crc-bonfire
+```
+
 ## Using homebrew
 
 ```bash
