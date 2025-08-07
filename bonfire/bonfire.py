@@ -129,7 +129,7 @@ _global_options = [
 def main(ctx, debug, namespace):
     # Store debug flag in context for subcommands to access
     ctx.ensure_object(dict)
-    ctx.obj.get("namespace") = namespace
+    ctx.obj["namespace"] = namespace
 
     logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
     logging.basicConfig(
