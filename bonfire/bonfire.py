@@ -129,7 +129,7 @@ _global_options = [
 def main(ctx, debug, namespace):
     # Store debug flag in context for subcommands to access
     ctx.ensure_object(dict)
-    ctx.obj["namespace"] = namespace
+    ctx.obj.get("namespace") = namespace
 
     logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
     logging.basicConfig(
@@ -804,9 +804,6 @@ def _list_namespaces(ctx, available, mine, output):
     """Get list of ephemeral namespaces"""
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
-
-    if ctx.obj["debug"]:
-        click.echo("debug mode is enabled")
 
     namespaces = get_namespaces(available=available, mine=mine)
 
