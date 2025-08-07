@@ -938,11 +938,10 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only, defer_status_e
 def _describe_namespace(ctx, namespace, output):
     """Get current namespace info"""
     _namespace = namespace or ctx.obj.get("namespace")
-
     if not _namespace:
         _namespace = current_namespace_or_error()
 
-    click.echo(describe_namespace(namespace, output))
+    click.echo(describe_namespace(_namespace, output))
 
 
 def _get_apps_config(
@@ -1165,7 +1164,7 @@ def _cmd_process(
         local,
         frontends,
         preferred_params,
-        namespace,
+        _namespace,
         exclude_components,
     )
     print(json.dumps(processed_templates, indent=2))
@@ -1387,13 +1386,13 @@ def _cmd_config_deploy(
 
     using_current = False
     if reserve:
-        namespace = None
+        _namespace = None
     elif not _namespace and not conf.BONFIRE_BOT:
         using_current = True
-        namespace = get_current_namespace()
+        _namespace = get_current_namespace()
 
     ns, reserved_new_ns = _get_namespace(
-        namespace,
+        _namespace,
         name,
         requester,
         duration,
@@ -1437,7 +1436,7 @@ def _cmd_config_deploy(
             local,
             frontends,
             preferred_params,
-            namespace,
+            _namespace,
             exclude_components,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
