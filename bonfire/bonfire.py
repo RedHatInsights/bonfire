@@ -116,17 +116,16 @@ def click_exception_wrapper(command):
 
 
 _global_options = [
-    click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False),
     click.option("--namespace", "-n", help="Namespace to use", default=None),
 ]
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @options(_global_options)
 @click.pass_context
+@click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
 def main(ctx, debug, namespace):
     # Store debug flag in context for subcommands to access
     ctx.ensure_object(dict)
-    ctx.obj['debug'] = debug
     ctx.obj['namespace'] = namespace
     
     logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
