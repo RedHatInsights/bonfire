@@ -143,7 +143,7 @@ def _remove_untrusted_configs_for_template(template, params):
 
 
 def _resolve_dependency_overrides(
-    dependencies: Set[str], keep: Set[str, None], remove: Set[str, None]
+    dependencies: Set[str], keep: Set[Optional[str]], remove: Set[Optional[str]]
 ):
     """
     Perform final resolution of the dependencies to include.  The keep and
