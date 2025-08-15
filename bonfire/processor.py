@@ -22,7 +22,6 @@ log = logging.getLogger(__name__)
 
 
 def _process_template(*args, **kwargs):
-    log.info(f"------- ARGSSSSS: {args} --------")
     # run process_template with prettier error handling
     try:
         processed_template = process_template(*args, **kwargs)
@@ -289,11 +288,6 @@ def process_iqe_cji(
 
 def process_reservation(name, requester, duration, pool=None, template_path=None, local=True, team=None):
     log.info("processing namespace reservation")
-
-    log.info(f"process_reservation func: team name is: {team}")
-
-    log.info(f"----- TEMPLATE PATHHHH: {template_path} -----")
-
     template_path = Path(template_path if template_path else conf.DEFAULT_RESERVATION_TEMPLATE)
 
     if not template_path.exists():
@@ -303,12 +297,9 @@ def process_reservation(name, requester, duration, pool=None, template_path=None
         template_data = yaml.safe_load(fp)
 
     params = dict()
-    log.info(f"------- params: {params} ---------")
 
     params["NAME"] = name if name else f"bonfire-reservation-{str(uuid.uuid4()).split('-')[0]}"
-    log.info(f"------- params: {params} ---------")
     params["DURATION"] = duration
-    log.info(f"------- params: {params} ---------")
 
     if requester is None:
         try:
@@ -318,12 +309,8 @@ def process_reservation(name, requester, duration, pool=None, template_path=None
             requester = "bonfire"
 
     params["REQUESTER"] = requester
-    log.info(f"------- params: {params} ---------")
     params["TEAM"] = team
-    log.info(f"------- params: {params} ---------")
-    log.info(f"----- TEAM: {team} ----------")
     params["POOL"] = pool if pool else "default"
-    log.info(f"------- params: {params} ---------")
 
     processed_template = _process_template(template_data, params=params, local=local)
 
