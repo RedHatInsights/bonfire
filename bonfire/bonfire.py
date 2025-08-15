@@ -1207,6 +1207,12 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
+    team = ""
+    if pool == "ai-development":
+        log.info("------------------------------- This pool exists! -------------------------------------")
+        team = input("What team are you on? ")
+        log.info(f"user is on team: {team}")
+
     if pool not in get_namespace_pools():
         _error(f"namespace pool '{pool}' does not exist on this cluster")
 
@@ -1225,7 +1231,7 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
             " have been reserved"
         )
 
-    return reserve_namespace(name, requester, duration, pool, timeout, local)
+    return reserve_namespace(name, requester, duration, pool, timeout, local, team)
 
 
 @main.command("deploy")
