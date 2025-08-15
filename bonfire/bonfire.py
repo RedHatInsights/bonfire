@@ -1243,9 +1243,7 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
 
     team = ""
     if pool == "ai-development":
-        log.info("------------------------------- This pool exists! -------------------------------------")
-        team = input("What team are you on? ")
-        log.info(f"user is on team: {team}")
+        team = input("You are about to reserve a namespace from the 'ai-development' pool; What team are you on? ")
 
     if pool not in get_namespace_pools():
         _error(f"namespace pool '{pool}' does not exist on this cluster")

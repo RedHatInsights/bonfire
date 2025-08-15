@@ -281,10 +281,7 @@ def reserve_namespace(name, requester, duration, pool, timeout, local=True, team
     if res:
         raise FatalError(f"Reservation with name {name} already exists")
 
-    log.info(f"------ ANOTHER CHECK FOR TEAMMMMM: {team} -------")
     res_config = process_reservation(name, requester, duration, pool, local=local, team=team)
-
-    log.info(f"res_config: {res_config}")
 
     log.debug("processed reservation:\n%s", res_config)
 
