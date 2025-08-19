@@ -85,7 +85,7 @@ class Client:
         check_url_connection(transport_kwargs["url"])
 
         transport = RequestsHTTPTransport(**transport_kwargs)
-        self.client = GQLClient(transport=transport, fetch_schema_from_transport=True)
+        self.client = GQLClient(transport=transport, fetch_schema_from_transport=False)
 
         # info level is way too noisy for the gql client
         logging.getLogger("gql").setLevel(logging.ERROR)
