@@ -26,9 +26,6 @@ DEFAULT_NAMESPACE_POOL = "default"
 DEFAULT_CLOWDENV_TEMPLATE = importlib_resources.files("bonfire").joinpath(
     "resources/local-cluster-clowdenvironment.yaml"
 )
-EPHEMERAL_CLUSTER_CLOWDENV_TEMPLATE = importlib_resources.files("bonfire").joinpath(
-    "resources/ephemeral-cluster-clowdenvironment.yaml"
-)
 DEFAULT_IQE_CJI_TEMPLATE = importlib_resources.files("bonfire").joinpath(
     "resources/default-iqe-cji.yaml"
 )

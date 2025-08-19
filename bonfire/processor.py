@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import traceback
+from typing import Optional
 import uuid
 from pathlib import Path
 
@@ -388,6 +389,23 @@ class TemplateProcessor:
         return parsed_app_names
 
     @staticmethod
+    def _parse_exclude_components(exclude_components):
+        """Parse exclude_components which can be None, a string, or a list."""
+        if exclude_components is None:
+            return None
+
+        if isinstance(exclude_components, str):
+            # Handle comma-separated string
+            return [
+                component.strip()
+                for component in exclude_components.split(",")
+                if component.strip()
+            ]
+
+        # Assume it's already a list
+        return list(exclude_components)
+
+    @staticmethod
     def _find_dupe_components(components_for_app):
         """Make sure no component is listed more than once across all apps."""
         for app_name, components in components_for_app.items():
@@ -558,6 +576,8 @@ class TemplateProcessor:
         component_filter,
         local,
         frontends,
+        namespace=None,
+        exclude_components=None,
     ):
         self.apps_config = apps_config
         self.requested_app_names = self._parse_app_names(app_names)
@@ -575,6 +595,8 @@ class TemplateProcessor:
         self.component_filter = component_filter
         self.local = local
         self.frontends = frontends
+        self.namespace = namespace
+        self.exclude_components = self._parse_exclude_components(exclude_components)
 
         self._validate()
 
@@ -661,7 +683,11 @@ class TemplateProcessor:
             log.debug(traceback.format_exc())
             raise FatalError(err)
 
-        template = yaml.safe_load(template_content)
+        try:
+            template = yaml.safe_load(template_content)
+        except Exception as err:
+            log.exception("failed to parse template content to yaml for %s", component_name)
+            raise FatalError(err)
 
         # fetch component parameters
         params = component.get("parameters", {})
@@ -669,6 +695,10 @@ class TemplateProcessor:
         # set IMAGE_TAG on this component only if it is currently unset
         if "IMAGE_TAG" not in params:
             params["IMAGE_TAG"] = commit[:7]
+
+        # set NAMESPACE on this component only if it is current unset
+        if "NAMESPACE" not in params:
+            params["NAMESPACE"] = self.namespace
 
         # always override ENV_NAME
         params["ENV_NAME"] = self.clowd_env
@@ -794,7 +824,7 @@ class TemplateProcessor:
             processed_component.optional_deps_handled = True
 
         for component_name in all_dependencies:
-            self._process_component(component_name, app_name, in_recursion=True)
+            self._process_component(component_name, app_name, in_recursion=True, is_dependency=True)
 
     def _handle_dependencies(self, app_name, processed_component, in_recursion):
         items = processed_component.items
@@ -802,10 +832,10 @@ class TemplateProcessor:
             for name in conf.AUTO_ADDED_FRONTEND_DEPENDENCIES:
                 if name not in self.processed_components:
                     log.info("auto-adding %s as dependency for frontend resource", name)
-                    self._process_component(name, app_name, in_recursion)
+                    self._process_component(name, app_name, in_recursion, is_dependency=True)
         self._add_dependencies_to_config(app_name, processed_component, in_recursion)
 
-    def _process_component(self, component_name, app_name, in_recursion):
+    def _process_component(self, component_name, app_name, in_recursion, is_dependency=False):
         if component_name in self.processed_components:
             log.debug("template already processed for component '%s'", component_name)
             processed_component = self.processed_components[component_name]
@@ -821,9 +851,13 @@ class TemplateProcessor:
                 )
                 items = []
 
-            self.k8s_list["items"].extend(items)
             processed_component = ProcessedComponent(component_name, items)
             self.processed_components[component_name] = processed_component
+            reason = self._component_skip_check(component_name, is_dependency)
+            if reason:
+                log.info("skipping component '%s', %s", component_name, reason)
+            else:
+                self.k8s_list["items"].extend(items)
 
         if self.get_dependencies:
             # recursively process to add config for dependent apps to self.k8s_list
@@ -835,12 +869,28 @@ class TemplateProcessor:
         for component in app_cfg["components"]:
             component_name = component["name"]
             log.debug("app '%s' has component '%s'", app_name, component_name)
-            if self.component_filter and component_name not in self.component_filter:
-                log.debug(
-                    "skipping component '%s', not found in --component filter", component_name
-                )
-                continue
-            self._process_component(component_name, app_name, in_recursion=False)
+            self._process_component(
+                component_name, app_name, in_recursion=False, is_dependency=False
+            )
+
+    def _component_skip_check(self, component_name, is_dependency) -> Optional[str]:
+        skip_reasons = [
+            (
+                not is_dependency
+                and self.component_filter
+                and component_name not in self.component_filter,
+                "not found in --component filter",
+            ),
+            (
+                self.exclude_components and component_name in self.exclude_components,
+                "found in --exclude-components list",
+            ),
+        ]
+
+        for condition, reason in skip_reasons:
+            if condition:
+                return reason
+        return None
 
     def process(self, app_names=None):
         if not app_names:

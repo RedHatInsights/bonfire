@@ -844,3 +844,125 @@ def test_preserve_resources_cli_option(mock_repo_file, no_remove_resources):
     assert deployment2["podSpec"]["resources"]["requests"]["cpu"] == "2m"
     assert deployment2["podSpec"]["resources"]["limits"]["memory"] == "200Mi"
     assert deployment2["podSpec"]["resources"]["limits"]["cpu"] == "2m"
+
+
+def test_exclude_components(mock_repo_file):
+    """
+    Test that components included in --exclude-components are skipped during processing
+    """
+    add_template(mock_repo_file, "app1-component1")
+    add_template(mock_repo_file, "app1-component2")
+    add_template(mock_repo_file, "app2-component1")
+    add_template(mock_repo_file, "app2-component2")
+
+    processor = get_processor(get_apps_config())
+    processor.requested_app_names = ["app1", "app2"]
+    processor.exclude_components = ["app1-component2", "app2-component1"]
+
+    processed = processor.process()
+
+    expected_components = ["app1-component1", "app2-component2"]
+    assert_clowdapps(processed["items"], expected_components)
+
+
+def test_exclude_components_empty_list(mock_repo_file):
+    """
+    Test that when exclude_components is None or empty, all components are processed
+    """
+    add_template(mock_repo_file, "app1-component1")
+    add_template(mock_repo_file, "app1-component2")
+    add_template(mock_repo_file, "app2-component1")
+    add_template(mock_repo_file, "app2-component2")
+
+    processor = get_processor(get_apps_config())
+    processor.requested_app_names = ["app1", "app2"]
+    processor.exclude_components = None
+
+    processed = processor.process()
+
+    expected_components = [
+        "app1-component1",
+        "app1-component2",
+        "app2-component1",
+        "app2-component2",
+    ]
+    assert_clowdapps(processed["items"], expected_components)
+
+
+def test_exclude_components_comma_separated_string(mock_repo_file):
+    """
+    Test that exclude_components accepts a comma-separated string
+    """
+    add_template(mock_repo_file, "app1-component1")
+    add_template(mock_repo_file, "app1-component2")
+    add_template(mock_repo_file, "app2-component1")
+    add_template(mock_repo_file, "app2-component2")
+
+    processor = get_processor(get_apps_config())
+    processor.requested_app_names = ["app1", "app2"]
+    # Test comma-separated string (simulating CLI input)
+    processor.exclude_components = "app1-component2,app2-component1"
+
+    processed = processor.process()
+
+    expected_components = ["app1-component1", "app2-component2"]
+    assert_clowdapps(processed["items"], expected_components)
+
+
+def test_exclude_components_comma_separated_with_spaces(mock_repo_file):
+    """
+    Test that exclude_components handles spaces around commas correctly
+    """
+    add_template(mock_repo_file, "app1-component1")
+    add_template(mock_repo_file, "app1-component2")
+    add_template(mock_repo_file, "app2-component1")
+    add_template(mock_repo_file, "app2-component2")
+
+    processor = get_processor(get_apps_config())
+    processor.requested_app_names = ["app1", "app2"]
+    # Test comma-separated string with spaces
+    processor.exclude_components = "app1-component2, app2-component1 , "
+
+    processed = processor.process()
+
+    expected_components = ["app1-component1", "app2-component2"]
+    assert_clowdapps(processed["items"], expected_components)
+
+
+def test_parse_exclude_components():
+    """
+    Test the _parse_exclude_components static method with different input types
+    """
+    # Test None input
+    result = TemplateProcessor._parse_exclude_components(None)
+    assert result is None
+
+    # Test empty string
+    result = TemplateProcessor._parse_exclude_components("")
+    assert result == []
+
+    # Test single component string
+    result = TemplateProcessor._parse_exclude_components("component1")
+    assert result == ["component1"]
+
+    # Test comma-separated string
+    result = TemplateProcessor._parse_exclude_components("component1,component2,component3")
+    assert result == ["component1", "component2", "component3"]
+
+    # Test comma-separated string with spaces
+    result = TemplateProcessor._parse_exclude_components("component1, component2 , component3")
+    assert result == ["component1", "component2", "component3"]
+
+    # Test string with trailing/leading commas and spaces
+    result = TemplateProcessor._parse_exclude_components(" ,component1, component2, ")
+    assert result == ["component1", "component2"]
+
+    # Test list input (should return same list)
+    input_list = ["component1", "component2"]
+    result = TemplateProcessor._parse_exclude_components(input_list)
+    assert result == ["component1", "component2"]
+
+    # Test tuple input (should convert to list)
+    input_tuple = ("component1", "component2")
+    result = TemplateProcessor._parse_exclude_components(input_tuple)
+    assert result == ["component1", "component2"]

@@ -1,8 +1,8 @@
-import copy
-import json
-import datetime
-import logging
 import base64
+import copy
+import datetime
+import json
+import logging
 
 from ocviapy import apply_config, get_all_namespaces, get_json, on_k8s, set_current_namespace
 from wait_for import TimedOutError
@@ -10,14 +10,13 @@ from wait_for import TimedOutError
 import bonfire.config as conf
 from bonfire.openshift import (
     get_all_reservations,
-    get_reservation,
     get_console_url,
+    get_reservation,
     wait_on_reservation,
     whoami,
 )
 from bonfire.processor import process_reservation
 from bonfire.utils import FatalError, hms_to_seconds
-
 
 log = logging.getLogger(__name__)
 
@@ -290,8 +289,7 @@ def reserve_namespace(name, requester, duration, pool, timeout, local=True, team
         res_name = res_config["items"][0]["metadata"]["name"]
     except (KeyError, IndexError):
         raise Exception(
-            "error parsing name of Reservation from processed template, "
-            "check Reservation template"
+            "error parsing name of Reservation from processed template, check Reservation template"
         )
 
     apply_config(None, list_resource=res_config)
@@ -391,12 +389,13 @@ def describe_namespace(project_name: str, output: str):
     project_url = get_console_url()
 
     data = f"\nCurrent project: {project_name}\n"
+    ns_url = ""
     if project_url:
         ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
         data += f"Project URL: {ns_url}\n"
     data += f"Keycloak admin route: {keycloak_url}\n"
     data += f"Keycloak admin login: {kc_creds['username']} | {kc_creds['password']}\n"
-    data += f"{num_clowdapps} ClowdApp(s), " f"{num_frontends} Frontend(s) deployed\n"
+    data += f"{num_clowdapps} ClowdApp(s), {num_frontends} Frontend(s) deployed\n"
     data += f"Gateway route: https://{fe_host}\n"
     data += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
     if output == "json":
@@ -411,6 +410,8 @@ def describe_namespace(project_name: str, output: str):
             "default_password": kc_creds["defaultPassword"],
             "gateway_route": f"https://{fe_host}",
         }
+        if ns_url:
+            data["console_namespace_route"] = ns_url
         data = json.dumps(data, indent=2)
 
     return data

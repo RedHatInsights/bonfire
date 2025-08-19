@@ -85,7 +85,7 @@ class Client:
         check_url_connection(transport_kwargs["url"])
 
         transport = RequestsHTTPTransport(**transport_kwargs)
-        self.client = GQLClient(transport=transport, fetch_schema_from_transport=True)
+        self.client = GQLClient(transport=transport, fetch_schema_from_transport=False)
 
         # info level is way too noisy for the gql client
         logging.getLogger("gql").setLevel(logging.ERROR)
@@ -238,8 +238,15 @@ def _add_component(
     host = "github" if "github" in url else "gitlab"
 
     try:
-        parsed_url = urlparse(url)
-        org, repo = parsed_url.path.rstrip("/").split("/")[-2:]
+        repo_path = urlparse(url).path.strip("/")
+        # Gitlab allows the 'group' to include subgroups: e.g.
+        # http://my-gitlab.com/group/subgroup/my-repo would translate to:
+        #   org = group/subgroup
+        #   repo = my-repo
+        last_slash_pos = repo_path.rindex("/")
+        org = repo_path[:last_slash_pos]
+        next_after_slash = last_slash_pos + 1
+        repo = repo_path[next_after_slash:]
     except (ValueError, IndexError) as err:
         raise ValueError(f"invalid repo url '{url}': {err}")
 

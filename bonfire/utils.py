@@ -22,7 +22,7 @@ else:
 
 from packaging import version
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from typing import List
 
@@ -65,14 +65,7 @@ SYNTAX_ERR = "configuration syntax error"
 
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
-
 GL_CA_CERT_URL = "https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem"
-
-_RATE_LIMIT_ERR_MSG = (
-    "rate limited by GitHub, set GITHUB_TOKEN env var and/or use GITHUB_API_URL "
-    "to point to a mirror"
-)
-
 _PARAM_REGEX = re.compile(r"\${(\S+)}")
 
 log = logging.getLogger(__name__)
@@ -187,7 +180,14 @@ class RepoFile:
                     f"{SYNTAX_ERR}, invalid value for repo '{repo}', required format: "
                     "<org>/<repo name>"
                 )
-            org, repo = repo.split("/")
+            # Gitlab allows the 'group' to include subgroups: e.g.
+            # http://my-gitlab.com/group/subgroup/my-repo would translate to:
+            #   org = group/subgroup
+            #   repo = my-repo
+            last_slash_pos = repo.rindex("/")
+            org = repo[:last_slash_pos]
+            next_after_slash = last_slash_pos + 1
+            repo = repo[next_after_slash:]
         elif d["host"] == "local":
             org = "local"
 
@@ -247,8 +247,6 @@ class RepoFile:
             if response.status_code == 200:
                 log.info("fetch succeeded for ref '%s'", ref)
                 break
-            elif response.status_code == 403 and "api rate limit exceeded" in response.text.lower():
-                raise Exception(_RATE_LIMIT_ERR_MSG)
             else:
                 log.info(
                     "failed to fetch git ref '%s' (http code: %d, response txt: %s)",
@@ -272,14 +270,16 @@ class RepoFile:
         return response
 
     def _get_gl_commit_hash(self):
-        group, project = self.org, self.repo
+        # Note: in cases of gitlab subgroups, the "org" contains a slash, so we need to quote it
+        # (changing the '/' to '%2F') if necessary.
+        group, project = quote(self.org, safe=""), self.repo
         url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
         check_url_connection(url)
-        response = self._session.get(url, verify=self._gl_certfile)
+        response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
             # use a different path
-            response = self._session.get(
+            response = self._get(
                 GL_PROJECTS_URL.format(type="users", group=group, name=project),
                 verify=self._gl_certfile,
             )
@@ -298,7 +298,7 @@ class RepoFile:
             )
 
         def get_ref_func(ref):
-            return self._session.get(
+            return self._get(
                 GL_BRANCH_URL.format(id=project_id, branch=ref), verify=self._gl_certfile
             )
 
@@ -313,7 +313,7 @@ class RepoFile:
 
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
-        response = self._session.get(url, verify=self._gl_certfile)
+        response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             log.warning(
                 "http response 404 for url %s, checking for template in current working dir...", url
@@ -324,14 +324,41 @@ class RepoFile:
 
         return commit, response.content
 
+    def _get(self, *args, **kwargs):
+        """Send a GET with handler for 403/429 rate limit errors."""
+        attempt = kwargs.pop("_attempt", 1)
+
+        response = self._session.get(*args, **kwargs)
+        status = response.status_code
+        url = response.request.url
+
+        if status == 429 or (status == 403 and "api rate limit exceeded" in response.text.lower()):
+            if attempt == 3:
+                raise Exception(f"GET {url} continues to hit rate limit after 3 attempts")
+
+            if "retry-after" in response.headers:
+                sleep_seconds = int(response.headers["retry-after"])
+
+            elif response.headers.get("x-ratelimit-remaining") == "0":
+                reset_time = int(response.headers["x-ratelimit-reset"]) or time.time() + 60
+                sleep_seconds = reset_time - time.time()
+
+            else:
+                sleep_seconds = 60
+
+            log.warning("GET %s exceeded rate limit, retrying after %d sec", url, sleep_seconds)
+
+            time.sleep(sleep_seconds)
+            kwargs["_attempt"] = attempt + 1
+            return self._get(*args, **kwargs)
+
+        return response
+
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
             url = GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref)
             check_url_connection(url)
-            return self._session.get(
-                url,
-                headers=self._gh_auth_headers,
-            )
+            return self._get(url, headers=self._gh_auth_headers)
 
         response = self._get_ref(get_ref_func)
         response_json = response.json()
@@ -347,14 +374,12 @@ class RepoFile:
 
         url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
         check_url_connection(url)
-        response = self._session.get(url, headers=self._gh_auth_headers)
+        response = self._get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
             log.warning(
                 "http response 404 for url %s, checking for template in current working dir...", url
             )
             return self._fetch_local(os.getcwd())
-        elif response.status_code == 403 and "api rate limit exceeded" in response.text.lower():
-            raise Exception(_RATE_LIMIT_ERR_MSG)
         else:
             response.raise_for_status()
 
@@ -567,20 +592,20 @@ def check_pypi():
 
 
 def hms_to_seconds(s):
-    fmt = r"^(\d+h)?(\d+m)?(\d+s)?$"
+    fmt = r"^(?:(?P<hours>\d+)h)?(?:(?P<minutes>\d+)m)?(?:(?P<seconds>\d+)s)?$"
 
-    split = re.split(fmt, s)
+    split = re.match(fmt, s)
 
     seconds = 0
 
-    for group in split:
-        if group:  # to ignore 'None' groups when all units aren't present
-            if "h" in group:
-                seconds += int(group.split("h")[0]) * 3600
-            elif "m" in group:
-                seconds += int(group.split("m")[0]) * 60
-            elif "s" in group:
-                seconds += int(group.split("s")[0])
+    if split:
+        parts = split.groupdict()
+        if parts["hours"]:
+            seconds += int(parts["hours"]) * 3600
+        if parts["minutes"]:
+            seconds += int(parts["minutes"]) * 60
+        if parts["seconds"]:
+            seconds += int(parts["seconds"])
 
     return seconds
 
