@@ -797,7 +797,9 @@ class TemplateProcessor:
 
         return fetch_optional_deps
 
-    def _add_dependencies_to_config(self, app_name, processed_component, in_recursion):
+    def _add_dependencies_to_config(
+        self, app_name, processed_component, in_recursion, dependency_chain
+    ):
         component_name = processed_component.name
         items = processed_component.items
 
@@ -824,18 +826,25 @@ class TemplateProcessor:
             processed_component.optional_deps_handled = True
 
         for component_name in all_dependencies:
-            self._process_component(component_name, app_name, in_recursion=True)
+            self._process_component(
+                component_name,
+                app_name,
+                in_recursion=True,
+                dependency_chain=dependency_chain + [component_name],
+            )
 
-    def _handle_dependencies(self, app_name, processed_component, in_recursion):
+    def _handle_dependencies(self, app_name, processed_component, in_recursion, dependency_chain):
         items = processed_component.items
         if self._frontend_found(items):
             for name in conf.AUTO_ADDED_FRONTEND_DEPENDENCIES:
                 if name not in self.processed_components:
                     log.info("auto-adding %s as dependency for frontend resource", name)
-                    self._process_component(name, app_name, in_recursion)
-        self._add_dependencies_to_config(app_name, processed_component, in_recursion)
+                    self._process_component(name, app_name, in_recursion, dependency_chain + [name])
+        self._add_dependencies_to_config(
+            app_name, processed_component, in_recursion, dependency_chain
+        )
 
-    def _process_component(self, component_name, app_name, in_recursion):
+    def _process_component(self, component_name, app_name, in_recursion, dependency_chain):
         if component_name in self.processed_components:
             log.debug("template already processed for component '%s'", component_name)
             processed_component = self.processed_components[component_name]
@@ -853,7 +862,7 @@ class TemplateProcessor:
 
             processed_component = ProcessedComponent(component_name, items)
             self.processed_components[component_name] = processed_component
-            reason = self._component_skip_check(component_name)
+            reason = self._component_skip_check(component_name, dependency_chain)
             if reason:
                 log.info("skipping component '%s', %s", component_name, reason)
             else:
@@ -861,7 +870,7 @@ class TemplateProcessor:
 
         if self.get_dependencies:
             # recursively process to add config for dependent apps to self.k8s_list
-            self._handle_dependencies(app_name, processed_component, in_recursion)
+            self._handle_dependencies(app_name, processed_component, in_recursion, dependency_chain)
 
     def _process_app(self, app_name):
         log.info("processing app '%s'", app_name)
@@ -869,13 +878,16 @@ class TemplateProcessor:
         for component in app_cfg["components"]:
             component_name = component["name"]
             log.debug("app '%s' has component '%s'", app_name, component_name)
-            self._process_component(component_name, app_name, in_recursion=False)
+            self._process_component(
+                component_name, app_name, in_recursion=False, dependency_chain=[component_name]
+            )
 
-    def _component_skip_check(self, component_name) -> Optional[str]:
+    def _component_skip_check(self, component_name, dependency_chain) -> Optional[str]:
         skip_reasons = [
             (
-                self.component_filter and component_name not in self.component_filter,
-                "not found in --component filter",
+                self.component_filter
+                and set(self.component_filter).intersection(set(dependency_chain)) == set(),
+                "not found during --component filter dependency resolution",
             ),
             (
                 self.exclude_components and component_name in self.exclude_components,
