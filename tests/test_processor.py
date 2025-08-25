@@ -341,6 +341,23 @@ def test_required_deps(mock_repo_file, optional_deps_method, expected):
     assert_clowdapps(processed["items"], expected)
 
 
+def test_transitive_dependency_resolution_with_components(mock_repo_file):
+    add_template(mock_repo_file, "app1-component1", deps=["app2-component1"])
+    add_template(mock_repo_file, "app2-component1", deps=["app3-component1"])
+    add_template(mock_repo_file, "app3-component1", deps=[])
+    add_template(mock_repo_file, "app1-component2", deps=["app2-component2"])
+    add_template(mock_repo_file, "app2-component2", deps=["app3-component2"])
+    add_template(mock_repo_file, "app3-component2", deps=[])
+
+    processor = get_processor(get_apps_config())
+    processor.optional_deps_method = "all"
+    processor.requested_app_names = ["app1"]
+    processor.component_filter = ("app1-component1",)
+    processed = processor.process()
+    expected = ["app1-component1", "app2-component1", "app3-component1"]
+    assert_clowdapps(processed["items"], expected)
+
+
 @pytest.mark.parametrize(
     "optional_deps_method,expected",
     [
