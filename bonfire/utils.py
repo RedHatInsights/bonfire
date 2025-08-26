@@ -1,4 +1,5 @@
 import atexit
+import collections
 import copy
 import difflib
 from functools import lru_cache
@@ -24,7 +25,7 @@ from packaging import version
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
-from typing import List
+from typing import List, Set
 
 import sys
 
@@ -73,11 +74,45 @@ log = logging.getLogger(__name__)
 
 class AppOrComponentSelector:
     def __init__(
-        self, select_all: bool = False, apps: List[str] = None, components: List[str] = None
+        self,
+        select_all: bool = False,
+        apps: List[str] = None,
+        components: List[str] = None,
     ):
         self.select_all = select_all
         self.apps = apps or []
-        self.components = components or []
+        self.components = self._build_component_dict(components)
+
+    @staticmethod
+    def _build_component_dict(components: List[str]):
+        component_dict: dict[str, Set] = collections.defaultdict(lambda: {None})
+
+        components = components or []
+        for item in components:
+            component, *_ = item.split("/")
+            if len(_) == 0:
+                # Set a wildcard to match everything
+                _ = ["*"]
+            if len(_) > 1:
+                raise ValueError("Only one / is allowed")
+            component_dict.setdefault(component, set()).update(_)
+
+        illegal_wildcard = list(filter(lambda x: "*" in x and len(x) > 1, component_dict.values()))
+        if illegal_wildcard:
+            msg = (
+                "Specifying both an entire component and specific "
+                "dependencies of that component is not allowed"
+            )
+            raise ValueError(msg)
+        return component_dict
+
+    @property
+    def flattened_components(self):
+        return [
+            f"{component}/{dependency}"
+            for component, dependencies in self.components.items()
+            for dependency in dependencies
+        ]
 
     @property
     def empty(self):
