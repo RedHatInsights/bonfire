@@ -292,6 +292,29 @@ def get_apps_config():
                 },
             ],
         },
+        "app5": {
+            "name": "app5",
+            "components": [
+                {
+                    "name": "app5-component1",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+                {
+                    "name": "app5-component2",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+                {
+                    "name": "app5-component3",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+            ],
+        },
     }
 
 
@@ -494,6 +517,60 @@ def test_mixed_deps(mock_repo_file, optional_deps_method, expected):
     processor = get_processor(get_apps_config())
     processor.optional_deps_method = optional_deps_method
     processor.requested_app_names = ["app1"]
+    processed = processor.process()
+    assert_clowdapps(processed["items"], expected)
+
+
+@pytest.mark.parametrize(
+    "optional_deps_method,expected",
+    [
+        (
+            "all",
+            [
+                "app5-component3",
+                "app5-component2",
+            ],
+        ),
+        (
+            "hybrid",
+            [
+                "app5-component3",
+                "app5-component2",
+            ],
+        ),
+        ("none", ["app5-component3"]),
+    ],
+)
+def test_mixed_deps_with_component_filter(mock_repo_file, optional_deps_method, expected):
+    """
+    app5-component1 has 'app5-component2' listed under 'dependencies'
+    app5-component1 has 'app5-component3' listed under 'optionalDependencies'
+
+    app5-component3 has 'app5-component2' listed under 'optionalDependencies'
+
+    bonfire is run with '--component app5-component3'
+
+    test that processing app1 results in expected ClowdApp dependencies being pulled in depending
+    on what 'optional dependencies mode' is selected
+    """
+    add_template(
+        mock_repo_file,
+        "app5-component1",
+        deps=["app5-component2"],
+        optional_deps=["app5-component3"],
+    )
+    add_template(mock_repo_file, "app5-component2")
+    add_template(
+        mock_repo_file,
+        "app5-component3",
+        deps=[],
+        optional_deps=["app5-component2"],
+    )
+
+    processor = get_processor(get_apps_config())
+    processor.optional_deps_method = optional_deps_method
+    processor.requested_app_names = ["app5"]
+    processor.component_filter = ("app5-component3",)
     processed = processor.process()
     assert_clowdapps(processed["items"], expected)
 
