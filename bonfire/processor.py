@@ -773,12 +773,6 @@ class TemplateProcessor:
             fetch_optional_deps = True
             log.debug("parsing optionalDependencies for component '%s'", component_name)
 
-        log.debug(
-            "{} {} {}".format(
-                self.optional_deps_method, in_recursion, app_name in self.requested_app_names
-            )
-        )
-
         if (
             self.optional_deps_method == "hybrid"
             and not in_recursion  # in hyrbid mode, process optional deps only for top-level components
