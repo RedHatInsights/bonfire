@@ -485,11 +485,7 @@ def test_mixed_deps(mock_repo_file, optional_deps_method, expected):
     [
         (
             "all",
-            [
-                "app5-component3",
-                "app5-component2",
-                "app1-component1"
-            ],
+            ["app5-component3", "app5-component2", "app1-component1"],
         ),
         (
             "hybrid",
