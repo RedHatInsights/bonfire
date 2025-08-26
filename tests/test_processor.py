@@ -488,6 +488,7 @@ def test_mixed_deps(mock_repo_file, optional_deps_method, expected):
             [
                 "app5-component3",
                 "app5-component2",
+                "app1-component1"
             ],
         ),
         (
@@ -505,6 +506,8 @@ def test_mixed_deps_with_component_filter(mock_repo_file, optional_deps_method, 
     app5-component1 has 'app5-component2' listed under 'dependencies'
     app5-component1 has 'app5-component3' listed under 'optionalDependencies'
 
+    app5-component2 has 'app1-component1' listed under 'optionalDependencies'
+
     app5-component3 has 'app5-component2' listed under 'optionalDependencies'
 
     bonfire is run with '--component app5-component3'
@@ -514,15 +517,18 @@ def test_mixed_deps_with_component_filter(mock_repo_file, optional_deps_method, 
     """
     add_template(
         mock_repo_file,
+        "app1-component1",
+    )
+    add_template(
+        mock_repo_file,
         "app5-component1",
         deps=["app5-component2"],
         optional_deps=["app5-component3"],
     )
-    add_template(mock_repo_file, "app5-component2")
+    add_template(mock_repo_file, "app5-component2", optional_deps=["app1-component1"])
     add_template(
         mock_repo_file,
         "app5-component3",
-        deps=[],
         optional_deps=["app5-component2"],
     )
 
