@@ -327,6 +327,7 @@ class ProcessedComponent:
         self.items = items
         self.deps_handled = deps_handled
         self.optional_deps_handled = optional_deps_handled
+        self.applied = False
 
 
 def _should_remove(
@@ -771,9 +772,16 @@ class TemplateProcessor:
         if self.optional_deps_method == "all":
             fetch_optional_deps = True
             log.debug("parsing optionalDependencies for component '%s'", component_name)
+
+        log.debug(
+            "{} {} {}".format(
+                self.optional_deps_method, in_recursion, app_name in self.requested_app_names
+            )
+        )
+
         if (
             self.optional_deps_method == "hybrid"
-            and not in_recursion
+            and not in_recursion  # in hyrbid mode, process optional deps only for top-level components
             and app_name in self.requested_app_names
         ):
             # in hybrid mode, only fetch optionalDependencies on a ClowdApp if it was part of
@@ -862,11 +870,17 @@ class TemplateProcessor:
 
             processed_component = ProcessedComponent(component_name, items)
             self.processed_components[component_name] = processed_component
+
+        if processed_component.applied:
+            log.info("component '%s' already applied", component_name)
+        else:
             reason = self._component_skip_check(component_name, dependency_chain)
             if reason:
-                log.info("skipping component '%s', %s", component_name, reason)
+                log.info("skipping apply for component '%s', %s", component_name, reason)
             else:
-                self.k8s_list["items"].extend(items)
+                self.k8s_list["items"].extend(processed_component.items)
+                log.info("template from component '%s' will be applied", component_name)
+                processed_component.applied = True
 
         if self.get_dependencies:
             # recursively process to add config for dependent apps to self.k8s_list
