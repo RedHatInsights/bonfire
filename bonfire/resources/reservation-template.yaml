@@ -22,7 +22,7 @@ parameters:
 - name: REQUESTER
   required: true
 - name: TEAM
-  required: true
+  required: false 
 - name: NAME
   required: true
 - name: POOL
