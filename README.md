@@ -308,6 +308,20 @@ When bonfire processes templates, if it finds a ClowdApp, it will do the followi
     * You will end up with all components of `app-a`, `app-b-clowdapp`, AND `app-c-clowdapp` deployed into the namespace.
   * `none`: `bonfire` will ignore the `optionalDependencies` on all ClowdApps that it encounters
 
+Dependency deployment can be fine-tuned with the `--remove-dependency` and `--no-remove-dependency` options.  If a component name is given, all dependencies for that component will be removed or preserved, respectively.  Individual dependencies can be targeted by joining the component name and dependency name together with a `/` character.  For example:
+
+```shell
+$ bonfire deploy myApp --remove-dependency component1/unwanted-component
+```
+
+A more specific designation will always take precedence over a general one.  Consider
+
+```shell
+$ bonfire deploy myApp --remove-dependency component1 --no-remove-dependency component1/retained-dependency
+```
+
+In this case, all of `component1`'s dependencies **except** `retained-dependency` will be removed.
+
 # Configuration Details
 
 > NOTE: for information related to app-interface configurations, see the internal [ConsoleDot Docs](https://consoledot.pages.redhat.com/)

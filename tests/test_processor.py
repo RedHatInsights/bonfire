@@ -104,6 +104,71 @@ parameters:
   value: 200Mi
 """
 
+COMPOUND_CLOWDAPP = """
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: {name}-template
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: {name}
+  spec:
+    envName: ${{ENV_NAME}}
+    dependencies: {deps}
+    optionalDependencies: {optional_deps}
+    deployments:
+    - name: deployment1
+      podSpec:
+        resources:
+          limits:
+            cpu: ${{CPU_LIMIT_DEPLOYMENT1}}
+            memory: ${{MEM_LIMIT_DEPLOYMENT1}}
+          requests:
+            cpu: ${{CPU_REQUEST_DEPLOYMENT1}}
+            memory: ${{MEM_REQUEST_DEPLOYMENT1}}
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: {name}-other
+  spec:
+    envName: ${{ENV_NAME}}
+    dependencies: {deps}
+    optionalDependencies: {optional_deps}
+    deployments:
+    - name: deployment1-other
+      podSpec:
+        resources:
+          limits:
+            cpu: ${{CPU_LIMIT_DEPLOYMENT1}}
+            memory: ${{MEM_LIMIT_DEPLOYMENT1}}
+          requests:
+            cpu: ${{CPU_REQUEST_DEPLOYMENT1}}
+            memory: ${{MEM_REQUEST_DEPLOYMENT1}}
+parameters:
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+- description: ClowdEnv Name
+  name: ENV_NAME
+  required: true
+- name: CPU_LIMIT_DEPLOYMENT1
+  value: 100m
+- name: CPU_REQUEST_DEPLOYMENT1
+  value: 1m
+- name: MEM_REQUEST_DEPLOYMENT1
+  value: 1Mi
+- name: MEM_LIMIT_DEPLOYMENT1
+  value: 100Mi
+- name: DEPLOYMENT2_WRONG_NAME_CPU
+  value: 2m
+- name: MEMORY_REQUEST_DEPLOYMENT2
+  value: 2Mi
+- name: MEM_LIMIT_DEPLOYMENT2
+  value: 200Mi
+"""
 
 CLOWDAPP_W_UNTRUSTED_PARAM = """
 ---
@@ -165,6 +230,7 @@ parameters:
 
 TEMPLATES = {
     "simple_clowdapp": SIMPLE_CLOWDAPP,
+    "compound_clowdapp": COMPOUND_CLOWDAPP,
     "clowdapp_w_untrusted_param": CLOWDAPP_W_UNTRUSTED_PARAM,
 }
 
@@ -419,6 +485,32 @@ def test_unlisted_component_does_not_remove_dependency_from_listed_component(moc
     processor.component_filter = ("app1-component2",)
     processed = processor.process()
     expected = ["app1-component2", "app2-component2", "app3-component2"]
+    assert_clowdapps(processed["items"], expected)
+
+
+def test_removes_dependency_in_compound_clowdapp(mock_repo_file):
+    """
+    --component swatch-contracts --no-remove-dependencies swatch-contracts --remove-dependencies
+    swatch-contracts/swatch-database --remove-dependencies swatch-tally/swatch-database
+    """
+    add_template(mock_repo_file, "app1-component1", deps=["app1-component2", "app2-component1"])
+    add_template(
+        mock_repo_file,
+        "app1-component2",
+        deps=["app2-component1"],
+        template_key="compound_clowdapp",
+    )
+    add_template(mock_repo_file, "app2-component1")
+
+    processor = get_processor(get_apps_config())
+    processor.optional_deps_method = "all"
+    processor.requested_app_names = ["app1"]
+    processor.component_filter = ("app1-component1",)
+    processor.remove_dependencies = AppOrComponentSelector(
+        False, "app1", ["app1-component1/app2-component1", "app1-component2/app2-component1"]
+    )
+    processed = processor.process()
+    expected = ["app1-component1", "app1-component2", "app1-component2-other"]
     assert_clowdapps(processed["items"], expected)
 
 
