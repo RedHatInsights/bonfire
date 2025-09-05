@@ -1284,8 +1284,7 @@ def test_process_reservation_with_team(mocker):
     """
     Test that process_reservation correctly handles the team parameter
     """
-    from bonfire.processor import process_reservation
- 
+    from bonfire.processor import process_reservation 
     # Mock the template processing
     mock_process_template = mocker.patch("bonfire.processor._process_template")
     mock_process_template.return_value = {
@@ -1341,8 +1340,7 @@ def test_process_reservation_without_team(mocker):
     """
     Test that process_reservation correctly handles None team parameter
     """
-    from bonfire.processor import process_reservation
- 
+    from bonfire.processor import process_reservation 
     # Mock the template processing
     mock_process_template = mocker.patch("bonfire.processor._process_template")
     mock_process_template.return_value = {
