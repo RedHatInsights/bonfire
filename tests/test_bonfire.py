@@ -105,11 +105,11 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
 
     if duration:
         mock_process_reservation.assert_called_once_with(
-            None, "user-3", duration, "default", local=True, team=''
+            None, "user-3", duration, "default", local=True, team=""
         )
     else:
         mock_process_reservation.assert_called_once_with(
-            None, "user-3", "1h", "default", local=True, team=''
+            None, "user-3", "1h", "default", local=True, team=""
         )
 
 
