@@ -1278,3 +1278,111 @@ def test_dependency_resolution_validates_dependency_presence(mock_repo_file):
     with pytest.raises(click.ClickException) as e:
         _alter_dependency_config(items, "hello", keep, remove)
     assert "not present in dependencies" in e.value.message
+=======
+def test_process_reservation_with_team(mocker):
+    """
+    Test that process_reservation correctly handles the team parameter
+    """
+    from bonfire.processor import process_reservation
+    
+    # Mock the template processing
+    mock_process_template = mocker.patch("bonfire.processor._process_template")
+    mock_process_template.return_value = {
+        "items": [
+            {
+                "apiVersion": "cloud.redhat.com/v1alpha1",
+                "kind": "NamespaceReservation",
+                "metadata": {"name": "test-reservation"},
+                "spec": {
+                    "duration": "1h",
+                    "requester": "test-user",
+                    "team": "test-team",
+                    "pool": "default"
+                }
+            }
+        ]
+    }
+    
+    # Mock file operations
+    mock_path = mocker.patch("bonfire.processor.Path")
+    mock_path.return_value.exists.return_value = True
+    mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = "mock template"
+    
+    # Mock yaml.safe_load
+    mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"})
+    
+    # Test with team parameter
+    result = process_reservation(
+        name="test-reservation",
+        requester="test-user", 
+        duration="1h",
+        pool="default",
+        team="test-team"
+    )
+    
+    # Verify the template was processed with correct parameters
+    mock_process_template.assert_called_once()
+    call_args = mock_process_template.call_args
+    params = call_args[1]["params"]
+    
+    assert params["NAME"] == "test-reservation"
+    assert params["REQUESTER"] == "test-user"
+    assert params["DURATION"] == "1h"
+    assert params["POOL"] == "default"
+    assert params["TEAM"] == "test-team"
+    
+    assert result == mock_process_template.return_value
+
+
+def test_process_reservation_without_team(mocker):
+    """
+    Test that process_reservation correctly handles None team parameter
+    """
+    from bonfire.processor import process_reservation
+    
+    # Mock the template processing
+    mock_process_template = mocker.patch("bonfire.processor._process_template")
+    mock_process_template.return_value = {
+        "items": [
+            {
+                "apiVersion": "cloud.redhat.com/v1alpha1",
+                "kind": "NamespaceReservation",
+                "metadata": {"name": "test-reservation"},
+                "spec": {
+                    "duration": "1h",
+                    "requester": "test-user",
+                    "team": None,
+                    "pool": "default"
+                }
+            }
+        ]
+    }
+    
+    # Mock file operations
+    mock_path = mocker.patch("bonfire.processor.Path")
+    mock_path.return_value.exists.return_value = True
+    mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = "mock template"
+    
+    # Mock yaml.safe_load
+    mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"})
+    
+    # Test without team parameter (should default to None)
+    result = process_reservation(
+        name="test-reservation",
+        requester="test-user", 
+        duration="1h",
+        pool="default"
+    )
+    
+    # Verify the template was processed with correct parameters
+    mock_process_template.assert_called_once()
+    call_args = mock_process_template.call_args
+    params = call_args[1]["params"]
+    
+    assert params["NAME"] == "test-reservation"
+    assert params["REQUESTER"] == "test-user"
+    assert params["DURATION"] == "1h"
+    assert params["POOL"] == "default"
+    assert params["TEAM"] is None
+    
+    assert result == mock_process_template.return_value
