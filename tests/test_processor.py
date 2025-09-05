@@ -1298,7 +1298,7 @@ def test_process_reservation_with_team(mocker):
                     "duration": "1h",
                     "requester": "test-user",
                     "team": "test-team",
-                    "pool": "default"
+                    "pool": "default",
                 }
             }
         ]
@@ -1307,7 +1307,9 @@ def test_process_reservation_with_team(mocker):
     # Mock file operations
     mock_path = mocker.patch("bonfire.processor.Path")
     mock_path.return_value.exists.return_value = True
-    mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = "mock template"
+    mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = (
+        "mock template"
+    )
     
     # Mock yaml.safe_load
     mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"})
@@ -1318,7 +1320,7 @@ def test_process_reservation_with_team(mocker):
         requester="test-user", 
         duration="1h",
         pool="default",
-        team="test-team"
+        team="test-team",
     )
     
     # Verify the template was processed with correct parameters
@@ -1353,7 +1355,7 @@ def test_process_reservation_without_team(mocker):
                     "duration": "1h",
                     "requester": "test-user",
                     "team": None,
-                    "pool": "default"
+                    "pool": "default",
                 }
             }
         ]
@@ -1362,17 +1364,16 @@ def test_process_reservation_without_team(mocker):
     # Mock file operations
     mock_path = mocker.patch("bonfire.processor.Path")
     mock_path.return_value.exists.return_value = True
-    mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = "mock template"
+    mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = (
+        "mock template"
+    )
     
     # Mock yaml.safe_load
     mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"})
     
     # Test without team parameter (should default to None)
     result = process_reservation(
-        name="test-reservation",
-        requester="test-user", 
-        duration="1h",
-        pool="default"
+        name="test-reservation", requester="test-user", duration="1h", pool="default"
     )
     
     # Verify the template was processed with correct parameters

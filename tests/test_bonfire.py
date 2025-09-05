@@ -48,7 +48,9 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
     result = runner.invoke(bonfire.namespace, ["reserve", "--name", name])
     print(result.output)
 
-    mock_process_reservation.assert_called_once_with(name, "user-3", "1h", "default", local=True, team="")
+    mock_process_reservation.assert_called_once_with(
+        name, "user-3", "1h", "default", local=True, team=""
+    )
 
 
 @pytest.mark.parametrize(
@@ -75,7 +77,9 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     result = runner.invoke(bonfire.namespace, ["reserve", "--requester", requester])
     print(result.output)
 
-    mock_process_reservation.assert_called_once_with(None, requester, "1h", "default", local=True, team="")
+    mock_process_reservation.assert_called_once_with(
+        None, requester, "1h", "default", local=True, team=""
+    )
 
 
 @pytest.mark.parametrize(
