@@ -1242,7 +1242,7 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
         _error(f"{NO_RESERVATION_SYS}")
 
     team = ""
-    if pool == "ai-development":
+    if pool in conf.AI_SPECIFIC_POOLS:
         team = input("\033[1;32mYou are about to reserve a namespace from the 'ai-development' pool - What team are you on?\033[0m ")
 
     if pool not in get_namespace_pools():
