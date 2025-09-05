@@ -1278,7 +1278,8 @@ def test_dependency_resolution_validates_dependency_presence(mock_repo_file):
     with pytest.raises(click.ClickException) as e:
         _alter_dependency_config(items, "hello", keep, remove)
     assert "not present in dependencies" in e.value.message
-=======
+
+
 def test_process_reservation_with_team(mocker):
     """
     Test that process_reservation correctly handles the team parameter
