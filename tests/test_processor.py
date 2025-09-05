@@ -1285,6 +1285,7 @@ def test_process_reservation_with_team(mocker):
     Test that process_reservation correctly handles the team parameter
     """
     from bonfire.processor import process_reservation
+
     
     # Mock the template processing
     mock_process_template = mocker.patch("bonfire.processor._process_template")
@@ -1299,7 +1300,7 @@ def test_process_reservation_with_team(mocker):
                     "requester": "test-user",
                     "team": "test-team",
                     "pool": "default",
-                }
+                },
             }
         ]
     }
@@ -1310,6 +1311,7 @@ def test_process_reservation_with_team(mocker):
     mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = (
         "mock template"
     )
+
     
     # Mock yaml.safe_load
     mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"})
@@ -1317,7 +1319,7 @@ def test_process_reservation_with_team(mocker):
     # Test with team parameter
     result = process_reservation(
         name="test-reservation",
-        requester="test-user", 
+        requester="test-user",
         duration="1h",
         pool="default",
         team="test-team",
@@ -1327,6 +1329,7 @@ def test_process_reservation_with_team(mocker):
     mock_process_template.assert_called_once()
     call_args = mock_process_template.call_args
     params = call_args[1]["params"]
+
     
     assert params["NAME"] == "test-reservation"
     assert params["REQUESTER"] == "test-user"
@@ -1334,6 +1337,7 @@ def test_process_reservation_with_team(mocker):
     assert params["POOL"] == "default"
     assert params["TEAM"] == "test-team"
     
+
     assert result == mock_process_template.return_value
 
 
@@ -1343,6 +1347,7 @@ def test_process_reservation_without_team(mocker):
     """
     from bonfire.processor import process_reservation
     
+
     # Mock the template processing
     mock_process_template = mocker.patch("bonfire.processor._process_template")
     mock_process_template.return_value = {
@@ -1356,7 +1361,7 @@ def test_process_reservation_without_team(mocker):
                     "requester": "test-user",
                     "team": None,
                     "pool": "default",
-                }
+                },
             }
         ]
     }
@@ -1367,6 +1372,7 @@ def test_process_reservation_without_team(mocker):
     mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = (
         "mock template"
     )
+
     
     # Mock yaml.safe_load
     mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"})
@@ -1381,10 +1387,12 @@ def test_process_reservation_without_team(mocker):
     call_args = mock_process_template.call_args
     params = call_args[1]["params"]
     
+
     assert params["NAME"] == "test-reservation"
     assert params["REQUESTER"] == "test-user"
     assert params["DURATION"] == "1h"
     assert params["POOL"] == "default"
     assert params["TEAM"] is None
     
+
     assert result == mock_process_template.return_value
