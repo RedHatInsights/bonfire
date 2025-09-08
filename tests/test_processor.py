@@ -1311,7 +1311,7 @@ def test_process_reservation_with_team(mocker):
         "mock template"
     )
     # Mock yaml.safe_load
-    mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"}) 
+    mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"})
     # Test with team parameter
     result = process_reservation(
         name="test-reservation",
@@ -1338,7 +1338,7 @@ def test_process_reservation_without_team(mocker):
     """
     Test that process_reservation correctly handles None team parameter
     """
-    from bonfire.processor import process_reservation 
+    from bonfire.processor import process_reservation
 
     # Mock the template processing
     mock_process_template = mocker.patch("bonfire.processor._process_template")
