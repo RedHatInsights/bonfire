@@ -1281,7 +1281,6 @@ def test_dependency_resolution_validates_dependency_presence(mock_repo_file):
 
 
 def test_process_reservation_with_team(mocker):
-
     """
     Test that process_reservation correctly handles the team parameter
     """
@@ -1323,8 +1322,7 @@ def test_process_reservation_with_team(mocker):
     # Verify the template was processed with correct parameters
     mock_process_template.assert_called_once()
     call_args = mock_process_template.call_args
-    params = call_args[1]["params"]
- 
+    params = call_args[1]["params"] 
     assert params["NAME"] == "test-reservation"
     assert params["REQUESTER"] == "test-user"
     assert params["DURATION"] == "1h"
