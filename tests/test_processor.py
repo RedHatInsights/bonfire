@@ -1303,13 +1303,13 @@ def test_process_reservation_with_team(mocker):
                 },
             }
         ]
-    } 
+    }
     # Mock file operations
     mock_path = mocker.patch("bonfire.processor.Path")
     mock_path.return_value.exists.return_value = True
     mock_path.return_value.open.return_value.__enter__.return_value.read.return_value = (
         "mock template"
-    ) 
+    )
     # Mock yaml.safe_load
     mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"}) 
     # Test with team parameter
@@ -1319,7 +1319,7 @@ def test_process_reservation_with_team(mocker):
         duration="1h",
         pool="default",
         team="test-team",
-    ) 
+    )
     # Verify the template was processed with correct parameters
     mock_process_template.assert_called_once()
     call_args = mock_process_template.call_args
@@ -1356,7 +1356,7 @@ def test_process_reservation_without_team(mocker):
                 },
             }
         ]
-    } 
+    }
     # Mock file operations
     mock_path = mocker.patch("bonfire.processor.Path")
     mock_path.return_value.exists.return_value = True
@@ -1364,15 +1364,15 @@ def test_process_reservation_without_team(mocker):
         "mock template"
     )
     # Mock yaml.safe_load
-    mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"}) 
+    mocker.patch("bonfire.processor.yaml.safe_load", return_value={"mock": "template"})
     # Test without team parameter (should default to None)
     result = process_reservation(
         name="test-reservation", requester="test-user", duration="1h", pool="default"
-    ) 
+    )
     # Verify the template was processed with correct parameters
     mock_process_template.assert_called_once()
     call_args = mock_process_template.call_args
-    params = call_args[1]["params"] 
+    params = call_args[1]["params"]
     assert params["NAME"] == "test-reservation"
     assert params["REQUESTER"] == "test-user"
     assert params["DURATION"] == "1h"
