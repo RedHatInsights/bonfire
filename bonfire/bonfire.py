@@ -388,27 +388,39 @@ def _validate_split_equals(ctx, param, value):
         raise click.BadParameter(msg)
 
 
-def _translate_to_obj(value_list):
+def _translate_to_obj(value_list, param_name):
     apps = []
     components = []
     select_all = False
+    # By default, we don't want to remove any dependencies
+    selector_options = ["remove_dependencies", "no_remove_dependencies"]
     for value in value_list:
         if value == "all":
             # all is a special keyword
             select_all = True
         elif value.startswith("app:"):
             apps.append(value.split(":")[1])
+        elif "/" in value and param_name not in selector_options:
+            raise click.BadParameter("dependency specifiers are not allowed for this option")
         else:
             components.append(value)
-    return AppOrComponentSelector(select_all, apps, components)
+    try:
+        return AppOrComponentSelector(
+            select_all,
+            apps,
+            components,
+        )
+    except ValueError as e:
+        raise click.BadParameter(str(e))
 
 
 def _app_or_component_selector(ctx, param, this_value):
     if any([val.startswith("-") for val in this_value]):
         raise click.BadParameter("requires a component name or keyword 'all'")
 
-    # check if 'app:' syntax has been used and translate input values to apps/components dictionary
-    this_value = _translate_to_obj(this_value)
+    # check if 'app:' syntax or "/dependency" syntax has been used and
+    # translate input values to apps/components dictionary
+    this_value = _translate_to_obj(this_value, param.name)
 
     opposite_option = {
         "remove_resources": "no_remove_resources",
@@ -437,11 +449,12 @@ def _app_or_component_selector(ctx, param, this_value):
             )
 
     # validate that the same component was not used in opposing options
-    for component in this_value.components:
-        if component in other_value.components:
+    # Resolution of wildcard specifiers is handled later
+    for component in this_value.flattened_components:
+        if component in other_value.flattened_components:
             raise click.BadParameter(
-                f"component '{component}' cannot be specified on both this option"
-                f" and its opposite '{other_param_name}'"
+                f"component '{component}' cannot be specified on both this "
+                f"option and its opposite '{other_param_name}'"
             )
 
     # set default value for --remove-resources to 'all' if option was unspecified
@@ -591,7 +604,9 @@ _process_options = _app_source_options + [
         help=(
             "Remove dependencies/optionalDependencies on ClowdApp configs "
             "for specific components or apps. Prefix the app name with "
-            "'app:', otherwise specify the component name. (default: none)"
+            "'app:', otherwise specify the component name. (default: none). "
+            "Specific dependencies can be specified with a slash delimiter. "
+            "E.g. mycomponent/rbac"
         ),
         type=str,
         multiple=True,
@@ -602,7 +617,9 @@ _process_options = _app_source_options + [
         help=(
             "Don't remove dependencies/optionalDependencies on ClowdApp configs "
             "for specific components or apps. Prefix the app name with "
-            "'app:', otherwise specify the component name. (default: all)"
+            "'app:', otherwise specify the component name. (default: all). "
+            "Specific dependencies can be specified with a slash delimiter. "
+            "E.g. mycomponent/rbac"
         ),
         type=str,
         multiple=True,

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from unittest.mock import ANY
 
+import click
 import pytest
 from click.testing import CliRunner
 
@@ -380,3 +381,97 @@ def test_remove_resources_all(mocker):
     assert kwargs["no_remove_resources"].select_all is True
     assert kwargs["remove_dependencies"].select_all is False
     assert kwargs["no_remove_dependencies"].select_all is True
+
+
+def test_remove_dependencies_wildcard(mocker):
+    get_return_args = mocker.patch("bonfire.bonfire._get_return_args")
+
+    runner = CliRunner()
+    result = runner.invoke(bonfire.test, ["process", "some-app", "--remove-dependencies", "hello"])
+    assert result.exit_code == 0
+
+    call = get_return_args.call_args
+    assert call
+    _, kwargs = call
+    remove_deps = kwargs["remove_dependencies"]
+    keep_deps = kwargs["no_remove_dependencies"]
+    assert remove_deps.components == {"hello": {"*"}}
+    assert keep_deps.components == {}
+
+
+def test_remove_dependencies_specific(mocker):
+    get_return_args = mocker.patch("bonfire.bonfire._get_return_args")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        bonfire.test,
+        [
+            "process",
+            "some-app",
+            "--remove-dependencies",
+            "hello/world",
+            "--remove-dependencies",
+            "foo/bar",
+        ],
+    )
+    assert result.exit_code == 0
+
+    call = get_return_args.call_args
+    assert call
+    _, kwargs = call
+    remove_deps = kwargs["remove_dependencies"]
+    assert remove_deps.components == {"hello": {"world"}, "foo": {"bar"}}
+
+
+def test_remove_dependencies_disallows_nested_slashes():
+    runner = CliRunner()
+    with pytest.raises(click.BadParameter) as e:
+        runner.invoke(
+            bonfire.test,
+            ["process", "some-app", "--remove-dependencies", "hello/world/foo"],
+            catch_exceptions=False,
+            standalone_mode=False,
+        )
+    assert "Only one / is allowed" in e.value.message
+
+
+def test_remove_dependencies_disallows_general_and_specific():
+    runner = CliRunner()
+    with pytest.raises(click.BadParameter) as e:
+        runner.invoke(
+            bonfire.test,
+            [
+                "process",
+                "some-app",
+                "--remove-dependencies",
+                "hello/world",
+                "--remove-dependencies",
+                "hello",
+            ],
+            catch_exceptions=False,
+            standalone_mode=False,
+        )
+    msg = (
+        "Specifying both an entire component and specific dependencies of "
+        "that component is not allowed"
+    )
+    assert msg in e.value.message
+
+
+def test_disallows_dependency_specification_conflicts():
+    runner = CliRunner()
+    with pytest.raises(click.BadParameter) as e:
+        runner.invoke(
+            bonfire.test,
+            [
+                "process",
+                "some-app",
+                "--remove-dependencies",
+                "hello/world",
+                "--no-remove-dependencies",
+                "hello/world",
+            ],
+            catch_exceptions=False,
+            standalone_mode=False,
+        )
+    assert "cannot be specified on both this option and its opposite" in e.value.message

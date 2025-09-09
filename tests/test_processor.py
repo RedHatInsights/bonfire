@@ -1,8 +1,14 @@
 import uuid
 
+import click
 import pytest
 
-from bonfire.processor import TemplateProcessor, _should_remove
+from bonfire.processor import (
+    TemplateProcessor,
+    _should_alter,
+    _resolve_dependency_overrides,
+    _alter_dependency_config,
+)
 from bonfire.utils import RepoFile, AppOrComponentSelector
 
 
@@ -286,6 +292,29 @@ def get_apps_config():
                 },
             ],
         },
+        "app5": {
+            "name": "app5",
+            "components": [
+                {
+                    "name": "app5-component1",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+                {
+                    "name": "app5-component2",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+                {
+                    "name": "app5-component3",
+                    "host": "local",
+                    "repo": "test",
+                    "path": "test",
+                },
+            ],
+        },
     }
 
 
@@ -344,10 +373,10 @@ def test_required_deps(mock_repo_file, optional_deps_method, expected):
 def test_transitive_dependency_resolution_with_components(mock_repo_file):
     add_template(mock_repo_file, "app1-component1", deps=["app2-component1"])
     add_template(mock_repo_file, "app2-component1", deps=["app3-component1"])
-    add_template(mock_repo_file, "app3-component1", deps=[])
+    add_template(mock_repo_file, "app3-component1")
     add_template(mock_repo_file, "app1-component2", deps=["app2-component2"])
     add_template(mock_repo_file, "app2-component2", deps=["app3-component2"])
-    add_template(mock_repo_file, "app3-component2", deps=[])
+    add_template(mock_repo_file, "app3-component2")
 
     processor = get_processor(get_apps_config())
     processor.optional_deps_method = "all"
@@ -355,6 +384,41 @@ def test_transitive_dependency_resolution_with_components(mock_repo_file):
     processor.component_filter = ("app1-component1",)
     processed = processor.process()
     expected = ["app1-component1", "app2-component1", "app3-component1"]
+    assert_clowdapps(processed["items"], expected)
+
+
+def test_reprocesses_dependency(mock_repo_file):
+    add_template(mock_repo_file, "app1-component1")
+    add_template(mock_repo_file, "app1-component2", deps=["app1-component1"])
+
+    processor = get_processor(get_apps_config())
+    processor.requested_app_names = ["app1"]
+    processor.component_filter = ("app1-component2",)
+    processed = processor.process()
+    expected = ["app1-component2", "app1-component1"]
+    assert_clowdapps(processed["items"], expected)
+
+
+def test_unlisted_component_does_not_remove_dependency_from_listed_component(mock_repo_file):
+    """
+    The graph looks like
+        a1-c1 -> a2-c2 -> a3-c2
+        a1-c2 -> a2-c2 -> a3-c3
+    And we request component a1-c2.  This test is meant to ensure that a2-c2 and its
+    dependencies are included even though it is also a dependency of a component that doesn't
+    match the filter (a1-c1).
+    """
+    add_template(mock_repo_file, "app1-component1", deps=["app2-component2"])
+    add_template(mock_repo_file, "app2-component2", deps=["app3-component2"])
+    add_template(mock_repo_file, "app3-component2")
+    add_template(mock_repo_file, "app1-component2", deps=["app2-component2"])
+
+    processor = get_processor(get_apps_config())
+    processor.optional_deps_method = "all"
+    processor.requested_app_names = ["app1"]
+    processor.component_filter = ("app1-component2",)
+    processed = processor.process()
+    expected = ["app1-component2", "app2-component2", "app3-component2"]
     assert_clowdapps(processed["items"], expected)
 
 
@@ -462,6 +526,62 @@ def test_mixed_deps(mock_repo_file, optional_deps_method, expected):
     [
         (
             "all",
+            ["app5-component3", "app5-component2", "app1-component1"],
+        ),
+        (
+            "hybrid",
+            [
+                "app5-component3",
+                "app5-component2",
+            ],
+        ),
+        ("none", ["app5-component3"]),
+    ],
+)
+def test_mixed_deps_with_component_filter(mock_repo_file, optional_deps_method, expected):
+    """
+    app5-component1 has 'app5-component2' listed under 'dependencies'
+    app5-component1 has 'app5-component3' listed under 'optionalDependencies'
+
+    app5-component2 has 'app1-component1' listed under 'optionalDependencies'
+
+    app5-component3 has 'app5-component2' listed under 'optionalDependencies'
+
+    bonfire is run with '--component app5-component3'
+
+    test that processing app1 results in expected ClowdApp dependencies being pulled in depending
+    on what 'optional dependencies mode' is selected
+    """
+    add_template(
+        mock_repo_file,
+        "app1-component1",
+    )
+    add_template(
+        mock_repo_file,
+        "app5-component1",
+        deps=["app5-component2"],
+        optional_deps=["app5-component3"],
+    )
+    add_template(mock_repo_file, "app5-component2", optional_deps=["app1-component1"])
+    add_template(
+        mock_repo_file,
+        "app5-component3",
+        optional_deps=["app5-component2"],
+    )
+
+    processor = get_processor(get_apps_config())
+    processor.optional_deps_method = optional_deps_method
+    processor.requested_app_names = ["app5"]
+    processor.component_filter = ("app5-component3",)
+    processed = processor.process()
+    assert_clowdapps(processed["items"], expected)
+
+
+@pytest.mark.parametrize(
+    "optional_deps_method,expected",
+    [
+        (
+            "all",
             [
                 "app1-component1",
                 "app1-component2",
@@ -530,6 +650,31 @@ def test_mixed_deps_two_apps(mock_repo_file, optional_deps_method, expected):
     assert_clowdapps(processed["items"], expected)
 
 
+def test_filtered_deps(mock_repo_file):
+    expected = ["app1-component1", "app2-component1", "app4-component1", "app1-component2"]
+    add_template(
+        mock_repo_file,
+        "app1-component1",
+        deps=["app2-component1", "app2-component2"],
+        optional_deps=["app3-component1"],
+    )
+    add_template(mock_repo_file, "app1-component2")
+    add_template(mock_repo_file, "app2-component1", optional_deps=["app4-component1"])
+    add_template(mock_repo_file, "app2-component2", optional_deps=["app4-component2"])
+    add_template(mock_repo_file, "app4-component1")
+    add_template(mock_repo_file, "app4-component2")
+
+    processor = get_processor(get_apps_config())
+    processor.requested_app_names = ["app1"]
+    processor.optional_deps_method = "all"
+    processor.remove_dependencies = AppOrComponentSelector(False, "app1", ["app1-component1"])
+    processor.no_remove_dependencies = AppOrComponentSelector(
+        False, "app1", ["app1-component1/app2-component1"]
+    )
+    processed = processor.process()
+    assert_clowdapps(processed["items"], expected)
+
+
 # Testing --no-remove-resources/dependency "app:" syntax
 def test_should_remove_remove_for_none_no_exceptions():
     # --no-remove-resources all --no-remove-resources component1 --no-remove-resources app:app1
@@ -538,9 +683,23 @@ def test_should_remove_remove_for_none_no_exceptions():
         select_all=True, components=["component1"], apps=["app1"]
     )
 
-    assert _should_remove(remove_resources, no_remove_resources, "app2", "component2") is False
-    assert _should_remove(remove_resources, no_remove_resources, "app2", "component1") is False
-    assert _should_remove(remove_resources, no_remove_resources, "app1", "whatever") is False
+    mutually_exclusive = True
+    assert (
+        _should_alter(
+            remove_resources, no_remove_resources, "app2", "component2", mutually_exclusive
+        )
+        is False
+    )
+    assert (
+        _should_alter(
+            remove_resources, no_remove_resources, "app2", "component1", mutually_exclusive
+        )
+        is False
+    )
+    assert (
+        _should_alter(remove_resources, no_remove_resources, "app1", "whatever", mutually_exclusive)
+        is False
+    )
 
 
 def test_should_remove_remove_for_all_no_exceptions():
@@ -550,41 +709,59 @@ def test_should_remove_remove_for_all_no_exceptions():
     )
     no_remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=[])
 
-    assert _should_remove(remove_resources, no_remove_resources, "app2", "component2") is True
-    assert _should_remove(remove_resources, no_remove_resources, "app2", "component1") is True
-    assert _should_remove(remove_resources, no_remove_resources, "app1", "whatever") is True
+    mutually_exclusive = True
+    assert (
+        _should_alter(
+            remove_resources, no_remove_resources, "app2", "component2", mutually_exclusive
+        )
+        is True
+    )
+    assert (
+        _should_alter(
+            remove_resources, no_remove_resources, "app2", "component1", mutually_exclusive
+        )
+        is True
+    )
+    assert (
+        _should_alter(remove_resources, no_remove_resources, "app1", "whatever", mutually_exclusive)
+        is True
+    )
 
 
 def test_should_remove_remove_option_select_all():
     # --remove-resources all --no-remove-resources component1
+    mutually_exclusive = True
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             AppOrComponentSelector(select_all=False, components=["component1"], apps=[]),
             "app2",
             "component1",
+            mutually_exclusive,
         )
         is False
     )
 
     # --remove-resources all --no-remove-resources app:app1
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
             "app1",
             "component1",
+            mutually_exclusive,
         )
         is False
     )
 
     # --remove-resources all
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             AppOrComponentSelector(select_all=False, components=[], apps=[]),
             "app1",
             "component2",
+            mutually_exclusive,
         )
         is True
     )
@@ -592,78 +769,86 @@ def test_should_remove_remove_option_select_all():
 
 def test_should_remove_no_remove_option_select_all():
     # --remove-resources component1 --no-remove-resources all
+    mutually_exclusive = True
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=False, components=["component1"], apps=[]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app1",
             "component1",
+            mutually_exclusive,
         )
         is True
     )
 
     # --remove-resources app:app1 --no-remove-resources all
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=False, components=[], apps=["app1"]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app1",
             "component1",
+            mutually_exclusive,
         )
         is True
     )
 
     # --remove-resources component1 --remove-resources app:app1 --no-remove-resources all
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app1",
             "component1",
+            mutually_exclusive,
         )
         is True
     )
 
     # --remove-resources component1 --remove-resources app:app2 --no-remove-resources all
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app2",
             "component1",
+            mutually_exclusive,
         )
         is True
     )
 
     # --remove-resources component2 --remove-resources app:app1 --no-remove-resources all
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app1",
             "component2",
+            mutually_exclusive,
         )
         is True
     )
 
     # --remove-resources component2 --remove-resources app:app2 --no-remove-resources all
     assert (
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=False, components=["component1"], apps=["app1"]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app2",
             "component2",
+            mutually_exclusive,
         )
         is False
     )
 
     assert (
         # --no-remove-resources all
-        _should_remove(
+        _should_alter(
             AppOrComponentSelector(select_all=False, components=[], apps=[]),
             AppOrComponentSelector(select_all=True, components=[], apps=[]),
             "app1",
             "component1",
+            mutually_exclusive,
         )
         is False
     )
@@ -674,16 +859,24 @@ def test_should_remove_component_overrides_app(default):
     # --no-remove-resources app:app1 --remove-resources component1
     remove_resources = AppOrComponentSelector(select_all=False, components=["component2"], apps=[])
     no_remove_resources = AppOrComponentSelector(select_all=False, components=[], apps=["app1"])
+    mutually_exclusive = True
 
     assert (
-        _should_remove(remove_resources, no_remove_resources, "app1", "component1", default)
+        _should_alter(
+            remove_resources, no_remove_resources, "app1", "component1", mutually_exclusive, default
+        )
         is False
     )
     assert (
-        _should_remove(remove_resources, no_remove_resources, "app1", "component2", default) is True
+        _should_alter(
+            remove_resources, no_remove_resources, "app1", "component2", mutually_exclusive, default
+        )
+        is True
     )
     assert (
-        _should_remove(remove_resources, no_remove_resources, "anything", "else", default)
+        _should_alter(
+            remove_resources, no_remove_resources, "anything", "else", mutually_exclusive, default
+        )
         is default
     )
 
@@ -699,21 +892,35 @@ def test_should_remove_component_app_combos(default):
         select_all=False, components=["component2"], apps=["app2"]
     )
 
+    mutually_exclusive = True
     assert (
-        _should_remove(remove_resources, no_remove_resources, "app2", "component1", default) is True
+        _should_alter(
+            remove_resources, no_remove_resources, "app2", "component1", mutually_exclusive, default
+        )
+        is True
     )
     assert (
-        _should_remove(remove_resources, no_remove_resources, "app1", "anything", default) is True
+        _should_alter(
+            remove_resources, no_remove_resources, "app1", "anything", mutually_exclusive, default
+        )
+        is True
     )
     assert (
-        _should_remove(remove_resources, no_remove_resources, "app1", "component2", default)
+        _should_alter(
+            remove_resources, no_remove_resources, "app1", "component2", mutually_exclusive, default
+        )
         is False
     )
     assert (
-        _should_remove(remove_resources, no_remove_resources, "app2", "anything", default) is False
+        _should_alter(
+            remove_resources, no_remove_resources, "app2", "anything", mutually_exclusive, default
+        )
+        is False
     )
     assert (
-        _should_remove(remove_resources, no_remove_resources, "anything", "else", default)
+        _should_alter(
+            remove_resources, no_remove_resources, "anything", "else", mutually_exclusive, default
+        )
         is default
     )
 
@@ -983,3 +1190,91 @@ def test_parse_exclude_components():
     input_tuple = ("component1", "component2")
     result = TemplateProcessor._parse_exclude_components(input_tuple)
     assert result == ["component1", "component2"]
+
+
+@pytest.mark.parametrize(
+    "keep,remove,expected",
+    [
+        ({"a"}, {"b"}, {"a", "c"}),
+        ({"*"}, {"b"}, {"a", "c"}),
+        ({None}, {"b"}, {"a", "c"}),
+        ({"a"}, {None}, {"a", "b", "c"}),
+        ({"*"}, {None}, {"a", "b", "c"}),
+        ({None}, {None}, {"a", "b", "c"}),
+        ({"a"}, {"*"}, {"a"}),
+        # Combination ["*"] and ["*"] is an error and is tested elsewhere
+        ({None}, {"*"}, set()),
+    ],
+)
+def test_dependency_resolution(keep, remove, expected):
+    dependencies = {"a", "b", "c"}
+    result = _resolve_dependency_overrides(dependencies, keep, remove)
+    # Thanks https://stackoverflow.com/a/61494686/6124862
+    lacks = expected.difference(result)
+    extra = result.difference(expected)
+    message = f"Lacks elements {lacks} " if lacks else ""
+    message += f"Extra elements {extra}" if extra else ""
+    assert not message
+
+
+def test_dependency_resolution_validates_no_common_items():
+    dependencies = {"a", "b", "c"}
+    keep = {"a"}
+    remove = {"a"}
+    with pytest.raises(click.ClickException) as e:
+        _resolve_dependency_overrides(dependencies, keep, remove)
+    assert "Cannot resolve dependency list" in e.value.message
+
+
+def test_dependency_resolution_validates_no_wildcard():
+    dependencies = {"a", "b", "c"}
+    keep = {"*"}
+    remove = {"*"}
+    with pytest.raises(click.ClickException) as e:
+        _resolve_dependency_overrides(dependencies, keep, remove)
+    assert "Cannot resolve dependency list" in e.value.message
+
+
+def test_dependency_resolution_validates_wildcard_only_item():
+    dependencies = {"a", "b", "c"}
+    keep = {"*", "b"}
+    remove = {"a"}
+    with pytest.raises(click.ClickException) as e:
+        _resolve_dependency_overrides(dependencies, keep, remove)
+    assert "Invalid dependency modification specifier" in e.value.message
+
+
+def test_dependency_resolution_validates_not_none_not_empty():
+    dependencies = {"a", "b", "c"}
+    keep = set()
+    remove = {"a"}
+    with pytest.raises(click.ClickException) as e:
+        _resolve_dependency_overrides(dependencies, keep, remove)
+    assert "cannot be None or an empty list" in e.value.message
+
+    keep = None
+    with pytest.raises(click.ClickException) as e:
+        _resolve_dependency_overrides(dependencies, keep, remove)
+    assert "cannot be None or an empty list" in e.value.message
+
+
+def test_dependency_resolution_validates_dependency_presence(mock_repo_file):
+    items = [
+        {
+            "kind": "ClowdApp",
+            "metadata": {"name": "hello"},
+            "spec": {"dependencies": ["a", "b"], "optionalDependencies": ["c"]},
+        }
+    ]
+
+    keep = {None}
+    remove = {"x"}
+    with pytest.raises(click.ClickException) as e:
+        _alter_dependency_config(items, "hello", keep, remove)
+    assert "not present in dependencies" in e.value.message
+
+    keep = {"y"}
+    remove = {None}
+    with pytest.raises(click.ClickException) as e:
+        _alter_dependency_config(items, "hello", keep, remove)
+    assert "not present in dependencies" in e.value.message
