@@ -1186,7 +1186,7 @@ def _get_namespace(
     timeout,
     local,
     force,
-    using_current=False
+    using_current=False,
 ):
     if not has_ns_operator():
         if requested_ns_name:
