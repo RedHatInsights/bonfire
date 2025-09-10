@@ -240,7 +240,7 @@ _ns_reserve_options = [
     click.option(
         "--team",
         type=str,
-        default=None,
+        default="",
         help="Team name associated with requester for",
     ),
     click.option(
