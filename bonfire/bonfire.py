@@ -1177,7 +1177,16 @@ def _cmd_process(
 
 
 def _get_namespace(
-    requested_ns_name, name, requester, team, duration, pool, timeout, local, force, using_current=False
+    requested_ns_name,
+    name,
+    requester,
+    team,
+    duration,
+    pool,
+    timeout,
+    local,
+    force,
+    using_current=False
 ):
     if not has_ns_operator():
         if requested_ns_name:
@@ -1197,7 +1206,9 @@ def _get_namespace(
                 "current namespace could not be used (not reserved,"
                 " expired, or not owned), reserving a new one",
             )
-        ns = _check_and_reserve_namespace(name, requester, team, duration, pool, timeout, local, force)
+        ns = _check_and_reserve_namespace(
+            name, requester, team, duration, pool, timeout, local, force
+        )
         reserved_new_ns = True
 
     return ns.name, reserved_new_ns
@@ -1246,13 +1257,6 @@ def _check_and_use_namespace(requested_ns_name, using_current, requester):
 def _check_and_reserve_namespace(name, requester, team, duration, pool, timeout, local, force):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
-
-    # PLACEHOLDER: remove
-    #team = ""
-    #if pool in conf.AI_SPECIFIC_POOLS:
-    #    team = input(
-    #        "\033[1;32mYou are about to reserve a namespace from the 'ai-development' pool - What team are you on?\033[0m "
-    #    )
 
     if pool not in get_namespace_pools():
         _error(f"namespace pool '{pool}' does not exist on this cluster")
@@ -1544,7 +1548,9 @@ def _cmd_deploy_clowdenv(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, team, duration, pool, timeout, local, force)
+    namespace, _ = _get_namespace(
+        namespace, name, requester, team, duration, pool, timeout, local, force
+    )
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -1659,7 +1665,9 @@ def _cmd_deploy_iqe_cji(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, team, duration, pool, timeout, local, force)
+    namespace, _ = _get_namespace(
+        namespace, name, requester, team, duration, pool, timeout, local, force
+    )
 
     cji_config = process_iqe_cji(
         clowd_app_name,
