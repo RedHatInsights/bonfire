@@ -1642,6 +1642,7 @@ def _cmd_deploy_iqe_cji(
     plugins,
     name,
     requester,
+    team,
     duration,
     local,
     selenium,
