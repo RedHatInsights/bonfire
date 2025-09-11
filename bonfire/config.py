@@ -22,7 +22,6 @@ DEFAULT_SECRETS_DIR = get_config_path().joinpath("secrets")
 DEFAULT_CONFIGMAPS_DIR = get_config_path().joinpath("configmaps")
 
 DEFAULT_NAMESPACE_POOL = "default"
-AI_SPECIFIC_POOLS = ["ai-development"]
 
 DEFAULT_CLOWDENV_TEMPLATE = importlib_resources.files("bonfire").joinpath(
     "resources/local-cluster-clowdenvironment.yaml"
