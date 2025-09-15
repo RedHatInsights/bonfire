@@ -318,9 +318,10 @@ def test_describe_ephemeral_ns_from_ctx(mocker):
     mocker.patch("bonfire.namespaces.get_json")
     mocker.patch("bonfire.namespaces.Namespace")
     mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value="ephemeral-blah")
+    mocker.patch("bonfire.bonfire.check_pypi")
     runner = CliRunner()
-    result = runner.invoke(bonfire.namespace, ["describe"])
-    print(result.output)
+    result = runner.invoke(bonfire.main, ["namespace", "describe"])
+    print("result.output", result.output)
 
     assert "jdoe | password" in result.output
     assert "env-ephemeral-blah-howdy" in result.output
