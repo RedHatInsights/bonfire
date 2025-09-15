@@ -218,33 +218,31 @@ def _alter_dependency_config(items, component_name, keep, remove):
         if i["kind"] != "ClowdApp":
             continue
         name = i["metadata"]["name"]
-        if name == component_name:
-            deps = set(i["spec"].get("dependencies", []))
-            optional_deps = set(i["spec"].get("optionalDependencies", []))
+        deps = set(i["spec"].get("dependencies", []))
+        optional_deps = set(i["spec"].get("optionalDependencies", []))
 
-            all_deps = deps.union(optional_deps)
-            for modification_set in [keep, remove]:
-                if modification_set not in special_designations and not modification_set.issubset(
-                    all_deps
-                ):
-                    raise click.ClickException(
-                        f"Elements listed in {modification_set} not present in "
-                        f"dependencies {all_deps}"
-                    )
+        all_deps = deps.union(optional_deps)
+        for modification_set in [keep, remove]:
+            if modification_set not in special_designations and not modification_set.issubset(
+                all_deps
+            ):
+                raise click.ClickException(
+                    f"Elements listed in {modification_set} not present in dependencies {all_deps}"
+                )
 
-            modified_dependencies = _resolve_dependency_overrides(
-                set(i["spec"].get("dependencies", [])), keep, remove
-            )
-            i["spec"]["dependencies"] = list(modified_dependencies)
-            log.debug(f"set dependencies for ClowdApp {name} to {modified_dependencies}")
+        modified_dependencies = _resolve_dependency_overrides(
+            set(i["spec"].get("dependencies", [])), keep, remove
+        )
+        i["spec"]["dependencies"] = list(modified_dependencies)
+        log.debug(f"set dependencies for ClowdApp {name} to {modified_dependencies}")
 
-            modified_optional_dependencies = _resolve_dependency_overrides(
-                set(i["spec"].get("optionalDependencies", [])), keep, remove
-            )
-            i["spec"]["optionalDependencies"] = list(modified_optional_dependencies)
-            log.debug(
-                f"set optionalDependencies for ClowdApp {name} to {modified_optional_dependencies}"
-            )
+        modified_optional_dependencies = _resolve_dependency_overrides(
+            set(i["spec"].get("optionalDependencies", [])), keep, remove
+        )
+        i["spec"]["optionalDependencies"] = list(modified_optional_dependencies)
+        log.debug(
+            f"set optionalDependencies for ClowdApp {name} to {modified_optional_dependencies}"
+        )
 
 
 def _set_replicas(items):
