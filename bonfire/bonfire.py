@@ -241,7 +241,7 @@ _ns_reserve_options = [
         "--team",
         type=str,
         default="",
-        help="Team name associated with requester for",
+        help="Team name associated with reservation requester",
     ),
     click.option(
         "--duration",

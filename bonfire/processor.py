@@ -402,7 +402,7 @@ def process_reservation(
             requester = "bonfire"
 
     params["REQUESTER"] = requester
-    params["TEAM"] = team
+    params["TEAM"] = team or ""
     params["POOL"] = pool if pool else "default"
 
     processed_template = _process_template(template_data, params=params, local=local)
