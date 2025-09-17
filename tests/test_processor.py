@@ -1467,6 +1467,6 @@ def test_process_reservation_without_team(mocker):
     assert params["REQUESTER"] == "test-user"
     assert params["DURATION"] == "1h"
     assert params["POOL"] == "default"
-    assert params["TEAM"] is None
+    assert params["TEAM"] == ""
 
     assert result == mock_process_template.return_value
