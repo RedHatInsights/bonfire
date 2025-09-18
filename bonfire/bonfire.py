@@ -238,6 +238,12 @@ _ns_reserve_options = [
         help="Name of the user requesting a reservation",
     ),
     click.option(
+        "--team",
+        type=str,
+        default="",
+        help="Team name associated with reservation requester",
+    ),
+    click.option(
         "--duration",
         "-d",
         type=str,
@@ -849,10 +855,10 @@ def _list_namespaces(available, mine, output):
 @options(_timeout_options)
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(
-    name, requester, duration, pool, timeout, local, force, defer_status_errors
+    name, requester, team, duration, pool, timeout, local, force, defer_status_errors
 ):
     """Reserve an ephemeral namespace"""
-    ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
+    ns = _check_and_reserve_namespace(name, requester, team, duration, pool, timeout, local, force)
     click.echo(ns.name)
 
 
@@ -1171,7 +1177,16 @@ def _cmd_process(
 
 
 def _get_namespace(
-    requested_ns_name, name, requester, duration, pool, timeout, local, force, using_current=False
+    requested_ns_name,
+    name,
+    requester,
+    team,
+    duration,
+    pool,
+    timeout,
+    local,
+    force,
+    using_current=False,
 ):
     if not has_ns_operator():
         if requested_ns_name:
@@ -1191,7 +1206,9 @@ def _get_namespace(
                 "current namespace could not be used (not reserved,"
                 " expired, or not owned), reserving a new one",
             )
-        ns = _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force)
+        ns = _check_and_reserve_namespace(
+            name, requester, team, duration, pool, timeout, local, force
+        )
         reserved_new_ns = True
 
     return ns.name, reserved_new_ns
@@ -1237,7 +1254,7 @@ def _check_and_use_namespace(requested_ns_name, using_current, requester):
     return ns
 
 
-def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local, force):
+def _check_and_reserve_namespace(name, requester, team, duration, pool, timeout, local, force):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
@@ -1259,7 +1276,7 @@ def _check_and_reserve_namespace(name, requester, duration, pool, timeout, local
             " have been reserved"
         )
 
-    return reserve_namespace(name, requester, duration, pool, timeout, local)
+    return reserve_namespace(name, requester, duration, pool, timeout, local, team)
 
 
 def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
@@ -1359,6 +1376,7 @@ def _cmd_config_deploy(
     reserve,
     name,
     requester,
+    team,
     duration,
     timeout,
     no_release_on_fail,
@@ -1390,6 +1408,7 @@ def _cmd_config_deploy(
         namespace,
         name,
         requester,
+        team,
         duration,
         pool,
         timeout,
@@ -1518,6 +1537,7 @@ def _cmd_deploy_clowdenv(
     configmaps_dir,
     name,
     requester,
+    team,
     duration,
     local,
     pool,
@@ -1528,7 +1548,9 @@ def _cmd_deploy_clowdenv(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local, force)
+    namespace, _ = _get_namespace(
+        namespace, name, requester, team, duration, pool, timeout, local, force
+    )
 
     if import_secrets:
         import_secrets_from_dir(secrets_dir)
@@ -1626,6 +1648,7 @@ def _cmd_deploy_iqe_cji(
     plugins,
     name,
     requester,
+    team,
     duration,
     local,
     selenium,
@@ -1642,7 +1665,9 @@ def _cmd_deploy_iqe_cji(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    namespace, _ = _get_namespace(namespace, name, requester, duration, pool, timeout, local, force)
+    namespace, _ = _get_namespace(
+        namespace, name, requester, team, duration, pool, timeout, local, force
+    )
 
     cji_config = process_iqe_cji(
         clowd_app_name,

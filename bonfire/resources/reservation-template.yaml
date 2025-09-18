@@ -13,6 +13,7 @@ objects:
   spec:
     duration: ${DURATION}
     requester: ${REQUESTER}
+    team: ${TEAM}
     pool: ${POOL}
 
 parameters:
@@ -20,6 +21,8 @@ parameters:
   required: true
 - name: REQUESTER
   required: true
+- name: TEAM
+  required: false 
 - name: NAME
   required: true
 - name: POOL

@@ -377,9 +377,10 @@ def process_iqe_cji(
     return processed_template
 
 
-def process_reservation(name, requester, duration, pool=None, template_path=None, local=True):
+def process_reservation(
+    name, requester, duration, pool=None, template_path=None, local=True, team=None
+):
     log.info("processing namespace reservation")
-
     template_path = Path(template_path if template_path else conf.DEFAULT_RESERVATION_TEMPLATE)
 
     if not template_path.exists():
@@ -401,6 +402,7 @@ def process_reservation(name, requester, duration, pool=None, template_path=None
             requester = "bonfire"
 
     params["REQUESTER"] = requester
+    params["TEAM"] = team or ""
     params["POOL"] = pool if pool else "default"
 
     processed_template = _process_template(template_data, params=params, local=local)
