@@ -65,6 +65,7 @@ objects:
     deployments:
     - name: deployment1
       podSpec:
+        image: some-image:${{IMAGE_TAG}}
         resources:
           limits:
             cpu: ${{CPU_LIMIT_DEPLOYMENT1}}
@@ -1470,3 +1471,71 @@ def test_process_reservation_without_team(mocker):
     assert params["TEAM"] == ""
 
     assert result == mock_process_template.return_value
+
+
+def get_apps_config_with_hash_length(hash_length=None):
+    component_config = {
+        "name": "app1-component1",
+        "host": "local",
+        "repo": "test",
+        "path": "test",
+    }
+    if hash_length is not None:
+        component_config["hash_length"] = hash_length
+
+    return {
+        "app1": {
+            "name": "app1",
+            "components": [component_config],
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    "hash_length,expected_tag_length",
+    [
+        (None, 7),  # Default behavior - no hash_length specified
+        (40, 40),  # Custom hash_length of 40
+    ],
+)
+def test_image_tag_hash_length(mock_repo_file, hash_length, expected_tag_length):
+    """
+    Test that IMAGE_TAG is set to the correct number of characters based on hash_length setting
+    """
+    # Create a commit hash that's longer than both test cases for testing
+    long_commit = "1234567890abcdef1234567890abcdef1234567890abcdef"
+
+    add_template(mock_repo_file, "app1-component1")
+
+    # Override the commit returned by MockRepoFile
+    mock_repo_file.templates["app1-component1"]["commit"] = long_commit
+
+    apps_config = get_apps_config_with_hash_length(hash_length)
+    processor = get_processor(apps_config)
+    processor.requested_app_names = ["app1"]
+
+    result = processor.process()
+
+    # Find the ClowdApp and check the image field
+    items = result["items"]
+    assert len(items) > 0
+
+    # The IMAGE_TAG should be the first N characters of the commit
+    expected_image_tag = long_commit[:expected_tag_length]
+    expected_image = f"some-image:{expected_image_tag}"
+
+    # Find the ClowdApp and verify the image field
+    clowdapp_found = False
+    for item in items:
+        if (
+            item.get("kind") == "ClowdApp"
+            and item.get("metadata", {}).get("name") == "app1-component1"
+        ):
+            deployments = item.get("spec", {}).get("deployments", [])
+            assert len(deployments) > 0
+            image = deployments[0].get("podSpec", {}).get("image")
+            assert image == expected_image
+            clowdapp_found = True
+            break
+
+    assert clowdapp_found, "ClowdApp not found in processed items"

@@ -49,6 +49,7 @@ APPS_QUERY = gql(
             name
             path
             url
+            hash_length
             parameters
             targets {
               namespace {
@@ -263,6 +264,7 @@ def _add_component(
         "host": host,
         "repo": f"{org}/{repo}",
         "ref": target["ref"],
+        "hash_length": resource_template.get("hash_length"),
         "parameters": p,
     }
 
