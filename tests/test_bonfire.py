@@ -104,7 +104,10 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
 
     runner = CliRunner()
-    result = runner.invoke(bonfire.namespace, ["reserve", "--duration", duration])
+    cmd_args = ["reserve"]
+    if duration is not None:
+        cmd_args.extend(["--duration", duration])
+    result = runner.invoke(bonfire.namespace, cmd_args)
     print(result.output)
 
     if duration:
