@@ -819,7 +819,7 @@ class TemplateProcessor:
 
         # set IMAGE_TAG on this component only if it is currently unset
         if "IMAGE_TAG" not in params:
-            hash_length = int(component.get("hash_length", 7))
+            hash_length = int(component.get("hash_length") or 7)
             params["IMAGE_TAG"] = commit[:hash_length]
 
         # set NAMESPACE on this component only if it is current unset
