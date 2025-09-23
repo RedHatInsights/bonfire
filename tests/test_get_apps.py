@@ -52,6 +52,7 @@ def _mock_apps_gql_resp():
                                 "name": "component1",
                                 "path": "/deploy/template.yml",
                                 "url": "https://github.test/Org/Repo",
+                                "hash_length": 40,
                                 "parameters": None,
                                 "targets": [
                                     {
@@ -152,6 +153,7 @@ def test_no_pref(monkeypatch):
                     "host": "github",
                     "repo": "Org/Repo",
                     "ref": "master",
+                    "hash_length": 40,
                     "parameters": {
                         "PARAM_1": "ephemeral1",
                         "PARAM_2": "ephemeral2",
@@ -182,6 +184,7 @@ def test_preferred_ref(monkeypatch):
                     "host": "github",
                     "repo": "Org/Repo",
                     "ref": "abc1234",
+                    "hash_length": 40,
                     "parameters": {
                         "PARAM_1": "ephemeral1",
                         "PARAM_2": "ephemeral2",
@@ -213,6 +216,7 @@ def test_prefer_replicas(monkeypatch):
                     "host": "github",
                     "repo": "Org/Repo",
                     "ref": "prod1ref",
+                    "hash_length": 40,
                     "parameters": {
                         "PARAM_1": "ephemeral1",
                         "PARAM_2": "ephemeral2",
@@ -245,6 +249,7 @@ def test_fallback_with_preference(monkeypatch):
                     "host": "github",
                     "repo": "Org/Repo",
                     "ref": "abc1234",
+                    "hash_length": 40,
                     "parameters": {
                         "PARAM_1": "ephemeral1",
                         "PARAM_2": "ephemeral2",
