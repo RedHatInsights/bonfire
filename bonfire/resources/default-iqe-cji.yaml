@@ -40,6 +40,8 @@ objects:
             value: ${RP_ARGS}
           - name: IQE_IBUTSU_SOURCE
             value: ${IBUTSU_SOURCE}
+          - name: IQE_ENABLE_MINIO
+            value: "true"
 
 parameters:
 - name: NAME
