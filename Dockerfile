@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-312:9.6-1754326132 as builder
+FROM registry.access.redhat.com/ubi9/python-312:9.6-1758514557 as builder
 
 ENV OC_CLI_VERSION=4.16
 
