@@ -86,14 +86,14 @@ brew install bonfire
 
 ## Using a container image (podman/docker)
 
-We provide a container image at quay.io/cloudservices/bonfire. The image wraps a Python virtual environment with **crc-bonfire** installed on it.
+We provide a container image at quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire. The image wraps a Python virtual environment with **crc-bonfire** installed on it.
 
 In order to use Bonfire you have to provide either a valid KUBECONFIG or a URL and a TOKEN to connect to the target OpenShift cluster.
 
 The container's entrypoint already invokes the **bonfire** CLI with the arguments passed to the container, so you should be able to run any bonfire command you'd typically run, for example:
 
 ```
-podman run -it --rm quay.io/cloudservices/bonfire version
+podman run -it --rm quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire version
 ```
 
 ### Using credentials
@@ -103,14 +103,14 @@ The Bonfire image can use the `OC_LOGIN_SERVER` and `OC_LOGIN_TOKEN` variables t
 ```
 podman run -it --rm -e OC_LOGIN_SERVER=https://api.openshift.example.com:6443 \
     -e OC_LOGIN_TOKEN=some-api-token \
-    quay.io/cloudservices/bonfire namespace list
+    quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire namespace list
 ```
 
 You can also make use of the kubeconfig file on your host by mounting it into the container's `$HOME` directory:
 
 ```
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v ${KUBECONFIG:="$HOME/.kube/config"}:/opt/bonfire/.kube/config:Z \
-    quay.io/cloudservices/bonfire namespace list
+    quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire namespace list
 ```
 
 If you desire for the kubeconfig to live in a non-standard location in the container, you can mount the kubeconfig into another path in the container, and set the KUBECONFIG environment variable:
@@ -118,7 +118,7 @@ If you desire for the kubeconfig to live in a non-standard location in the conta
 ```
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v $HOME/.kube/config:/opt/kubeconfig:Z \
     -e KUBECONFIG=/opt/kubeconfig \
-    quay.io/cloudservices/bonfire namespace list
+    quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire namespace list
 ```
 
 # Local development
@@ -223,7 +223,7 @@ bonfire deploy advisor --set-parameter advisor-backend/REPLICAS=3
 
 * Override the tag for all occurences of a specific container image:
 ```
-bonfire deploy advisor --set-image-tag quay.io/cloudservices/advisor-backend=my_tag
+bonfire deploy advisor --set-image-tag quay.io/redhat-services-prod/insights-management-tenant/insights-advisor/advisor-backend=my_tag
 ```
 
 * Exclude components of a app
