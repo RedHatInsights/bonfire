@@ -1000,12 +1000,13 @@ class TemplateProcessor:
                 )
                 items = []
 
-            processed_component = ProcessedComponent(component_name, items)
-            self.processed_components[component_name] = processed_component
             skip_further_processing = self._component_skip_check(component_name, dependency_chain)
             if skip_further_processing:
                 log.info("skipping component '%s', %s", component_name, skip_further_processing)
+                return  # stop processing the component
             else:
+                processed_component = ProcessedComponent(component_name, items)
+                self.processed_components[component_name] = processed_component
                 processed_component.should_apply = True
 
         # Any dependency changes made on the command line will have already
