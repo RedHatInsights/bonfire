@@ -990,6 +990,12 @@ class TemplateProcessor:
             # will cause the code to go into self._handle_dependencies later on.
         else:
             log.info("--> processing component %s", component_name)
+            skip_further_processing = self._component_skip_check(component_name, dependency_chain)
+            if skip_further_processing:
+                log.info("skipping component '%s', %s", component_name, skip_further_processing)
+                return
+            else:
+                should_apply = True
             items = self._get_component_items(component_name)
 
             # ignore frontends if we're not supposed to deploy them
@@ -1001,12 +1007,8 @@ class TemplateProcessor:
                 items = []
 
             processed_component = ProcessedComponent(component_name, items)
+            processed_component.should_apply = should_apply
             self.processed_components[component_name] = processed_component
-            skip_further_processing = self._component_skip_check(component_name, dependency_chain)
-            if skip_further_processing:
-                log.info("skipping component '%s', %s", component_name, skip_further_processing)
-            else:
-                processed_component.should_apply = True
 
         # Any dependency changes made on the command line will have already
         # modified the data sent in to create the processed_component.
