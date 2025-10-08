@@ -383,3 +383,55 @@ def get_reserved_namespace_quantity(pool):
     ]
 
     return len(reserved_namespaces)
+
+
+def _log_namespace_events(namespace, only_show_errors=False):
+    """
+    Retrieve and log namespace events.
+    """
+    log.info("="*100)
+    log.info("Retrieving events from namespace '%s'...\n", namespace)
+
+    def retrieve_namespace_events():
+        events_output = oc("get", "events", "-n", namespace, "--no-headers", _ok_code=[0, 1], _silent=True)
+        event_lines = events_output.strip().split('\n') if events_output.strip() else []
+
+        events = []
+        for line in event_lines:
+            event_data = line.split(None, 4)
+
+            timestamp = event_data[0]
+            event_type = event_data[1]
+            reason = event_data[2]
+            obj_name = event_data[3]
+            message = event_data[4]
+
+            if not only_show_errors or event_type in ["Warning", "Error"]:
+                events.append({
+                    "timestamp": timestamp,
+                    "type": event_type,
+                    "reason": reason,
+                    "obj_name": obj_name,
+                    "message": message
+                })
+        return events
+
+    events = retrieve_namespace_events()
+    if only_show_errors and not events:
+        log.info("No errors or warnings found in namespace '%s'", namespace)
+        return
+    
+    # Log the most relevant events (limit to first 20)
+    for i, event in enumerate(events[:20]):
+        event_type = event["type"]
+        reason = event["reason"]
+        obj_name = event["obj_name"]
+        message = event["message"]
+        timestamp = event["timestamp"]
+        
+        # Format the event with better structure
+        log.error("  [%d] %s | %s | %s | %s | %s", i + 1, timestamp, event_type, reason, obj_name, message)
+    
+    if len(events) > 20:
+        log.error("  ... and %d more events (showing first 20)", len(events) - 20)
+    log.info("="*100)
