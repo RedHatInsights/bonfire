@@ -392,8 +392,6 @@ def log_namespace_events(namespace, only_show_errors=False):
     log.info("="*100)
     log.info("Retrieving events from namespace '%s'...\n", namespace)
 
-    def retrieve_namespace_events():
-        events_output = oc("get", "events", "-n", namespace, "--no-headers", "--field-selector", f"type={'Warning' if only_show_errors else 'Normal'}", _ok_code=[0, 1], _silent=False)
+    oc("get", "events", "-n", namespace, "--no-headers", "--field-selector", f"type={'Warning' if only_show_errors else 'Normal'}", _ok_code=[0, 1], _silent=False)
 
-    events = retrieve_namespace_events()
     log.info("="*100)
