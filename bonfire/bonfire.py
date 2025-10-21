@@ -38,7 +38,7 @@ from bonfire.openshift import (
     get_console_url,
     get_pool_size_limit,
     get_reserved_namespace_quantity,
-    _log_namespace_events,
+    log_namespace_events,
 )
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.qontract import get_apps_for_env, sub_refs
@@ -1295,7 +1295,7 @@ def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
         log.exception("hit unexpected error!")
 
     if ns:
-        _log_namespace_events(ns, only_show_errors=True)
+        log_namespace_events(ns, only_show_errors=True)
 
     try:
         if not no_release_on_fail and reserved_new_ns and not reserve:
