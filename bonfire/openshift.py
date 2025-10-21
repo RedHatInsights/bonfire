@@ -401,7 +401,7 @@ def log_namespace_events(namespace, only_show_errors=False):
         "--field-selector",
         f"type={'Warning' if only_show_errors else 'Normal'}",
         _ok_code=[0, 1],
-        _silent=False
+        _silent=False,
     )
 
     log.info("=" * 100)
