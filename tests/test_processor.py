@@ -491,8 +491,15 @@ def test_unlisted_component_does_not_remove_dependency_from_listed_component(moc
 
 def test_removes_dependency_in_compound_clowdapp(mock_repo_file):
     """
-    --component swatch-contracts --no-remove-dependencies swatch-contracts --remove-dependencies
-    swatch-contracts/swatch-database --remove-dependencies swatch-tally/swatch-database
+    Test that specific dependency removal only affects the matching ClowdApp name.
+
+    When using --remove-dependencies app1-component1/app2-component1 and
+    --remove-dependencies app1-component2/app2-component1, only the ClowdApps
+    with those exact names should have their dependencies modified.
+
+    The compound template creates two ClowdApps:
+    - app1-component2 (dependencies removed)
+    - app1-component2-other (dependencies NOT removed, so app2-component1 still appears)
     """
     add_template(mock_repo_file, "app1-component1", deps=["app1-component2", "app2-component1"])
     add_template(
@@ -511,7 +518,8 @@ def test_removes_dependency_in_compound_clowdapp(mock_repo_file):
         False, "app1", ["app1-component1/app2-component1", "app1-component2/app2-component1"]
     )
     processed = processor.process()
-    expected = ["app1-component1", "app1-component2", "app1-component2-other"]
+    # app2-component1 now appears because app1-component2-other still has it as a dependency
+    expected = ["app1-component1", "app1-component2", "app1-component2-other", "app2-component1"]
     assert_clowdapps(processed["items"], expected)
 
 
@@ -1539,3 +1547,102 @@ def test_image_tag_hash_length(mock_repo_file, hash_length, expected_tag_length)
             break
 
     assert clowdapp_found, "ClowdApp not found in processed items"
+
+
+def test_alter_dependency_config_wildcard_affects_all():
+    """
+    Test that when using wildcard syntax, all ClowdApps are modified.
+    """
+    items = [
+        {
+            "kind": "ClowdApp",
+            "metadata": {"name": "app1-component1"},
+            "spec": {
+                "dependencies": ["app2-component1", "app3-component1", "app4-component1"],
+                "optionalDependencies": [],
+            },
+        },
+        {
+            "kind": "ClowdApp",
+            "metadata": {"name": "app1-component1-cleanup"},
+            "spec": {"dependencies": ["app2-component1"], "optionalDependencies": []},
+        },
+    ]
+
+    # Test removing all dependencies from all ClowdApps
+    component_name = "app1-component1"
+    keep = {None}
+    remove = {"*"}
+
+    _alter_dependency_config(items, component_name, keep, remove)
+
+    # Verify both ClowdApps were modified
+    assert items[0]["spec"]["dependencies"] == []
+    assert items[1]["spec"]["dependencies"] == []
+
+
+def test_alter_dependency_config_validates_only_matching_clowdapp():
+    """
+    Test that validation only occurs for the ClowdApp that matches the component name
+    when specific dependencies are specified.
+    """
+    items = [
+        {
+            "kind": "ClowdApp",
+            "metadata": {"name": "app1-component1"},
+            "spec": {
+                "dependencies": ["app2-component1", "app3-component1", "app4-component1"],
+                "optionalDependencies": [],
+            },
+        },
+        {
+            "kind": "ClowdApp",
+            "metadata": {"name": "app1-component1-cleanup"},
+            "spec": {
+                "dependencies": ["app2-component1"],  # Note: does NOT have 'app3-component1'
+                "optionalDependencies": [],
+            },
+        },
+    ]
+
+    # This should succeed because app3-component1 exists in app1-component1 (the matching ClowdApp)
+    # even though it doesn't exist in app1-component1-cleanup
+    component_name = "app1-component1"
+    keep = {None}
+    remove = {"app3-component1"}
+
+    # Should not raise exception
+    _alter_dependency_config(items, component_name, keep, remove)
+
+    # Now test the opposite - trying to remove a dependency that doesn't exist in the matching ClowdApp
+    items_reset = [
+        {
+            "kind": "ClowdApp",
+            "metadata": {"name": "app1-component1"},
+            "spec": {
+                "dependencies": [
+                    "app2-component1",
+                    "app4-component1",
+                ],  # Note: does NOT have 'app3-component1'
+                "optionalDependencies": [],
+            },
+        },
+        {
+            "kind": "ClowdApp",
+            "metadata": {"name": "app1-component1-cleanup"},
+            "spec": {
+                "dependencies": [
+                    "app2-component1",
+                    "app3-component1",
+                ],  # Note: HAS 'app3-component1'
+                "optionalDependencies": [],
+            },
+        },
+    ]
+
+    # This should fail because app3-component1 doesn't exist in app1-component1 (the matching ClowdApp)
+    with pytest.raises(click.ClickException) as exc_info:
+        _alter_dependency_config(items_reset, component_name, keep, remove)
+
+    assert "not present in dependencies" in str(exc_info.value)
+    assert "app1-component1" in str(exc_info.value)
