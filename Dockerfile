@@ -11,7 +11,7 @@ RUN curl -sSLO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-
   tar -xzf openshift-client-linux.tar.gz oc kubectl && \
   rm openshift-client-linux.tar.gz
 
-FROM registry.access.redhat.com/ubi9-minimal:9.6-1758184547
+FROM registry.access.redhat.com/ubi9-minimal:9.7-1763362218
 
 ENV APP_ROOT=/opt/bonfire
 
