@@ -214,6 +214,13 @@ def _resolve_dependency_overrides(
 
 def _alter_dependency_config(items, component_name, keep, remove):
     special_designations = [{None}, {"*"}]
+
+    # Check if we have specific dependencies to modify (not wildcards or None)
+    # This indicates component_name/dependency syntax was used
+    has_specific_dependencies = any(
+        modification_set not in special_designations for modification_set in [keep, remove]
+    )
+
     for i in items:
         if i["kind"] != "ClowdApp":
             continue
@@ -222,12 +229,19 @@ def _alter_dependency_config(items, component_name, keep, remove):
         optional_deps = set(i["spec"].get("optionalDependencies", []))
 
         all_deps = deps.union(optional_deps)
+
+        # If we have specific dependencies (component/dependency syntax),
+        # only modify the ClowdApp that matches the component name
+        if has_specific_dependencies and name != component_name:
+            continue
+
+        # Validate that the dependencies to modify exist in this ClowdApp
         for modification_set in [keep, remove]:
             if modification_set not in special_designations and not modification_set.issubset(
                 all_deps
             ):
                 raise click.ClickException(
-                    f"Elements listed in {modification_set} not present in dependencies {all_deps}"
+                    f"Elements listed in {modification_set} not present in dependencies {all_deps} for ClowdApp {name}"
                 )
 
         modified_dependencies = _resolve_dependency_overrides(

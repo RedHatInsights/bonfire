@@ -588,10 +588,10 @@ _process_options = _app_source_options + [
         "--remove-dependencies",
         help=(
             "Remove dependencies/optionalDependencies on ClowdApp configs "
-            "for specific components or apps. Prefix the app name with "
-            "'app:', otherwise specify the component name. (default: none). "
+            "for specific ClowdApps or app groups. For an app group, prefix name with "
+            "'app:', otherwise specify the ClowdApp name. (default: none). "
             "Specific dependencies can be specified with a slash delimiter. "
-            "E.g. mycomponent/rbac"
+            "E.g. myclowdapp/rbac"
         ),
         type=str,
         multiple=True,
@@ -601,10 +601,10 @@ _process_options = _app_source_options + [
         "--no-remove-dependencies",
         help=(
             "Don't remove dependencies/optionalDependencies on ClowdApp configs "
-            "for specific components or apps. Prefix the app name with "
-            "'app:', otherwise specify the component name. (default: all). "
+            "for specific ClowdApps or app groups. For an app group, prefix name with "
+            "'app:', otherwise specify the ClowdApp name. (default: all). "
             "Specific dependencies can be specified with a slash delimiter. "
-            "E.g. mycomponent/rbac"
+            "E.g. myclowdapp/rbac"
         ),
         type=str,
         multiple=True,
