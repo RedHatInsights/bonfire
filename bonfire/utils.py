@@ -676,26 +676,26 @@ def _check_connection(hostname, port=443, timeout=(1, 5), session=None):
         requests.head(url, timeout=timeout, allow_redirects=True)
         # Cache success
         _connection_check_cache.add(cache_key)
+    except requests.exceptions.Timeout:
+        connect_timeout = timeout[0] if isinstance(timeout, tuple) else timeout
+        raise FatalError(
+            f"Connect to '{hostname}:{port}' failed after {connect_timeout}sec "
+            f"-- check network connection (is VPN needed?)"
+        )
     except requests.exceptions.ConnectionError as err:
         # Check if it's a DNS resolution error
         err_str = str(err)
         dns_errors = [
-            "Name or service not known",
+            "name or service not known",
             "nodename nor servname provided",
             "getaddrinfo failed",
         ]
-        if any(dns_error in err_str for dns_error in dns_errors):
+        if any(dns_error in err_str.lower() for dns_error in dns_errors):
             raise FatalError(
                 f"DNS lookup failed for '{hostname}' -- check network connection (is VPN needed?)"
             )
         # Otherwise it's a general connection error
-        raise FatalError(f"Unable to connect to '{hostname}' on port {port}: {err}")
-    except requests.exceptions.Timeout:
-        connect_timeout = timeout[0] if isinstance(timeout, tuple) else timeout
-        raise FatalError(
-            f"Unable to connect to '{hostname}' on port {port} after {connect_timeout} "
-            f"seconds -- check network connection (is VPN needed?)"
-        )
+        raise FatalError(f"Connect to '{hostname}:{port}' failed: {err}")
     except requests.exceptions.RequestException as err:
         # Catch any other requests exceptions
         raise FatalError(f"Connection check failed for '{hostname}' on port {port}: {err}")
