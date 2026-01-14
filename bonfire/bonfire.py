@@ -5,6 +5,7 @@ import logging
 import sys
 import warnings
 from functools import wraps
+import truststore
 
 import click
 from ocviapy import apply_config, get_current_namespace, StatusError
@@ -1785,6 +1786,7 @@ def _cmd_apps_what_depends_on(
 
 
 def main_with_handler():
+    truststore.inject_into_ssl()
     try:
         main()
     except (StatusError, FatalError) as err:

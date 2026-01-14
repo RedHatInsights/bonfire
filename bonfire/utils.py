@@ -2,14 +2,12 @@ import atexit
 import collections
 import copy
 import difflib
-from functools import lru_cache
 import json
 import logging
 import os
 import pprint
 import re
 import shlex
-import socket
 import subprocess
 import tempfile
 import time
@@ -309,7 +307,7 @@ class RepoFile:
         # (changing the '/' to '%2F') if necessary.
         group, project = quote(self.org, safe=""), self.repo
         url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
-        check_url_connection(url)
+        check_url_connection(url, session=self._session)
         response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
@@ -347,7 +345,7 @@ class RepoFile:
             commit = self._get_gl_commit_hash()
 
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
-        check_url_connection(url)
+        check_url_connection(url, session=self._session)
         response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             log.warning(
@@ -392,7 +390,7 @@ class RepoFile:
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
             url = GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref)
-            check_url_connection(url)
+            check_url_connection(url, session=self._session)
             return self._get(url, headers=self._gh_auth_headers)
 
         response = self._get_ref(get_ref_func)
@@ -408,7 +406,7 @@ class RepoFile:
             commit = self._get_gh_commit_hash()
 
         url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
-        check_url_connection(url)
+        check_url_connection(url, session=self._session)
         response = self._get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
             log.warning(
@@ -645,31 +643,66 @@ def hms_to_seconds(s):
     return seconds
 
 
-@lru_cache(maxsize=None)
-def _check_connection(hostname, port=443, timeout=5):
+# Cache for successful connection checks
+_connection_check_cache = set()
+
+
+def _check_connection(hostname, port=443, timeout=(1, 5), session=None):
     """
     Check connection makes sure a connection is available to a given hostname.
 
-    Function is cached so that we only check a hostname once.
+    Successful checks are cached so we only check each hostname once.
     """
-    log.debug("checking connection to '%s', port %d, timeout %ssec", hostname, port, timeout)
+    session = session or requests.Session()
+
+    # Create cache key from arguments
+    cache_key = (hostname, port)
+
+    # If already verified, skip the check
+    if cache_key in _connection_check_cache:
+        log.debug("skipping connection check for '%s', port %d (already verified)", hostname, port)
+        return
+
+    log.debug("checking connection to '%s', port %d, timeout %s", hostname, port, timeout)
+
+    # Construct the URL for the connection check
+    scheme = "https" if port == 443 else "http"
+    url = f"{scheme}://{hostname}:{port}"
 
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_connection_socket:
-            test_connection_socket.settimeout(timeout)
-            test_connection_socket.connect((hostname, port))
-    except socket.gaierror:
+        # Use HEAD request for minimal overhead
+        # timeout is (connect_timeout, read_timeout) - fast connect check, slower read allowance
+        # This will respect HTTP_PROXY and HTTPS_PROXY environment variables
+        requests.head(url, timeout=timeout, allow_redirects=True)
+        # Cache success
+        _connection_check_cache.add(cache_key)
+    except requests.exceptions.ConnectionError as err:
+        # Check if it's a DNS resolution error
+        err_str = str(err)
+        dns_errors = [
+            "Name or service not known",
+            "nodename nor servname provided",
+            "getaddrinfo failed",
+        ]
+        if any(dns_error in err_str for dns_error in dns_errors):
+            raise FatalError(
+                f"DNS lookup failed for '{hostname}' -- check network connection (is VPN needed?)"
+            )
+        # Otherwise it's a general connection error
+        raise FatalError(f"Unable to connect to '{hostname}' on port {port}: {err}")
+    except requests.exceptions.Timeout:
+        connect_timeout = timeout[0] if isinstance(timeout, tuple) else timeout
         raise FatalError(
-            f"DNS lookup failed for '{hostname}' -- check network connection (is VPN needed?)"
-        )
-    except (OSError, TimeoutError):
-        raise FatalError(
-            f"Unable to connect to '{hostname}' on port {port} after {timeout} "
+            f"Unable to connect to '{hostname}' on port {port} after {connect_timeout} "
             f"seconds -- check network connection (is VPN needed?)"
         )
+    except requests.exceptions.RequestException as err:
+        # Catch any other requests exceptions
+        raise FatalError(f"Connection check failed for '{hostname}' on port {port}: {err}")
 
 
-def check_url_connection(url, timeout=5):
+def check_url_connection(url, timeout=(1, 5), session=None):
+    session = session or requests.Session()
     parsed_url = urlparse(url)
     scheme = parsed_url.scheme
     hostname = parsed_url.hostname
@@ -678,7 +711,7 @@ def check_url_connection(url, timeout=5):
         raise ValueError(f"Invalid URL: '{url}'")
     if not port:
         port = 443 if scheme == "https" else 80
-    _check_connection(hostname=hostname, port=port, timeout=timeout)
+    _check_connection(hostname=hostname, port=port, timeout=timeout, session=session)
 
 
 def object_merge(old, new, merge_lists=True):
