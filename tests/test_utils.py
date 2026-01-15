@@ -98,12 +98,12 @@ def test_url_connection_timeout_handling(mocker):
     requests_mock = mocker.patch("bonfire.utils.requests.head")
     requests_mock.side_effect = req.exceptions.Timeout("timed out!")
 
-    with pytest.raises(FatalError, match=r"Unable to connect to.*after.*seconds.*is VPN needed.*"):
+    with pytest.raises(FatalError, match=r"Connect to.*failed after.*sec.*is VPN needed.*"):
         check_url_connection("https://timingout.com")
 
 
 def test_ip_timeout():
-    with pytest.raises(FatalError, match="Unable to connect to.*after 1 seconds.*is VPN needed.*"):
+    with pytest.raises(FatalError, match=r"Connect to.*failed after 1sec.*is VPN needed.*"):
         check_url_connection("https://10.255.255.1", timeout=1)
 
 
