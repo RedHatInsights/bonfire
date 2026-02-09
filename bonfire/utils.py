@@ -307,7 +307,7 @@ class RepoFile:
         # (changing the '/' to '%2F') if necessary.
         group, project = quote(self.org, safe=""), self.repo
         url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
-        check_url_connection(url, session=self._session)
+        check_url_connection(url, session=self._session, fetch_cert=True)
         response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             # Weird quirk in gitlab API. If it's a user instead of a group, need to
@@ -345,7 +345,7 @@ class RepoFile:
             commit = self._get_gl_commit_hash()
 
         url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
-        check_url_connection(url, session=self._session)
+        check_url_connection(url, session=self._session, fetch_cert=True)
         response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             log.warning(
@@ -647,35 +647,30 @@ def hms_to_seconds(s):
 _connection_check_cache = set()
 
 
-def _check_connection(hostname, port=443, timeout=(1, 5), session=None):
+def _perform_head_request(url, timeout, session=None, verify=None):
     """
-    Check connection makes sure a connection is available to a given hostname.
+    Perform a HEAD request to check connectivity to a URL.
 
-    Successful checks are cached so we only check each hostname once.
+    Args:
+        url: The URL to check
+        timeout: Connection timeout tuple (connect_timeout, read_timeout)
+        session: Optional requests session to use
+        verify: Optional CA bundle path for SSL verification
+
+    Raises:
+        FatalError: With detailed error message if connection fails
     """
     session = session or requests.Session()
+    parsed_url = urlparse(url)
+    hostname = parsed_url.hostname
+    port = parsed_url.port or (443 if parsed_url.scheme == "https" else 80)
 
-    # Create cache key from arguments
-    cache_key = (hostname, port)
-
-    # If already verified, skip the check
-    if cache_key in _connection_check_cache:
-        log.debug("skipping connection check for '%s', port %d (already verified)", hostname, port)
-        return
-
-    log.debug("checking connection to '%s', port %d, timeout %s", hostname, port, timeout)
-
-    # Construct the URL for the connection check
-    scheme = "https" if port == 443 else "http"
-    url = f"{scheme}://{hostname}:{port}"
+    kwargs = {"timeout": timeout, "allow_redirects": True}
+    if verify is not None:
+        kwargs["verify"] = verify
 
     try:
-        # Use HEAD request for minimal overhead
-        # timeout is (connect_timeout, read_timeout) - fast connect check, slower read allowance
-        # This will respect HTTP_PROXY and HTTPS_PROXY environment variables
-        requests.head(url, timeout=timeout, allow_redirects=True)
-        # Cache success
-        _connection_check_cache.add(cache_key)
+        session.head(url, **kwargs)
     except requests.exceptions.Timeout:
         connect_timeout = timeout[0] if isinstance(timeout, tuple) else timeout
         raise FatalError(
@@ -701,7 +696,96 @@ def _check_connection(hostname, port=443, timeout=(1, 5), session=None):
         raise FatalError(f"Connection check failed for '{hostname}' on port {port}: {err}")
 
 
-def check_url_connection(url, timeout=(1, 5), session=None):
+def _fetch_rh_it_ca_cert(session):
+    """
+    Fetch the Red Hat IT CA certificate for internal service connections.
+
+    First checks if the cert URL is reachable, then downloads the certificate.
+
+    Args:
+        session: Optional requests session to use
+
+    Returns:
+        str: Path to temporary file containing the certificate
+
+    Raises:
+        FatalError: If cert URL is unreachable or certificate fetch fails
+    """
+    session = session or requests.Session()
+
+    # First verify we can reach the cert server (this will give detailed error messages)
+    log.debug("Checking connectivity to Red Hat IT CA cert server")
+    _check_connection(
+        hostname="certs.corp.redhat.com",
+        port=443,
+        timeout=(2, 5),
+        session=session,
+        fetch_cert=False,  # Avoid infinite recursion
+    )
+
+    # Now download the certificate
+    try:
+        log.debug("Downloading Red Hat IT CA certificate from %s", GL_CA_CERT_URL)
+        cert_response = session.get(GL_CA_CERT_URL, timeout=(2, 5))
+        cert_response.raise_for_status()
+
+        # Save cert to a temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as fp:
+            fp.write(cert_response.content)
+            cert_path = fp.name
+
+        log.debug("Red Hat IT CA certificate downloaded to %s", cert_path)
+        return cert_path
+    except Exception as err:
+        raise FatalError(
+            f"Failed to download Red Hat IT CA certificate from {GL_CA_CERT_URL}: {err}"
+        )
+
+
+def _check_connection(hostname, port=443, timeout=(1, 5), session=None, fetch_cert=False):
+    """
+    Check connection makes sure a connection is available to a given hostname.
+
+    Successful checks are cached so we only check each hostname once.
+    """
+    session = session or requests.Session()
+
+    # Create cache key from arguments
+    cache_key = (hostname, port)
+
+    # If already verified, skip the check
+    if cache_key in _connection_check_cache:
+        log.debug("skipping connection check for '%s', port %d (already verified)", hostname, port)
+        return
+
+    log.debug("checking connection to '%s', port %d, timeout %s", hostname, port, timeout)
+
+    # Construct the URL for the connection check
+    scheme = "https" if port == 443 else "http"
+    url = f"{scheme}://{hostname}:{port}"
+
+    verify_cert = None
+
+    try:
+        # If fetch_cert is True, download Red Hat IT CA cert for internal services
+        if fetch_cert:
+            verify_cert = _fetch_rh_it_ca_cert(session=session)
+
+        # Perform the actual HEAD request with detailed error handling
+        _perform_head_request(url, timeout, session=session, verify=verify_cert)
+
+        # Cache success
+        _connection_check_cache.add(cache_key)
+    finally:
+        # Clean up temp cert file if created
+        if verify_cert:
+            try:
+                os.unlink(verify_cert)
+            except Exception:
+                pass
+
+
+def check_url_connection(url, timeout=(1, 5), session=None, fetch_cert=False):
     session = session or requests.Session()
     parsed_url = urlparse(url)
     scheme = parsed_url.scheme
@@ -711,7 +795,9 @@ def check_url_connection(url, timeout=(1, 5), session=None):
         raise ValueError(f"Invalid URL: '{url}'")
     if not port:
         port = 443 if scheme == "https" else 80
-    _check_connection(hostname=hostname, port=port, timeout=timeout, session=session)
+    _check_connection(
+        hostname=hostname, port=port, timeout=timeout, session=session, fetch_cert=fetch_cert
+    )
 
 
 def object_merge(old, new, merge_lists=True):
