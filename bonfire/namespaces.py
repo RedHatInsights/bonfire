@@ -133,7 +133,6 @@ class Namespace:
         return not self.reserved and self.ready
 
     def refresh(self, namespace_data=None, reservation_data=None, clowdapps_data=None):
-
         if namespace_data is None:
             self._data = get_json("namespace", self.name)
             if not self._data:
