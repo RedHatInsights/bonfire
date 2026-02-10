@@ -427,8 +427,13 @@ def parse_fe_env(project_name):
 def get_keycloak_creds(project_name):
     secret = get_json("secret", name=f"env-{project_name}-keycloak", namespace=project_name)
     kc_creds = {}
-    for key in ("username", "password", "defaultUsername", "defaultPassword"):
-        kc_creds[key] = decode_b64(secret["data"][key])
+    if secret and "data" in secret:
+        for key in ("username", "password", "defaultUsername", "defaultPassword"):
+            kc_creds[key] = decode_b64(secret["data"].get(key, ""))
+    else:
+        # Namespace might be terminating or secret doesn't exist
+        for key in ("username", "password", "defaultUsername", "defaultPassword"):
+            kc_creds[key] = "N/A"
     return kc_creds
 
 
