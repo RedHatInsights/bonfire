@@ -69,54 +69,52 @@ _PARAM_REGEX = re.compile(r"\${(\S+)}")
 
 log = logging.getLogger(__name__)
 
-# Cache for Red Hat IT CA certificate file path
-_rh_it_ca_cert_path = None
+# Cache for CA certificate file path
+_gl_ca_cert_path = None
 
 
-def _get_rh_it_ca_cert():
+def _get_gl_ca_cert():
     """
-    Get the Red Hat IT CA certificate file path.
+    Get the GitLab CA certificate file path.
 
     Downloads the certificate on first call and caches the path for subsequent calls.
     The certificate file is automatically cleaned up on exit.
 
     Returns:
-        str: Path to the Red Hat IT CA certificate file
+        str: Path to the GitLab CA certificate file
 
     Raises:
         FatalError: If certificate download fails
     """
-    global _rh_it_ca_cert_path
+    global _gl_ca_cert_path
 
-    if _rh_it_ca_cert_path is not None:
-        log.debug("Using cached Red Hat IT CA certificate at %s", _rh_it_ca_cert_path)
-        return _rh_it_ca_cert_path
+    if _gl_ca_cert_path is not None:
+        log.debug("Using cached GitLab CA certificate at %s", _gl_ca_cert_path)
+        return _gl_ca_cert_path
 
     # First verify we can reach the cert server
-    log.debug("Checking connectivity to Red Hat IT CA cert server")
+    log.debug("Checking connectivity to CA cert server")
     _check_connection(
-        hostname="certs.corp.redhat.com",
-        port=443,
+        hostname=urlparse(GL_CA_CERT_URL).hostname,
+        port=urlparse(GL_CA_CERT_URL).port or 443,
         timeout=(2, 5),
-        fetch_cert=False  # Avoid infinite recursion
+        fetch_cert=False,  # Avoid infinite recursion
     )
 
     # Download the certificate
     try:
-        log.debug("Downloading Red Hat IT CA certificate from %s", GL_CA_CERT_URL)
+        log.debug("Downloading GitLab CA certificate from %s", GL_CA_CERT_URL)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as fp:
             urlretrieve(GL_CA_CERT_URL, fp.name)
-            _rh_it_ca_cert_path = fp.name
+            _gl_ca_cert_path = fp.name
 
         # Register cleanup on exit
-        atexit.register(os.unlink, _rh_it_ca_cert_path)
+        atexit.register(os.unlink, _gl_ca_cert_path)
 
-        log.debug("Red Hat IT CA certificate downloaded to %s", _rh_it_ca_cert_path)
-        return _rh_it_ca_cert_path
+        log.debug("GitLab CA certificate downloaded to %s", _gl_ca_cert_path)
+        return _gl_ca_cert_path
     except Exception as err:
-        raise FatalError(
-            f"Failed to download Red Hat IT CA certificate from {GL_CA_CERT_URL}: {err}"
-        )
+        raise FatalError(f"Failed to download GitLab CA certificate from {GL_CA_CERT_URL}: {err}")
 
 
 class AppOrComponentSelector:
@@ -289,7 +287,7 @@ class RepoFile:
 
     @cached_property
     def _gl_certfile(self):
-        return _get_rh_it_ca_cert()
+        return _get_gl_ca_cert()
 
     @cached_property
     def _gh_auth_headers(self):
@@ -763,8 +761,8 @@ def _check_connection(hostname, port=443, timeout=(1, 5), session=None, fetch_ce
     scheme = "https" if port == 443 else "http"
     url = f"{scheme}://{hostname}:{port}"
 
-    # If fetch_cert is True, get the cached Red Hat IT CA cert for internal services
-    verify_cert = _get_rh_it_ca_cert() if fetch_cert else None
+    # If fetch_cert is True, get the cached CA cert for internal services
+    verify_cert = _get_gl_ca_cert() if fetch_cert else None
 
     # Perform the actual HEAD request with detailed error handling
     _perform_head_request(url, timeout, session=session, verify=verify_cert)
