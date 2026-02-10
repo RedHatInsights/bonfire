@@ -133,10 +133,6 @@ class Namespace:
         return not self.reserved and self.ready
 
     def refresh(self, namespace_data=None, reservation_data=None, clowdapps_data=None):
-        self._data = copy.deepcopy(namespace_data)
-        self._reservation = copy.deepcopy(reservation_data)
-        self._clowdapps = copy.deepcopy(clowdapps_data)
-
         if namespace_data is None:
             self._data = get_json("namespace", self.name)
             if not self._data:
@@ -144,7 +140,10 @@ class Namespace:
         elif not namespace_data:
             raise ValueError(f"{self.__class__.__name__} initialized with empty namespace_data")
         else:
-            self._data = namespace_data
+            self._data = copy.deepcopy(namespace_data)
+
+        self._reservation = copy.deepcopy(reservation_data) if reservation_data else None
+        self._clowdapps = copy.deepcopy(clowdapps_data) if clowdapps_data else None
 
         self.name = self._data.get("metadata", {}).get("name")
 
