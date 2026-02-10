@@ -252,7 +252,7 @@ def validate_github_token():
             log.warning(
                 "GITHUB_TOKEN validation returned status %s. "
                 "Token may be invalid or have insufficient permissions.",
-                response.status_code
+                response.status_code,
             )
     except requests.exceptions.RequestException as e:
         log.warning("Could not validate GITHUB_TOKEN: %s", str(e))
