@@ -242,11 +242,7 @@ def validate_github_token():
     # Test the token with a simple API call
     test_url = f"{GH_API_URL.rstrip('/')}/user"
     try:
-        response = requests.get(
-            test_url,
-            headers={"Authorization": f"token {gh_token}"},
-            timeout=5
-        )
+        response = requests.get(test_url, headers={"Authorization": f"token {gh_token}"}, timeout=5)
         if response.status_code == 401:
             raise FatalError(
                 "GITHUB_TOKEN is invalid or has expired. "
