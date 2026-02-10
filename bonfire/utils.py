@@ -69,6 +69,55 @@ _PARAM_REGEX = re.compile(r"\${(\S+)}")
 
 log = logging.getLogger(__name__)
 
+# Cache for Red Hat IT CA certificate file path
+_rh_it_ca_cert_path = None
+
+
+def _get_rh_it_ca_cert():
+    """
+    Get the Red Hat IT CA certificate file path.
+
+    Downloads the certificate on first call and caches the path for subsequent calls.
+    The certificate file is automatically cleaned up on exit.
+
+    Returns:
+        str: Path to the Red Hat IT CA certificate file
+
+    Raises:
+        FatalError: If certificate download fails
+    """
+    global _rh_it_ca_cert_path
+
+    if _rh_it_ca_cert_path is not None:
+        log.debug("Using cached Red Hat IT CA certificate at %s", _rh_it_ca_cert_path)
+        return _rh_it_ca_cert_path
+
+    # First verify we can reach the cert server
+    log.debug("Checking connectivity to Red Hat IT CA cert server")
+    _check_connection(
+        hostname="certs.corp.redhat.com",
+        port=443,
+        timeout=(2, 5),
+        fetch_cert=False  # Avoid infinite recursion
+    )
+
+    # Download the certificate
+    try:
+        log.debug("Downloading Red Hat IT CA certificate from %s", GL_CA_CERT_URL)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as fp:
+            urlretrieve(GL_CA_CERT_URL, fp.name)
+            _rh_it_ca_cert_path = fp.name
+
+        # Register cleanup on exit
+        atexit.register(os.unlink, _rh_it_ca_cert_path)
+
+        log.debug("Red Hat IT CA certificate downloaded to %s", _rh_it_ca_cert_path)
+        return _rh_it_ca_cert_path
+    except Exception as err:
+        raise FatalError(
+            f"Failed to download Red Hat IT CA certificate from {GL_CA_CERT_URL}: {err}"
+        )
+
 
 class AppOrComponentSelector:
     def __init__(
@@ -240,11 +289,7 @@ class RepoFile:
 
     @cached_property
     def _gl_certfile(self):
-        with tempfile.NamedTemporaryFile(delete=False) as fp:
-            urlretrieve(GL_CA_CERT_URL, fp.name)
-
-        atexit.register(os.unlink, fp.name)
-        return fp.name
+        return _get_rh_it_ca_cert()
 
     @cached_property
     def _gh_auth_headers(self):
@@ -696,52 +741,6 @@ def _perform_head_request(url, timeout, session=None, verify=None):
         raise FatalError(f"Connection check failed for '{hostname}' on port {port}: {err}")
 
 
-def _fetch_rh_it_ca_cert(session):
-    """
-    Fetch the Red Hat IT CA certificate for internal service connections.
-
-    First checks if the cert URL is reachable, then downloads the certificate.
-
-    Args:
-        session: Optional requests session to use
-
-    Returns:
-        str: Path to temporary file containing the certificate
-
-    Raises:
-        FatalError: If cert URL is unreachable or certificate fetch fails
-    """
-    session = session or requests.Session()
-
-    # First verify we can reach the cert server (this will give detailed error messages)
-    log.debug("Checking connectivity to Red Hat IT CA cert server")
-    _check_connection(
-        hostname="certs.corp.redhat.com",
-        port=443,
-        timeout=(2, 5),
-        session=session,
-        fetch_cert=False,  # Avoid infinite recursion
-    )
-
-    # Now download the certificate
-    try:
-        log.debug("Downloading Red Hat IT CA certificate from %s", GL_CA_CERT_URL)
-        cert_response = session.get(GL_CA_CERT_URL, timeout=(2, 5))
-        cert_response.raise_for_status()
-
-        # Save cert to a temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as fp:
-            fp.write(cert_response.content)
-            cert_path = fp.name
-
-        log.debug("Red Hat IT CA certificate downloaded to %s", cert_path)
-        return cert_path
-    except Exception as err:
-        raise FatalError(
-            f"Failed to download Red Hat IT CA certificate from {GL_CA_CERT_URL}: {err}"
-        )
-
-
 def _check_connection(hostname, port=443, timeout=(1, 5), session=None, fetch_cert=False):
     """
     Check connection makes sure a connection is available to a given hostname.
@@ -764,25 +763,14 @@ def _check_connection(hostname, port=443, timeout=(1, 5), session=None, fetch_ce
     scheme = "https" if port == 443 else "http"
     url = f"{scheme}://{hostname}:{port}"
 
-    verify_cert = None
+    # If fetch_cert is True, get the cached Red Hat IT CA cert for internal services
+    verify_cert = _get_rh_it_ca_cert() if fetch_cert else None
 
-    try:
-        # If fetch_cert is True, download Red Hat IT CA cert for internal services
-        if fetch_cert:
-            verify_cert = _fetch_rh_it_ca_cert(session=session)
+    # Perform the actual HEAD request with detailed error handling
+    _perform_head_request(url, timeout, session=session, verify=verify_cert)
 
-        # Perform the actual HEAD request with detailed error handling
-        _perform_head_request(url, timeout, session=session, verify=verify_cert)
-
-        # Cache success
-        _connection_check_cache.add(cache_key)
-    finally:
-        # Clean up temp cert file if created
-        if verify_cert:
-            try:
-                os.unlink(verify_cert)
-            except Exception:
-                pass
+    # Cache success
+    _connection_check_cache.add(cache_key)
 
 
 def check_url_connection(url, timeout=(1, 5), session=None, fetch_cert=False):
