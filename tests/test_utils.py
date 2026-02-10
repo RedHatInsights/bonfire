@@ -85,18 +85,20 @@ def test_url_connection_raises_on_invalid_url():
 
 
 def test_url_connection_checks_hostname(mocker):
-    requests_mock = mocker.patch("bonfire.utils.requests.head")
+    session_mock = mocker.patch("bonfire.utils.requests.Session")
+    head_mock = mocker.MagicMock()
+    session_mock.return_value.head = head_mock
     check_url_connection("https://validhost.com")
-    requests_mock.assert_called_with(
-        "https://validhost.com:443", timeout=(1, 5), allow_redirects=True
-    )
+    head_mock.assert_called_with("https://validhost.com:443", timeout=(1, 5), allow_redirects=True)
 
 
 def test_url_connection_timeout_handling(mocker):
     import requests as req
 
-    requests_mock = mocker.patch("bonfire.utils.requests.head")
-    requests_mock.side_effect = req.exceptions.Timeout("timed out!")
+    session_mock = mocker.patch("bonfire.utils.requests.Session")
+    head_mock = mocker.MagicMock()
+    head_mock.side_effect = req.exceptions.Timeout("timed out!")
+    session_mock.return_value.head = head_mock
 
     with pytest.raises(FatalError, match=r"Connect to.*failed after.*sec.*is VPN needed.*"):
         check_url_connection("https://timingout.com")
