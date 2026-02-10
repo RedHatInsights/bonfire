@@ -228,6 +228,40 @@ def validate_time_string(time):
     return time
 
 
+def validate_github_token():
+    """
+    Validate GITHUB_TOKEN is set and valid by making a test API call.
+
+    Raises FatalError if token is invalid or expired.
+    """
+    gh_token = os.getenv("GITHUB_TOKEN")
+    if not gh_token:
+        # Token is optional, so just return if not set
+        return
+
+    # Test the token with a simple API call
+    test_url = f"{GH_API_URL.rstrip('/')}/user"
+    try:
+        response = requests.get(
+            test_url,
+            headers={"Authorization": f"token {gh_token}"},
+            timeout=5
+        )
+        if response.status_code == 401:
+            raise FatalError(
+                "GITHUB_TOKEN is invalid or has expired. "
+                "Please check your token in .config/bonfire/env or environment variables."
+            )
+        elif response.status_code >= 400:
+            log.warning(
+                "GITHUB_TOKEN validation returned status %s. "
+                "Token may be invalid or have insufficient permissions.",
+                response.status_code
+            )
+    except requests.exceptions.RequestException as e:
+        log.warning("Could not validate GITHUB_TOKEN: %s", str(e))
+
+
 class RepoFile:
     def __init__(self, host, org, repo, path, ref="master"):
         if host not in ["local", "github", "gitlab"]:
@@ -296,6 +330,8 @@ class RepoFile:
 
         gh_token = os.getenv("GITHUB_TOKEN")
         if gh_token:
+            # Validate token before using it
+            validate_github_token()
             log_msg = f"using GITHUB_API_URL '{GH_API_URL}' with GITHUB_TOKEN"
             headers = {"Authorization": f"token {gh_token}"}
 
