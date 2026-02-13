@@ -9,7 +9,7 @@ objects:
   metadata:
     name: ${NAME}
     labels:
-      requester: ${REQUESTER}
+      requester: ${REQUESTER_LABEL}
   spec:
     duration: ${DURATION}
     requester: ${REQUESTER}
@@ -21,8 +21,10 @@ parameters:
   required: true
 - name: REQUESTER
   required: true
+- name: REQUESTER_LABEL
+  required: true
 - name: TEAM
-  required: false 
+  required: false
 - name: NAME
   required: true
 - name: POOL

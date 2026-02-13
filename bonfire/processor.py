@@ -416,6 +416,8 @@ def process_reservation(
             requester = "bonfire"
 
     params["REQUESTER"] = requester
+    # Truncate requester to 63 chars for label (k8s label value limit)
+    params["REQUESTER_LABEL"] = requester[:63]
     params["TEAM"] = team or ""
     params["POOL"] = pool if pool else "default"
 
