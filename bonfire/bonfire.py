@@ -962,7 +962,7 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only, defer_status_e
 @click.pass_context
 def _describe_namespace(ctx, namespace, output):
     """Get current namespace info"""
-    _namespace = namespace or ctx.obj.get("namespace")
+    _namespace = get_namespace_from_context(ctx, namespace)
     if not _namespace:
         _namespace = current_namespace_or_error()
 
@@ -1163,7 +1163,7 @@ def _cmd_process(
     exclude_components,
 ):
     """Fetch and process application templates"""
-    _namespace = namespace or ctx.obj.get("namespace")
+    _namespace = get_namespace_from_context(ctx, namespace)
     clowd_env = _get_env_name(_namespace, clowd_env)
 
     processed_templates = _process(
@@ -1422,7 +1422,7 @@ def _cmd_config_deploy(
         _error("cluster does not have clowder operator installed")
 
     # Get namespace from global context, can be None
-    _namespace = namespace or ctx.obj.get("namespace")
+    _namespace = get_namespace_from_context(ctx, namespace)
 
     using_current = False
     if reserve:
@@ -1516,11 +1516,7 @@ def _process_clowdenv(namespace, quay_user, clowd_env, template_file, local):
 @click.pass_context
 def _cmd_process_clowdenv(ctx, quay_user, clowd_env, template_file, local, namespace):
     """Process ClowdEnv template and print output"""
-    # Get namespace from local option or global context
-    _namespace = namespace or ctx.obj.get("namespace")
-
-    if not _namespace:
-        raise click.UsageError("namespace is required")
+    _namespace = get_namespace_from_context(ctx, namespace, required=True)
 
     clowd_env_config = _process_clowdenv(_namespace, quay_user, clowd_env, template_file, local)
     print(json.dumps(clowd_env_config, indent=2))
@@ -1584,11 +1580,7 @@ def _cmd_deploy_clowdenv(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    # Get namespace from local option or global context
-    _namespace = namespace or ctx.obj.get("namespace")
-
-    if not _namespace:
-        raise click.UsageError("namespace is required")
+    _namespace = get_namespace_from_context(ctx, namespace, required=True)
 
     namespace, _ = _get_namespace(
         _namespace, name, requester, team, duration, pool, timeout, local, force
@@ -1714,11 +1706,7 @@ def _cmd_deploy_iqe_cji(
     if not has_clowder():
         _error("cluster does not have clowder operator installed")
 
-    # Get namespace from local option or global context
-    _namespace = namespace or ctx.obj.get("namespace")
-
-    if not _namespace:
-        raise click.UsageError("namespace is required")
+    _namespace = get_namespace_from_context(ctx, namespace, required=True)
 
     namespace, _ = _get_namespace(
         _namespace, name, requester, team, duration, pool, timeout, local, force
@@ -1833,6 +1821,16 @@ def _cmd_apps_what_depends_on(
     )
     found = find_what_depends_on(apps, component)
     print("\n".join(found) or f"no apps depending on {component} found")
+
+
+def get_namespace_from_context(ctx, namespace, required=False):
+    """Get namespace from local option or global context."""
+    _namespace = namespace or ctx.obj.get("namespace")
+    
+    if not _namespace and required:
+        raise click.UsageError("namespace is required (use --namespace/-n)")
+     
+    return _namespace
 
 
 def main_with_handler():
