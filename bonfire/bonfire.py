@@ -1826,10 +1826,10 @@ def _cmd_apps_what_depends_on(
 def get_namespace_from_context(ctx, namespace, required=False):
     """Get namespace from local option or global context."""
     _namespace = namespace or ctx.obj.get("namespace")
-    
+
     if not _namespace and required:
         raise click.UsageError("namespace is required (use --namespace/-n)")
-     
+
     return _namespace
 
 
