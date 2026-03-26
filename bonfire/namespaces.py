@@ -215,6 +215,30 @@ class Namespace:
         return f"{ready}/{managed}"
 
     @property
+    def clusters(self):
+        if not self.reserved or not self.ready:
+            return "none"
+        try:
+            cluster_data = get_json("cluster.cluster.x-k8s.io", namespace=self.name)
+            items = cluster_data.get("items", [])
+        except Exception:
+            return "n/a"
+
+        if not items:
+            return "none"
+
+        total = len(items)
+        ready = 0
+        for cluster in items:
+            conditions = cluster.get("status", {}).get("conditions", [])
+            for cond in conditions:
+                if cond.get("type") == "Ready" and cond.get("status") == "True":
+                    ready += 1
+                    break
+
+        return f"{ready}/{total}"
+
+    @property
     def phase(self):
         return self._data.get("status", {}).get("phase", "")
 

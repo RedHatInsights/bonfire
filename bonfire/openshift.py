@@ -85,70 +85,82 @@ def _resources_for_ns_wait():
 def _all_resources_ready(namespace, timeout, watcher, defer_status_errors=False):
     already_waited_on = set()
 
-    # wait on ClowdEnvironments if any ClowdApps reference one
+    # wait on ClowdEnvironments/ClowdApps if they exist
     start = time.time()
-    log.info("checking for ClowdEnvironments to wait on...")
-    clowd_envs = set()
-    clowdapps = get_json("clowdapp", namespace=namespace)
 
-    for clowdapp in clowdapps["items"]:
-        env_name = clowdapp["spec"]["envName"]
-        if env_name not in clowd_envs:
-            log.info(
-                "will wait on ClowdEnvironment '%s' found on ClowdApp's .spec.envName",
-                env_name,
+    try:
+        clowdapps = get_json("clowdapp", namespace=namespace)
+        clowdapp_items = clowdapps.get("items", [])
+    except (ValueError, Exception):
+        log.info("ClowdApp resources not available, skipping Clowder-specific waits")
+        clowdapp_items = []
+
+    if clowdapp_items:
+        log.info("checking for ClowdEnvironments to wait on...")
+        clowd_envs = set()
+
+        for clowdapp in clowdapp_items:
+            env_name = clowdapp["spec"]["envName"]
+            if env_name not in clowd_envs:
+                log.info(
+                    "will wait on ClowdEnvironment '%s' found on ClowdApp's .spec.envName",
+                    env_name,
+                )
+                clowd_envs.add(env_name)
+
+        env_waiters = []
+        for clowd_env in clowd_envs:
+            waiter = ResourceWaiter(
+                namespace,
+                "clowdenvironment",
+                clowd_env,
+                watch_owned=True,
+                watcher=watcher,
             )
-            clowd_envs.add(env_name)
+            env_waiters.append(waiter)
 
-    env_waiters = []
-    for clowd_env in clowd_envs:
-        waiter = ResourceWaiter(
-            namespace,
-            "clowdenvironment",
-            clowd_env,
-            watch_owned=True,
-            watcher=watcher,
-        )
-        env_waiters.append(waiter)
+        if env_waiters:
+            log.info("waiting up to %dsec on resources owned by ClowdEnvironment...", timeout)
+            wait_for_ready_threaded(env_waiters, timeout, defer_status_errors)
+            for waiter in env_waiters:
+                for key in waiter.observed_resources:
+                    already_waited_on.add(key)
 
-    if env_waiters:
-        log.info("waiting up to %dsec on resources owned by ClowdEnvironment...", timeout)
-        wait_for_ready_threaded(env_waiters, timeout, defer_status_errors)
-        for waiter in env_waiters:
-            for key in waiter.observed_resources:
-                already_waited_on.add(key)
+        end = time.time()
+        elapsed = end - start
+        timeout = timeout - elapsed
+        if timeout <= 0:
+            raise TimedOutError("timed out waiting for ClowdEnvironment-owned resources")
 
-    end = time.time()
-    elapsed = end - start
-    timeout = timeout - elapsed
-    if timeout <= 0:
-        raise TimedOutError("timed out waiting for ClowdEnvironment-owned resources")
+        # wait on all ClowdApps in this namespace
+        start = time.time()
+        log.info("checking for ClowdApps to wait on...")
+        waiters = []
 
-    # wait on all ClowdApps in this namespace
-    start = time.time()
-    log.info("checking for ClowdApps to wait on...")
-    waiters = []
+        for clowdapp in clowdapp_items:
+            waiter = ResourceWaiter(
+                namespace,
+                "clowdapp",
+                clowdapp["metadata"]["name"],
+                watch_owned=True,
+                watcher=watcher,
+            )
+            waiters.append(waiter)
 
-    for clowdapp in clowdapps["items"]:
-        waiter = ResourceWaiter(
-            namespace, "clowdapp", clowdapp["metadata"]["name"], watch_owned=True, watcher=watcher
-        )
-        waiters.append(waiter)
+        if waiters:
+            log.info("waiting up to %dsec on resources owned by ClowdApps...", timeout)
+            wait_for_ready_threaded(waiters, timeout, defer_status_errors)
+            for waiter in waiters:
+                for key in waiter.observed_resources:
+                    already_waited_on.add(key)
 
-    if waiters:
-        log.info("waiting up to %dsec on resources owned by ClowdApps...", timeout)
-        wait_for_ready_threaded(waiters, timeout, defer_status_errors)
-        for waiter in waiters:
-            for key in waiter.observed_resources:
-                already_waited_on.add(key)
+        end = time.time()
+        elapsed = end - start
+        timeout = timeout - elapsed
+        if timeout <= 0:
+            raise TimedOutError("timed out waiting for ClowdApp-owned resources")
 
-    end = time.time()
-    elapsed = end - start
-    timeout = timeout - elapsed
-    if timeout <= 0:
-        raise TimedOutError("timed out waiting for ClowdApp-owned resources")
-
-    # wait on anything else not covered by the above
+    # wait on anything else not covered by the above (includes CAPI Clusters, Deployments, etc.)
     log.info("checking for remaining namespace resources to wait on...")
     waiters = []
 

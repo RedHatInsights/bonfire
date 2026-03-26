@@ -844,6 +844,7 @@ def _list_namespaces(available, mine, output):
                 "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
                 "ENV STATUS": [str(ns.status).lower() for ns in namespaces],
                 "APPS READY": [ns.clowdapps for ns in namespaces],
+                "CLUSTERS": [ns.clusters for ns in namespaces],
                 "REQUESTER": [ns.requester for ns in namespaces],
                 "POOL TYPE": [ns.pool_type for ns in namespaces],
                 "EXPIRES IN": [ns.expires_in for ns in namespaces],
@@ -1399,8 +1400,7 @@ def _cmd_config_deploy(
     defer_status_errors,
 ):
     """Process app templates and deploy them to a cluster"""
-    if not has_clowder():
-        _error("cluster does not have clowder operator installed")
+    clowder_available = has_clowder()
 
     using_current = False
     if reserve:
@@ -1428,7 +1428,10 @@ def _cmd_config_deploy(
     if import_configmaps:
         import_configmaps_from_dir(configmaps_dir)
 
-    clowd_env = _get_env_name(ns, clowd_env)
+    if clowder_available:
+        clowd_env = _get_env_name(ns, clowd_env)
+    else:
+        clowd_env = None
 
     try:
         log.info("processing app templates...")
