@@ -49,7 +49,7 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
     print(result.output)
 
     mock_process_reservation.assert_called_once_with(
-        name, "user-3", "1h", "default", local=True, team=""
+        name, "user-3", "1h", "default", local=True, team="", secrets_src_namespace=None
     )
 
 
@@ -78,7 +78,7 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     print(result.output)
 
     mock_process_reservation.assert_called_once_with(
-        None, requester, "1h", "default", local=True, team=""
+        None, requester, "1h", "default", local=True, team="", secrets_src_namespace=None
     )
 
 
@@ -112,11 +112,11 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
 
     if duration:
         mock_process_reservation.assert_called_once_with(
-            None, "user-3", duration, "default", local=True, team=""
+            None, "user-3", duration, "default", local=True, team="", secrets_src_namespace=None
         )
     else:
         mock_process_reservation.assert_called_once_with(
-            None, "user-3", "1h", "default", local=True, team=""
+            None, "user-3", "1h", "default", local=True, team="", secrets_src_namespace=None
         )
 
 

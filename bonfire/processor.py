@@ -392,7 +392,14 @@ def process_iqe_cji(
 
 
 def process_reservation(
-    name, requester, duration, pool=None, template_path=None, local=True, team=None
+    name,
+    requester,
+    duration,
+    pool=None,
+    template_path=None,
+    local=True,
+    team=None,
+    secrets_src_namespace=None,
 ):
     log.info("processing namespace reservation")
     template_path = Path(template_path if template_path else conf.DEFAULT_RESERVATION_TEMPLATE)
@@ -418,6 +425,7 @@ def process_reservation(
     params["REQUESTER"] = requester
     params["TEAM"] = team or ""
     params["POOL"] = pool if pool else "default"
+    params["SECRETS_SRC_NAMESPACE"] = secrets_src_namespace or ""
 
     processed_template = _process_template(template_data, params=params, local=local)
 

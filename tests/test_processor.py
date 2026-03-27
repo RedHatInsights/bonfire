@@ -1429,6 +1429,7 @@ def test_process_reservation_with_team(mocker):
     assert params["DURATION"] == "1h"
     assert params["POOL"] == "default"
     assert params["TEAM"] == "test-team"
+    assert params["SECRETS_SRC_NAMESPACE"] == ""
 
     assert result == mock_process_template.return_value
 
@@ -1477,6 +1478,7 @@ def test_process_reservation_without_team(mocker):
     assert params["DURATION"] == "1h"
     assert params["POOL"] == "default"
     assert params["TEAM"] == ""
+    assert params["SECRETS_SRC_NAMESPACE"] == ""
 
     assert result == mock_process_template.return_value
 

@@ -119,6 +119,28 @@ def get_client():
     return _client
 
 
+def get_base_namespace_for_env(env_name):
+    """Resolve the base (secret source) namespace for an environment.
+
+    For the default ephemeral env, uses BASE_NAMESPACE_PATH to find the
+    correct base namespace. For other environments, returns the first
+    namespace associated with the environment in app-interface.
+    """
+    client = get_client()
+    env = client.get_env(env_name)
+    namespaces = env.get("namespaces", {})  # {path: name}
+
+    if env_name == conf.EPHEMERAL_ENV_NAME:
+        ns_name = namespaces.get(conf.BASE_NAMESPACE_PATH)
+        if ns_name:
+            return ns_name
+
+    if namespaces:
+        return next(iter(namespaces.values()))
+
+    return None
+
+
 def _to_dict(nullable_json_str):
     return json.loads(nullable_json_str or "{}")
 

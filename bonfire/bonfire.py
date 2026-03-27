@@ -42,7 +42,7 @@ from bonfire.openshift import (
     log_namespace_events,
 )
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
-from bonfire.qontract import get_apps_for_env, sub_refs
+from bonfire.qontract import get_apps_for_env, get_base_namespace_for_env, sub_refs
 from bonfire.secrets import import_secrets_from_dir
 from bonfire.configmaps import import_configmaps_from_dir
 from bonfire.utils import (
@@ -266,6 +266,12 @@ _ns_reserve_options = [
         is_flag=True,
         default=False,
         help="Don't prompt if reservations exist for user",
+    ),
+    click.option(
+        "--secrets-src-namespace",
+        type=str,
+        default=None,
+        help="Override the secret source namespace for the reservation (copies secrets from this namespace)",
     ),
     _local_option,
 ]
@@ -858,10 +864,14 @@ def _list_namespaces(available, mine, output):
 @options(_timeout_options)
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(
-    name, requester, team, duration, pool, timeout, local, force, defer_status_errors
+    name, requester, team, duration, pool, timeout, local, force, secrets_src_namespace,
+    defer_status_errors,
 ):
     """Reserve an ephemeral namespace"""
-    ns = _check_and_reserve_namespace(name, requester, team, duration, pool, timeout, local, force)
+    ns = _check_and_reserve_namespace(
+        name, requester, team, duration, pool, timeout, local, force,
+        secrets_src_namespace=secrets_src_namespace,
+    )
     click.echo(ns.name)
 
 
@@ -1190,6 +1200,7 @@ def _get_namespace(
     local,
     force,
     using_current=False,
+    secrets_src_namespace=None,
 ):
     if not has_ns_operator():
         if requested_ns_name:
@@ -1210,7 +1221,8 @@ def _get_namespace(
                 " expired, or not owned), reserving a new one",
             )
         ns = _check_and_reserve_namespace(
-            name, requester, team, duration, pool, timeout, local, force
+            name, requester, team, duration, pool, timeout, local, force,
+            secrets_src_namespace=secrets_src_namespace,
         )
         reserved_new_ns = True
 
@@ -1257,7 +1269,9 @@ def _check_and_use_namespace(requested_ns_name, using_current, requester):
     return ns
 
 
-def _check_and_reserve_namespace(name, requester, team, duration, pool, timeout, local, force):
+def _check_and_reserve_namespace(
+    name, requester, team, duration, pool, timeout, local, force, secrets_src_namespace=None
+):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
@@ -1279,7 +1293,10 @@ def _check_and_reserve_namespace(name, requester, team, duration, pool, timeout,
             " have been reserved"
         )
 
-    return reserve_namespace(name, requester, duration, pool, timeout, local, team)
+    return reserve_namespace(
+        name, requester, duration, pool, timeout, local, team,
+        secrets_src_namespace=secrets_src_namespace,
+    )
 
 
 def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
@@ -1397,10 +1414,24 @@ def _cmd_config_deploy(
     pool,
     force,
     preferred_params,
+    secrets_src_namespace,
     defer_status_errors,
 ):
     """Process app templates and deploy them to a cluster"""
     clowder_available = has_clowder()
+
+    # resolve base namespace from target env if not explicitly provided
+    if not secrets_src_namespace and target_env:
+        try:
+            secrets_src_namespace = get_base_namespace_for_env(target_env)
+            if secrets_src_namespace:
+                log.info(
+                    "resolved secret source namespace '%s' from target env '%s'",
+                    secrets_src_namespace,
+                    target_env,
+                )
+        except Exception:
+            log.debug("could not resolve base namespace for env '%s'", target_env)
 
     using_current = False
     if reserve:
@@ -1420,6 +1451,7 @@ def _cmd_config_deploy(
         local,
         force,
         using_current=using_current,
+        secrets_src_namespace=secrets_src_namespace,
     )
 
     if import_secrets:
@@ -1550,6 +1582,7 @@ def _cmd_deploy_clowdenv(
     local,
     pool,
     force,
+    secrets_src_namespace,
     defer_status_errors,
 ):
     """Process ClowdEnv template and deploy to a cluster"""
@@ -1557,7 +1590,8 @@ def _cmd_deploy_clowdenv(
         _error("cluster does not have clowder operator installed")
 
     namespace, _ = _get_namespace(
-        namespace, name, requester, team, duration, pool, timeout, local, force
+        namespace, name, requester, team, duration, pool, timeout, local, force,
+        secrets_src_namespace=secrets_src_namespace,
     )
 
     if import_secrets:
