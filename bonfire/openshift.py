@@ -82,7 +82,9 @@ def _resources_for_ns_wait():
     return resources
 
 
-def _wait_on_clowd_environments(namespace, time_left, watcher, clowdapps, already_waited_on, defer_status_errors):
+def _wait_on_clowd_environments(
+    namespace, time_left, watcher, clowdapps, already_waited_on, defer_status_errors
+):
     """Wait on ClowdEnvironments (and their owned resources) tied to the deployed ClowdApps."""
     clowd_envs = set()
     for clowdapp in clowdapps:
@@ -114,7 +116,9 @@ def _wait_on_clowd_environments(namespace, time_left, watcher, clowdapps, alread
     return time_left
 
 
-def _wait_on_clowd_apps(namespace, time_left, watcher, clowdapps, already_waited_on, defer_status_errors):
+def _wait_on_clowd_apps(
+    namespace, time_left, watcher, clowdapps, already_waited_on, defer_status_errors
+):
     """Wait on resources owned by ClowdApps in this namespace."""
     waiters = [
         ResourceWaiter(
@@ -142,7 +146,9 @@ def _wait_on_clowd_apps(namespace, time_left, watcher, clowdapps, already_waited
     return time_left
 
 
-def _wait_on_remaining_resources(namespace, time_left, watcher, already_waited_on, defer_status_errors):
+def _wait_on_remaining_resources(
+    namespace, time_left, watcher, already_waited_on, defer_status_errors
+):
     """Wait on anything not already covered by ClowdEnvironment/ClowdApp waiters (deployments, capi clusters, etc.)."""
     log.info("checking for remaining namespace resources to wait on...")
     waiters = [
@@ -162,9 +168,15 @@ def _all_resources_ready(namespace, timeout, watcher, defer_status_errors=False)
     log.info("checking for ClowdApps to wait on...")
     clowdapps = get_json("clowdapp", namespace=namespace).get("items", [])
 
-    time_left = _wait_on_clowd_environments(namespace, timeout, watcher, clowdapps, already_waited_on, defer_status_errors)
-    time_left = _wait_on_clowd_apps(namespace, time_left, watcher, clowdapps, already_waited_on, defer_status_errors)
-    _wait_on_remaining_resources(namespace, time_left, watcher, already_waited_on, defer_status_errors)
+    time_left = _wait_on_clowd_environments(
+        namespace, timeout, watcher, clowdapps, already_waited_on, defer_status_errors
+    )
+    time_left = _wait_on_clowd_apps(
+        namespace, time_left, watcher, clowdapps, already_waited_on, defer_status_errors
+    )
+    _wait_on_remaining_resources(
+        namespace, time_left, watcher, already_waited_on, defer_status_errors
+    )
 
 
 def wait_for_all_resources(namespace, timeout=600, defer_status_errors=False):
