@@ -137,11 +137,11 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["ns-1", "true", "false", "none", "user-1", "minimal"]) in actual
-    assert " ".join(["ns-2", "true", "false", "none", "user-2", "default"]) in actual
-    assert " ".join(["ns-3", "false", "ready", "none", "default"]) in actual
-    assert " ".join(["ns-4", "false", "ready", "none", "default"]) in actual
-    assert " ".join(["ns-5", "true", "false", "none", "user-5", "default"]) in actual
+    assert " ".join(["ns-1", "true", "false", "none", "none", "user-1", "minimal"]) in actual
+    assert " ".join(["ns-2", "true", "false", "none", "none", "user-2", "default"]) in actual
+    assert " ".join(["ns-3", "false", "ready", "none", "none", "default"]) in actual
+    assert " ".join(["ns-4", "false", "ready", "none", "none", "default"]) in actual
+    assert " ".join(["ns-5", "true", "false", "none", "none", "user-5", "default"]) in actual
 
 
 def test_ns_list_options_available(mocker, caplog, namespace_list: list, reservation_list: list):
@@ -184,11 +184,11 @@ def test_ns_list_option_mine(mocker, caplog, namespace_list: list, reservation_l
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["ns-1", "true", "false", "none", "user-1"]) in actual
-    assert " ".join(["ns-2", "true", "false", "none", "user-2"]) not in actual
+    assert " ".join(["ns-1", "true", "false", "none", "none", "user-1"]) in actual
+    assert " ".join(["ns-2", "true", "false", "none", "none", "user-2"]) not in actual
     assert " ".join(["ns-3", "false", "ready", "none"]) not in actual
     assert " ".join(["ns-4", "false", "ready", "none"]) not in actual
-    assert " ".join(["ns-5", "true", "false", "none", "user-5"]) not in actual
+    assert " ".join(["ns-5", "true", "false", "none", "none", "user-5"]) not in actual
 
 
 def test_ns_list_flag_output(
