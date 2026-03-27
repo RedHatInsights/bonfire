@@ -204,6 +204,9 @@ class Namespace:
             log.debug("fetching clowdapps for ns %s", self.name)
             self._clowdapps = get_json("app", namespace=self.name).get("items", [])
 
+        if not self._clowdapps:
+            return "none"
+
         managed = len(self._clowdapps)
         ready = 0
         for app in self._clowdapps:
@@ -218,6 +221,7 @@ class Namespace:
     def clusters(self):
         if not self.reserved or not self.ready:
             return "none"
+
         try:
             cluster_data = get_json("cluster.cluster.x-k8s.io", namespace=self.name)
             items = cluster_data.get("items", [])
