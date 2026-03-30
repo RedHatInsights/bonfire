@@ -135,9 +135,7 @@ def get_base_namespace_for_env(env_name):
         if ns_name:
             return ns_name
 
-    if namespaces:
-        return next(iter(namespaces.values()))
-
+    log.info("no base namespace found for env '%s'", env_name)
     return None
 
 

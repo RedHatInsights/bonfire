@@ -1450,16 +1450,17 @@ def _cmd_config_deploy(
 
     # resolve base namespace from target env if not explicitly provided
     if not secrets_src_namespace and target_env:
+        log.info("auto-resolving base namespace from target env '%s'", target_env)
         try:
             secrets_src_namespace = get_base_namespace_for_env(target_env)
             if secrets_src_namespace:
                 log.info(
-                    "resolved secret source namespace '%s' from target env '%s'",
+                    "setting base namespace '%s' associated with target env '%s'",
                     secrets_src_namespace,
                     target_env,
                 )
         except Exception:
-            log.debug("could not resolve base namespace for env '%s'", target_env)
+            log.info("could not resolve base namespace for env '%s'", target_env)
 
     using_current = False
     if reserve:
