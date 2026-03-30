@@ -264,7 +264,11 @@ def get_namespaces(available=False, mine=False):
     """
     log.debug("get_namespaces(available=%s, mine=%s)", available, mine)
     all_namespaces = get_all_namespaces(label="operator-ns")
-    all_clowdapps = get_json("clowdapp", "--all-namespaces").get("items", [])
+    try:
+        all_clowdapps = get_json("clowdapp", "--all-namespaces").get("items", [])
+    except ValueError:
+        log.debug("clowdapp resource type not found, skipping")
+        all_clowdapps = []
     all_res = get_all_reservations()
 
     # build a list containing the ns data, reservation data, and clowdapp

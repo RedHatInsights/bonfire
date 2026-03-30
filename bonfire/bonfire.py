@@ -849,8 +849,8 @@ def _list_namespaces(available, mine, output):
                 "NAME": [ns.name for ns in namespaces],
                 "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
                 "ENV STATUS": [str(ns.status).lower() for ns in namespaces],
-                "APPS READY": [ns.clowdapps for ns in namespaces],
-                "CLUSTERS": [ns.clusters for ns in namespaces],
+                "CLOWDAPPS\n(ready/total)": [ns.clowdapps for ns in namespaces],
+                "CLUSTERS\n(ready/total)": [ns.clusters for ns in namespaces],
                 "REQUESTER": [ns.requester for ns in namespaces],
                 "POOL TYPE": [ns.pool_type for ns in namespaces],
                 "EXPIRES IN": [ns.expires_in for ns in namespaces],
@@ -864,12 +864,27 @@ def _list_namespaces(available, mine, output):
 @options(_timeout_options)
 @click_exception_wrapper("namespace reserve")
 def _cmd_namespace_reserve(
-    name, requester, team, duration, pool, timeout, local, force, secrets_src_namespace,
+    name,
+    requester,
+    team,
+    duration,
+    pool,
+    timeout,
+    local,
+    force,
+    secrets_src_namespace,
     defer_status_errors,
 ):
     """Reserve an ephemeral namespace"""
     ns = _check_and_reserve_namespace(
-        name, requester, team, duration, pool, timeout, local, force,
+        name,
+        requester,
+        team,
+        duration,
+        pool,
+        timeout,
+        local,
+        force,
         secrets_src_namespace=secrets_src_namespace,
     )
     click.echo(ns.name)
@@ -1221,7 +1236,14 @@ def _get_namespace(
                 " expired, or not owned), reserving a new one",
             )
         ns = _check_and_reserve_namespace(
-            name, requester, team, duration, pool, timeout, local, force,
+            name,
+            requester,
+            team,
+            duration,
+            pool,
+            timeout,
+            local,
+            force,
             secrets_src_namespace=secrets_src_namespace,
         )
         reserved_new_ns = True
@@ -1294,7 +1316,13 @@ def _check_and_reserve_namespace(
         )
 
     return reserve_namespace(
-        name, requester, duration, pool, timeout, local, team,
+        name,
+        requester,
+        duration,
+        pool,
+        timeout,
+        local,
+        team,
         secrets_src_namespace=secrets_src_namespace,
     )
 
@@ -1590,7 +1618,15 @@ def _cmd_deploy_clowdenv(
         _error("cluster does not have clowder operator installed")
 
     namespace, _ = _get_namespace(
-        namespace, name, requester, team, duration, pool, timeout, local, force,
+        namespace,
+        name,
+        requester,
+        team,
+        duration,
+        pool,
+        timeout,
+        local,
+        force,
         secrets_src_namespace=secrets_src_namespace,
     )
 
