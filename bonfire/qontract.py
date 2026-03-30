@@ -125,6 +125,8 @@ def get_base_namespace_for_env(env_name):
     For the default ephemeral env, uses BASE_NAMESPACE_PATH to find the
     correct base namespace. For other environments, returns the first
     namespace associated with the environment in app-interface.
+
+    # TODO: locate other base namespaces by finding it via saas file target...
     """
     client = get_client()
     env = client.get_env(env_name)
