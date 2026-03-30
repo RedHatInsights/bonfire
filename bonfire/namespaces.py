@@ -202,7 +202,10 @@ class Namespace:
             return "none"
         if self._clowdapps is None:
             log.debug("fetching clowdapps for ns %s", self.name)
-            self._clowdapps = get_json("app", namespace=self.name).get("items", [])
+            try:
+                self._clowdapps = get_json("clowdapp", namespace=self.name).get("items", [])
+            except ValueError:
+                return "none"
 
         if not self._clowdapps:
             return "none"
