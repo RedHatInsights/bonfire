@@ -139,8 +139,12 @@ def get_base_namespace_for_env(env_name):
             log.info("resolved base namespace '%s' for env '%s'", ns_name, env_name)
             return ns_name
 
-    log.info("no base namespace found for env '%s'", env_name)
-    return None
+    log.info(
+        "no base namespace found for env '%s', defaulting to %s",
+        env_name,
+        conf.DEFAULT_BASE_NAMESPACE,
+    )
+    return conf.DEFAULT_BASE_NAMESPACE
 
 
 def _to_dict(nullable_json_str):
