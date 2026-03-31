@@ -77,14 +77,22 @@ def _error(msg):
     sys.exit(1)
 
 
-def current_namespace_or_error():
+def current_namespace_or_error() -> Namespace:
     log.info("attempting to use current namespace from oc/kubectl context...")
-    namespace = get_current_namespace()
-    if not namespace:
+    namespace_name = get_current_namespace()
+    if not namespace_name:
         _error(
             "Namespace from current oc/kubectl context is not set."
             " Please specify namespace using options/arguments."
         )
+
+    try:
+        namespace = Namespace(name=namespace_name)
+    except ValueError:
+        raise FatalError(
+            f"namespace '{namespace_name}' in current kubeconfig context no longer exists"
+        )
+
     return namespace
 
 
@@ -906,16 +914,26 @@ def _cmd_namespace_release(namespace, force, local):
     if not has_ns_operator():
         _error(NO_RESERVATION_SYS)
 
-    if not namespace:
-        namespace = current_namespace_or_error()
+    # needed for backward compatibility, 'namespace' is simply a string
+    namespace_name = namespace
+
+    if not namespace_name:
+        try:
+            namespace_name = current_namespace_or_error().name
+        except FatalError:
+            log.info("namespace '%s' no longer exists, nothing to release", namespace_name)
+            return
 
     if not force:
-        ns = Namespace(name=namespace)
-        if not ns.owned_by_me:
+        # check if this ns was reserved with the ns operator
+        if not _check_for_reservation(namespace_name):
+            log.info("nothing to release")
+            return
+        if not namespace.owned_by_me:
             _warn_if_not_owned_by_me()
         _warn_before_delete()
 
-    release_reservation(namespace=namespace, local=local)
+    release_reservation(namespace=namespace_name, local=local)
 
 
 @namespace.command("extend")
@@ -938,7 +956,7 @@ def _cmd_namespace_extend(namespace, duration, local):
     if not namespace:
         namespace = current_namespace_or_error()
 
-    extend_namespace(namespace, duration, local)
+    extend_namespace(namespace.name, duration, local)
 
 
 @namespace.command("wait-on-resources")
@@ -955,7 +973,7 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only, defer_status_e
     if not namespace:
         namespace = current_namespace_or_error()
     try:
-        _wait_on_namespace_resources(namespace, timeout, db_only, defer_status_errors)
+        _wait_on_namespace_resources(namespace.name, timeout, db_only, defer_status_errors)
     except TimedOutError as err:
         log.error("hit timeout error: %s", err)
         _error("namespace wait timed out")
@@ -978,7 +996,7 @@ def _describe_namespace(namespace, output):
     if not namespace:
         namespace = current_namespace_or_error()
 
-    click.echo(describe_namespace(namespace, output))
+    click.echo(describe_namespace(namespace.name, output))
 
 
 def _get_apps_config(
@@ -1251,6 +1269,25 @@ def _get_namespace(
     return ns.name, reserved_new_ns
 
 
+def _check_for_reservation(namespace_name):
+    log.debug("checking if namespace '%s' has been reserved via ns operator...", namespace_name)
+
+    operator_reservation = get_reservation(namespace=namespace_name)
+
+    if not operator_reservation:
+        log.info("no current reservation found for namespace '%s'", namespace_name)
+        return False
+
+    else:
+        log.debug("found existing ns operator reservation")
+
+        if operator_reservation.get("status", {}).get("state") == "expired":
+            log.info("reservation has expired for namespace '%s'", namespace_name)
+            return False
+
+    return True
+
+
 def _check_and_use_namespace(requested_ns_name, using_current, requester):
     if using_current:
         log.info("attempting to use current namespace from oc/kubectl context...")
@@ -1258,20 +1295,17 @@ def _check_and_use_namespace(requested_ns_name, using_current, requester):
     if not has_ns_operator():
         _error(f"{NO_RESERVATION_SYS}")
 
-    log.debug("checking if namespace '%s' has been reserved via ns operator...", requested_ns_name)
+    log.info("checking if namespace '%s' has been reserved via ns operator...", requested_ns_name)
     operator_reservation = get_reservation(namespace=requested_ns_name)
     ns = None
-    if operator_reservation:
-        log.debug("found existing ns operator reservation")
 
-        if operator_reservation.get("status", {}).get("state") == "expired":
-            msg = f"reservation has expired for namespace '{requested_ns_name}'"
-            if using_current:
-                log.info(msg)
-                return None
-            else:
-                _error(msg)
+    if not operator_reservation:
+        if using_current:
+            return None
+        else:
+            _error(f"namespace '{requested_ns_name}' does not exist or has not been reserved yet")
 
+    else:
         ns = Namespace(name=requested_ns_name)
 
         if ns.owned_by_me or ns.requester == requester:
@@ -1284,9 +1318,6 @@ def _check_and_use_namespace(requested_ns_name, using_current, requester):
 
         if not ns.ready:
             _warn_if_not_ready()
-
-    elif not using_current:
-        _error(f"Namespace '{requested_ns_name}' has not been reserved yet")
 
     return ns
 
