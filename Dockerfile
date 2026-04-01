@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/python-312:9.7-1770596793 as builder
+FROM registry.access.redhat.com/ubi9/python-312:9.7-1775043469 as builder
 
 ENV OC_CLI_VERSION=4.16
 
@@ -11,7 +11,7 @@ RUN curl -sSLO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-
   tar -xzf openshift-client-linux.tar.gz oc kubectl && \
   rm openshift-client-linux.tar.gz
 
-FROM registry.access.redhat.com/ubi9-minimal:9.7-1770267347
+FROM registry.access.redhat.com/ubi9-minimal:9.7-1773939694
 
 ENV APP_ROOT=/opt/bonfire
 
