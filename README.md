@@ -6,7 +6,6 @@ As an example, typing `bonfire deploy host-inventory` leads to the host-inventor
 
 ![Demo gif](demo.gif)
 
-
 # Table of Contents <!-- omit in toc -->
 
 - [About](#about)
