@@ -27,6 +27,7 @@ ENVS_QUERY = gql(
         namespaces {
           name
           path
+          labels
         }
       }
     }
@@ -95,8 +96,10 @@ class Client:
         """Get insights env configuration."""
         for env_data in self.client.execute(ENVS_QUERY)["envs"]:
             if env_data["name"] == env:
-                env_data["namespaces"] = {
-                    ns["path"]: ns["name"] for ns in env_data.get("namespaces", [])
+                raw_namespaces = env_data.get("namespaces", [])
+                env_data["namespaces"] = {ns["path"]: ns["name"] for ns in raw_namespaces}
+                env_data["namespace_labels"] = {
+                    ns["path"]: _to_dict(ns.get("labels")) for ns in raw_namespaces
                 }
                 break
         else:
@@ -117,6 +120,31 @@ def get_client():
         _client = Client()
 
     return _client
+
+
+def get_base_namespace_for_env(env_name):
+    """Resolve the base (secret source) namespace for an environment.
+
+    Searches the env's namespaces for one with label 'use_as_ephemeral_base' set to true.
+    If no such namespace exists, the env has no base namespace configured.
+    """
+    client = get_client()
+    env = client.get_env(env_name)
+    namespaces = env.get("namespaces", {})  # {path: name}
+    namespace_labels = env.get("namespace_labels", {})  # {path: labels dict}
+
+    for path, ns_name in namespaces.items():
+        labels = namespace_labels.get(path, {})
+        if str(labels.get("use_as_ephemeral_base", "")).lower() == "true":
+            log.info("resolved base namespace '%s' for env '%s'", ns_name, env_name)
+            return ns_name
+
+    log.info(
+        "no base namespace found for env '%s', defaulting to %s",
+        env_name,
+        conf.DEFAULT_BASE_NAMESPACE,
+    )
+    return conf.DEFAULT_BASE_NAMESPACE
 
 
 def _to_dict(nullable_json_str):

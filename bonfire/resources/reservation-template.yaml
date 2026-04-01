@@ -15,6 +15,7 @@ objects:
     requester: ${REQUESTER}
     team: ${TEAM}
     pool: ${POOL}
+    secretSourceNamespace: ${SECRETS_SRC_NAMESPACE}
 
 parameters:
 - name: DURATION
@@ -22,8 +23,10 @@ parameters:
 - name: REQUESTER
   required: true
 - name: TEAM
-  required: false 
+  required: false
 - name: NAME
   required: true
 - name: POOL
   required: true
+- name: SECRETS_SRC_NAMESPACE
+  required: false

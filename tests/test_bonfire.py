@@ -49,7 +49,7 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
     print(result.output)
 
     mock_process_reservation.assert_called_once_with(
-        name, "user-3", "1h", "default", local=True, team=""
+        name, "user-3", "1h", "default", local=True, team="", secrets_src_namespace=None
     )
 
 
@@ -78,7 +78,7 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     print(result.output)
 
     mock_process_reservation.assert_called_once_with(
-        None, requester, "1h", "default", local=True, team=""
+        None, requester, "1h", "default", local=True, team="", secrets_src_namespace=None
     )
 
 
@@ -112,11 +112,11 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
 
     if duration:
         mock_process_reservation.assert_called_once_with(
-            None, "user-3", duration, "default", local=True, team=""
+            None, "user-3", duration, "default", local=True, team="", secrets_src_namespace=None
         )
     else:
         mock_process_reservation.assert_called_once_with(
-            None, "user-3", "1h", "default", local=True, team=""
+            None, "user-3", "1h", "default", local=True, team="", secrets_src_namespace=None
         )
 
 
@@ -137,11 +137,11 @@ def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: 
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["ns-1", "true", "false", "none", "user-1", "minimal"]) in actual
-    assert " ".join(["ns-2", "true", "false", "none", "user-2", "default"]) in actual
-    assert " ".join(["ns-3", "false", "ready", "none", "default"]) in actual
-    assert " ".join(["ns-4", "false", "ready", "none", "default"]) in actual
-    assert " ".join(["ns-5", "true", "false", "none", "user-5", "default"]) in actual
+    assert " ".join(["ns-1", "true", "false", "none", "none", "user-1", "minimal"]) in actual
+    assert " ".join(["ns-2", "true", "false", "none", "none", "user-2", "default"]) in actual
+    assert " ".join(["ns-3", "false", "ready", "none", "none", "default"]) in actual
+    assert " ".join(["ns-4", "false", "ready", "none", "none", "default"]) in actual
+    assert " ".join(["ns-5", "true", "false", "none", "none", "user-5", "default"]) in actual
 
 
 def test_ns_list_options_available(mocker, caplog, namespace_list: list, reservation_list: list):
@@ -184,11 +184,11 @@ def test_ns_list_option_mine(mocker, caplog, namespace_list: list, reservation_l
 
     actual = " ".join(result.output.split())
 
-    assert " ".join(["ns-1", "true", "false", "none", "user-1"]) in actual
-    assert " ".join(["ns-2", "true", "false", "none", "user-2"]) not in actual
+    assert " ".join(["ns-1", "true", "false", "none", "none", "user-1"]) in actual
+    assert " ".join(["ns-2", "true", "false", "none", "none", "user-2"]) not in actual
     assert " ".join(["ns-3", "false", "ready", "none"]) not in actual
     assert " ".join(["ns-4", "false", "ready", "none"]) not in actual
-    assert " ".join(["ns-5", "true", "false", "none", "user-5"]) not in actual
+    assert " ".join(["ns-5", "true", "false", "none", "none", "user-5"]) not in actual
 
 
 def test_ns_list_flag_output(
@@ -325,9 +325,9 @@ def test_describe_ephemeral_ns_from_ctx(mocker):
     mocker.patch("bonfire.namespaces.get_json")
     mocker.patch("bonfire.namespaces.Namespace")
     mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value="ephemeral-blah")
-    mocker.patch("bonfire.bonfire.check_pypi")
     runner = CliRunner()
-    result = runner.invoke(bonfire.main, ["namespace", "describe"])
+    # Simulate the context that `main` sets up when no --namespace is passed
+    result = runner.invoke(bonfire.namespace, ["describe"], obj={"namespace": None})
     print("result.output", result.output)
 
     assert "jdoe | password" in result.output

@@ -202,7 +202,13 @@ class Namespace:
             return "none"
         if self._clowdapps is None:
             log.debug("fetching clowdapps for ns %s", self.name)
-            self._clowdapps = get_json("app", namespace=self.name).get("items", [])
+            try:
+                self._clowdapps = get_json("clowdapp", namespace=self.name).get("items", [])
+            except ValueError:
+                return "none"
+
+        if not self._clowdapps:
+            return "none"
 
         managed = len(self._clowdapps)
         ready = 0
@@ -213,6 +219,31 @@ class Namespace:
                     ready += 1
 
         return f"{ready}/{managed}"
+
+    @property
+    def clusters(self):
+        if not self.reserved or not self.ready:
+            return "none"
+
+        try:
+            cluster_data = get_json("cluster.cluster.x-k8s.io", namespace=self.name)
+            items = cluster_data.get("items", [])
+        except Exception:
+            return "n/a"
+
+        if not items:
+            return "none"
+
+        total = len(items)
+        ready = 0
+        for cluster in items:
+            conditions = cluster.get("status", {}).get("conditions", [])
+            for cond in conditions:
+                if cond.get("type") == "Ready" and cond.get("status") == "True":
+                    ready += 1
+                    break
+
+        return f"{ready}/{total}"
 
     @property
     def phase(self):
@@ -236,7 +267,11 @@ def get_namespaces(available=False, mine=False):
     """
     log.debug("get_namespaces(available=%s, mine=%s)", available, mine)
     all_namespaces = get_all_namespaces(label="operator-ns")
-    all_clowdapps = get_json("clowdapp", "--all-namespaces").get("items", [])
+    try:
+        all_clowdapps = get_json("clowdapp", "--all-namespaces").get("items", [])
+    except ValueError:
+        log.debug("clowdapp resource type not found, skipping")
+        all_clowdapps = []
     all_res = get_all_reservations()
 
     # build a list containing the ns data, reservation data, and clowdapp
@@ -274,13 +309,23 @@ def get_namespaces(available=False, mine=False):
     return ephemeral_namespaces
 
 
-def reserve_namespace(name, requester, duration, pool, timeout, local=True, team=None):
+def reserve_namespace(
+    name, requester, duration, pool, timeout, local=True, team=None, secrets_src_namespace=None
+):
     res = get_reservation(name)
     # Name should be unique on reservation creation.
     if res:
         raise FatalError(f"Reservation with name {name} already exists")
 
-    res_config = process_reservation(name, requester, duration, pool, local=local, team=team)
+    res_config = process_reservation(
+        name,
+        requester,
+        duration,
+        pool,
+        local=local,
+        team=team,
+        secrets_src_namespace=secrets_src_namespace,
+    )
 
     log.debug("processed reservation:\n%s", res_config)
 
