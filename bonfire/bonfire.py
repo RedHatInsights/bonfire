@@ -1775,6 +1775,7 @@ def _cmd_deploy_iqe_cji(
     custom_env_vars,
     pool,
     force,
+    secrets_src_namespace,
     defer_status_errors,
 ):
     """Process IQE CJI template, apply it, and wait for it to start running."""
@@ -1784,7 +1785,8 @@ def _cmd_deploy_iqe_cji(
     _namespace = get_namespace_from_context(ctx, namespace, required=True)
 
     namespace, _ = _get_namespace(
-        _namespace, name, requester, team, duration, pool, timeout, local, force
+        _namespace, name, requester, team, duration, pool, timeout, local, force,
+        secrets_src_namespace=secrets_src_namespace,
     )
 
     cji_config = process_iqe_cji(
