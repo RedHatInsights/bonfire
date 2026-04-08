@@ -1785,7 +1785,15 @@ def _cmd_deploy_iqe_cji(
     _namespace = get_namespace_from_context(ctx, namespace, required=True)
 
     namespace, _ = _get_namespace(
-        _namespace, name, requester, team, duration, pool, timeout, local, force,
+        _namespace,
+        name,
+        requester,
+        team,
+        duration,
+        pool,
+        timeout,
+        local,
+        force,
         secrets_src_namespace=secrets_src_namespace,
     )
 
