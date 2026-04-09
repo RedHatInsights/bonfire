@@ -19,6 +19,7 @@ from bonfire.processor import process_reservation
 from bonfire.utils import FatalError, hms_to_seconds
 
 import bonfire_lib.reservations as _lib_reservations
+import bonfire_lib.status as _lib_status
 from bonfire_lib.k8s_client import EphemeralK8sClient
 
 log = logging.getLogger(__name__)
@@ -371,47 +372,23 @@ def extend_namespace(namespace, duration, local=True):
 
 
 def describe_namespace(project_name: str, output: str):
-    ns_data = get_json("namespace", project_name)
-    if not ns_data:
-        raise FatalError(f"namespace '{project_name}' not found")
-    ns = Namespace(namespace_data=ns_data)
-    if not ns.operator_ns:
-        raise FatalError(f"namespace '{project_name}' was not reserved with namespace operator")
+    client = _get_lib_client()
+    try:
+        info = _lib_status.describe_namespace(client, project_name)
+    except _lib_status.FatalError as exc:
+        raise FatalError(str(exc))
 
-    frontends = get_json("frontend", namespace=project_name)
-    clowdapps = get_json("clowdapp", namespace=project_name)
-    num_frontends = len(frontends.get("items", []))
-    num_clowdapps = len(clowdapps.get("items", []))
-    fe_host, keycloak_url = parse_fe_env(project_name)
-    kc_creds = get_keycloak_creds(project_name)
-    project_url = get_console_url()
+    if output == "json":
+        return json.dumps(info, indent=2)
 
     data = f"\nCurrent project: {project_name}\n"
-    ns_url = ""
-    if project_url:
-        ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
-        data += f"Project URL: {ns_url}\n"
-    data += f"Keycloak admin route: {keycloak_url}\n"
-    data += f"Keycloak admin login: {kc_creds['username']} | {kc_creds['password']}\n"
-    data += f"{num_clowdapps} ClowdApp(s), {num_frontends} Frontend(s) deployed\n"
-    data += f"Gateway route: https://{fe_host}\n"
-    data += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
-    if output == "json":
-        data = {
-            "namespace": project_name,
-            "keycloak_admin_route": keycloak_url,
-            "keycloak_admin_username": kc_creds["username"],
-            "keycloak_admin_password": kc_creds["password"],
-            "clowdapps_deployed": num_clowdapps,
-            "frontends_deployed": num_frontends,
-            "default_username": kc_creds["defaultUsername"],
-            "default_password": kc_creds["defaultPassword"],
-            "gateway_route": f"https://{fe_host}",
-        }
-        if ns_url:
-            data["console_namespace_route"] = ns_url
-        data = json.dumps(data, indent=2)
-
+    if info.get("console_namespace_route"):
+        data += f"Project URL: {info['console_namespace_route']}\n"
+    data += f"Keycloak admin route: {info['keycloak_admin_route']}\n"
+    data += f"Keycloak admin login: {info['keycloak_admin_username']} | {info['keycloak_admin_password']}\n"
+    data += f"{info['clowdapps_deployed']} ClowdApp(s), {info['frontends_deployed']} Frontend(s) deployed\n"
+    data += f"Gateway route: {info['gateway_route']}\n"
+    data += f"Default user login: {info['default_username']} | {info['default_password']}\n"
     return data
 
 

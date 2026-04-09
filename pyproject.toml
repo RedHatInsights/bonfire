@@ -79,3 +79,9 @@ Homepage = "https://www.github.com/RedHatInsights/bonfire"
 line-length = 100
 indent-width = 4
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: integration tests requiring a live K8s cluster (deselected by default)",
+]
+addopts = "-m 'not integration'"
+

@@ -309,21 +309,24 @@ def test_pool_list_command(mocker, caplog):
     assert output == fake_pools
 
 
-default_kc = {
-    "username": "admin",
-    "password": "adminPassword",
-    "defaultUsername": "jdoe",
-    "defaultPassword": "password",
-}
 eph_test_route = "env-ephemeral-blah-howdy.apps.c-rh-c-eph.8p0c.p1.openshiftapps.com"
+
+_describe_cli_output = (
+    "\nCurrent project: ephemeral-blah\n"
+    "Project URL: yes.redhat.com/k8s/cluster/projects/ephemeral-blah\n"
+    "Keycloak admin route: foo\n"
+    "Keycloak admin login: admin | adminPassword\n"
+    "0 ClowdApp(s), 0 Frontend(s) deployed\n"
+    f"Gateway route: https://{eph_test_route}\n"
+    "Default user login: jdoe | password\n"
+)
 
 
 def test_describe_ephemeral_ns(mocker):
-    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
-    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
-    mocker.patch("bonfire.namespaces.get_json")
-    mocker.patch("bonfire.namespaces.Namespace")
+    mocker.patch(
+        "bonfire.bonfire.describe_namespace",
+        return_value=_describe_cli_output,
+    )
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-blah"])
     print(result.output)
@@ -334,14 +337,12 @@ def test_describe_ephemeral_ns(mocker):
 
 
 def test_describe_ephemeral_ns_from_ctx(mocker):
-    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
-    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
-    mocker.patch("bonfire.namespaces.get_json")
-    mocker.patch("bonfire.namespaces.Namespace")
+    mocker.patch(
+        "bonfire.bonfire.describe_namespace",
+        return_value=_describe_cli_output,
+    )
     mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value="ephemeral-blah")
     runner = CliRunner()
-    # Simulate the context that `main` sets up when no --namespace is passed
     result = runner.invoke(bonfire.namespace, ["describe"], obj={"namespace": None})
     print("result.output", result.output)
 
@@ -351,10 +352,10 @@ def test_describe_ephemeral_ns_from_ctx(mocker):
 
 
 def test_describe_default_ns(mocker):
-    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
-    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
-    mocker.patch("bonfire.namespaces.get_json")
+    mocker.patch(
+        "bonfire.bonfire.describe_namespace",
+        side_effect=FatalError("namespace 'default' was not reserved with namespace operator"),
+    )
     runner = CliRunner()
     try:
         result = runner.invoke(bonfire.namespace, ["describe", "default"])
@@ -364,7 +365,10 @@ def test_describe_default_ns(mocker):
 
 
 def test_describe_wrong_ns(mocker):
-    mocker.patch("bonfire.namespaces.get_json", return_value=None)
+    mocker.patch(
+        "bonfire.bonfire.describe_namespace",
+        side_effect=FatalError("namespace 'ephemeral-memes' not found"),
+    )
     runner = CliRunner()
     try:
         result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-memes"])
