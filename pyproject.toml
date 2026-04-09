@@ -46,12 +46,13 @@ dependencies = [
 
 [project.scripts]
 bonfire = "bonfire.bonfire:main_with_handler"
+bonfire-mcp = "bonfire_mcp.server:main"
 
 [tool.setuptools_scm]
 
 [tool.setuptools.packages.find]
 # package names should match these glob patterns (["*"] by default)
-include = ["bonfire*"]
+include = ["bonfire*", "bonfire_lib*", "bonfire_mcp*"]
 # exclude packages matching these glob patterns (empty by default)
 exclude = ["tests*"]
 # to disable scanning PEP 420 namespaces (true by default)
@@ -62,7 +63,14 @@ test = [
     "mock",
     "pytest",
     "pytest-mock",
-    "requests-mock"
+    "requests-mock",
+]
+lib = [
+    "kubernetes>=29.0.0",
+    "jinja2>=3.1.0",
+]
+mcp = [
+    "mcp>=1.0.0",
 ]
 
 [project.urls]
