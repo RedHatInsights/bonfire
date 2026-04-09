@@ -42,6 +42,8 @@ dependencies = [
     "wait-for",
     "packaging",
     "truststore",
+    "kubernetes>=29.0.0",
+    "jinja2>=3.1.0",
 ]
 
 [project.scripts]
@@ -62,12 +64,9 @@ namespaces = false
 test = [
     "mock",
     "pytest",
+    "pytest-asyncio",
     "pytest-mock",
     "requests-mock",
-]
-lib = [
-    "kubernetes>=29.0.0",
-    "jinja2>=3.1.0",
 ]
 mcp = [
     "mcp>=1.0.0",
