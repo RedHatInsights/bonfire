@@ -58,6 +58,8 @@ def load_k8s_client() -> EphemeralK8sClient:
 def _preflight_check(client: EphemeralK8sClient) -> None:
     """Verify the client can reach the cluster and CRDs exist.
 
+    Checks both NamespacePool and NamespaceReservation CRD access.
+
     Raises:
         RuntimeError: If the cluster is unreachable or CRDs are missing.
     """
@@ -79,4 +81,18 @@ def _preflight_check(client: EphemeralK8sClient) -> None:
         raise RuntimeError(
             f"Failed to connect to the management cluster: {e}. "
             "Check network connectivity, K8S_SERVER, or KUBECONFIG."
+        ) from e
+
+    try:
+        client.list_reservations()
+        log.info("preflight check passed: NamespaceReservation CRD accessible")
+    except Exception as e:
+        error_msg = str(e)
+        if "404" in error_msg or "not found" in error_msg.lower():
+            raise RuntimeError(
+                "NamespaceReservation CRD not found on cluster. "
+                "Is the Ephemeral Namespace Operator installed?"
+            ) from e
+        raise RuntimeError(
+            f"NamespaceReservation CRD access check failed: {e}"
         ) from e

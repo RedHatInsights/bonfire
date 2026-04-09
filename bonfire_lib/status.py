@@ -74,6 +74,24 @@ def list_reservations(
     return result
 
 
+def get_reservation_summary(res: dict) -> dict:
+    """Extract a structured summary from a raw reservation dict.
+
+    Avoids duplicating extraction logic across callers.
+    """
+    status = res.get("status", {})
+    spec = res.get("spec", {})
+    return {
+        "name": res["metadata"]["name"],
+        "namespace": status.get("namespace", ""),
+        "state": status.get("state", ""),
+        "expiration": status.get("expiration", ""),
+        "requester": spec.get("requester", ""),
+        "pool": spec.get("pool", "default"),
+        "duration": spec.get("duration", ""),
+    }
+
+
 def wait_on_reservation(
     client: EphemeralK8sClient,
     name: str,

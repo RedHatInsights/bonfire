@@ -36,7 +36,8 @@ class TestHmsToSeconds:
         assert hms_to_seconds("1h0m30s") == 3630
 
     def test_empty_string(self):
-        assert hms_to_seconds("") == 0
+        with pytest.raises(ValueError):
+            hms_to_seconds("")
 
     def test_zero(self):
         assert hms_to_seconds("0s") == 0

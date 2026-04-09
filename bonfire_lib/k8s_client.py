@@ -4,6 +4,7 @@ Uses the kubernetes Python client directly (no ocviapy/oc dependency).
 Supports three auth modes: explicit server+token, in-cluster, kubeconfig.
 """
 
+import atexit
 import base64
 import logging
 import os
@@ -44,7 +45,9 @@ class EphemeralK8sClient:
         ca_data: str | None = None,
         skip_tls: bool = False,
     ):
+        self._auth_mode = "kubeconfig"
         if server and token:
+            self._auth_mode = "token"
             configuration = client.Configuration()
             configuration.host = server
             configuration.api_key = {"authorization": f"Bearer {token}"}
@@ -55,8 +58,10 @@ class EphemeralK8sClient:
                 ca_file.write(base64.b64decode(ca_data))
                 ca_file.close()
                 configuration.ssl_ca_cert = ca_file.name
+                atexit.register(os.unlink, ca_file.name)
             self._api_client = client.ApiClient(configuration)
         elif self._is_in_cluster():
+            self._auth_mode = "in-cluster"
             config.load_incluster_config()
             self._api_client = client.ApiClient()
         else:
@@ -250,20 +255,23 @@ class EphemeralK8sClient:
     def whoami(self) -> str:
         """Get the current authenticated user identity.
 
-        Tries kubeconfig user info first, then TokenReview for in-cluster/token auth.
+        For token auth: uses TokenReview to resolve the token's identity.
+        For kubeconfig auth: reads the user from the active context.
+        For in-cluster auth: uses TokenReview with the service account token.
         Falls back to 'unknown' if identity cannot be determined.
 
         The returned name is sanitized for use as a K8s label value:
         '@' -> '_at_', ':' -> '_'
         """
-        try:
-            _, active_context = config.list_kube_config_contexts()
-            if active_context:
-                user = active_context.get("context", {}).get("user", "")
-                if user:
-                    return _sanitize_username(user)
-        except config.ConfigException:
-            pass
+        if self._auth_mode == "kubeconfig":
+            try:
+                _, active_context = config.list_kube_config_contexts()
+                if active_context:
+                    user = active_context.get("context", {}).get("user", "")
+                    if user:
+                        return _sanitize_username(user)
+            except config.ConfigException:
+                pass
 
         try:
             auth_v1 = client.AuthenticationV1Api(self._api_client)

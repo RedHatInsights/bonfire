@@ -5,6 +5,7 @@ as MCP tools usable by any MCP-compatible AI agent. Supports both
 namespace and cluster resource types with polymorphic dispatch.
 """
 
+import asyncio
 import logging
 
 from mcp.server import Server
@@ -12,7 +13,7 @@ from mcp.types import TextContent, Tool
 
 from bonfire_lib.config import Settings
 from bonfire_lib.k8s_client import EphemeralK8sClient
-from bonfire_lib.utils import FatalError, validate_dns_name
+from bonfire_lib.utils import FatalError, validate_dns_name, validate_time_string
 import bonfire_lib.reservations as reservations
 import bonfire_lib.clusters as clusters
 import bonfire_lib.pools as pools
@@ -306,23 +307,30 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             if res_name:
                 validate_dns_name(res_name)
 
+            duration = arguments.get("duration")
+            if duration:
+                validate_time_string(duration)
+
+            settings = _get_settings()
+
             if resource_type == "cluster":
                 result = clusters.reserve_cluster(
                     client,
                     name=res_name,
-                    duration=arguments.get("duration", "4h"),
+                    duration=duration or "4h",
                     requester=arguments.get("requester"),
                     pool=arguments.get("pool", "rosa-default"),
                     team=arguments.get("team"),
                 )
                 return [TextContent(type="text", text=format_cluster_reservation(result))]
             else:
-                result = reservations.reserve(
+                result = await asyncio.to_thread(
+                    reservations.reserve,
                     client,
                     name=res_name,
-                    duration=arguments.get("duration", "1h"),
+                    duration=duration or settings.default_reservation_duration,
                     requester=arguments.get("requester"),
-                    pool=arguments.get("pool", "default"),
+                    pool=arguments.get("pool", settings.default_namespace_pool),
                     team=arguments.get("team"),
                     timeout=arguments.get("timeout", 600),
                 )
@@ -355,14 +363,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                         text=f"No reservation found for "
                         f"{'name=' + res_name if res_name else 'namespace=' + namespace}.",
                     )]
-                result = {
-                    "name": res["metadata"]["name"],
-                    "namespace": res.get("status", {}).get("namespace", ""),
-                    "state": res.get("status", {}).get("state", ""),
-                    "expiration": res.get("status", {}).get("expiration", ""),
-                    "requester": res.get("spec", {}).get("requester", ""),
-                    "pool": res.get("spec", {}).get("pool", "default"),
-                }
+                result = status.get_reservation_summary(res)
                 return [TextContent(type="text", text=format_reservation(result))]
 
         elif name == "ephemeral_extend":
@@ -422,16 +423,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
     except FatalError as e:
-        return [TextContent(type="text", text=f"Error: {e}")]
+        return [TextContent(type="text", text=f"Error: {e}", isError=True)]
     except TimeoutError as e:
-        return [TextContent(type="text", text=f"Timeout: {e}")]
+        return [TextContent(type="text", text=f"Timeout: {e}", isError=True)]
     except ValueError as e:
-        return [TextContent(type="text", text=f"Validation error: {e}")]
+        return [TextContent(type="text", text=f"Validation error: {e}", isError=True)]
     except RuntimeError as e:
-        return [TextContent(type="text", text=f"Connection error: {e}")]
+        return [TextContent(type="text", text=f"Connection error: {e}", isError=True)]
     except Exception as e:
         log.exception("unexpected error in tool %s", name)
-        return [TextContent(type="text", text=f"Unexpected error: {e}")]
+        return [TextContent(type="text", text=f"Unexpected error: {e}", isError=True)]
 
 
 def _list_cluster_reservations(client: EphemeralK8sClient, requester: str | None) -> list[dict]:

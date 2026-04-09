@@ -100,10 +100,19 @@ class TestNamespaceToolDispatch:
     @pytest.mark.asyncio
     async def test_status_by_name(self):
         with patch("bonfire_mcp.server.status") as mock_status:
-            mock_status.get_reservation.return_value = {
+            raw_res = {
                 "metadata": {"name": "my-res"},
                 "spec": {"requester": "user", "pool": "default"},
                 "status": {"state": "active", "namespace": "ns-1", "expiration": "2026-04-09T13:00:00Z"},
+            }
+            mock_status.get_reservation.return_value = raw_res
+            mock_status.get_reservation_summary.return_value = {
+                "name": "my-res",
+                "namespace": "ns-1",
+                "state": "active",
+                "expiration": "2026-04-09T13:00:00Z",
+                "requester": "user",
+                "pool": "default",
             }
             result = await call_tool("ephemeral_status", {"name": "my-res"})
             assert "my-res" in result[0].text

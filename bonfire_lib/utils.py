@@ -27,18 +27,24 @@ def validate_dns_name(name: str) -> str:
 
 
 def hms_to_seconds(s: str) -> int:
-    """Convert a duration string (e.g., '1h30m', '45m', '3600s') to seconds."""
+    """Convert a duration string (e.g., '1h30m', '45m', '3600s') to seconds.
+
+    Raises ValueError for empty or invalid strings.
+    """
+    if not s:
+        raise ValueError("duration string cannot be empty")
     fmt = r"^(?:(?P<hours>\d+)h)?(?:(?P<minutes>\d+)m)?(?:(?P<seconds>\d+)s)?$"
     split = re.match(fmt, s)
+    if not split or not any(split.groupdict().values()):
+        raise ValueError(f"invalid duration format: '{s}'")
     seconds = 0
-    if split:
-        parts = split.groupdict()
-        if parts["hours"]:
-            seconds += int(parts["hours"]) * 3600
-        if parts["minutes"]:
-            seconds += int(parts["minutes"]) * 60
-        if parts["seconds"]:
-            seconds += int(parts["seconds"])
+    parts = split.groupdict()
+    if parts["hours"]:
+        seconds += int(parts["hours"]) * 3600
+    if parts["minutes"]:
+        seconds += int(parts["minutes"]) * 60
+    if parts["seconds"]:
+        seconds += int(parts["seconds"])
     return seconds
 
 
