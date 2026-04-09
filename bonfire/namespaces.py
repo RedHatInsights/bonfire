@@ -18,7 +18,15 @@ from bonfire.openshift import (
 from bonfire.processor import process_reservation
 from bonfire.utils import FatalError, hms_to_seconds
 
+import bonfire_lib.reservations as _lib_reservations
+from bonfire_lib.k8s_client import EphemeralK8sClient
+
 log = logging.getLogger(__name__)
+
+
+def _get_lib_client() -> EphemeralK8sClient:
+    """Create an EphemeralK8sClient from the current kubeconfig context."""
+    return EphemeralK8sClient()
 
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -312,49 +320,27 @@ def get_namespaces(available=False, mine=False):
 def reserve_namespace(
     name, requester, duration, pool, timeout, local=True, team=None, secrets_src_namespace=None
 ):
-    res = get_reservation(name)
-    # Name should be unique on reservation creation.
-    if res:
-        raise FatalError(f"Reservation with name {name} already exists")
-
-    res_config = process_reservation(
-        name,
-        requester,
-        duration,
-        pool,
-        local=local,
-        team=team,
-        secrets_src_namespace=secrets_src_namespace,
-    )
-
-    log.debug("processed reservation:\n%s", res_config)
+    client = _get_lib_client()
 
     try:
-        res_name = res_config["items"][0]["metadata"]["name"]
-    except (KeyError, IndexError):
-        raise Exception(
-            "error parsing name of Reservation from processed template, check Reservation template"
+        result = _lib_reservations.reserve(
+            client,
+            name=name,
+            duration=duration,
+            requester=requester,
+            pool=pool,
+            team=team,
+            secrets_src_namespace=secrets_src_namespace,
+            timeout=timeout,
         )
+    except _lib_reservations.FatalError as exc:
+        raise FatalError(str(exc))
+    except TimeoutError:
+        raise TimedOutError("timed out waiting for namespace")
 
-    apply_config(None, list_resource=res_config)
-
-    try:
-        ns_name = wait_on_reservation(res_name, timeout)
-    except TimedOutError:
-        log.info("timeout waiting for namespace. Cancelling reservation.")
-        release_reservation(name=res_name)
-        raise
-
-    log.info(
-        "namespace '%s' is reserved by '%s' for '%s' from the %s pool",
-        ns_name,
-        requester,
-        duration,
-        pool,
-    )
+    ns_name = result["namespace"]
 
     if not conf.BONFIRE_BOT:
-        # set reserved namespace as current
         set_current_namespace(ns_name)
 
     url = get_console_url()
@@ -366,53 +352,21 @@ def reserve_namespace(
 
 
 def release_reservation(name=None, namespace=None, local=True):
-    res = get_reservation(name=name, namespace=namespace)
-    if res:
-        res_name = res["metadata"]["name"]
-        res_config = process_reservation(
-            res["metadata"]["name"],
-            res["spec"]["requester"],
-            "0s",  # on release set duration to 0s
-            pool=res["spec"].get("pool"),
-            local=local,
-        )
-
-        apply_config(None, list_resource=res_config)
-        msg = f"releasing reservation '{res_name}'"
-        if namespace:
-            msg += f" namespace '{namespace}'"
-        log.info(msg)
-    else:
-        raise FatalError("Reservation lookup failed")
+    client = _get_lib_client()
+    try:
+        _lib_reservations.release(client, name=name, namespace=namespace)
+    except _lib_reservations.FatalError as exc:
+        raise FatalError(str(exc))
 
 
 def extend_namespace(namespace, duration, local=True):
-    res = get_reservation(namespace=namespace)
-    if res:
-        if res.get("status", {}).get("state") == "expired":
-            log.error(
-                "The reservation for namespace %s has expired. Please reserve a new namespace",
-                res["status"]["namespace"],
-            )
-            return None
-
-        prev_duration = hms_to_seconds(res["spec"]["duration"])
-        new_duration = prev_duration + hms_to_seconds(duration)
-
-        res_config = process_reservation(
-            res["metadata"]["name"],
-            res["spec"]["requester"],
-            _duration_fmt(new_duration),
-            pool=res["spec"].get("pool"),
-            local=local,
-        )
-
-        log.debug("processed reservation:\n%s", res_config)
-
-        apply_config(None, list_resource=res_config)
-    else:
-        raise FatalError("Reservation lookup failed")
-
+    client = _get_lib_client()
+    try:
+        result = _lib_reservations.extend(client, namespace=namespace, duration=duration)
+    except _lib_reservations.FatalError as exc:
+        raise FatalError(str(exc))
+    if result is None:
+        return None
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
 
 
