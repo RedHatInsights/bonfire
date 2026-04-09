@@ -129,6 +129,57 @@ class EphemeralK8sClient:
                 return None
             raise
 
+    # --- ClusterReservation operations ---
+
+    def create_cluster_reservation(self, body: dict) -> dict:
+        """Create a ClusterReservation CR."""
+        resource = self._get_resource("ClusterReservation")
+        return resource.create(body=body).to_dict()
+
+    def get_cluster_reservation(self, name: str) -> dict | None:
+        """Get a ClusterReservation by name. Returns None if not found."""
+        resource = self._get_resource("ClusterReservation")
+        try:
+            return resource.get(name=name).to_dict()
+        except ApiException as e:
+            if e.status == 404:
+                return None
+            raise
+
+    def list_cluster_reservations(self, label_selector: str | None = None) -> list[dict]:
+        """List all ClusterReservation CRs."""
+        resource = self._get_resource("ClusterReservation")
+        kwargs = {}
+        if label_selector:
+            kwargs["label_selector"] = label_selector
+        return [item.to_dict() for item in resource.get(**kwargs).items]
+
+    def patch_cluster_reservation(self, name: str, body: dict) -> dict:
+        """Patch a ClusterReservation CR (merge patch)."""
+        resource = self._get_resource("ClusterReservation")
+        return resource.patch(
+            name=name,
+            body=body,
+            content_type="application/merge-patch+json",
+        ).to_dict()
+
+    # --- ClusterPool operations ---
+
+    def list_cluster_pools(self) -> list[dict]:
+        """List all ClusterPool CRs."""
+        resource = self._get_resource("ClusterPool")
+        return [item.to_dict() for item in resource.get().items]
+
+    def get_cluster_pool(self, name: str) -> dict | None:
+        """Get a ClusterPool by name."""
+        resource = self._get_resource("ClusterPool")
+        try:
+            return resource.get(name=name).to_dict()
+        except ApiException as e:
+            if e.status == 404:
+                return None
+            raise
+
     # --- Namespace operations (via CoreV1Api) ---
 
     def get_namespace(self, name: str) -> dict | None:

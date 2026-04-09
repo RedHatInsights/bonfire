@@ -62,3 +62,45 @@ def get_pool_capacity(client: EphemeralK8sClient, pool_name: str) -> dict | None
         "creating": status.get("creating", 0),
         "reserved": status.get("reserved", 0),
     }
+
+
+def list_cluster_pools(client: EphemeralK8sClient) -> list[dict]:
+    """List all cluster pools with capacity stats.
+
+    Returns:
+        List of dicts with cluster pool info. Returns empty list
+        if ClusterPool CRD is not installed on the cluster.
+    """
+    try:
+        pools = client.list_cluster_pools()
+    except Exception:
+        log.debug("ClusterPool CRD not available, skipping cluster pools")
+        return []
+
+    result = []
+    for pool in pools:
+        spec = pool.get("spec", {})
+        status = pool.get("status", {})
+        result.append({
+            "name": pool["metadata"]["name"],
+            "type": "cluster",
+            "description": spec.get("description", ""),
+            "size": spec.get("size", 0),
+            "size_limit": spec.get("sizeLimit", 0),
+            "ready": status.get("ready", 0),
+            "provisioning": status.get("provisioning", 0),
+            "reserved": status.get("reserved", 0),
+        })
+    return result
+
+
+def list_all_pools(client: EphemeralK8sClient) -> dict:
+    """List both namespace pools and cluster pools.
+
+    Returns:
+        dict with "namespace_pools" and "cluster_pools" keys.
+    """
+    return {
+        "namespace_pools": list_pools(client),
+        "cluster_pools": list_cluster_pools(client),
+    }

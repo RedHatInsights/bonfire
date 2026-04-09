@@ -89,3 +89,22 @@ def render_cji(
         ibutsu_source=ibutsu_source,
     )
     return yaml.safe_load(rendered)
+
+
+def render_cluster_reservation(
+    name: str,
+    duration: str,
+    requester: str,
+    pool: str = "rosa-default",
+    team: str | None = None,
+) -> dict:
+    """Render a ClusterReservation CR as a Python dict."""
+    template = _env.get_template("clusterreservation.yaml.j2")
+    rendered = template.render(
+        name=name,
+        duration=duration,
+        requester=requester,
+        pool=pool,
+        team=team,
+    )
+    return yaml.safe_load(rendered)

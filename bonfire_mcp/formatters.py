@@ -105,7 +105,7 @@ def format_describe(info: dict) -> str:
 def format_release(result: dict) -> str:
     """Format a release result."""
     name = result.get("name", "unknown")
-    return f"Reservation '{name}' released. Namespace will be reclaimed within ~10 seconds."
+    return f"Reservation '{name}' released. Resource will be reclaimed by the operator."
 
 
 def format_extend(result: dict) -> str:
@@ -113,3 +113,59 @@ def format_extend(result: dict) -> str:
     name = result.get("name", "unknown")
     new_duration = result.get("new_duration", "unknown")
     return f"Reservation '{name}' extended. New total duration: {new_duration}."
+
+
+def format_cluster_reservation(reservation: dict) -> str:
+    """Format a cluster reservation dict for MCP responses."""
+    name = reservation.get("name", "unknown")
+    state = reservation.get("state", "unknown")
+    cluster_name = reservation.get("cluster_name", "")
+    console_url = reservation.get("console_url", "")
+    requester = reservation.get("requester", "")
+    pool = reservation.get("pool", "rosa-default")
+    expiration = reservation.get("expiration", "")
+    created = reservation.get("created", "")
+
+    lines = [
+        f"Cluster Reservation: {name}",
+        f"  State: {state}",
+        f"  Pool: {pool}",
+        f"  Requester: {requester}",
+    ]
+    if cluster_name:
+        lines.append(f"  Cluster: {cluster_name}")
+    if console_url:
+        lines.append(f"  Console: {console_url}")
+    if expiration:
+        lines.append(f"  Expiration: {expiration}")
+    if state in ("waiting", "provisioning") and not cluster_name:
+        lines.append("  Note: Poll with ephemeral_status(name='%s', type='cluster') to track progress." % name)
+    return "\n".join(lines)
+
+
+def format_cluster_pool_list(pools: list[dict]) -> str:
+    """Format a list of cluster pool dicts as a readable table."""
+    if not pools:
+        return "No cluster pools found."
+
+    lines = ["Cluster Pools:", ""]
+    header = (
+        f"  {'Name':<25} {'Ready':>5} {'Provisioning':>12} "
+        f"{'Reserved':>8} {'Size':>4} {'Limit':>5}"
+    )
+    lines.append(header)
+    lines.append("  " + "-" * (len(header) - 2))
+
+    for pool in pools:
+        lines.append(
+            f"  {pool['name']:<25} {pool.get('ready', 0):>5} "
+            f"{pool.get('provisioning', 0):>12} {pool.get('reserved', 0):>8} "
+            f"{pool.get('size', 0):>4} {pool.get('size_limit', 0):>5}"
+        )
+
+    return "\n".join(lines)
+
+
+def format_kubeconfig(name: str, kubeconfig: str) -> str:
+    """Format a kubeconfig response."""
+    return f"Kubeconfig for cluster reservation '{name}':\n\n{kubeconfig}"

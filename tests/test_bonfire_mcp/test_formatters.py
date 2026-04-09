@@ -1,8 +1,11 @@
 """Tests for bonfire_mcp.formatters module."""
 
 from bonfire_mcp.formatters import (
+    format_cluster_pool_list,
+    format_cluster_reservation,
     format_describe,
     format_extend,
+    format_kubeconfig,
     format_pool_list,
     format_release,
     format_reservation,
@@ -123,3 +126,67 @@ class TestFormatExtend:
         result = format_extend({"name": "my-res", "new_duration": "2h0m0s"})
         assert "my-res" in result
         assert "2h0m0s" in result
+
+
+class TestFormatClusterReservation:
+    def test_waiting(self):
+        result = format_cluster_reservation({
+            "name": "my-rosa",
+            "state": "waiting",
+            "requester": "user",
+            "pool": "rosa-default",
+        })
+        assert "my-rosa" in result
+        assert "waiting" in result
+        assert "Poll with" in result
+
+    def test_provisioning(self):
+        result = format_cluster_reservation({
+            "name": "my-rosa",
+            "state": "provisioning",
+            "requester": "user",
+            "pool": "rosa-default",
+        })
+        assert "provisioning" in result
+        assert "Poll with" in result
+
+    def test_active(self):
+        result = format_cluster_reservation({
+            "name": "my-rosa",
+            "state": "active",
+            "cluster_name": "rosa-abc123",
+            "console_url": "https://console.apps.rosa-abc123.example.com",
+            "requester": "user",
+            "pool": "rosa-default",
+            "expiration": "2026-04-09T16:00:00Z",
+        })
+        assert "active" in result
+        assert "rosa-abc123" in result
+        assert "https://console" in result
+        assert "Poll with" not in result
+
+
+class TestFormatClusterPoolList:
+    def test_empty(self):
+        assert "No cluster pools" in format_cluster_pool_list([])
+
+    def test_with_pools(self):
+        result = format_cluster_pool_list([
+            {
+                "name": "rosa-default",
+                "ready": 2,
+                "provisioning": 1,
+                "reserved": 1,
+                "size": 3,
+                "size_limit": 5,
+            },
+        ])
+        assert "rosa-default" in result
+        assert "Cluster Pools" in result
+
+
+class TestFormatKubeconfig:
+    def test_kubeconfig(self):
+        result = format_kubeconfig("my-rosa", "apiVersion: v1\nclusters: []")
+        assert "my-rosa" in result
+        assert "apiVersion: v1" in result
