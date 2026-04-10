@@ -1,11 +1,18 @@
 """Tests for bonfire_mcp.auth module."""
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+from kubernetes.client import ApiException
 
 from bonfire_mcp.auth import load_k8s_client, _preflight_check
+
+
+def _make_api_exception(status: int, reason: str = "") -> ApiException:
+    """Create an ApiException with the given HTTP status code."""
+    exc = ApiException(status=status, reason=reason)
+    exc.status = status
+    return exc
 
 
 class TestLoadK8sClient:
@@ -97,22 +104,49 @@ class TestPreflightCheck:
     def test_success(self):
         client = MagicMock()
         client.list_pools.return_value = []
+        client.list_reservations.return_value = []
         _preflight_check(client)
 
-    def test_crd_not_found(self):
+    def test_crd_not_found_404(self):
         client = MagicMock()
-        client.list_pools.side_effect = Exception("404 not found")
-        with pytest.raises(RuntimeError, match="NamespacePool CRD not found"):
+        client.list_pools.side_effect = _make_api_exception(404, "Not Found")
+        with pytest.raises(RuntimeError, match="CRD not found.*404"):
             _preflight_check(client)
 
-    def test_auth_failure(self):
+    def test_auth_failure_401(self):
         client = MagicMock()
-        client.list_pools.side_effect = Exception("401 Unauthorized")
-        with pytest.raises(RuntimeError, match="authentication failed"):
+        client.list_pools.side_effect = _make_api_exception(401, "Unauthorized")
+        with pytest.raises(RuntimeError, match="authentication failed.*401"):
+            _preflight_check(client)
+
+    def test_forbidden_403_warns_but_continues(self):
+        client = MagicMock()
+        client.list_pools.side_effect = _make_api_exception(403, "Forbidden")
+        client.list_reservations.side_effect = _make_api_exception(403, "Forbidden")
+        _preflight_check(client)
+
+    def test_forbidden_403_on_pools_still_checks_reservations(self):
+        client = MagicMock()
+        client.list_pools.side_effect = _make_api_exception(403, "Forbidden")
+        client.list_reservations.return_value = []
+        _preflight_check(client)
+        client.list_reservations.assert_called_once()
+
+    def test_reservation_crd_not_found(self):
+        client = MagicMock()
+        client.list_pools.return_value = []
+        client.list_reservations.side_effect = _make_api_exception(404, "Not Found")
+        with pytest.raises(RuntimeError, match="NamespaceReservation CRD not found"):
             _preflight_check(client)
 
     def test_connection_failure(self):
         client = MagicMock()
-        client.list_pools.side_effect = Exception("Connection refused")
+        client.list_pools.side_effect = ConnectionError("Connection refused")
         with pytest.raises(RuntimeError, match="Failed to connect"):
+            _preflight_check(client)
+
+    def test_unexpected_api_error(self):
+        client = MagicMock()
+        client.list_pools.side_effect = _make_api_exception(500, "Internal Server Error")
+        with pytest.raises(RuntimeError, match="Unexpected error.*500"):
             _preflight_check(client)

@@ -1,8 +1,6 @@
 from unittest.mock import patch, MagicMock
 
-import pytest
-
-from bonfire_lib.k8s_client import EphemeralK8sClient, _sanitize_username
+from bonfire_lib.k8s_client import EphemeralK8sClient, _sanitize_username, _extract_username
 
 
 class TestSanitizeUsername:
@@ -17,6 +15,23 @@ class TestSanitizeUsername:
 
     def test_no_change(self):
         assert _sanitize_username("plainuser") == "plainuser"
+
+
+class TestExtractUsername:
+    def test_with_cluster_url(self):
+        assert _extract_username("gbuchana/api-crc-eph-r9lp-p1-openshiftapps-com:6443") == "gbuchana"
+
+    def test_with_simple_url(self):
+        assert _extract_username("admin/api.example.com:6443") == "admin"
+
+    def test_plain_username(self):
+        assert _extract_username("gbuchana") == "gbuchana"
+
+    def test_email_style(self):
+        assert _extract_username("user@redhat.com") == "user@redhat.com"
+
+    def test_multiple_slashes(self):
+        assert _extract_username("user/host/extra") == "user"
 
 
 class TestAuthModeSelection:
@@ -40,7 +55,7 @@ class TestAuthModeSelection:
         mock_client_module.ApiClient.return_value = mock_api_client
         mock_client_module.CoreV1Api.return_value = MagicMock()
 
-        k8s = EphemeralK8sClient()
+        EphemeralK8sClient()
         mock_config.load_incluster_config.assert_called_once()
 
     @patch("bonfire_lib.k8s_client.DynamicClient")
@@ -52,7 +67,7 @@ class TestAuthModeSelection:
         mock_client_module.ApiClient.return_value = mock_api_client
         mock_client_module.CoreV1Api.return_value = MagicMock()
 
-        k8s = EphemeralK8sClient(kubeconfig_path="/tmp/kubeconfig", context="mycontext")
+        EphemeralK8sClient(kubeconfig_path="/tmp/kubeconfig", context="mycontext")
         mock_config.load_kube_config.assert_called_once_with(
             config_file="/tmp/kubeconfig",
             context="mycontext",

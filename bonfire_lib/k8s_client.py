@@ -18,6 +18,9 @@ log = logging.getLogger(__name__)
 
 CRD_API_VERSION = "cloud.redhat.com/v1alpha1"
 
+DEFAULT_READ_TIMEOUT = 30
+DEFAULT_WRITE_TIMEOUT = 60
+
 
 def _sanitize_username(name: str) -> str:
     """Sanitize a username for use as a K8s label value.
@@ -25,6 +28,18 @@ def _sanitize_username(name: str) -> str:
     Matches bonfire's existing sanitization in openshift.py:whoami().
     """
     return name.replace("@", "_at_").replace(":", "_")
+
+
+def _extract_username(context_user: str) -> str:
+    """Extract the username from a kubeconfig context user string.
+
+    Kubeconfig context user strings often include the cluster API URL
+    (e.g., 'gbuchana/api-crc-eph-r9lp-p1-openshiftapps-com:6443').
+    This extracts just the username part before the first '/'.
+    """
+    if "/" in context_user:
+        return context_user.split("/")[0]
+    return context_user
 
 
 class EphemeralK8sClient:
@@ -88,13 +103,13 @@ class EphemeralK8sClient:
     def create_reservation(self, body: dict) -> dict:
         """Create a NamespaceReservation CR."""
         resource = self._get_resource("NamespaceReservation")
-        return resource.create(body=body).to_dict()
+        return resource.create(body=body, _request_timeout=DEFAULT_WRITE_TIMEOUT).to_dict()
 
     def get_reservation(self, name: str) -> dict | None:
         """Get a NamespaceReservation by name. Returns None if not found."""
         resource = self._get_resource("NamespaceReservation")
         try:
-            return resource.get(name=name).to_dict()
+            return resource.get(name=name, _request_timeout=DEFAULT_READ_TIMEOUT).to_dict()
         except ApiException as e:
             if e.status == 404:
                 return None
@@ -103,7 +118,7 @@ class EphemeralK8sClient:
     def list_reservations(self, label_selector: str | None = None) -> list[dict]:
         """List all NamespaceReservation CRs."""
         resource = self._get_resource("NamespaceReservation")
-        kwargs = {}
+        kwargs = {"_request_timeout": DEFAULT_READ_TIMEOUT}
         if label_selector:
             kwargs["label_selector"] = label_selector
         return [item.to_dict() for item in resource.get(**kwargs).items]
@@ -115,6 +130,7 @@ class EphemeralK8sClient:
             name=name,
             body=body,
             content_type="application/merge-patch+json",
+            _request_timeout=DEFAULT_WRITE_TIMEOUT,
         ).to_dict()
 
     # --- NamespacePool operations ---
@@ -122,13 +138,13 @@ class EphemeralK8sClient:
     def list_pools(self) -> list[dict]:
         """List all NamespacePool CRs."""
         resource = self._get_resource("NamespacePool")
-        return [item.to_dict() for item in resource.get().items]
+        return [item.to_dict() for item in resource.get(_request_timeout=DEFAULT_READ_TIMEOUT).items]
 
     def get_pool(self, name: str) -> dict | None:
         """Get a NamespacePool by name."""
         resource = self._get_resource("NamespacePool")
         try:
-            return resource.get(name=name).to_dict()
+            return resource.get(name=name, _request_timeout=DEFAULT_READ_TIMEOUT).to_dict()
         except ApiException as e:
             if e.status == 404:
                 return None
@@ -139,13 +155,13 @@ class EphemeralK8sClient:
     def create_cluster_reservation(self, body: dict) -> dict:
         """Create a ClusterReservation CR."""
         resource = self._get_resource("ClusterReservation")
-        return resource.create(body=body).to_dict()
+        return resource.create(body=body, _request_timeout=DEFAULT_WRITE_TIMEOUT).to_dict()
 
     def get_cluster_reservation(self, name: str) -> dict | None:
         """Get a ClusterReservation by name. Returns None if not found."""
         resource = self._get_resource("ClusterReservation")
         try:
-            return resource.get(name=name).to_dict()
+            return resource.get(name=name, _request_timeout=DEFAULT_READ_TIMEOUT).to_dict()
         except ApiException as e:
             if e.status == 404:
                 return None
@@ -154,7 +170,7 @@ class EphemeralK8sClient:
     def list_cluster_reservations(self, label_selector: str | None = None) -> list[dict]:
         """List all ClusterReservation CRs."""
         resource = self._get_resource("ClusterReservation")
-        kwargs = {}
+        kwargs = {"_request_timeout": DEFAULT_READ_TIMEOUT}
         if label_selector:
             kwargs["label_selector"] = label_selector
         return [item.to_dict() for item in resource.get(**kwargs).items]
@@ -166,6 +182,7 @@ class EphemeralK8sClient:
             name=name,
             body=body,
             content_type="application/merge-patch+json",
+            _request_timeout=DEFAULT_WRITE_TIMEOUT,
         ).to_dict()
 
     # --- ClusterPool operations ---
@@ -173,13 +190,13 @@ class EphemeralK8sClient:
     def list_cluster_pools(self) -> list[dict]:
         """List all ClusterPool CRs."""
         resource = self._get_resource("ClusterPool")
-        return [item.to_dict() for item in resource.get().items]
+        return [item.to_dict() for item in resource.get(_request_timeout=DEFAULT_READ_TIMEOUT).items]
 
     def get_cluster_pool(self, name: str) -> dict | None:
         """Get a ClusterPool by name."""
         resource = self._get_resource("ClusterPool")
         try:
-            return resource.get(name=name).to_dict()
+            return resource.get(name=name, _request_timeout=DEFAULT_READ_TIMEOUT).to_dict()
         except ApiException as e:
             if e.status == 404:
                 return None
@@ -190,7 +207,9 @@ class EphemeralK8sClient:
     def get_namespace(self, name: str) -> dict | None:
         """Get a namespace by name."""
         try:
-            return self._core_v1.read_namespace(name=name).to_dict()
+            return self._core_v1.read_namespace(
+                name=name, _request_timeout=DEFAULT_READ_TIMEOUT
+            ).to_dict()
         except ApiException as e:
             if e.status == 404:
                 return None
@@ -200,7 +219,7 @@ class EphemeralK8sClient:
         """Get a ConfigMap by name and namespace."""
         try:
             return self._core_v1.read_namespaced_config_map(
-                name=name, namespace=namespace
+                name=name, namespace=namespace, _request_timeout=DEFAULT_READ_TIMEOUT
             ).to_dict()
         except ApiException as e:
             if e.status == 404:
@@ -211,7 +230,7 @@ class EphemeralK8sClient:
         """Get a Secret by name and namespace."""
         try:
             return self._core_v1.read_namespaced_secret(
-                name=name, namespace=namespace
+                name=name, namespace=namespace, _request_timeout=DEFAULT_READ_TIMEOUT
             ).to_dict()
         except ApiException as e:
             if e.status == 404:
@@ -220,7 +239,7 @@ class EphemeralK8sClient:
 
     def list_namespaces(self, label_selector: str | None = None) -> list[dict]:
         """List namespaces, optionally filtered by label."""
-        kwargs = {}
+        kwargs = {"_request_timeout": DEFAULT_READ_TIMEOUT}
         if label_selector:
             kwargs["label_selector"] = label_selector
         return [
@@ -232,7 +251,7 @@ class EphemeralK8sClient:
     def list_crds(self, kind: str, namespace: str | None = None) -> list[dict]:
         """List CRDs of a given kind, optionally in a namespace."""
         resource = self._get_resource(kind)
-        kwargs = {}
+        kwargs = {"_request_timeout": DEFAULT_READ_TIMEOUT}
         if namespace:
             kwargs["namespace"] = namespace
         return [item.to_dict() for item in resource.get(**kwargs).items]
@@ -241,7 +260,7 @@ class EphemeralK8sClient:
         """Get a single CRD by kind and name."""
         resource = self._get_resource(kind)
         try:
-            kwargs = {"name": name}
+            kwargs = {"name": name, "_request_timeout": DEFAULT_READ_TIMEOUT}
             if namespace:
                 kwargs["namespace"] = namespace
             return resource.get(**kwargs).to_dict()
@@ -269,7 +288,7 @@ class EphemeralK8sClient:
                 if active_context:
                     user = active_context.get("context", {}).get("user", "")
                     if user:
-                        return _sanitize_username(user)
+                        return _sanitize_username(_extract_username(user))
             except config.ConfigException:
                 pass
 
@@ -282,7 +301,8 @@ class EphemeralK8sClient:
                             "authorization", ""
                         ).replace("Bearer ", "")
                     )
-                )
+                ),
+                _request_timeout=DEFAULT_READ_TIMEOUT,
             )
             username = review.status.user.username
             if username:

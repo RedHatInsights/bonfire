@@ -124,7 +124,6 @@ def format_cluster_reservation(reservation: dict) -> str:
     requester = reservation.get("requester", "")
     pool = reservation.get("pool", "rosa-default")
     expiration = reservation.get("expiration", "")
-    created = reservation.get("created", "")
 
     lines = [
         f"Cluster Reservation: {name}",

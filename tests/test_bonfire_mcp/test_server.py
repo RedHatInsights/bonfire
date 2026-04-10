@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from bonfire_mcp.server import app, call_tool, list_tools, TOOLS
+from bonfire_mcp.server import call_tool, list_tools, TOOLS
 
 
 class TestToolDefinitions:

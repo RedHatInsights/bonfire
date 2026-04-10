@@ -9,6 +9,8 @@ Mirrors the auth model of containers/kubernetes-mcp-server:
 import logging
 import os
 
+from kubernetes.client import ApiException
+
 from bonfire_lib.k8s_client import EphemeralK8sClient
 
 log = logging.getLogger(__name__)
@@ -56,43 +58,48 @@ def load_k8s_client() -> EphemeralK8sClient:
 
 
 def _preflight_check(client: EphemeralK8sClient) -> None:
-    """Verify the client can reach the cluster and CRDs exist.
+    """Verify the client can reach the cluster and CRDs are accessible.
 
-    Checks both NamespacePool and NamespaceReservation CRD access.
+    Checks NamespacePool and NamespaceReservation CRD access. A 403 (Forbidden)
+    is treated as a warning — the user is authenticated but may lack permissions
+    for some operations. A 401 (Unauthorized) or connection failure is fatal.
 
     Raises:
-        RuntimeError: If the cluster is unreachable or CRDs are missing.
+        RuntimeError: If the cluster is unreachable, auth is invalid, or CRDs
+            don't exist on the cluster (404).
     """
-    try:
-        client.list_pools()
-        log.info("preflight check passed: NamespacePool CRD accessible")
-    except Exception as e:
-        error_msg = str(e)
-        if "404" in error_msg or "not found" in error_msg.lower():
+    for crd_name, check_fn in [
+        ("NamespacePool", client.list_pools),
+        ("NamespaceReservation", client.list_reservations),
+    ]:
+        try:
+            check_fn()
+            log.info("preflight check passed: %s CRD accessible", crd_name)
+        except ApiException as e:
+            if e.status == 401:
+                raise RuntimeError(
+                    "K8s authentication failed (401 Unauthorized). "
+                    "Check your K8S_TOKEN, kubeconfig, or service account credentials."
+                ) from e
+            if e.status == 403:
+                log.warning(
+                    "preflight: %s CRD access denied (403 Forbidden). "
+                    "Some operations may fail. Verify your RBAC permissions "
+                    "include the 'ephemeral-namespace-operator-editor' ClusterRole.",
+                    crd_name,
+                )
+                continue
+            if e.status == 404:
+                raise RuntimeError(
+                    f"{crd_name} CRD not found on cluster (404). "
+                    "Is the Ephemeral Namespace Operator installed?"
+                ) from e
             raise RuntimeError(
-                "NamespacePool CRD not found on cluster. "
-                "Is the Ephemeral Namespace Operator installed?"
+                f"Unexpected error accessing {crd_name} CRD "
+                f"(HTTP {e.status}): {e.reason}"
             ) from e
-        if "401" in error_msg or "unauthorized" in error_msg.lower():
+        except Exception as e:
             raise RuntimeError(
-                "K8s authentication failed (401 Unauthorized). "
-                "Check your K8S_TOKEN, kubeconfig, or service account credentials."
+                f"Failed to connect to the management cluster: {e}. "
+                "Check network connectivity, K8S_SERVER, or KUBECONFIG."
             ) from e
-        raise RuntimeError(
-            f"Failed to connect to the management cluster: {e}. "
-            "Check network connectivity, K8S_SERVER, or KUBECONFIG."
-        ) from e
-
-    try:
-        client.list_reservations()
-        log.info("preflight check passed: NamespaceReservation CRD accessible")
-    except Exception as e:
-        error_msg = str(e)
-        if "404" in error_msg or "not found" in error_msg.lower():
-            raise RuntimeError(
-                "NamespaceReservation CRD not found on cluster. "
-                "Is the Ephemeral Namespace Operator installed?"
-            ) from e
-        raise RuntimeError(
-            f"NamespaceReservation CRD access check failed: {e}"
-        ) from e
