@@ -4,7 +4,7 @@ import datetime
 import json
 import logging
 
-from ocviapy import apply_config, get_all_namespaces, get_json, on_k8s, set_current_namespace
+from ocviapy import get_all_namespaces, get_json, on_k8s, set_current_namespace
 from wait_for import TimedOutError
 
 import bonfire.config as conf
@@ -12,11 +12,9 @@ from bonfire.openshift import (
     get_all_reservations,
     get_console_url,
     get_reservation,
-    wait_on_reservation,
     whoami,
 )
-from bonfire.processor import process_reservation
-from bonfire.utils import FatalError, hms_to_seconds
+from bonfire.utils import FatalError
 
 import bonfire_lib.reservations as _lib_reservations
 import bonfire_lib.status as _lib_status

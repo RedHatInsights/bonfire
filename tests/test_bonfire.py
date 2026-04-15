@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from unittest.mock import ANY
 
 import click
 import pytest
