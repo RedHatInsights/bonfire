@@ -69,7 +69,10 @@ def reserve_cluster(
 
     log.info(
         "cluster reservation '%s' created by '%s' for '%s' from pool '%s'",
-        name, requester, duration, pool,
+        name,
+        requester,
+        duration,
+        pool,
     )
 
     return {
@@ -107,16 +110,16 @@ def extend_cluster(
 
     state = res.get("status", {}).get("state", "")
     if state == "expired":
-        raise FatalError(
-            f"Cluster reservation '{name}' has expired. Reserve a new cluster."
-        )
+        raise FatalError(f"Cluster reservation '{name}' has expired. Reserve a new cluster.")
 
     prev_seconds = hms_to_seconds(res["spec"]["duration"])
     add_seconds = hms_to_seconds(duration)
     new_duration = duration_fmt(prev_seconds + add_seconds)
 
     client.patch_cluster_reservation(name, {"spec": {"duration": new_duration}})
-    log.info("cluster reservation '%s' extended by '%s' (new total: %s)", name, duration, new_duration)
+    log.info(
+        "cluster reservation '%s' extended by '%s' (new total: %s)", name, duration, new_duration
+    )
     return {"name": name, "new_duration": new_duration}
 
 
@@ -228,14 +231,16 @@ def list_cluster_reservations(
     for res in raw:
         s = res.get("status", {})
         sp = res.get("spec", {})
-        result.append({
-            "name": res["metadata"]["name"],
-            "type": "cluster",
-            "cluster_name": s.get("clusterName", ""),
-            "state": s.get("state", ""),
-            "expiration": s.get("expiration", ""),
-            "requester": sp.get("requester", ""),
-            "pool": sp.get("pool", DEFAULT_CLUSTER_POOL),
-            "duration": sp.get("duration", ""),
-        })
+        result.append(
+            {
+                "name": res["metadata"]["name"],
+                "type": "cluster",
+                "cluster_name": s.get("clusterName", ""),
+                "state": s.get("state", ""),
+                "expiration": s.get("expiration", ""),
+                "requester": sp.get("requester", ""),
+                "pool": sp.get("pool", DEFAULT_CLUSTER_POOL),
+                "duration": sp.get("duration", ""),
+            }
+        )
     return result

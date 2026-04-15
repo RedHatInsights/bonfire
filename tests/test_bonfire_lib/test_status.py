@@ -71,9 +71,7 @@ class TestListReservations:
         mock_client.list_reservations.return_value = [sample_reservation]
         result = list_reservations(mock_client, requester="test-user")
         assert len(result) == 1
-        mock_client.list_reservations.assert_called_with(
-            label_selector="requester=test-user"
-        )
+        mock_client.list_reservations.assert_called_with(label_selector="requester=test-user")
 
     def test_empty_list(self, mock_client):
         mock_client.list_reservations.return_value = []
@@ -180,9 +178,7 @@ class TestDescribeNamespace:
             describe_namespace(mock_client, "nonexistent")
 
     def test_not_operator_ns(self, mock_client):
-        mock_client.get_namespace.return_value = {
-            "metadata": {"name": "regular-ns", "labels": {}}
-        }
+        mock_client.get_namespace.return_value = {"metadata": {"name": "regular-ns", "labels": {}}}
         with pytest.raises(FatalError, match="was not reserved"):
             describe_namespace(mock_client, "regular-ns")
 

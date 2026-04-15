@@ -94,10 +94,7 @@ def format_describe(info: dict) -> str:
 
     default_user = info.get("default_username", "")
     if default_user and default_user != "N/A":
-        lines.append(
-            f"Default user login: {default_user} | "
-            f"{info.get('default_password', 'N/A')}"
-        )
+        lines.append(f"Default user login: {default_user} | {info.get('default_password', 'N/A')}")
 
     return "\n".join(lines)
 
@@ -138,7 +135,10 @@ def format_cluster_reservation(reservation: dict) -> str:
     if expiration:
         lines.append(f"  Expiration: {expiration}")
     if state in ("waiting", "provisioning") and not cluster_name:
-        lines.append("  Note: Poll with ephemeral_status(name='%s', type='cluster') to track progress." % name)
+        lines.append(
+            "  Note: Poll with ephemeral_status(name='%s', type='cluster') to track progress."
+            % name
+        )
     return "\n".join(lines)
 
 
@@ -149,8 +149,7 @@ def format_cluster_pool_list(pools: list[dict]) -> str:
 
     lines = ["Cluster Pools:", ""]
     header = (
-        f"  {'Name':<25} {'Ready':>5} {'Provisioning':>12} "
-        f"{'Reserved':>8} {'Size':>4} {'Limit':>5}"
+        f"  {'Name':<25} {'Ready':>5} {'Provisioning':>12} {'Reserved':>8} {'Size':>4} {'Limit':>5}"
     )
     lines.append(header)
     lines.append("  " + "-" * (len(header) - 2))

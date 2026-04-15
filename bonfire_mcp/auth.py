@@ -37,9 +37,7 @@ def load_k8s_client() -> EphemeralK8sClient:
         log.info("using K8S_SERVER + K8S_TOKEN auth (server: %s)", server)
         ca_data = os.getenv("K8S_CA_DATA")
         skip_tls = os.getenv("K8S_SKIP_TLS_VERIFY", "false").lower() == "true"
-        client = EphemeralK8sClient(
-            server=server, token=token, ca_data=ca_data, skip_tls=skip_tls
-        )
+        client = EphemeralK8sClient(server=server, token=token, ca_data=ca_data, skip_tls=skip_tls)
     elif EphemeralK8sClient._is_in_cluster():
         log.info("using in-cluster service account auth")
         client = EphemeralK8sClient()
@@ -95,8 +93,7 @@ def _preflight_check(client: EphemeralK8sClient) -> None:
                     "Is the Ephemeral Namespace Operator installed?"
                 ) from e
             raise RuntimeError(
-                f"Unexpected error accessing {crd_name} CRD "
-                f"(HTTP {e.status}): {e.reason}"
+                f"Unexpected error accessing {crd_name} CRD (HTTP {e.status}): {e.reason}"
             ) from e
         except Exception as e:
             raise RuntimeError(

@@ -29,15 +29,17 @@ def list_pools(client: EphemeralK8sClient) -> list[dict]:
     for pool in pools:
         spec = pool.get("spec", {})
         status = pool.get("status", {})
-        result.append({
-            "name": pool["metadata"]["name"],
-            "description": spec.get("description", ""),
-            "size": spec.get("size", 0),
-            "size_limit": spec.get("sizeLimit"),
-            "ready": status.get("ready", 0),
-            "creating": status.get("creating", 0),
-            "reserved": status.get("reserved", 0),
-        })
+        result.append(
+            {
+                "name": pool["metadata"]["name"],
+                "description": spec.get("description", ""),
+                "size": spec.get("size", 0),
+                "size_limit": spec.get("sizeLimit"),
+                "ready": status.get("ready", 0),
+                "creating": status.get("creating", 0),
+                "reserved": status.get("reserved", 0),
+            }
+        )
     return result
 
 
@@ -81,16 +83,18 @@ def list_cluster_pools(client: EphemeralK8sClient) -> list[dict]:
     for pool in pools:
         spec = pool.get("spec", {})
         status = pool.get("status", {})
-        result.append({
-            "name": pool["metadata"]["name"],
-            "type": "cluster",
-            "description": spec.get("description", ""),
-            "size": spec.get("size", 0),
-            "size_limit": spec.get("sizeLimit", 0),
-            "ready": status.get("ready", 0),
-            "provisioning": status.get("provisioning", 0),
-            "reserved": status.get("reserved", 0),
-        })
+        result.append(
+            {
+                "name": pool["metadata"]["name"],
+                "type": "cluster",
+                "description": spec.get("description", ""),
+                "size": spec.get("size", 0),
+                "size_limit": spec.get("sizeLimit", 0),
+                "ready": status.get("ready", 0),
+                "provisioning": status.get("provisioning", 0),
+                "reserved": status.get("reserved", 0),
+            }
+        )
     return result
 
 

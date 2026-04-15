@@ -19,7 +19,9 @@ class TestSanitizeUsername:
 
 class TestExtractUsername:
     def test_with_cluster_url(self):
-        assert _extract_username("gbuchana/api-crc-eph-r9lp-p1-openshiftapps-com:6443") == "gbuchana"
+        assert (
+            _extract_username("gbuchana/api-crc-eph-r9lp-p1-openshiftapps-com:6443") == "gbuchana"
+        )
 
     def test_with_simple_url(self):
         assert _extract_username("admin/api.example.com:6443") == "admin"

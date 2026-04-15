@@ -138,7 +138,9 @@ class EphemeralK8sClient:
     def list_pools(self) -> list[dict]:
         """List all NamespacePool CRs."""
         resource = self._get_resource("NamespacePool")
-        return [item.to_dict() for item in resource.get(_request_timeout=DEFAULT_READ_TIMEOUT).items]
+        return [
+            item.to_dict() for item in resource.get(_request_timeout=DEFAULT_READ_TIMEOUT).items
+        ]
 
     def get_pool(self, name: str) -> dict | None:
         """Get a NamespacePool by name."""
@@ -190,7 +192,9 @@ class EphemeralK8sClient:
     def list_cluster_pools(self) -> list[dict]:
         """List all ClusterPool CRs."""
         resource = self._get_resource("ClusterPool")
-        return [item.to_dict() for item in resource.get(_request_timeout=DEFAULT_READ_TIMEOUT).items]
+        return [
+            item.to_dict() for item in resource.get(_request_timeout=DEFAULT_READ_TIMEOUT).items
+        ]
 
     def get_cluster_pool(self, name: str) -> dict | None:
         """Get a ClusterPool by name."""
@@ -242,9 +246,7 @@ class EphemeralK8sClient:
         kwargs = {"_request_timeout": DEFAULT_READ_TIMEOUT}
         if label_selector:
             kwargs["label_selector"] = label_selector
-        return [
-            item.to_dict() for item in self._core_v1.list_namespace(**kwargs).items
-        ]
+        return [item.to_dict() for item in self._core_v1.list_namespace(**kwargs).items]
 
     # --- Generic CRD operations (for ClowdApp, Frontend, etc.) ---
 

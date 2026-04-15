@@ -51,9 +51,7 @@ def client():
     skip_tls = os.getenv("K8S_SKIP_TLS_VERIFY", "false").lower() == "true"
 
     if server and token:
-        return EphemeralK8sClient(
-            server=server, token=token, ca_data=ca_data, skip_tls=skip_tls
-        )
+        return EphemeralK8sClient(server=server, token=token, ca_data=ca_data, skip_tls=skip_tls)
     return EphemeralK8sClient()
 
 

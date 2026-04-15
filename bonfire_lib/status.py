@@ -62,15 +62,17 @@ def list_reservations(
     for res in reservations:
         status = res.get("status", {})
         spec = res.get("spec", {})
-        result.append({
-            "name": res["metadata"]["name"],
-            "namespace": status.get("namespace", ""),
-            "state": status.get("state", ""),
-            "expiration": status.get("expiration", ""),
-            "requester": spec.get("requester", ""),
-            "pool": spec.get("pool", "default"),
-            "duration": spec.get("duration", ""),
-        })
+        result.append(
+            {
+                "name": res["metadata"]["name"],
+                "namespace": status.get("namespace", ""),
+                "state": status.get("state", ""),
+                "expiration": status.get("expiration", ""),
+                "requester": spec.get("requester", ""),
+                "pool": spec.get("pool", "default"),
+                "duration": spec.get("duration", ""),
+            }
+        )
     return result
 
 
@@ -114,9 +116,7 @@ def wait_on_reservation(
             if ns:
                 return ns
         time.sleep(2)
-    raise TimeoutError(
-        f"timed out after {timeout}s waiting for namespace on reservation '{name}'"
-    )
+    raise TimeoutError(f"timed out after {timeout}s waiting for namespace on reservation '{name}'")
 
 
 def check_for_existing_reservation(

@@ -62,7 +62,14 @@ class TestNamespaceToolDispatch:
     async def test_list_pools_namespace(self):
         with patch("bonfire_mcp.server.pools") as mock_pools:
             mock_pools.list_pools.return_value = [
-                {"name": "default", "ready": 3, "creating": 0, "reserved": 1, "size": 5, "size_limit": 10}
+                {
+                    "name": "default",
+                    "ready": 3,
+                    "creating": 0,
+                    "reserved": 1,
+                    "size": 5,
+                    "size_limit": 10,
+                }
             ]
             result = await call_tool("ephemeral_list_pools", {"type": "namespace"})
             assert "default" in result[0].text
@@ -72,7 +79,14 @@ class TestNamespaceToolDispatch:
     async def test_list_pools_all(self):
         with patch("bonfire_mcp.server.pools") as mock_pools:
             mock_pools.list_pools.return_value = [
-                {"name": "default", "ready": 3, "creating": 0, "reserved": 1, "size": 5, "size_limit": 10}
+                {
+                    "name": "default",
+                    "ready": 3,
+                    "creating": 0,
+                    "reserved": 1,
+                    "size": 5,
+                    "size_limit": 10,
+                }
             ]
             mock_pools.list_cluster_pools.return_value = []
             result = await call_tool("ephemeral_list_pools", {})
@@ -106,7 +120,11 @@ class TestNamespaceToolDispatch:
             raw_res = {
                 "metadata": {"name": "my-res"},
                 "spec": {"requester": "user", "pool": "default"},
-                "status": {"state": "active", "namespace": "ns-1", "expiration": "2026-04-09T13:00:00Z"},
+                "status": {
+                    "state": "active",
+                    "namespace": "ns-1",
+                    "expiration": "2026-04-09T13:00:00Z",
+                },
             }
             mock_status.get_reservation.return_value = raw_res
             mock_status.get_reservation_summary.return_value = {
@@ -198,11 +216,14 @@ class TestClusterToolDispatch:
                 "pool": "rosa-default",
                 "type": "cluster",
             }
-            result = await call_tool("ephemeral_reserve", {
-                "type": "cluster",
-                "name": "my-rosa",
-                "duration": "4h",
-            })
+            result = await call_tool(
+                "ephemeral_reserve",
+                {
+                    "type": "cluster",
+                    "name": "my-rosa",
+                    "duration": "4h",
+                },
+            )
             assert "my-rosa" in result[0].text
             assert "waiting" in result[0].text
             assert "Poll with" in result[0].text
@@ -219,10 +240,13 @@ class TestClusterToolDispatch:
                 "requester": "user",
                 "pool": "rosa-default",
             }
-            result = await call_tool("ephemeral_status", {
-                "type": "cluster",
-                "name": "my-rosa",
-            })
+            result = await call_tool(
+                "ephemeral_status",
+                {
+                    "type": "cluster",
+                    "name": "my-rosa",
+                },
+            )
             assert "provisioning" in result[0].text
 
     @pytest.mark.asyncio
@@ -238,10 +262,13 @@ class TestClusterToolDispatch:
                 "pool": "rosa-default",
                 "expiration": "2026-04-09T16:00:00Z",
             }
-            result = await call_tool("ephemeral_status", {
-                "type": "cluster",
-                "name": "my-rosa",
-            })
+            result = await call_tool(
+                "ephemeral_status",
+                {
+                    "type": "cluster",
+                    "name": "my-rosa",
+                },
+            )
             assert "active" in result[0].text
             assert "rosa-abc123" in result[0].text
 
@@ -249,10 +276,13 @@ class TestClusterToolDispatch:
     async def test_cluster_status_not_found(self):
         with patch("bonfire_mcp.server.clusters") as mock_cl:
             mock_cl.get_cluster_status.return_value = None
-            result = await call_tool("ephemeral_status", {
-                "type": "cluster",
-                "name": "nonexistent",
-            })
+            result = await call_tool(
+                "ephemeral_status",
+                {
+                    "type": "cluster",
+                    "name": "nonexistent",
+                },
+            )
             assert "No cluster reservation found" in result[0].text
 
     @pytest.mark.asyncio
@@ -266,11 +296,14 @@ class TestClusterToolDispatch:
     async def test_extend_cluster(self):
         with patch("bonfire_mcp.server.clusters") as mock_cl:
             mock_cl.extend_cluster.return_value = {"name": "my-rosa", "new_duration": "6h0m0s"}
-            result = await call_tool("ephemeral_extend", {
-                "type": "cluster",
-                "name": "my-rosa",
-                "duration": "2h",
-            })
+            result = await call_tool(
+                "ephemeral_extend",
+                {
+                    "type": "cluster",
+                    "name": "my-rosa",
+                    "duration": "2h",
+                },
+            )
             assert "6h0m0s" in result[0].text
 
     @pytest.mark.asyncio
@@ -284,10 +317,13 @@ class TestClusterToolDispatch:
     async def test_release_cluster(self):
         with patch("bonfire_mcp.server.clusters") as mock_cl:
             mock_cl.release_cluster.return_value = {"name": "my-rosa", "released": True}
-            result = await call_tool("ephemeral_release", {
-                "type": "cluster",
-                "name": "my-rosa",
-            })
+            result = await call_tool(
+                "ephemeral_release",
+                {
+                    "type": "cluster",
+                    "name": "my-rosa",
+                },
+            )
             assert "released" in result[0].text
 
     @pytest.mark.asyncio
@@ -309,7 +345,14 @@ class TestClusterToolDispatch:
     async def test_list_pools_cluster(self):
         with patch("bonfire_mcp.server.pools") as mock_pools:
             mock_pools.list_cluster_pools.return_value = [
-                {"name": "rosa-default", "ready": 2, "provisioning": 1, "reserved": 1, "size": 3, "size_limit": 5}
+                {
+                    "name": "rosa-default",
+                    "ready": 2,
+                    "provisioning": 1,
+                    "reserved": 1,
+                    "size": 3,
+                    "size_limit": 5,
+                }
             ]
             result = await call_tool("ephemeral_list_pools", {"type": "cluster"})
             assert "rosa-default" in result[0].text

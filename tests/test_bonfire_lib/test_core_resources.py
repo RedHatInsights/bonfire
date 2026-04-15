@@ -22,9 +22,7 @@ class TestRenderReservation:
         assert result["spec"]["team"] == "myteam"
 
     def test_with_secrets_src_namespace(self):
-        result = render_reservation(
-            "test-res", "1h", "user", secrets_src_namespace="custom-base"
-        )
+        result = render_reservation("test-res", "1h", "user", secrets_src_namespace="custom-base")
         assert result["spec"]["secretSourceNamespace"] == "custom-base"
 
     def test_custom_pool(self):

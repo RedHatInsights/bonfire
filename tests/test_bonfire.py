@@ -41,11 +41,21 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
     mocker.patch("bonfire.namespaces._get_lib_client")
     mocker.patch("bonfire.namespaces.get_console_url", return_value=None)
     mocker.patch("bonfire.namespaces.set_current_namespace")
-    mocker.patch("bonfire.namespaces.get_json", return_value={"metadata": {"name": name, "annotations": {}, "labels": {}}})
+    mocker.patch(
+        "bonfire.namespaces.get_json",
+        return_value={"metadata": {"name": name, "annotations": {}, "labels": {}}},
+    )
 
     mock_lib_reserve = mocker.patch(
         "bonfire.namespaces._lib_reservations.reserve",
-        return_value={"name": name, "namespace": f"ephemeral-{name}", "state": "active", "expiration": "", "requester": "user-3", "pool": "default"},
+        return_value={
+            "name": name,
+            "namespace": f"ephemeral-{name}",
+            "state": "active",
+            "expiration": "",
+            "requester": "user-3",
+            "pool": "default",
+        },
     )
 
     runner = CliRunner()
@@ -76,11 +86,21 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     mocker.patch("bonfire.namespaces._get_lib_client")
     mocker.patch("bonfire.namespaces.get_console_url", return_value=None)
     mocker.patch("bonfire.namespaces.set_current_namespace")
-    mocker.patch("bonfire.namespaces.get_json", return_value={"metadata": {"name": "test-ns", "annotations": {}, "labels": {}}})
+    mocker.patch(
+        "bonfire.namespaces.get_json",
+        return_value={"metadata": {"name": "test-ns", "annotations": {}, "labels": {}}},
+    )
 
     mock_lib_reserve = mocker.patch(
         "bonfire.namespaces._lib_reservations.reserve",
-        return_value={"name": "test-res", "namespace": "ephemeral-test", "state": "active", "expiration": "", "requester": requester, "pool": "default"},
+        return_value={
+            "name": "test-res",
+            "namespace": "ephemeral-test",
+            "state": "active",
+            "expiration": "",
+            "requester": requester,
+            "pool": "default",
+        },
     )
 
     runner = CliRunner()
@@ -110,11 +130,21 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     mocker.patch("bonfire.namespaces._get_lib_client")
     mocker.patch("bonfire.namespaces.get_console_url", return_value=None)
     mocker.patch("bonfire.namespaces.set_current_namespace")
-    mocker.patch("bonfire.namespaces.get_json", return_value={"metadata": {"name": "test-ns", "annotations": {}, "labels": {}}})
+    mocker.patch(
+        "bonfire.namespaces.get_json",
+        return_value={"metadata": {"name": "test-ns", "annotations": {}, "labels": {}}},
+    )
 
     mock_lib_reserve = mocker.patch(
         "bonfire.namespaces._lib_reservations.reserve",
-        return_value={"name": "test-res", "namespace": "ephemeral-test", "state": "active", "expiration": "", "requester": "user-3", "pool": "default"},
+        return_value={
+            "name": "test-res",
+            "namespace": "ephemeral-test",
+            "state": "active",
+            "expiration": "",
+            "requester": "user-3",
+            "pool": "default",
+        },
     )
 
     runner = CliRunner()
@@ -278,11 +308,21 @@ def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, time
     mocker.patch("bonfire.namespaces._get_lib_client")
     mocker.patch("bonfire.namespaces.get_console_url", return_value=None)
     mocker.patch("bonfire.namespaces.set_current_namespace")
-    mocker.patch("bonfire.namespaces.get_json", return_value={"metadata": {"name": namespace, "annotations": {}, "labels": {}}})
+    mocker.patch(
+        "bonfire.namespaces.get_json",
+        return_value={"metadata": {"name": namespace, "annotations": {}, "labels": {}}},
+    )
 
     mock_lib_reserve = mocker.patch(
         "bonfire.namespaces._lib_reservations.reserve",
-        return_value={"name": "test-res", "namespace": f"ephemeral-{namespace}", "state": "active", "expiration": "", "requester": user, "pool": "default"},
+        return_value={
+            "name": "test-res",
+            "namespace": f"ephemeral-{namespace}",
+            "state": "active",
+            "expiration": "",
+            "requester": user,
+            "pool": "default",
+        },
     )
 
     runner = CliRunner()

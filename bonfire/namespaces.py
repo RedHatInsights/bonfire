@@ -27,6 +27,7 @@ def _get_lib_client() -> EphemeralK8sClient:
     """Create an EphemeralK8sClient from the current kubeconfig context."""
     return EphemeralK8sClient()
 
+
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 

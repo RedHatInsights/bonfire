@@ -194,8 +194,7 @@ TOOLS = [
     Tool(
         name="ephemeral_release",
         description=(
-            "Release an ephemeral reservation. "
-            "The resource will be reclaimed by the operator."
+            "Release an ephemeral reservation. The resource will be reclaimed by the operator."
         ),
         inputSchema={
             "type": "object",
@@ -354,7 +353,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolR
                     return _error_result("Error: 'name' is required for cluster status lookup.")
                 result = clusters.get_cluster_status(client, res_name)
                 if not result:
-                    return [TextContent(type="text", text=f"No cluster reservation found for name='{res_name}'.")]
+                    return [
+                        TextContent(
+                            type="text", text=f"No cluster reservation found for name='{res_name}'."
+                        )
+                    ]
                 return [TextContent(type="text", text=format_cluster_reservation(result))]
             else:
                 if not res_name and not namespace:
@@ -363,11 +366,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolR
                     )
                 res = status.get_reservation(client, name=res_name, namespace=namespace)
                 if not res:
-                    return [TextContent(
-                        type="text",
-                        text=f"No reservation found for "
-                        f"{'name=' + res_name if res_name else 'namespace=' + namespace}.",
-                    )]
+                    return [
+                        TextContent(
+                            type="text",
+                            text=f"No reservation found for "
+                            f"{'name=' + res_name if res_name else 'namespace=' + namespace}.",
+                        )
+                    ]
                 result = status.get_reservation_summary(res)
                 return [TextContent(type="text", text=format_reservation(result))]
 
@@ -381,7 +386,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolR
                 namespace = arguments.get("namespace")
                 if not namespace:
                     return _error_result("Error: 'namespace' is required for namespace extend.")
-                result = reservations.extend(client, namespace=namespace, duration=arguments["duration"])
+                result = reservations.extend(
+                    client, namespace=namespace, duration=arguments["duration"]
+                )
             return [TextContent(type="text", text=format_extend(result))]
 
         elif name == "ephemeral_release":
