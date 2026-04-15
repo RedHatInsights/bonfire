@@ -3,6 +3,7 @@
 from bonfire_mcp.formatters import (
     format_cluster_pool_list,
     format_cluster_reservation,
+    format_cluster_reservation_list,
     format_describe,
     format_extend,
     format_kubeconfig,
@@ -190,3 +191,23 @@ class TestFormatKubeconfig:
         result = format_kubeconfig("my-rosa", "apiVersion: v1\nclusters: []")
         assert "my-rosa" in result
         assert "apiVersion: v1" in result
+
+
+class TestFormatClusterReservationList:
+    def test_empty(self):
+        assert "No active cluster reservations" in format_cluster_reservation_list([])
+
+    def test_with_reservations(self):
+        result = format_cluster_reservation_list([
+            {
+                "name": "rosa-res-1",
+                "cluster_name": "rosa-abc123",
+                "state": "active",
+                "requester": "user1",
+                "pool": "rosa-default",
+                "duration": "4h",
+            },
+        ])
+        assert "rosa-res-1" in result
+        assert "rosa-abc123" in result
+        assert "Active Cluster Reservations" in result

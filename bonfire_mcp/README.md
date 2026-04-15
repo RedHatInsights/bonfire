@@ -113,57 +113,70 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 
 | Tool | Type | Description |
 |------|------|-------------|
-| `ephemeral_list_pools` | Read | List namespace pools with capacity stats (ready/creating/reserved counts) |
-| `ephemeral_reserve` | Mutate | Reserve a namespace from a pool. Polls until namespace is assigned. |
-| `ephemeral_status` | Read | Get reservation status by name or namespace |
+| `ephemeral_list_pools` | Read | List namespace and/or cluster pools with capacity stats (ready/creating/reserved counts) |
+| `ephemeral_reserve` | Mutate | Reserve a namespace or cluster. Namespaces: polls until assigned. Clusters: returns immediately (async provisioning). |
+| `ephemeral_status` | Read | Get reservation status by name or namespace. For clusters: shows state (waiting/provisioning/active), cluster name, console URL. |
 | `ephemeral_extend` | Mutate | Extend a reservation's duration |
 | `ephemeral_release` | Mutate | Release a reservation (namespace reclaimed within ~10s) |
-| `ephemeral_list_reservations` | Read | List active reservations, filterable by requester |
+| `ephemeral_list_reservations` | Read | List active reservations, filterable by requester and type |
 | `ephemeral_describe` | Read | Detailed namespace info: ClowdApps, frontends, console URL, keycloak creds |
+| `ephemeral_get_kubeconfig` | Read | Fetch kubeconfig YAML for a provisioned ROSA HCP cluster reservation |
 
 ### Tool Parameters
+
+#### `ephemeral_list_pools`
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `type` | string | No | `"all"` | Filter by pool type: `"namespace"`, `"cluster"`, or `"all"` |
 
 #### `ephemeral_reserve`
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
+| `type` | string | No | `"namespace"` | Resource type: `"namespace"` or `"cluster"` |
 | `name` | string | No | auto-generated | Reservation name (DNS-1123 label) |
-| `duration` | string | No | `"1h"` | Duration (e.g., `"1h"`, `"2h30m"`) |
-| `pool` | string | No | `"default"` | Pool to reserve from |
+| `duration` | string | No | `"1h"` (ns) / `"4h"` (cluster) | Duration (e.g., `"1h"`, `"2h30m"`) |
+| `pool` | string | No | `"default"` (ns) / `"rosa-default"` (cluster) | Pool to reserve from |
 | `requester` | string | No | K8s identity | Requester for the reservation |
 | `team` | string | No | | Team for cost attribution |
-| `timeout` | integer | No | `600` | Max seconds to wait for assignment |
+| `timeout` | integer | No | `600` | Max seconds to wait for namespace assignment (namespace only, ignored for clusters) |
 
 #### `ephemeral_status`
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `name` | string | No* | Reservation name |
-| `namespace` | string | No* | Namespace name |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `type` | string | No | `"namespace"` | Resource type: `"namespace"` or `"cluster"` |
+| `name` | string | No* | | Reservation name |
+| `namespace` | string | No* | | Namespace name (namespace type only) |
 
-*One of `name` or `namespace` is required.
+*For namespaces, one of `name` or `namespace` is required. For clusters, `name` is required.
 
 #### `ephemeral_extend`
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `namespace` | string | Yes | Namespace to extend |
-| `duration` | string | Yes | Additional duration (e.g., `"1h"`) |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `type` | string | No | `"namespace"` | Resource type: `"namespace"` or `"cluster"` |
+| `name` | string | Cluster only | | Reservation name (required for clusters) |
+| `namespace` | string | Namespace only | | Namespace to extend (required for namespaces) |
+| `duration` | string | Yes | | Additional duration (e.g., `"1h"`) |
 
 #### `ephemeral_release`
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `name` | string | No* | Reservation name |
-| `namespace` | string | No* | Namespace name |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `type` | string | No | `"namespace"` | Resource type: `"namespace"` or `"cluster"` |
+| `name` | string | No* | | Reservation name (required for clusters) |
+| `namespace` | string | No* | | Namespace name (namespace type only) |
 
-*One of `name` or `namespace` is required.
+*For namespaces, one of `name` or `namespace` is required. For clusters, `name` is required.
 
 #### `ephemeral_list_reservations`
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `requester` | string | No | Filter by requester |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `type` | string | No | `"all"` | Filter by type: `"namespace"`, `"cluster"`, or `"all"` |
+| `requester` | string | No | | Filter by requester |
 
 #### `ephemeral_describe`
 
@@ -171,7 +184,15 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 |-----------|------|----------|-------------|
 | `namespace` | string | Yes | Namespace to describe |
 
+#### `ephemeral_get_kubeconfig`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes | Cluster reservation name (cluster must be in `active` state) |
+
 ## Example Agent Interaction
+
+### Namespace workflow
 
 ```
 Agent: ephemeral_list_pools()
@@ -197,7 +218,38 @@ Agent: ephemeral_extend(namespace="ephemeral-abc123", duration="1h")
 MCP:   Reservation 'my-test' extended. New total duration: 3h0m0s.
 
 Agent: ephemeral_release(name="my-test")
-MCP:   Reservation 'my-test' released. Namespace will be reclaimed within ~10 seconds.
+MCP:   Reservation 'my-test' released. Resource will be reclaimed by the operator.
+```
+
+### Cluster workflow
+
+```
+Agent: ephemeral_reserve(type="cluster", name="my-rosa", duration="4h")
+MCP:   Cluster Reservation: my-rosa
+         State: waiting
+         Pool: rosa-default
+         Requester: user_at_redhat.com
+         Note: Poll with ephemeral_status(name='my-rosa', type='cluster') to track progress.
+
+Agent: ephemeral_status(type="cluster", name="my-rosa")
+MCP:   Cluster Reservation: my-rosa
+         State: provisioning
+         Pool: rosa-default
+         Requester: user_at_redhat.com
+
+Agent: ephemeral_status(type="cluster", name="my-rosa")
+MCP:   Cluster Reservation: my-rosa
+         State: active
+         Cluster: rosa-abc123
+         Console: https://console.apps.rosa-abc123.example.com
+         Expiration: 2026-04-09T16:00:00Z
+
+Agent: ephemeral_get_kubeconfig(name="my-rosa")
+MCP:   Kubeconfig for cluster reservation 'my-rosa':
+         <kubeconfig YAML>
+
+Agent: ephemeral_release(type="cluster", name="my-rosa")
+MCP:   Reservation 'my-rosa' released. Resource will be reclaimed by the operator.
 ```
 
 ## Running Tests

@@ -168,3 +168,26 @@ def format_cluster_pool_list(pools: list[dict]) -> str:
 def format_kubeconfig(name: str, kubeconfig: str) -> str:
     """Format a kubeconfig response."""
     return f"Kubeconfig for cluster reservation '{name}':\n\n{kubeconfig}"
+
+
+def format_cluster_reservation_list(reservations_list: list[dict]) -> str:
+    """Format a list of cluster reservations."""
+    if not reservations_list:
+        return "No active cluster reservations found."
+
+    lines = ["Active Cluster Reservations:", ""]
+    header = (
+        f"  {'Name':<35} {'Cluster':<25} {'State':<14} "
+        f"{'Requester':<20} {'Pool':<15} {'Duration':<10}"
+    )
+    lines.append(header)
+    lines.append("  " + "-" * (len(header) - 2))
+
+    for res in reservations_list:
+        lines.append(
+            f"  {res.get('name', ''):<35} {res.get('cluster_name', ''):<25} "
+            f"{res.get('state', ''):<14} {res.get('requester', ''):<20} "
+            f"{res.get('pool', ''):<15} {res.get('duration', ''):<10}"
+        )
+
+    return "\n".join(lines)

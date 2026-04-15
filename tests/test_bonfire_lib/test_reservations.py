@@ -35,7 +35,7 @@ class TestReserve:
         with pytest.raises(FatalError, match="already exists"):
             reserve(mock_client, name="test-reservation")
 
-    @patch("bonfire_lib.reservations.time")
+    @patch("bonfire_lib.status.time")
     def test_timeout_auto_releases(self, mock_time, mock_client):
         mock_client.get_reservation.side_effect = [
             None,  # check existing

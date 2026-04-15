@@ -5,11 +5,11 @@ extend_namespace() — using EphemeralK8sClient instead of ocviapy.
 """
 
 import logging
-import time
 import uuid
 
 from bonfire_lib.core_resources import render_reservation
 from bonfire_lib.k8s_client import EphemeralK8sClient
+from bonfire_lib.status import wait_on_reservation
 from bonfire_lib.utils import FatalError, hms_to_seconds, duration_fmt
 
 log = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ def reserve(
     client.create_reservation(body)
 
     try:
-        ns_name = _wait_for_namespace(client, name, timeout)
+        ns_name = wait_on_reservation(client, name, timeout)
     except TimeoutError:
         log.info("timeout waiting for namespace, cancelling reservation")
         release(client, name=name)
@@ -164,22 +164,6 @@ def extend(
         new_duration,
     )
     return {"name": res_name, "new_duration": new_duration}
-
-
-def _wait_for_namespace(client: EphemeralK8sClient, res_name: str, timeout: int) -> str:
-    """Poll reservation status until namespace is assigned."""
-    log.info("waiting for reservation '%s' to get picked up by operator", res_name)
-    start = time.time()
-    while time.time() - start < timeout:
-        res = client.get_reservation(res_name)
-        if res:
-            ns = res.get("status", {}).get("namespace")
-            if ns:
-                return ns
-        time.sleep(2)
-    raise TimeoutError(
-        f"timed out after {timeout}s waiting for namespace on reservation '{res_name}'"
-    )
 
 
 def _find_reservation(

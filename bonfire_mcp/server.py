@@ -9,7 +9,7 @@ import asyncio
 import logging
 
 from mcp.server import Server
-from mcp.types import TextContent, Tool
+from mcp.types import CallToolResult, TextContent, Tool
 
 from bonfire_lib.config import Settings
 from bonfire_lib.k8s_client import EphemeralK8sClient
@@ -23,6 +23,7 @@ from bonfire_mcp.auth import load_k8s_client
 from bonfire_mcp.formatters import (
     format_cluster_reservation,
     format_cluster_pool_list,
+    format_cluster_reservation_list,
     format_describe,
     format_extend,
     format_kubeconfig,
@@ -281,8 +282,16 @@ async def list_tools() -> list[Tool]:
     return TOOLS
 
 
+def _error_result(message: str) -> CallToolResult:
+    """Build a CallToolResult with isError=True for proper MCP error signaling."""
+    return CallToolResult(
+        content=[TextContent(type="text", text=message)],
+        isError=True,
+    )
+
+
 @app.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[TextContent]:
+async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolResult:
     try:
         client = _get_client()
         resource_type = arguments.get("type", "namespace")
@@ -342,20 +351,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
             if resource_type == "cluster":
                 if not res_name:
-                    return [TextContent(
-                        type="text",
-                        text="Error: 'name' is required for cluster status lookup.",
-                    )]
+                    return _error_result("Error: 'name' is required for cluster status lookup.")
                 result = clusters.get_cluster_status(client, res_name)
                 if not result:
                     return [TextContent(type="text", text=f"No cluster reservation found for name='{res_name}'.")]
                 return [TextContent(type="text", text=format_cluster_reservation(result))]
             else:
                 if not res_name and not namespace:
-                    return [TextContent(
-                        type="text",
-                        text="Error: provide either 'name' or 'namespace' to look up a reservation.",
-                    )]
+                    return _error_result(
+                        "Error: provide either 'name' or 'namespace' to look up a reservation."
+                    )
                 res = status.get_reservation(client, name=res_name, namespace=namespace)
                 if not res:
                     return [TextContent(
@@ -370,12 +375,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             if resource_type == "cluster":
                 res_name = arguments.get("name")
                 if not res_name:
-                    return [TextContent(type="text", text="Error: 'name' is required for cluster extend.")]
+                    return _error_result("Error: 'name' is required for cluster extend.")
                 result = clusters.extend_cluster(client, res_name, arguments["duration"])
             else:
                 namespace = arguments.get("namespace")
                 if not namespace:
-                    return [TextContent(type="text", text="Error: 'namespace' is required for namespace extend.")]
+                    return _error_result("Error: 'namespace' is required for namespace extend.")
                 result = reservations.extend(client, namespace=namespace, duration=arguments["duration"])
             return [TextContent(type="text", text=format_extend(result))]
 
@@ -385,14 +390,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
             if resource_type == "cluster":
                 if not res_name:
-                    return [TextContent(type="text", text="Error: 'name' is required for cluster release.")]
+                    return _error_result("Error: 'name' is required for cluster release.")
                 result = clusters.release_cluster(client, res_name)
             else:
                 if not res_name and not namespace:
-                    return [TextContent(
-                        type="text",
-                        text="Error: provide either 'name' or 'namespace' to release a reservation.",
-                    )]
+                    return _error_result(
+                        "Error: provide either 'name' or 'namespace' to release a reservation."
+                    )
                 result = reservations.release(client, name=res_name, namespace=namespace)
             return [TextContent(type="text", text=format_release(result))]
 
@@ -405,9 +409,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 parts.append(format_reservation_list(ns_result))
 
             if resource_type in ("cluster", "all"):
-                cl_reservations = _list_cluster_reservations(client, requester)
+                cl_reservations = clusters.list_cluster_reservations(client, requester=requester)
                 if cl_reservations or resource_type == "cluster":
-                    parts.append(_format_cluster_reservation_list(cl_reservations))
+                    parts.append(format_cluster_reservation_list(cl_reservations))
 
             return [TextContent(type="text", text="\n\n".join(parts))]
 
@@ -423,67 +427,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
     except FatalError as e:
-        return [TextContent(type="text", text=f"Error: {e}", isError=True)]
+        return _error_result(f"Error: {e}")
     except TimeoutError as e:
-        return [TextContent(type="text", text=f"Timeout: {e}", isError=True)]
+        return _error_result(f"Timeout: {e}")
     except ValueError as e:
-        return [TextContent(type="text", text=f"Validation error: {e}", isError=True)]
+        return _error_result(f"Validation error: {e}")
     except RuntimeError as e:
-        return [TextContent(type="text", text=f"Connection error: {e}", isError=True)]
+        return _error_result(f"Connection error: {e}")
     except Exception as e:
         log.exception("unexpected error in tool %s", name)
-        return [TextContent(type="text", text=f"Unexpected error: {e}", isError=True)]
-
-
-def _list_cluster_reservations(client: EphemeralK8sClient, requester: str | None) -> list[dict]:
-    """List cluster reservations, optionally filtered by requester."""
-    try:
-        if requester:
-            raw = client.list_cluster_reservations(label_selector=f"requester={requester}")
-        else:
-            raw = client.list_cluster_reservations()
-    except Exception:
-        log.debug("ClusterReservation CRD not available")
-        return []
-
-    result = []
-    for res in raw:
-        s = res.get("status", {})
-        sp = res.get("spec", {})
-        result.append({
-            "name": res["metadata"]["name"],
-            "type": "cluster",
-            "cluster_name": s.get("clusterName", ""),
-            "state": s.get("state", ""),
-            "expiration": s.get("expiration", ""),
-            "requester": sp.get("requester", ""),
-            "pool": sp.get("pool", "rosa-default"),
-            "duration": sp.get("duration", ""),
-        })
-    return result
-
-
-def _format_cluster_reservation_list(reservations_list: list[dict]) -> str:
-    """Format a list of cluster reservations."""
-    if not reservations_list:
-        return "No active cluster reservations found."
-
-    lines = ["Active Cluster Reservations:", ""]
-    header = (
-        f"  {'Name':<35} {'Cluster':<25} {'State':<14} "
-        f"{'Requester':<20} {'Pool':<15} {'Duration':<10}"
-    )
-    lines.append(header)
-    lines.append("  " + "-" * (len(header) - 2))
-
-    for res in reservations_list:
-        lines.append(
-            f"  {res.get('name', ''):<35} {res.get('cluster_name', ''):<25} "
-            f"{res.get('state', ''):<14} {res.get('requester', ''):<20} "
-            f"{res.get('pool', ''):<15} {res.get('duration', ''):<10}"
-        )
-
-    return "\n".join(lines)
+        return _error_result(f"Unexpected error: {e}")
 
 
 async def run_server():

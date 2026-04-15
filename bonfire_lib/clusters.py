@@ -203,3 +203,39 @@ def get_kubeconfig(
         )
 
     return base64.b64decode(kubeconfig_data).decode("utf-8")
+
+
+def list_cluster_reservations(
+    client: EphemeralK8sClient,
+    requester: str | None = None,
+) -> list[dict]:
+    """List cluster reservations, optionally filtered by requester.
+
+    Returns:
+        List of cluster reservation summary dicts. Returns empty list
+        if ClusterReservation CRD is not installed on the cluster.
+    """
+    try:
+        if requester:
+            raw = client.list_cluster_reservations(label_selector=f"requester={requester}")
+        else:
+            raw = client.list_cluster_reservations()
+    except Exception:
+        log.debug("ClusterReservation CRD not available")
+        return []
+
+    result = []
+    for res in raw:
+        s = res.get("status", {})
+        sp = res.get("spec", {})
+        result.append({
+            "name": res["metadata"]["name"],
+            "type": "cluster",
+            "cluster_name": s.get("clusterName", ""),
+            "state": s.get("state", ""),
+            "expiration": s.get("expiration", ""),
+            "requester": sp.get("requester", ""),
+            "pool": sp.get("pool", DEFAULT_CLUSTER_POOL),
+            "duration": sp.get("duration", ""),
+        })
+    return result

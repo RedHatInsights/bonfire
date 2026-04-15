@@ -45,7 +45,7 @@ def _fmt_time(dt):
 
 
 def _utcnow():
-    return _utc_tz(datetime.datetime.utcnow())
+    return _utc_tz(datetime.datetime.now(datetime.timezone.utc))
 
 
 def _pretty_time_delta(seconds):

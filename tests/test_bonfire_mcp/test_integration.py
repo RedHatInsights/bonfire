@@ -10,6 +10,7 @@ Required environment:
     - K8S_SERVER + K8S_TOKEN set for direct auth
 """
 
+import logging
 import os
 import time
 
@@ -17,6 +18,8 @@ import pytest
 
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.utils import FatalError
+
+log = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.integration
 
@@ -64,8 +67,8 @@ def reservation_cleanup(client):
             from bonfire_lib.reservations import release
 
             release(client, name=res_name)
-        except Exception:
-            pass
+        except Exception as exc:
+            log.warning("cleanup: failed to release reservation '%s': %s", res_name, exc)
 
 
 @requires_cluster

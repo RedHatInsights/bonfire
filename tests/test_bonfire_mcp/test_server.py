@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from bonfire_mcp.server import call_tool, list_tools, TOOLS
+from mcp.types import CallToolResult
 
 
 class TestToolDefinitions:
@@ -95,7 +96,9 @@ class TestNamespaceToolDispatch:
     @pytest.mark.asyncio
     async def test_reserve_invalid_name(self):
         result = await call_tool("ephemeral_reserve", {"name": "INVALID_NAME"})
-        assert "Validation error" in result[0].text
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert "Validation error" in result.content[0].text
 
     @pytest.mark.asyncio
     async def test_status_by_name(self):
@@ -163,15 +166,19 @@ class TestNamespaceToolDispatch:
         with patch("bonfire_mcp.server.reservations") as mock_res:
             mock_res.reserve.side_effect = FatalError("already exists")
             result = await call_tool("ephemeral_reserve", {"name": "dup"})
-            assert "Error" in result[0].text
-            assert "already exists" in result[0].text
+            assert isinstance(result, CallToolResult)
+            assert result.isError is True
+            assert "Error" in result.content[0].text
+            assert "already exists" in result.content[0].text
 
     @pytest.mark.asyncio
     async def test_timeout_error_handling(self):
         with patch("bonfire_mcp.server.reservations") as mock_res:
             mock_res.reserve.side_effect = TimeoutError("timed out")
             result = await call_tool("ephemeral_reserve", {"name": "slow"})
-            assert "Timeout" in result[0].text
+            assert isinstance(result, CallToolResult)
+            assert result.isError is True
+            assert "Timeout" in result.content[0].text
 
 
 class TestClusterToolDispatch:
@@ -251,7 +258,9 @@ class TestClusterToolDispatch:
     @pytest.mark.asyncio
     async def test_cluster_status_requires_name(self):
         result = await call_tool("ephemeral_status", {"type": "cluster"})
-        assert "Error" in result[0].text
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert "Error" in result.content[0].text
 
     @pytest.mark.asyncio
     async def test_extend_cluster(self):
@@ -267,7 +276,9 @@ class TestClusterToolDispatch:
     @pytest.mark.asyncio
     async def test_extend_cluster_requires_name(self):
         result = await call_tool("ephemeral_extend", {"type": "cluster", "duration": "1h"})
-        assert "Error" in result[0].text
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert "Error" in result.content[0].text
 
     @pytest.mark.asyncio
     async def test_release_cluster(self):
@@ -282,7 +293,9 @@ class TestClusterToolDispatch:
     @pytest.mark.asyncio
     async def test_release_cluster_requires_name(self):
         result = await call_tool("ephemeral_release", {"type": "cluster"})
-        assert "Error" in result[0].text
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert "Error" in result.content[0].text
 
     @pytest.mark.asyncio
     async def test_get_kubeconfig(self):
