@@ -1,6 +1,8 @@
 *
 !.git
 !bonfire
+!bonfire_lib
+!bonfire_mcp
 !utils
 !pyproject.toml
 !entrypoint.sh
