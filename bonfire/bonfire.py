@@ -1076,6 +1076,36 @@ def _get_env_name(ns=None, env_name=None):
     return _log_and_return(match["metadata"]["name"])
 
 
+def _resolve_alias(ctx, app_names, local_config_path):
+    """Resolve a CLI alias if app_names matches a configured alias.
+
+    Returns (expanded_app_names, overrides_dict).
+    Overrides only include values the user didn't explicitly set on the command line.
+    """
+    if len(app_names) != 1:
+        return app_names, {}
+
+    aliases = conf.load_aliases(local_config_path)
+    alias_name = app_names[0]
+    if alias_name not in aliases:
+        return app_names, {}
+
+    alias_cfg = aliases[alias_name]
+    log.info("expanding CLI alias '%s'", alias_name)
+
+    new_app_names = tuple(alias_cfg.get("app_names", [alias_name]))
+    overrides = {}
+    for key, value in alias_cfg.get("args", {}).items():
+        param_source = ctx.get_parameter_source(key)
+        if param_source in (None, click.core.ParameterSource.DEFAULT):
+            overrides[key] = value
+            log.info("  alias sets %s = %s", key, value)
+        else:
+            log.debug("  alias skips %s (explicitly set by user)", key)
+
+    return new_app_names, overrides
+
+
 def _process(
     app_names,
     source,
@@ -1190,6 +1220,29 @@ def _cmd_process(
     exclude_components,
 ):
     """Fetch and process application templates"""
+    app_names, _ov = _resolve_alias(ctx, app_names, local_config_path)
+    target_env = _ov.get("target_env", target_env)
+    component_filter = _ov.get("component_filter", component_filter)
+    ref_env = _ov.get("ref_env", ref_env)
+    fallback_ref_env = _ov.get("fallback_ref_env", fallback_ref_env)
+    source = _ov.get("source", source)
+    get_dependencies = _ov.get("get_dependencies", get_dependencies)
+    optional_deps_method = _ov.get("optional_deps_method", optional_deps_method)
+    set_image_tag = _ov.get("set_image_tag", set_image_tag)
+    set_template_ref = _ov.get("set_template_ref", set_template_ref)
+    set_parameter = _ov.get("set_parameter", set_parameter)
+    clowd_env = _ov.get("clowd_env", clowd_env)
+    single_replicas = _ov.get("single_replicas", single_replicas)
+    frontends = _ov.get("frontends", frontends)
+    preferred_params = _ov.get("preferred_params", preferred_params)
+    local = _ov.get("local", local)
+    exclude_components = _ov.get("exclude_components", exclude_components)
+    local_config_method = _ov.get("local_config_method", local_config_method)
+    remove_resources = _ov.get("remove_resources", remove_resources)
+    no_remove_resources = _ov.get("no_remove_resources", no_remove_resources)
+    remove_dependencies = _ov.get("remove_dependencies", remove_dependencies)
+    no_remove_dependencies = _ov.get("no_remove_dependencies", no_remove_dependencies)
+
     _namespace = get_namespace_from_context(ctx, namespace)
     clowd_env = _get_env_name(_namespace, clowd_env)
 
@@ -1466,6 +1519,32 @@ def _cmd_config_deploy(
     defer_status_errors,
 ):
     """Process app templates and deploy them to a cluster"""
+    app_names, _ov = _resolve_alias(ctx, app_names, local_config_path)
+    target_env = _ov.get("target_env", target_env)
+    component_filter = _ov.get("component_filter", component_filter)
+    ref_env = _ov.get("ref_env", ref_env)
+    fallback_ref_env = _ov.get("fallback_ref_env", fallback_ref_env)
+    source = _ov.get("source", source)
+    get_dependencies = _ov.get("get_dependencies", get_dependencies)
+    optional_deps_method = _ov.get("optional_deps_method", optional_deps_method)
+    set_image_tag = _ov.get("set_image_tag", set_image_tag)
+    set_template_ref = _ov.get("set_template_ref", set_template_ref)
+    set_parameter = _ov.get("set_parameter", set_parameter)
+    clowd_env = _ov.get("clowd_env", clowd_env)
+    single_replicas = _ov.get("single_replicas", single_replicas)
+    frontends = _ov.get("frontends", frontends)
+    preferred_params = _ov.get("preferred_params", preferred_params)
+    local = _ov.get("local", local)
+    exclude_components = _ov.get("exclude_components", exclude_components)
+    local_config_method = _ov.get("local_config_method", local_config_method)
+    remove_resources = _ov.get("remove_resources", remove_resources)
+    no_remove_resources = _ov.get("no_remove_resources", no_remove_resources)
+    remove_dependencies = _ov.get("remove_dependencies", remove_dependencies)
+    no_remove_dependencies = _ov.get("no_remove_dependencies", no_remove_dependencies)
+    pool = _ov.get("pool", pool)
+    duration = _ov.get("duration", duration)
+    timeout = _ov.get("timeout", timeout)
+
     clowder_available = has_clowder()
 
     # resolve base namespace from target env if not explicitly provided
@@ -1852,6 +1931,26 @@ def _cmd_write_default_config(path):
 def _cmd_edit_default_config(path):
     """Edit configuration with $EDITOR (default path: $XDG_CONFIG_HOME/bonfire/config.yaml)"""
     conf.edit_default_config(path)
+
+
+@config.command("list-aliases")
+@click.option(
+    "--local-config-path",
+    "-c",
+    help="File to use for local config (default: $XDG_CONFIG_HOME/bonfire/config.yaml)",
+    default=None,
+)
+def _cmd_list_aliases(local_config_path):
+    """List configured CLI aliases"""
+    aliases = conf.load_aliases(local_config_path)
+    if not aliases:
+        click.echo("No aliases configured.")
+        return
+    for name, alias_cfg in sorted(aliases.items()):
+        app_names = " ".join(alias_cfg.get("app_names", [name]))
+        args = alias_cfg.get("args", {})
+        args_str = " ".join(f"--{k.replace('_', '-')}={v}" for k, v in args.items())
+        click.echo(f"  {name} => {app_names} {args_str}".rstrip())
 
 
 @options(_app_source_options)

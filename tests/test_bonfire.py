@@ -482,3 +482,111 @@ def test_disallows_dependency_specification_conflicts():
             standalone_mode=False,
         )
     assert "cannot be specified on both this option and its opposite" in e.value.message
+
+
+class TestCLIAliases:
+    def _make_ctx(self, param_sources=None):
+        """Create a mock Click context for testing _resolve_alias."""
+        ctx = type("MockCtx", (), {})()
+        sources = param_sources or {}
+        ctx.get_parameter_source = lambda key: sources.get(key)
+        return ctx
+
+    def test_alias_expands_app_names(self, mocker):
+        mocker.patch(
+            "bonfire.config.load_aliases",
+            return_value={
+                "rosa": {
+                    "app_names": ["ephemeral"],
+                    "args": {
+                        "target_env": "rosa-ephemeral",
+                        "component_filter": ["rosa-cluster"],
+                    },
+                }
+            },
+        )
+        ctx = self._make_ctx()
+
+        app_names, overrides = bonfire._resolve_alias(ctx, ("rosa",), None)
+        assert app_names == ("ephemeral",)
+        assert overrides["target_env"] == "rosa-ephemeral"
+        assert overrides["component_filter"] == ["rosa-cluster"]
+
+    def test_alias_user_override_takes_precedence(self, mocker):
+        mocker.patch(
+            "bonfire.config.load_aliases",
+            return_value={
+                "rosa": {
+                    "app_names": ["ephemeral"],
+                    "args": {
+                        "target_env": "rosa-ephemeral",
+                        "component_filter": ["rosa-cluster"],
+                    },
+                }
+            },
+        )
+        ctx = self._make_ctx({"target_env": click.core.ParameterSource.COMMANDLINE})
+
+        app_names, overrides = bonfire._resolve_alias(ctx, ("rosa",), None)
+        assert app_names == ("ephemeral",)
+        assert "target_env" not in overrides
+        assert overrides["component_filter"] == ["rosa-cluster"]
+
+    def test_no_alias_match_passes_through(self, mocker):
+        mocker.patch("bonfire.config.load_aliases", return_value={})
+        ctx = self._make_ctx()
+
+        app_names, overrides = bonfire._resolve_alias(ctx, ("my-app",), None)
+        assert app_names == ("my-app",)
+        assert overrides == {}
+
+    def test_multiple_app_names_skip_alias(self, mocker):
+        mocker.patch(
+            "bonfire.config.load_aliases",
+            return_value={
+                "rosa": {
+                    "app_names": ["ephemeral"],
+                    "args": {"target_env": "rosa-ephemeral"},
+                }
+            },
+        )
+        ctx = self._make_ctx()
+
+        app_names, overrides = bonfire._resolve_alias(ctx, ("rosa", "other-app"), None)
+        assert app_names == ("rosa", "other-app")
+        assert overrides == {}
+
+    def test_alias_without_app_names_uses_alias_name(self, mocker):
+        mocker.patch(
+            "bonfire.config.load_aliases",
+            return_value={
+                "myalias": {
+                    "args": {"target_env": "custom-env"},
+                }
+            },
+        )
+        ctx = self._make_ctx()
+
+        app_names, overrides = bonfire._resolve_alias(ctx, ("myalias",), None)
+        assert app_names == ("myalias",)
+        assert overrides["target_env"] == "custom-env"
+
+    def test_list_aliases_command(self, mocker):
+        mocker.patch(
+            "bonfire.config.load_aliases",
+            return_value={
+                "rosa": {
+                    "app_names": ["ephemeral"],
+                    "args": {
+                        "target_env": "rosa-ephemeral",
+                        "component_filter": ["rosa-cluster"],
+                    },
+                }
+            },
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(bonfire.config, ["list-aliases"])
+        assert result.exit_code == 0
+        assert "rosa" in result.output
+        assert "ephemeral" in result.output

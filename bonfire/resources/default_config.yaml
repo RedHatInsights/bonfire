@@ -16,3 +16,16 @@ apps:
       host: github
       repo: some-org/some-repo
       path: deploy/template.yaml
+
+# (optional) CLI aliases allow shorthand commands that expand to full commands with arguments.
+# e.g. 'bonfire process rosa' expands to 'bonfire process ephemeral --target-env rosa-ephemeral ...'
+# Use parameter names as they appear in the CLI (underscores), e.g. target_env, component_filter.
+# Set an alias to null to disable a built-in default.
+#aliases:
+#  rosa:
+#    app_names:
+#      - ephemeral
+#    args:
+#      target_env: rosa-ephemeral
+#      component_filter:
+#        - rosa-cluster
