@@ -163,6 +163,7 @@ DEFAULT_ALIASES = {
         "args": {
             "target_env": "rosa-ephemeral",
             "component_filter": ["rosa-cluster"],
+            "pool": "rosa",
         },
     },
 }
