@@ -157,6 +157,18 @@ def edit_default_config(confpath=None):
     subprocess.call([os.getenv("EDITOR"), confpath])
 
 
+DEFAULT_ALIASES = {
+    "rosa": {
+        "app_names": ["ephemeral"],
+        "args": {
+            "target_env": "rosa-ephemeral",
+            "component_filter": ["rosa-cluster"],
+            "pool": "rosa",
+        },
+    },
+}
+
+
 def load_config(config_path=None):
     if config_path:
         log.debug("user provided explicit config path: %s", config_path)
@@ -174,3 +186,21 @@ def load_config(config_path=None):
     local_config_data = load_file(config_path)
 
     return local_config_data
+
+
+def load_aliases(config_path=None):
+    """Load CLI aliases, merging user config with built-in defaults."""
+    try:
+        config = load_config(config_path)
+    except Exception:
+        config = {}
+
+    user_aliases = config.get("aliases", {}) if config else {}
+    aliases = dict(DEFAULT_ALIASES)
+    if user_aliases:
+        for name, cfg in user_aliases.items():
+            if cfg is None:
+                aliases.pop(name, None)
+            else:
+                aliases[name] = cfg
+    return aliases
