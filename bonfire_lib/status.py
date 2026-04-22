@@ -165,12 +165,14 @@ def describe_namespace(client: EphemeralK8sClient, namespace: str) -> dict:
 
     try:
         clowdapps = client.list_crds("ClowdApp", namespace=namespace)
-    except Exception:
+    except Exception as exc:
+        log.warning("failed to list ClowdApps in namespace '%s': %s", namespace, exc)
         clowdapps = []
 
     try:
         frontends = client.list_crds("Frontend", namespace=namespace)
-    except Exception:
+    except Exception as exc:
+        log.warning("failed to list Frontends in namespace '%s': %s", namespace, exc)
         frontends = []
 
     fe_host = ""
@@ -180,8 +182,8 @@ def describe_namespace(client: EphemeralK8sClient, namespace: str) -> dict:
         if fe_env:
             fe_host = fe_env.get("spec", {}).get("hostname", "")
             keycloak_url = fe_env.get("spec", {}).get("sso", "")
-    except Exception:
-        pass
+    except Exception as exc:
+        log.warning("failed to get FrontendEnvironment for namespace '%s': %s", namespace, exc)
 
     kc_creds = _get_keycloak_creds(client, namespace)
 

@@ -175,7 +175,9 @@ class TestNamespaceToolDispatch:
     @pytest.mark.asyncio
     async def test_unknown_tool(self):
         result = await call_tool("nonexistent_tool", {})
-        assert "Unknown tool" in result[0].text
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert "Unknown tool" in result.content[0].text
 
     @pytest.mark.asyncio
     async def test_fatal_error_handling(self):

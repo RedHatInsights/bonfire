@@ -431,7 +431,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolR
             return [TextContent(type="text", text=format_kubeconfig(arguments["name"], kubeconfig))]
 
         else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
+            return _error_result(f"Unknown tool: {name}")
 
     except FatalError as e:
         return _error_result(f"Error: {e}")
