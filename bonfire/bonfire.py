@@ -1621,7 +1621,7 @@ def _cmd_config_deploy(
             local,
             frontends,
             preferred_params,
-            _namespace,
+            ns,
             exclude_components,
         )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
