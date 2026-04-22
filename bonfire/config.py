@@ -162,7 +162,7 @@ DEFAULT_ALIASES = {
         "app_names": ["ephemeral"],
         "args": {
             "target_env": "rosa-ephemeral",
-            "component_filter": ["rosa-cluster"],
+            "component_filter": ["rosa-ephemeral-cluster"],
             "pool": "rosa",
         },
     },

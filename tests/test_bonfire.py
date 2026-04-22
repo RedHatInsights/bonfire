@@ -500,7 +500,7 @@ class TestCLIAliases:
                     "app_names": ["ephemeral"],
                     "args": {
                         "target_env": "rosa-ephemeral",
-                        "component_filter": ["rosa-cluster"],
+                        "component_filter": ["rosa-ephemeral-cluster"],
                     },
                 }
             },
@@ -510,7 +510,7 @@ class TestCLIAliases:
         app_names, overrides = bonfire._resolve_alias(ctx, ("rosa",), None)
         assert app_names == ("ephemeral",)
         assert overrides["target_env"] == "rosa-ephemeral"
-        assert overrides["component_filter"] == ["rosa-cluster"]
+        assert overrides["component_filter"] == ["rosa-ephemeral-cluster"]
 
     def test_alias_user_override_takes_precedence(self, mocker):
         mocker.patch(
@@ -520,7 +520,7 @@ class TestCLIAliases:
                     "app_names": ["ephemeral"],
                     "args": {
                         "target_env": "rosa-ephemeral",
-                        "component_filter": ["rosa-cluster"],
+                        "component_filter": ["rosa-ephemeral-cluster"],
                     },
                 }
             },
@@ -530,7 +530,7 @@ class TestCLIAliases:
         app_names, overrides = bonfire._resolve_alias(ctx, ("rosa",), None)
         assert app_names == ("ephemeral",)
         assert "target_env" not in overrides
-        assert overrides["component_filter"] == ["rosa-cluster"]
+        assert overrides["component_filter"] == ["rosa-ephemeral-cluster"]
 
     def test_no_alias_match_passes_through(self, mocker):
         mocker.patch("bonfire.config.load_aliases", return_value={})
@@ -579,7 +579,7 @@ class TestCLIAliases:
                     "app_names": ["ephemeral"],
                     "args": {
                         "target_env": "rosa-ephemeral",
-                        "component_filter": ["rosa-cluster"],
+                        "component_filter": ["rosa-ephemeral-cluster"],
                     },
                 }
             },
