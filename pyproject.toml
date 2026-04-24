@@ -54,7 +54,7 @@ cli = [
     "importlib-resources; python_version<'3.9'",
     "junitparser",
     "multidict",
-    "ocviapy>=1.6.0",
+    "ocviapy>=1.6.1",
     "python-dotenv",
     "requests>=2.33.0",
     "sh",
