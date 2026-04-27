@@ -165,6 +165,7 @@ DEFAULT_ALIASES = {
             "component_filter": ["rosa-ephemeral-cluster"],
             "pool": "rosa",
             "timeout": 1800,
+            "duration": "2h",
         },
     },
 }
