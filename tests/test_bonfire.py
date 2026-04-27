@@ -559,6 +559,8 @@ class TestCLIAliases:
                     "args": {
                         "target_env": "rosa-ephemeral",
                         "component_filter": ["rosa-ephemeral-cluster"],
+                        "timeout": 1800,
+                        "duration": "2h",
                     },
                 }
             },
@@ -569,6 +571,8 @@ class TestCLIAliases:
         assert app_names == ("ephemeral",)
         assert overrides["target_env"] == "rosa-ephemeral"
         assert overrides["component_filter"] == ["rosa-ephemeral-cluster"]
+        assert overrides["timeout"] == 1800
+        assert overrides["duration"] == "2h"
 
     def test_alias_user_override_takes_precedence(self, mocker):
         mocker.patch(
