@@ -1,0 +1,64 @@
+apiVersion: cloud.redhat.com/v1alpha1
+kind: ClowdEnvironment
+metadata:
+  name: {{ env_name }}
+spec:
+  targetNamespace: {{ namespace }}
+  resourceDefaults:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 30m
+      memory: 128Mi
+  providers:
+    pullSecrets:
+      - name: {{ pull_secret_name | default("quay-cloudservices-pull") }}
+        namespace: {{ namespace }}
+    testing:
+      k8sAccessLevel: edit
+      configAccess: environment
+      iqe:
+        imageBase: "quay.io/cloudservices/iqe-tests"
+        resources:
+          limits:
+            cpu: 1
+            memory: 1Gi
+          requests:
+            cpu: 200m
+            memory: 256Mi
+    web:
+      port: 8000
+      privatePort: 10000
+      mode: operator
+    featureFlags:
+      mode: local
+    metrics:
+      port: 9000
+      path: "/metrics"
+      prometheus:
+        deploy: true
+      mode: operator
+    kafka:
+      mode: operator
+      enableLegacyStrimzi: true
+      cluster:
+        version: "3.8.0"
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 250m
+            memory: 600Mi
+      connect:
+        version: "3.8.0"
+        image: "quay.io/cloudservices/xjoin-kafka-connect-strimzi:latest"
+    db:
+      mode: local
+    logging:
+      mode: none
+    objectStore:
+      mode: minio
+    inMemoryDb:
+      mode: redis

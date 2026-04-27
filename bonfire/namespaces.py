@@ -4,7 +4,7 @@ import datetime
 import json
 import logging
 
-from ocviapy import apply_config, get_all_namespaces, get_json, on_k8s, set_current_namespace
+from ocviapy import get_all_namespaces, get_json, on_k8s, set_current_namespace
 from wait_for import TimedOutError
 
 import bonfire.config as conf
@@ -12,13 +12,21 @@ from bonfire.openshift import (
     get_all_reservations,
     get_console_url,
     get_reservation,
-    wait_on_reservation,
     whoami,
 )
-from bonfire.processor import process_reservation
-from bonfire.utils import FatalError, hms_to_seconds
+from bonfire.utils import FatalError
+
+import bonfire_lib.reservations as _lib_reservations
+import bonfire_lib.status as _lib_status
+from bonfire_lib.k8s_client import EphemeralK8sClient
 
 log = logging.getLogger(__name__)
+
+
+def _get_lib_client() -> EphemeralK8sClient:
+    """Create an EphemeralK8sClient from the current kubeconfig context."""
+    return EphemeralK8sClient()
+
 
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -36,7 +44,7 @@ def _fmt_time(dt):
 
 
 def _utcnow():
-    return _utc_tz(datetime.datetime.utcnow())
+    return _utc_tz(datetime.datetime.now(datetime.timezone.utc))
 
 
 def _pretty_time_delta(seconds):
@@ -312,49 +320,27 @@ def get_namespaces(available=False, mine=False):
 def reserve_namespace(
     name, requester, duration, pool, timeout, local=True, team=None, secrets_src_namespace=None
 ):
-    res = get_reservation(name)
-    # Name should be unique on reservation creation.
-    if res:
-        raise FatalError(f"Reservation with name {name} already exists")
-
-    res_config = process_reservation(
-        name,
-        requester,
-        duration,
-        pool,
-        local=local,
-        team=team,
-        secrets_src_namespace=secrets_src_namespace,
-    )
-
-    log.debug("processed reservation:\n%s", res_config)
+    client = _get_lib_client()
 
     try:
-        res_name = res_config["items"][0]["metadata"]["name"]
-    except (KeyError, IndexError):
-        raise Exception(
-            "error parsing name of Reservation from processed template, check Reservation template"
+        result = _lib_reservations.reserve(
+            client,
+            name=name,
+            duration=duration,
+            requester=requester,
+            pool=pool,
+            team=team,
+            secrets_src_namespace=secrets_src_namespace,
+            timeout=timeout,
         )
+    except _lib_reservations.FatalError as exc:
+        raise FatalError(str(exc))
+    except TimeoutError:
+        raise TimedOutError("timed out waiting for namespace")
 
-    apply_config(None, list_resource=res_config)
-
-    try:
-        ns_name = wait_on_reservation(res_name, timeout)
-    except TimedOutError:
-        log.info("timeout waiting for namespace. Cancelling reservation.")
-        release_reservation(name=res_name)
-        raise
-
-    log.info(
-        "namespace '%s' is reserved by '%s' for '%s' from the %s pool",
-        ns_name,
-        requester,
-        duration,
-        pool,
-    )
+    ns_name = result["namespace"]
 
     if not conf.BONFIRE_BOT:
-        # set reserved namespace as current
         set_current_namespace(ns_name)
 
     url = get_console_url()
@@ -366,98 +352,42 @@ def reserve_namespace(
 
 
 def release_reservation(name=None, namespace=None, local=True):
-    res = get_reservation(name=name, namespace=namespace)
-    if res:
-        res_name = res["metadata"]["name"]
-        res_config = process_reservation(
-            res["metadata"]["name"],
-            res["spec"]["requester"],
-            "0s",  # on release set duration to 0s
-            pool=res["spec"].get("pool"),
-            local=local,
-        )
-
-        apply_config(None, list_resource=res_config)
-        msg = f"releasing reservation '{res_name}'"
-        if namespace:
-            msg += f" namespace '{namespace}'"
-        log.info(msg)
-    else:
-        raise FatalError("Reservation lookup failed")
+    client = _get_lib_client()
+    try:
+        _lib_reservations.release(client, name=name, namespace=namespace)
+    except _lib_reservations.FatalError as exc:
+        raise FatalError(str(exc))
 
 
 def extend_namespace(namespace, duration, local=True):
-    res = get_reservation(namespace=namespace)
-    if res:
-        if res.get("status", {}).get("state") == "expired":
-            log.error(
-                "The reservation for namespace %s has expired. Please reserve a new namespace",
-                res["status"]["namespace"],
-            )
-            return None
-
-        prev_duration = hms_to_seconds(res["spec"]["duration"])
-        new_duration = prev_duration + hms_to_seconds(duration)
-
-        res_config = process_reservation(
-            res["metadata"]["name"],
-            res["spec"]["requester"],
-            _duration_fmt(new_duration),
-            pool=res["spec"].get("pool"),
-            local=local,
-        )
-
-        log.debug("processed reservation:\n%s", res_config)
-
-        apply_config(None, list_resource=res_config)
-    else:
-        raise FatalError("Reservation lookup failed")
-
+    client = _get_lib_client()
+    try:
+        result = _lib_reservations.extend(client, namespace=namespace, duration=duration)
+    except _lib_reservations.FatalError as exc:
+        raise FatalError(str(exc))
+    if result is None:
+        return None
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
 
 
 def describe_namespace(project_name: str, output: str):
-    ns_data = get_json("namespace", project_name)
-    if not ns_data:
-        raise FatalError(f"namespace '{project_name}' not found")
-    ns = Namespace(namespace_data=ns_data)
-    if not ns.operator_ns:
-        raise FatalError(f"namespace '{project_name}' was not reserved with namespace operator")
+    client = _get_lib_client()
+    try:
+        info = _lib_status.describe_namespace(client, project_name)
+    except _lib_status.FatalError as exc:
+        raise FatalError(str(exc))
 
-    frontends = get_json("frontend", namespace=project_name)
-    clowdapps = get_json("clowdapp", namespace=project_name)
-    num_frontends = len(frontends.get("items", []))
-    num_clowdapps = len(clowdapps.get("items", []))
-    fe_host, keycloak_url = parse_fe_env(project_name)
-    kc_creds = get_keycloak_creds(project_name)
-    project_url = get_console_url()
+    if output == "json":
+        return json.dumps(info, indent=2)
 
     data = f"\nCurrent project: {project_name}\n"
-    ns_url = ""
-    if project_url:
-        ns_url = f"{project_url}/k8s/cluster/projects/{project_name}"
-        data += f"Project URL: {ns_url}\n"
-    data += f"Keycloak admin route: {keycloak_url}\n"
-    data += f"Keycloak admin login: {kc_creds['username']} | {kc_creds['password']}\n"
-    data += f"{num_clowdapps} ClowdApp(s), {num_frontends} Frontend(s) deployed\n"
-    data += f"Gateway route: https://{fe_host}\n"
-    data += f"Default user login: {kc_creds['defaultUsername']} | {kc_creds['defaultPassword']}\n"
-    if output == "json":
-        data = {
-            "namespace": project_name,
-            "keycloak_admin_route": keycloak_url,
-            "keycloak_admin_username": kc_creds["username"],
-            "keycloak_admin_password": kc_creds["password"],
-            "clowdapps_deployed": num_clowdapps,
-            "frontends_deployed": num_frontends,
-            "default_username": kc_creds["defaultUsername"],
-            "default_password": kc_creds["defaultPassword"],
-            "gateway_route": f"https://{fe_host}",
-        }
-        if ns_url:
-            data["console_namespace_route"] = ns_url
-        data = json.dumps(data, indent=2)
-
+    if info.get("console_namespace_route"):
+        data += f"Project URL: {info['console_namespace_route']}\n"
+    data += f"Keycloak admin route: {info['keycloak_admin_route']}\n"
+    data += f"Keycloak admin login: {info['keycloak_admin_username']} | {info['keycloak_admin_password']}\n"
+    data += f"{info['clowdapps_deployed']} ClowdApp(s), {info['frontends_deployed']} Frontend(s) deployed\n"
+    data += f"Gateway route: {info['gateway_route']}\n"
+    data += f"Default user login: {info['default_username']} | {info['default_password']}\n"
     return data
 
 

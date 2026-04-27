@@ -53,7 +53,7 @@ VENV_DIR=~/bonfire_venv
 mkdir -p $VENV_DIR
 python3 -m venv $VENV_DIR
 . $VENV_DIR/bin/activate
-pip install crc-bonfire
+pip install crc-bonfire[cli]
 ```
 
 To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs,
@@ -129,7 +129,7 @@ VENV_DIR=~/bonfire_venv
 mkdir -p $VENV_DIR
 python3 -m venv $VENV_DIR
 . $VENV_DIR/bin/activate
-pip install -e .
+pip install -e ".[cli]"
 ```
 
 

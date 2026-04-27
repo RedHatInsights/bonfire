@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from unittest.mock import ANY
 
 import click
 import pytest
@@ -39,18 +38,34 @@ def test_ns_reserve_flag_name(mocker, caplog, name: str):
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
-    mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
-    mocker.patch("bonfire.processor.process_template", return_value={})
+    mocker.patch("bonfire.namespaces._get_lib_client")
+    mocker.patch("bonfire.namespaces.get_console_url", return_value=None)
+    mocker.patch("bonfire.namespaces.set_current_namespace")
+    mocker.patch(
+        "bonfire.namespaces.get_json",
+        return_value={"metadata": {"name": name, "annotations": {}, "labels": {}}},
+    )
 
-    mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
+    mock_lib_reserve = mocker.patch(
+        "bonfire.namespaces._lib_reservations.reserve",
+        return_value={
+            "name": name,
+            "namespace": f"ephemeral-{name}",
+            "state": "active",
+            "expiration": "",
+            "requester": "user-3",
+            "pool": "default",
+        },
+    )
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["reserve", "--name", name])
     print(result.output)
 
-    mock_process_reservation.assert_called_once_with(
-        name, "user-3", "1h", "default", local=True, team="", secrets_src_namespace=None
-    )
+    mock_lib_reserve.assert_called_once()
+    call_kwargs = mock_lib_reserve.call_args
+    assert call_kwargs.kwargs["name"] == name
+    assert call_kwargs.kwargs["requester"] == "user-3"
 
 
 @pytest.mark.parametrize(
@@ -68,18 +83,32 @@ def test_ns_reserve_flag_requester(mocker, caplog, requester: str):
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value=requester)
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
-    mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
-    mocker.patch("bonfire.processor.process_template", return_value={})
+    mocker.patch("bonfire.namespaces._get_lib_client")
+    mocker.patch("bonfire.namespaces.get_console_url", return_value=None)
+    mocker.patch("bonfire.namespaces.set_current_namespace")
+    mocker.patch(
+        "bonfire.namespaces.get_json",
+        return_value={"metadata": {"name": "test-ns", "annotations": {}, "labels": {}}},
+    )
 
-    mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
+    mock_lib_reserve = mocker.patch(
+        "bonfire.namespaces._lib_reservations.reserve",
+        return_value={
+            "name": "test-res",
+            "namespace": "ephemeral-test",
+            "state": "active",
+            "expiration": "",
+            "requester": requester,
+            "pool": "default",
+        },
+    )
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["reserve", "--requester", requester])
     print(result.output)
 
-    mock_process_reservation.assert_called_once_with(
-        None, requester, "1h", "default", local=True, team="", secrets_src_namespace=None
-    )
+    mock_lib_reserve.assert_called_once()
+    assert mock_lib_reserve.call_args.kwargs["requester"] == requester
 
 
 @pytest.mark.parametrize(
@@ -98,10 +127,25 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
     mocker.patch("bonfire.bonfire._get_requester", return_value="user-3")
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
-    mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
-    mocker.patch("bonfire.processor.process_template", return_value={})
+    mocker.patch("bonfire.namespaces._get_lib_client")
+    mocker.patch("bonfire.namespaces.get_console_url", return_value=None)
+    mocker.patch("bonfire.namespaces.set_current_namespace")
+    mocker.patch(
+        "bonfire.namespaces.get_json",
+        return_value={"metadata": {"name": "test-ns", "annotations": {}, "labels": {}}},
+    )
 
-    mock_process_reservation = mocker.patch("bonfire.namespaces.process_reservation")
+    mock_lib_reserve = mocker.patch(
+        "bonfire.namespaces._lib_reservations.reserve",
+        return_value={
+            "name": "test-res",
+            "namespace": "ephemeral-test",
+            "state": "active",
+            "expiration": "",
+            "requester": "user-3",
+            "pool": "default",
+        },
+    )
 
     runner = CliRunner()
     cmd_args = ["reserve"]
@@ -110,14 +154,9 @@ def test_ns_reserve_flag_duration(mocker, caplog, duration: str):
     result = runner.invoke(bonfire.namespace, cmd_args)
     print(result.output)
 
-    if duration:
-        mock_process_reservation.assert_called_once_with(
-            None, "user-3", duration, "default", local=True, team="", secrets_src_namespace=None
-        )
-    else:
-        mock_process_reservation.assert_called_once_with(
-            None, "user-3", "1h", "default", local=True, team="", secrets_src_namespace=None
-        )
+    mock_lib_reserve.assert_called_once()
+    expected_duration = duration if duration else "1h"
+    assert mock_lib_reserve.call_args.kwargs["duration"] == expected_duration
 
 
 def test_ns_list_option(mocker, caplog, namespace_list: list, reservation_list: list):
@@ -264,19 +303,34 @@ def test_ns_reserve_flag_timeout(mocker, caplog, user: str, namespace: str, time
     mocker.patch("bonfire.bonfire.get_namespace_pools", return_value=["default"])
     mocker.patch("bonfire.bonfire.get_pool_size_limit", return_value=0)
     mocker.patch("bonfire.bonfire.has_ns_operator", return_value=True)
-    mocker.patch("bonfire.namespaces.whoami", return_value=user)
+    mocker.patch("bonfire.bonfire._get_requester", return_value=user)
     mocker.patch("bonfire.bonfire.check_for_existing_reservation", return_value=False)
-    mocker.patch("bonfire.namespaces.get_reservation", return_value=None)
-    mocker.patch("bonfire.namespaces.process_reservation")
-    mocker.patch("bonfire.namespaces.apply_config")
+    mocker.patch("bonfire.namespaces._get_lib_client")
+    mocker.patch("bonfire.namespaces.get_console_url", return_value=None)
+    mocker.patch("bonfire.namespaces.set_current_namespace")
+    mocker.patch(
+        "bonfire.namespaces.get_json",
+        return_value={"metadata": {"name": namespace, "annotations": {}, "labels": {}}},
+    )
 
-    mock_wait_on_res = mocker.patch("bonfire.namespaces.wait_on_reservation")
+    mock_lib_reserve = mocker.patch(
+        "bonfire.namespaces._lib_reservations.reserve",
+        return_value={
+            "name": "test-res",
+            "namespace": f"ephemeral-{namespace}",
+            "state": "active",
+            "expiration": "",
+            "requester": user,
+            "pool": "default",
+        },
+    )
 
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["reserve", "--timeout", timeout])
     print(result.output)
 
-    mock_wait_on_res.assert_called_once_with(ANY, timeout)
+    mock_lib_reserve.assert_called_once()
+    assert mock_lib_reserve.call_args.kwargs["timeout"] == timeout
 
 
 def test_pool_list_command(mocker, caplog):
@@ -294,21 +348,24 @@ def test_pool_list_command(mocker, caplog):
     assert output == fake_pools
 
 
-default_kc = {
-    "username": "admin",
-    "password": "adminPassword",
-    "defaultUsername": "jdoe",
-    "defaultPassword": "password",
-}
 eph_test_route = "env-ephemeral-blah-howdy.apps.c-rh-c-eph.8p0c.p1.openshiftapps.com"
+
+_describe_cli_output = (
+    "\nCurrent project: ephemeral-blah\n"
+    "Project URL: yes.redhat.com/k8s/cluster/projects/ephemeral-blah\n"
+    "Keycloak admin route: foo\n"
+    "Keycloak admin login: admin | adminPassword\n"
+    "0 ClowdApp(s), 0 Frontend(s) deployed\n"
+    f"Gateway route: https://{eph_test_route}\n"
+    "Default user login: jdoe | password\n"
+)
 
 
 def test_describe_ephemeral_ns(mocker):
-    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
-    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
-    mocker.patch("bonfire.namespaces.get_json")
-    mocker.patch("bonfire.namespaces.Namespace")
+    mocker.patch(
+        "bonfire.bonfire.describe_namespace",
+        return_value=_describe_cli_output,
+    )
     runner = CliRunner()
     result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-blah"])
     print(result.output)
@@ -319,14 +376,12 @@ def test_describe_ephemeral_ns(mocker):
 
 
 def test_describe_ephemeral_ns_from_ctx(mocker):
-    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
-    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
-    mocker.patch("bonfire.namespaces.get_json")
-    mocker.patch("bonfire.namespaces.Namespace")
+    mocker.patch(
+        "bonfire.bonfire.describe_namespace",
+        return_value=_describe_cli_output,
+    )
     mocker.patch("bonfire.bonfire.current_namespace_or_error", return_value="ephemeral-blah")
     runner = CliRunner()
-    # Simulate the context that `main` sets up when no --namespace is passed
     result = runner.invoke(bonfire.namespace, ["describe"], obj={"namespace": None})
     print("result.output", result.output)
 
@@ -336,10 +391,10 @@ def test_describe_ephemeral_ns_from_ctx(mocker):
 
 
 def test_describe_default_ns(mocker):
-    mocker.patch("bonfire.namespaces.get_console_url", return_value="yes.redhat.com")
-    mocker.patch("bonfire.namespaces.get_keycloak_creds", return_value=default_kc)
-    mocker.patch("bonfire.namespaces.parse_fe_env", return_value=(eph_test_route, "foo"))
-    mocker.patch("bonfire.namespaces.get_json")
+    mocker.patch(
+        "bonfire.bonfire.describe_namespace",
+        side_effect=FatalError("namespace 'default' was not reserved with namespace operator"),
+    )
     runner = CliRunner()
     try:
         result = runner.invoke(bonfire.namespace, ["describe", "default"])
@@ -349,7 +404,10 @@ def test_describe_default_ns(mocker):
 
 
 def test_describe_wrong_ns(mocker):
-    mocker.patch("bonfire.namespaces.get_json", return_value=None)
+    mocker.patch(
+        "bonfire.bonfire.describe_namespace",
+        side_effect=FatalError("namespace 'ephemeral-memes' not found"),
+    )
     runner = CliRunner()
     try:
         result = runner.invoke(bonfire.namespace, ["describe", "ephemeral-memes"])

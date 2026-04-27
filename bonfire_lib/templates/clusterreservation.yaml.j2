@@ -1,0 +1,13 @@
+apiVersion: cloud.redhat.com/v1alpha1
+kind: ClusterReservation
+metadata:
+  name: {{ name }}
+  labels:
+    requester: {{ requester }}
+spec:
+  duration: {{ duration }}
+  requester: {{ requester }}
+  pool: {{ pool | default("rosa-default") }}
+{% if team %}
+  team: {{ team }}
+{% endif %}
