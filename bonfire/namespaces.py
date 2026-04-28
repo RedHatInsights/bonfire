@@ -247,7 +247,7 @@ class Namespace:
         for cluster in items:
             conditions = cluster.get("status", {}).get("conditions", [])
             for cond in conditions:
-                if cond.get("type") == "Ready" and cond.get("status") == "True":
+                if cond.get("type") in ("Ready", "Available") and cond.get("status") == "True":
                     ready += 1
                     break
 
