@@ -60,14 +60,23 @@ To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs,
 [create a personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 on your GitHub account which grants bonfire read access to your repos.
 
+**Token Expiration**: The token must have an expiration length of less than 366 days to adhere to organizational policies. Longer periods will result in 403 responses.
+
+**Tokens (Classic)**: When using the GitHub token (classic), it **must have** the `read:project` scope.
+In addition, since some projects may be private, you will need to add the `repo` (full control of private repositories) scope too.
+for the template fetching to work!
+
+**Fine-grained tokens**: When using the newer fine grained tokens in GitHub, you must select the following permissions for `All Repositories` with read-only permission.
+* Contents (Read-only)
+* Metadata (required and included by default)
+
+![GitHub Token Example](github-fine-token.png)
+
 Configure bonfire to use the token with:
 ```
 echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
 ```
 
-**Please note**: When using the Github token (classic), it **must have** the `read:project` scope.
-In addition, since some projects may be private, you will need to add the `repo` (full control of private repositories) scope too.
-for the template fetching to work!
 
 ## Using UV
 
