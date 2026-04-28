@@ -36,7 +36,6 @@ from bonfire.openshift import (
     wait_for_db_resources,
     wait_on_cji,
     whoami,
-    get_console_url,
     get_pool_size_limit,
     get_reserved_namespace_quantity,
     log_namespace_events,
@@ -1637,16 +1636,13 @@ def _cmd_config_deploy(
     else:
         log.info("successfully deployed to namespace %s", ns)
         es_telemetry.send_telemetry("successful deployment")
-        url = get_console_url()
-        if url:
-            ns_url = f"{url}/k8s/cluster/projects/{ns}"
-            log.info("namespace url: %s", ns_url)
-            log.info(
-                "resource usage dashboard for namespace '%s': %s",
-                ns,
-                conf.RESOURCE_DASHBOARD_URL.format(namespace=ns),
-            )
+        log.info(
+            "resource usage dashboard for namespace '%s': %s",
+            ns,
+            conf.RESOURCE_DASHBOARD_URL.format(namespace=ns),
+        )
         click.echo(ns)
+        log.info("for namespace access information, run 'bonfire namespace describe %s'", ns)
 
 
 def _process_clowdenv(namespace, quay_user, clowd_env, template_file, local):

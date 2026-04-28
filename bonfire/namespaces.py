@@ -397,7 +397,14 @@ def describe_namespace(project_name: str, output: str):
 
     cred_rows = []
     if _has_cred(info["keycloak_admin_username"], info["keycloak_admin_password"]):
-        cred_rows.append(("Keycloak admin", info["keycloak_admin_route"], info["keycloak_admin_username"], info["keycloak_admin_password"]))
+        cred_rows.append(
+            (
+                "Keycloak admin",
+                info["keycloak_admin_route"],
+                info["keycloak_admin_username"],
+                info["keycloak_admin_password"],
+            )
+        )
     if _has_cred(info["default_username"], info["default_password"]):
         cred_rows.append(("Default user", "", info["default_username"], info["default_password"]))
 
