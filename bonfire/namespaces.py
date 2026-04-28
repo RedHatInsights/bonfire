@@ -4,6 +4,8 @@ import datetime
 import json
 import logging
 
+from tabulate import tabulate
+
 from ocviapy import get_all_namespaces, get_json, on_k8s, set_current_namespace
 from wait_for import TimedOutError
 
@@ -380,15 +382,58 @@ def describe_namespace(project_name: str, output: str):
     if output == "json":
         return json.dumps(info, indent=2)
 
-    data = f"\nCurrent project: {project_name}\n"
+    rows = [("Namespace", project_name)]
     if info.get("console_namespace_route"):
-        data += f"Project URL: {info['console_namespace_route']}\n"
-    data += f"Keycloak admin route: {info['keycloak_admin_route']}\n"
-    data += f"Keycloak admin login: {info['keycloak_admin_username']} | {info['keycloak_admin_password']}\n"
-    data += f"{info['clowdapps_deployed']} ClowdApp(s), {info['frontends_deployed']} Frontend(s) deployed\n"
-    data += f"Gateway route: {info['gateway_route']}\n"
-    data += f"Default user login: {info['default_username']} | {info['default_password']}\n"
-    return data
+        rows.append(("Project URL", info["console_namespace_route"]))
+    if info.get("gateway_route"):
+        rows.append(("Gateway route", info["gateway_route"]))
+    if info.get("clowdapps_deployed"):
+        rows.append(("ClowdApps deployed", info["clowdapps_deployed"]))
+    if info.get("frontends_deployed"):
+        rows.append(("Frontends deployed", info["frontends_deployed"]))
+
+    def _has_cred(user, pw):
+        return user not in ("", "N/A") or pw not in ("", "N/A")
+
+    cred_rows = []
+    if _has_cred(info["keycloak_admin_username"], info["keycloak_admin_password"]):
+        cred_rows.append(
+            (
+                "Keycloak admin",
+                info["keycloak_admin_route"],
+                info["keycloak_admin_username"],
+                info["keycloak_admin_password"],
+            )
+        )
+    if _has_cred(info["default_username"], info["default_password"]):
+        cred_rows.append(("Default user", "", info["default_username"], info["default_password"]))
+
+    lines = [tabulate(rows, tablefmt="simple")]
+
+    if cred_rows:
+        lines.append("\nCredentials:")
+        for name, route, user, pw in cred_rows:
+            cred_info = [
+                (f"{name} username", user),
+                (f"{name} password", pw),
+            ]
+            if route:
+                cred_info.append((f"{name} route", route))
+            lines.append(tabulate(cred_info, tablefmt="simple"))
+            lines.append("")
+
+    if info.get("has_cluster"):
+        ns = project_name
+        lines.append(
+            "ROSA Cluster configuration detected! To access it, run:\n"
+            "\n"
+            f"  oc get secret {ns}-cluster-kubeconfig \\\n"
+            f"    -n {ns} \\\n"
+            f"    -o jsonpath='{{.data.value}}' | base64 -d > /tmp/{ns}-kubeconfig\n"
+            f"  KUBECONFIG=/tmp/{ns}-kubeconfig oc whoami"
+        )
+
+    return "\n" + "\n".join(lines) + "\n"
 
 
 def parse_fe_env(project_name):

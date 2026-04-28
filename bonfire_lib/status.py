@@ -190,6 +190,8 @@ def describe_namespace(client: EphemeralK8sClient, namespace: str) -> dict:
     console_url = get_console_url(client)
     ns_url = f"{console_url}/k8s/cluster/projects/{namespace}" if console_url else ""
 
+    has_cluster = _has_cluster_kubeconfig(client, namespace)
+
     return {
         "namespace": namespace,
         "console_namespace_route": ns_url,
@@ -201,7 +203,17 @@ def describe_namespace(client: EphemeralK8sClient, namespace: str) -> dict:
         "default_username": kc_creds.get("defaultUsername", "N/A"),
         "default_password": kc_creds.get("defaultPassword", "N/A"),
         "gateway_route": f"https://{fe_host}" if fe_host else "",
+        "has_cluster": has_cluster,
     }
+
+
+def _has_cluster_kubeconfig(client: EphemeralK8sClient, namespace: str) -> bool:
+    """Check if a cluster kubeconfig secret exists in the namespace."""
+    try:
+        secret = client.get_secret(f"{namespace}-cluster-kubeconfig", namespace)
+        return secret is not None
+    except Exception:
+        return False
 
 
 def _get_keycloak_creds(client: EphemeralK8sClient, namespace: str) -> dict:
