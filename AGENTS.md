@@ -54,7 +54,7 @@ python -m build -o dist/
 
 ### Data Flow
 
-```
+```text
 bonfire CLI (Click commands)         bonfire_mcp (MCP server)
     │                                    │
     │ uses ocviapy/oc binary             │ calls bonfire_lib directly
