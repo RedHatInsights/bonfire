@@ -1,0 +1,16 @@
+apiVersion: cloud.redhat.com/v1alpha1
+kind: NamespaceReservation
+metadata:
+  name: {{ name }}
+  labels:
+    requester: {{ requester }}
+spec:
+  duration: {{ duration }}
+  requester: {{ requester }}
+{% if team %}
+  team: {{ team }}
+{% endif %}
+  pool: {{ pool | default("default") }}
+{% if secrets_src_namespace %}
+  secretSourceNamespace: {{ secrets_src_namespace }}
+{% endif %}

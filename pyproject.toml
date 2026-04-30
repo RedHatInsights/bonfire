@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "A CLI tool used to deploy ephemeral environments for testing cloud.redhat.com applications"
 readme = "README.md"
 license = { text= "MIT License" }
-requires-python = ">=3.6"
+requires-python = ">=3.10"
 authors = [
     { name = "Brandon Squizzato", email = "bsquizza@redhat.com" },
 ]
@@ -24,6 +24,27 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
+    "PyYAML",
+    "kubernetes>=29.0.0",
+    "jinja2>=3.1.0",
+]
+
+[project.scripts]
+bonfire = "bonfire.bonfire:main_with_handler"
+bonfire-mcp = "bonfire_mcp.server:main"
+
+[tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+# package names should match these glob patterns (["*"] by default)
+include = ["bonfire*", "bonfire_lib*", "bonfire_mcp*"]
+# exclude packages matching these glob patterns (empty by default)
+exclude = ["tests*"]
+# to disable scanning PEP 420 namespaces (true by default)
+namespaces = false
+
+[project.optional-dependencies]
+cli = [
     "app-common-python>=0.1.6",
     "cached_property",
     "chardet<7.5,>=7.4",
@@ -33,9 +54,8 @@ dependencies = [
     "importlib-resources; python_version<'3.9'",
     "junitparser",
     "multidict",
-    "ocviapy>=1.6.0",
+    "ocviapy>=1.6.2",
     "python-dotenv",
-    "PyYAML",
     "requests>=2.33.0",
     "sh",
     "tabulate",
@@ -43,26 +63,15 @@ dependencies = [
     "packaging",
     "truststore",
 ]
-
-[project.scripts]
-bonfire = "bonfire.bonfire:main_with_handler"
-
-[tool.setuptools_scm]
-
-[tool.setuptools.packages.find]
-# package names should match these glob patterns (["*"] by default)
-include = ["bonfire*"]
-# exclude packages matching these glob patterns (empty by default)
-exclude = ["tests*"]
-# to disable scanning PEP 420 namespaces (true by default)
-namespaces = false
-
-[project.optional-dependencies]
+mcp = [
+    "mcp>=1.0.0",
+]
 test = [
     "mock",
     "pytest",
+    "pytest-asyncio",
     "pytest-mock",
-    "requests-mock"
+    "requests-mock",
 ]
 
 [project.urls]
@@ -71,4 +80,13 @@ Homepage = "https://www.github.com/RedHatInsights/bonfire"
 [tool.ruff]
 line-length = 100
 indent-width = 4
+
+[tool.pytest.ini_options]
+log_cli = true
+log_level = "DEBUG"
+asyncio_mode = "strict"
+markers = [
+    "integration: integration tests requiring a live K8s cluster (deselected by default)",
+]
+addopts = "-m 'not integration'"
 

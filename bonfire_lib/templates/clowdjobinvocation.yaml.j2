@@ -1,0 +1,38 @@
+apiVersion: cloud.redhat.com/v1alpha1
+kind: ClowdJobInvocation
+metadata:
+  name: {{ name }}
+spec:
+  appName: {{ app_name }}
+  testing:
+    iqe:
+      debug: {{ debug | default(false) }}
+      imageTag: "{{ image_tag | default('') }}"
+      ui:
+        selenium:
+          deploy: {{ deploy_selenium | default(false) }}
+      env:
+        - name: IQE_MARKER_EXPRESSION
+          value: "{{ marker | default('') }}"
+        - name: IQE_FILTER_EXPRESSION
+          value: "{{ filter | default('') }}"
+        - name: IQE_PLUGINS
+          value: "{{ plugins | default('') }}"
+        - name: ENV_FOR_DYNACONF
+          value: "{{ env_name | default('clowder_smoke') }}"
+        - name: IQE_REQUIREMENTS
+          value: "{{ requirements | default('') }}"
+        - name: IQE_REQUIREMENTS_PRIORITY
+          value: "{{ requirements_priority | default('') }}"
+        - name: IQE_TEST_IMPORTANCE
+          value: "{{ test_importance | default('') }}"
+        - name: IQE_PARALLEL_ENABLED
+          value: "{{ parallel_enabled | default('true') }}"
+        - name: IQE_PARALLEL_WORKER_COUNT
+          value: "{{ parallel_worker_count | default('2') }}"
+        - name: IQE_RP_ARGS
+          value: "{{ rp_args | default('') }}"
+        - name: IQE_IBUTSU_SOURCE
+          value: "{{ ibutsu_source | default('') }}"
+        - name: IQE_ENABLE_MINIO
+          value: "true"

@@ -10,6 +10,11 @@ As an example, typing `bonfire deploy host-inventory` leads to the host-inventor
 
 - [About](#about)
 - [Installation](#installation)
+- [MCP Server (AI Agent Integration)](#mcp-server-ai-agent-integration)
+  - [Installing the MCP Server](#installing-the-mcp-server)
+  - [Authentication](#authentication)
+  - [Configuring Your MCP Client](#configuring-your-mcp-client)
+  - [Available Tools](#available-tools)
 - [Quick Start](#quick-start)
   - [Deploying](#deploying)
   - [Namespace Management](#namespace-management)
@@ -53,7 +58,7 @@ VENV_DIR=~/bonfire_venv
 mkdir -p $VENV_DIR
 python3 -m venv $VENV_DIR
 . $VENV_DIR/bin/activate
-pip install crc-bonfire
+pip install crc-bonfire[cli]
 ```
 
 To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs,
@@ -120,6 +125,131 @@ podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v $HOME/.kube/config:/op
     quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire namespace list
 ```
 
+# MCP Server (AI Agent Integration)
+
+Bonfire includes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that exposes ephemeral environment operations as tools, enabling any MCP-compatible AI agent (Claude, GPT, Copilot, etc.) to programmatically reserve, manage, and release ephemeral namespaces and clusters.
+
+The MCP server uses the `kubernetes` Python client directly — it does **not** require the `oc` binary or `oc login`.
+
+## Installing the MCP Server
+
+Install bonfire with the `mcp` extra:
+
+```bash
+pip install crc-bonfire[mcp]
+```
+
+Or with `uv`:
+
+```bash
+uv tool install "crc-bonfire[mcp]"
+```
+
+This provides the `bonfire-mcp` command.
+
+> **Note:** The MCP server has a minimal dependency footprint (no `click`, `gql`, `ocviapy`, etc.). If you also want the full CLI, install with `pip install crc-bonfire[cli,mcp]`.
+
+## Authentication
+
+The MCP server auto-detects authentication in the following priority order:
+
+### 1. Environment variables (recommended for CI/containers)
+
+```bash
+K8S_SERVER=https://api.mgmt-cluster.example.com:6443
+K8S_TOKEN=sha256~your-token-here
+
+# Optional:
+K8S_CA_DATA=LS0tLS1CRUdJTi...   # base64-encoded CA certificate
+K8S_SKIP_TLS_VERIFY=false        # set to 'true' to skip TLS verification
+```
+
+### 2. In-cluster (automatic in pods)
+
+When running inside a Kubernetes pod, the server auto-detects the projected service account token. No configuration needed.
+
+### 3. Kubeconfig (default for local development)
+
+```bash
+KUBECONFIG=/path/to/kubeconfig    # optional, defaults to ~/.kube/config
+K8S_CONTEXT=my-context            # optional, defaults to current-context
+```
+
+At startup, the server runs a preflight check to verify it can reach the cluster and that the [Ephemeral Namespace Operator](https://github.com/RedHatInsights/ephemeral-namespace-operator) CRDs are installed.
+
+## Configuring Your MCP Client
+
+### Claude Desktop / Claude Code
+
+Add to your MCP client configuration (e.g., `~/.config/claude/claude_desktop_config.json` for Claude Desktop):
+
+**Using environment variables:**
+
+```json
+{
+  "mcpServers": {
+    "ephemeral": {
+      "command": "bonfire-mcp",
+      "env": {
+        "K8S_SERVER": "https://api.mgmt-cluster.example.com:6443",
+        "K8S_TOKEN": "sha256~your-token-here"
+      }
+    }
+  }
+}
+```
+
+**Using kubeconfig:**
+
+```json
+{
+  "mcpServers": {
+    "ephemeral": {
+      "command": "bonfire-mcp",
+      "env": {
+        "KUBECONFIG": "/home/user/.kube/mgmt-cluster.kubeconfig",
+        "K8S_CONTEXT": "mgmt-cluster"
+      }
+    }
+  }
+}
+```
+
+**Using `python -m` (useful if `bonfire-mcp` is not on your PATH):**
+
+```json
+{
+  "mcpServers": {
+    "ephemeral": {
+      "command": "python",
+      "args": ["-m", "bonfire_mcp"],
+      "env": {
+        "KUBECONFIG": "/home/user/.kube/config"
+      }
+    }
+  }
+}
+```
+
+### Other MCP Clients
+
+The server communicates over **stdio** using the standard MCP protocol. Any MCP-compatible client can use it — point the client at the `bonfire-mcp` command (or `python -m bonfire_mcp`) with the appropriate environment variables for authentication.
+
+## Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `ephemeral_list_pools` | List namespace and/or cluster pools with capacity stats |
+| `ephemeral_reserve` | Reserve an ephemeral namespace or ROSA HCP cluster |
+| `ephemeral_status` | Get reservation status by name or namespace |
+| `ephemeral_extend` | Extend a reservation's duration |
+| `ephemeral_release` | Release a reservation (resource reclaimed within ~10s) |
+| `ephemeral_list_reservations` | List active reservations, filterable by requester and type |
+| `ephemeral_describe` | Detailed namespace info: ClowdApps, frontends, console URL, keycloak credentials |
+| `ephemeral_get_kubeconfig` | Fetch kubeconfig YAML for a provisioned ROSA HCP cluster |
+
+For detailed tool parameters, example agent interactions, and the full API reference, see the [MCP server documentation](bonfire_mcp/README.md).
+
 # Local development
 
 To install local changes and use local version of bonfire, switch to the root directory of this repository, switch to virtual environment and install bonfire package with local changes:
@@ -129,7 +259,7 @@ VENV_DIR=~/bonfire_venv
 mkdir -p $VENV_DIR
 python3 -m venv $VENV_DIR
 . $VENV_DIR/bin/activate
-pip install -e .
+pip install -e ".[cli]"
 ```
 
 

@@ -83,7 +83,7 @@ jobs:
     - name: install wheel with test extras
       run: |
         WHEEL_FILE=$(ls dist/*.whl)
-        pip install "$WHEEL_FILE[test]"
+        pip install "$WHEEL_FILE[cli,test,mcp]"
     - name: test bonfire version and create default config file
       run: |
         pip list | grep crc-bonfire

@@ -34,7 +34,7 @@ WORKDIR $APP_ROOT
 
 COPY --from=builder /opt/app-root/src/dist/crc_bonfire*.whl .
 
-RUN pip3.12 install crc_bonfire*.whl && rm crc_bonfire*.whl
+RUN WHEEL=$(ls crc_bonfire*.whl) && pip3.12 install "${WHEEL}[cli]" && rm "$WHEEL"
 
 COPY --from=builder /opt/app-root/src/oc /opt/app-root/src/kubectl ${APP_ROOT}/.local/bin/
 COPY entrypoint.sh .
