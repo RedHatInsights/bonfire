@@ -36,3 +36,21 @@ spec:
           value: "{{ ibutsu_source | default('') }}"
         - name: IQE_ENABLE_MINIO
           value: "true"
+        - name: IBUTSU_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: ibutsu-config
+              key: IBUTSU_MODE
+              optional: true
+        - name: IBUTSU_PROJECT
+          valueFrom:
+            configMapKeyRef:
+              name: ibutsu-config
+              key: IBUTSU_PROJECT
+              optional: true
+        - name: IBUTSU_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: iqe-ibutsu-token
+              key: IBUTSU_TOKEN
+              optional: true
