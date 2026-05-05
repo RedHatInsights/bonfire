@@ -95,7 +95,8 @@ class TestRenderCji:
     def test_env_vars_present(self):
         result = render_cji("test-cji", "my-app")
         env_list = result["spec"]["testing"]["iqe"]["env"]
-        env_dict = {e["name"]: e["value"] for e in env_list}
+        env_dict = {e["name"]: e["value"] for e in env_list if "value" in e}
+        value_from_dict = {e["name"]: e["valueFrom"] for e in env_list if "valueFrom" in e}
         assert "IQE_MARKER_EXPRESSION" in env_dict
         assert "IQE_FILTER_EXPRESSION" in env_dict
         assert "IQE_PLUGINS" in env_dict
@@ -104,6 +105,12 @@ class TestRenderCji:
         assert env_dict["IQE_PARALLEL_ENABLED"] == "true"
         assert env_dict["IQE_PARALLEL_WORKER_COUNT"] == "2"
         assert env_dict["IQE_ENABLE_MINIO"] == "true"
+        assert "IBUTSU_MODE" in value_from_dict
+        assert value_from_dict["IBUTSU_MODE"]["configMapKeyRef"]["name"] == "ibutsu-config"
+        assert "IBUTSU_PROJECT" in value_from_dict
+        assert value_from_dict["IBUTSU_PROJECT"]["configMapKeyRef"]["name"] == "ibutsu-config"
+        assert "IBUTSU_TOKEN" in value_from_dict
+        assert value_from_dict["IBUTSU_TOKEN"]["secretKeyRef"]["name"] == "iqe-ibutsu-token"
 
     def test_custom_values(self):
         result = render_cji(
@@ -123,7 +130,7 @@ class TestRenderCji:
         assert iqe["debug"] is True
         assert iqe["ui"]["selenium"]["deploy"] is True
 
-        env_dict = {e["name"]: e["value"] for e in iqe["env"]}
+        env_dict = {e["name"]: e["value"] for e in iqe["env"] if "value" in e}
         assert env_dict["ENV_FOR_DYNACONF"] == "custom_env"
         assert env_dict["IQE_MARKER_EXPRESSION"] == "smoke"
         assert env_dict["IQE_FILTER_EXPRESSION"] == "test_login"
