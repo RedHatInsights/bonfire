@@ -124,6 +124,8 @@ class TestRenderCji:
             deploy_selenium=True,
             parallel_enabled="false",
             parallel_worker_count="4",
+            ibutsu_configmap="my-ibutsu-cm",
+            ibutsu_secret="my-ibutsu-secret",
         )
         spec = result["spec"]
         iqe = spec["testing"]["iqe"]
@@ -137,3 +139,8 @@ class TestRenderCji:
         assert env_dict["IQE_PLUGINS"] == "my_plugin"
         assert env_dict["IQE_PARALLEL_ENABLED"] == "false"
         assert env_dict["IQE_PARALLEL_WORKER_COUNT"] == "4"
+
+        value_from_dict = {e["name"]: e["valueFrom"] for e in iqe["env"] if "valueFrom" in e}
+        assert value_from_dict["IBUTSU_MODE"]["configMapKeyRef"]["name"] == "my-ibutsu-cm"
+        assert value_from_dict["IBUTSU_PROJECT"]["configMapKeyRef"]["name"] == "my-ibutsu-cm"
+        assert value_from_dict["IBUTSU_TOKEN"]["secretKeyRef"]["name"] == "my-ibutsu-secret"
