@@ -17,6 +17,8 @@ objects:
         ui:
           selenium:
             deploy: ${{DEPLOY_SELENIUM}}
+          playwright:
+            deploy: ${{DEPLOY_PLAYWRIGHT}}
         env:
           - name: IQE_MARKER_EXPRESSION
             value: ${MARKER}
@@ -68,6 +70,8 @@ parameters:
 - name: PLUGINS
   value: ""
 - name: DEPLOY_SELENIUM
+  value: "false"
+- name: DEPLOY_PLAYWRIGHT
   value: "false"
 - name: PARALLEL_ENABLED
   value: "true"
