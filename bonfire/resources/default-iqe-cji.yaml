@@ -42,6 +42,24 @@ objects:
             value: ${IBUTSU_SOURCE}
           - name: IQE_ENABLE_MINIO
             value: "true"
+          - name: IBUTSU_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: ${IBUTSU_CONFIGMAP}
+                key: IBUTSU_MODE
+                optional: true
+          - name: IBUTSU_PROJECT
+            valueFrom:
+              configMapKeyRef:
+                name: ${IBUTSU_CONFIGMAP}
+                key: IBUTSU_PROJECT
+                optional: true
+          - name: IBUTSU_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${IBUTSU_SECRET}
+                key: IBUTSU_TOKEN
+                optional: true
 
 parameters:
 - name: NAME
@@ -77,4 +95,8 @@ parameters:
   value: ""
 - name: IBUTSU_SOURCE
   value: ""
+- name: IBUTSU_CONFIGMAP
+  value: "ibutsu-config"
+- name: IBUTSU_SECRET
+  value: "iqe-ibutsu-token"
 

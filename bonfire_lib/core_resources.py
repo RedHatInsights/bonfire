@@ -67,6 +67,8 @@ def render_cji(
     parallel_worker_count: str = "2",
     rp_args: str = "",
     ibutsu_source: str = "",
+    ibutsu_configmap: str = "ibutsu-config",
+    ibutsu_secret: str = "iqe-ibutsu-token",
 ) -> dict:
     """Render a ClowdJobInvocation CR as a Python dict."""
     template = _env.get_template("clowdjobinvocation.yaml.j2")
@@ -87,6 +89,8 @@ def render_cji(
         parallel_worker_count=parallel_worker_count,
         rp_args=rp_args,
         ibutsu_source=ibutsu_source,
+        ibutsu_configmap=ibutsu_configmap,
+        ibutsu_secret=ibutsu_secret,
     )
     return yaml.safe_load(rendered)
 
