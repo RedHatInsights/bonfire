@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 
+from kubernetes.config import ConfigException
 from bonfire_lib.k8s_client import EphemeralK8sClient, _sanitize_username, _extract_username
 
 
@@ -56,6 +57,10 @@ class TestAuthModeSelection:
         mock_api_client = MagicMock()
         mock_client_module.ApiClient.return_value = mock_api_client
         mock_client_module.CoreV1Api.return_value = MagicMock()
+
+        # Mock kubeconfig load to fail, so it falls back to in-cluster
+        mock_config.load_kube_config.side_effect = ConfigException("No kubeconfig")
+        mock_config.ConfigException = ConfigException
 
         EphemeralK8sClient()
         mock_config.load_incluster_config.assert_called_once()
