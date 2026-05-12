@@ -75,16 +75,32 @@ class EphemeralK8sClient:
                 configuration.ssl_ca_cert = ca_file.name
                 atexit.register(os.unlink, ca_file.name)
             self._api_client = client.ApiClient(configuration)
-        elif self._is_in_cluster():
-            self._auth_mode = "in-cluster"
-            config.load_incluster_config()
-            self._api_client = client.ApiClient()
         else:
-            config.load_kube_config(
-                config_file=kubeconfig_path,
-                context=context,
-            )
-            self._api_client = client.ApiClient()
+            # Try kubeconfig first, then fall back to in-cluster auth.
+            # This ensures that explicit `oc login` credentials are used even when
+            # running inside a pod (e.g., GitLab CI runners).
+            kubeconfig_loaded = False
+            try:
+                config.load_kube_config(
+                    config_file=kubeconfig_path,
+                    context=context,
+                )
+                kubeconfig_loaded = True
+                self._auth_mode = "kubeconfig"
+                self._api_client = client.ApiClient()
+            except config.ConfigException:
+                # No valid kubeconfig found
+                pass
+
+            if not kubeconfig_loaded:
+                if self._is_in_cluster():
+                    self._auth_mode = "in-cluster"
+                    config.load_incluster_config()
+                    self._api_client = client.ApiClient()
+                else:
+                    raise config.ConfigException(
+                        "Unable to load kubeconfig and not running in-cluster"
+                    )
 
         self._dynamic = DynamicClient(self._api_client)
         self._core_v1 = client.CoreV1Api(self._api_client)
@@ -96,7 +112,14 @@ class EphemeralK8sClient:
 
     def _get_resource(self, kind: str):
         """Get a DynamicClient resource handle for a cloud.redhat.com/v1alpha1 CRD."""
-        return self._dynamic.resources.get(api_version=CRD_API_VERSION, kind=kind)
+        try:
+            return self._dynamic.resources.get(api_version=CRD_API_VERSION, kind=kind)
+        except Exception as e:
+            # Log available resources for debugging
+            log.error(
+                f"Failed to get resource {kind} from {CRD_API_VERSION}. "
+                f"Error: {e.__class__.__name__}: {e}"
+            )
 
     # --- NamespaceReservation operations ---
 
