@@ -342,6 +342,7 @@ def process_iqe_cji(
     plugins="",
     local=True,
     selenium=False,
+    playwright=False,
     parallel_enabled="",
     parallel_worker_count="",
     rp_args="",
@@ -371,6 +372,7 @@ def process_iqe_cji(
     params["REQUIREMENTS_PRIORITY"] = requirements_priority
     params["TEST_IMPORTANCE"] = test_importance
     params["DEPLOY_SELENIUM"] = json.dumps(selenium)
+    params["DEPLOY_PLAYWRIGHT"] = json.dumps(playwright)
     params["PARALLEL_ENABLED"] = parallel_enabled
     params["PARALLEL_WORKER_COUNT"] = parallel_worker_count
     params["RP_ARGS"] = rp_args
