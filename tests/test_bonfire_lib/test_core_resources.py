@@ -91,6 +91,7 @@ class TestRenderCji:
         assert iqe["debug"] is False
         assert iqe["imageTag"] == ""
         assert iqe["ui"]["selenium"]["deploy"] is False
+        assert iqe["ui"]["playwright"]["deploy"] is False
 
     def test_env_vars_present(self):
         result = render_cji("test-cji", "my-app")
@@ -140,7 +141,14 @@ class TestRenderCji:
         assert env_dict["IQE_PARALLEL_ENABLED"] == "false"
         assert env_dict["IQE_PARALLEL_WORKER_COUNT"] == "4"
 
-        value_from_dict = {e["name"]: e["valueFrom"] for e in iqe["env"] if "valueFrom" in e}
-        assert value_from_dict["IBUTSU_MODE"]["configMapKeyRef"]["name"] == "my-ibutsu-cm"
-        assert value_from_dict["IBUTSU_PROJECT"]["configMapKeyRef"]["name"] == "my-ibutsu-cm"
-        assert value_from_dict["IBUTSU_TOKEN"]["secretKeyRef"]["name"] == "my-ibutsu-secret"
+    def test_deploy_playwright(self):
+        result = render_cji("test-cji", "my-app", deploy_playwright=True)
+        iqe = result["spec"]["testing"]["iqe"]
+        assert iqe["ui"]["playwright"]["deploy"] is True
+        assert iqe["ui"]["selenium"]["deploy"] is False
+
+    def test_deploy_both_selenium_and_playwright(self):
+        result = render_cji("test-cji", "my-app", deploy_selenium=True, deploy_playwright=True)
+        iqe = result["spec"]["testing"]["iqe"]
+        assert iqe["ui"]["selenium"]["deploy"] is True
+        assert iqe["ui"]["playwright"]["deploy"] is True

@@ -11,6 +11,8 @@ spec:
       ui:
         selenium:
           deploy: {{ deploy_selenium | default(false) }}
+        playwright:
+          deploy: {{ deploy_playwright | default(false) }}
       env:
         - name: IQE_MARKER_EXPRESSION
           value: "{{ marker | default('') }}"
