@@ -27,24 +27,6 @@ dependencies = [
     "PyYAML",
     "kubernetes>=29.0.0",
     "jinja2>=3.1.0",
-]
-
-[project.scripts]
-bonfire = "bonfire.bonfire:main_with_handler"
-bonfire-mcp = "bonfire_mcp.server:main"
-
-[tool.setuptools_scm]
-
-[tool.setuptools.packages.find]
-# package names should match these glob patterns (["*"] by default)
-include = ["bonfire*", "bonfire_lib*", "bonfire_mcp*"]
-# exclude packages matching these glob patterns (empty by default)
-exclude = ["tests*"]
-# to disable scanning PEP 420 namespaces (true by default)
-namespaces = false
-
-[project.optional-dependencies]
-cli = [
     "app-common-python>=0.1.6",
     "cached_property",
     "chardet<7.5,>=7.4",
@@ -63,6 +45,23 @@ cli = [
     "packaging",
     "truststore",
 ]
+
+[project.scripts]
+bonfire = "bonfire.bonfire:main_with_handler"
+bonfire-mcp = "bonfire_mcp.server:main"
+
+[tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+# package names should match these glob patterns (["*"] by default)
+include = ["bonfire*", "bonfire_lib*", "bonfire_mcp*"]
+# exclude packages matching these glob patterns (empty by default)
+exclude = ["tests*"]
+# to disable scanning PEP 420 namespaces (true by default)
+namespaces = false
+
+[project.optional-dependencies]
+lib = []
 mcp = [
     "mcp>=1.0.0",
 ]
