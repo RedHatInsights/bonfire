@@ -81,12 +81,15 @@ class EphemeralK8sClient:
             # This ensures that explicit `oc login` credentials are used even when
             # running inside a pod (e.g., GitLab CI runners).
             try:
+                # Use explicit configuration instead of relying on global state
+                kube_config = client.Configuration()
                 config.load_kube_config(
                     config_file=kubeconfig_path,
                     context=context,
+                    client_configuration=kube_config,
                 )
                 # Verify that the kubeconfig actually works by probing /apis
-                test_client = client.ApiClient()
+                test_client = client.ApiClient(kube_config)
                 ApisApi(test_client).get_api_versions()
                 # If we get here, kubeconfig is valid and works
                 self._auth_mode = "kubeconfig"
@@ -101,8 +104,9 @@ class EphemeralK8sClient:
 
                 if self._is_in_cluster():
                     self._auth_mode = "in-cluster"
-                    config.load_incluster_config()
-                    self._api_client = client.ApiClient()
+                    incluster_config = client.Configuration()
+                    config.load_incluster_config(client_configuration=incluster_config)
+                    self._api_client = client.ApiClient(incluster_config)
                 else:
                     raise ConfigException(
                         "Unable to load kubeconfig and not running in-cluster"

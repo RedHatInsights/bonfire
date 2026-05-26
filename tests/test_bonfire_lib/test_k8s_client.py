@@ -63,7 +63,9 @@ class TestAuthModeSelection:
         mock_config.load_kube_config.side_effect = ConfigException("No kubeconfig")
 
         EphemeralK8sClient()
-        mock_config.load_incluster_config.assert_called_once()
+        from unittest.mock import ANY
+
+        mock_config.load_incluster_config.assert_called_once_with(client_configuration=ANY)
 
     @patch("bonfire_lib.k8s_client.DynamicClient")
     @patch("bonfire_lib.k8s_client.client")
@@ -75,9 +77,13 @@ class TestAuthModeSelection:
         mock_client_module.CoreV1Api.return_value = MagicMock()
 
         EphemeralK8sClient(kubeconfig_path="/tmp/kubeconfig", context="mycontext")
+        # Verify load_kube_config was called with the right args (client_configuration is ANY)
+        from unittest.mock import ANY
+
         mock_config.load_kube_config.assert_called_once_with(
             config_file="/tmp/kubeconfig",
             context="mycontext",
+            client_configuration=ANY,
         )
 
     @patch("bonfire_lib.k8s_client.DynamicClient")
@@ -105,7 +111,9 @@ class TestAuthModeSelection:
         EphemeralK8sClient()
 
         # Should have fallen back to in-cluster
-        mock_config.load_incluster_config.assert_called_once()
+        from unittest.mock import ANY
+
+        mock_config.load_incluster_config.assert_called_once_with(client_configuration=ANY)
 
     @patch("bonfire_lib.k8s_client.DynamicClient")
     @patch("bonfire_lib.k8s_client.client")
