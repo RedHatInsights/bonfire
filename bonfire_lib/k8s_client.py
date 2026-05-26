@@ -11,7 +11,8 @@ import os
 import tempfile
 
 from kubernetes import client, config
-from kubernetes.client import ApiException
+from kubernetes.client import ApisApi, ApiException
+from kubernetes.config import ConfigException
 from kubernetes.dynamic import DynamicClient
 
 log = logging.getLogger(__name__)
@@ -79,28 +80,33 @@ class EphemeralK8sClient:
             # Try kubeconfig first, then fall back to in-cluster auth.
             # This ensures that explicit `oc login` credentials are used even when
             # running inside a pod (e.g., GitLab CI runners).
-            kubeconfig_loaded = False
             try:
                 config.load_kube_config(
                     config_file=kubeconfig_path,
                     context=context,
                 )
-                kubeconfig_loaded = True
+                # Verify that the kubeconfig actually works by probing /apis
+                test_client = client.ApiClient()
+                ApisApi(test_client).get_api_versions()
+                # If we get here, kubeconfig is valid and works
                 self._auth_mode = "kubeconfig"
-                self._api_client = client.ApiClient()
-            except config.ConfigException:
-                # No valid kubeconfig found
-                pass
+                self._api_client = test_client
+            except (ConfigException, ApiException) as e:
+                # Kubeconfig doesn't exist, is invalid, or doesn't have working credentials
+                log.error(
+                    "Kubeconfig auth failed (%s: %s), attempting in-cluster fallback",
+                    e.__class__.__name__,
+                    str(e)[:100],
+                )
 
-            if not kubeconfig_loaded:
                 if self._is_in_cluster():
                     self._auth_mode = "in-cluster"
                     config.load_incluster_config()
                     self._api_client = client.ApiClient()
                 else:
-                    raise config.ConfigException(
+                    raise ConfigException(
                         "Unable to load kubeconfig and not running in-cluster"
-                    )
+                    ) from e
 
         self._dynamic = DynamicClient(self._api_client)
         self._core_v1 = client.CoreV1Api(self._api_client)

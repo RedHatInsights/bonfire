@@ -1,6 +1,7 @@
 from unittest.mock import patch, MagicMock
 
 from kubernetes.config import ConfigException
+from kubernetes.client import ApiException
 from bonfire_lib.k8s_client import EphemeralK8sClient, _sanitize_username, _extract_username
 
 
@@ -60,7 +61,6 @@ class TestAuthModeSelection:
 
         # Mock kubeconfig load to fail, so it falls back to in-cluster
         mock_config.load_kube_config.side_effect = ConfigException("No kubeconfig")
-        mock_config.ConfigException = ConfigException
 
         EphemeralK8sClient()
         mock_config.load_incluster_config.assert_called_once()
@@ -79,6 +79,33 @@ class TestAuthModeSelection:
             config_file="/tmp/kubeconfig",
             context="mycontext",
         )
+
+    @patch("bonfire_lib.k8s_client.DynamicClient")
+    @patch("bonfire_lib.k8s_client.ApisApi")
+    @patch("bonfire_lib.k8s_client.client")
+    @patch("bonfire_lib.k8s_client.config")
+    @patch.object(EphemeralK8sClient, "_is_in_cluster", return_value=True)
+    def test_kubeconfig_invalid_fallback_to_incluster(
+        self, mock_in_cluster, mock_config, mock_client_module, mock_apis_api, mock_dynamic
+    ):
+        """Test that when kubeconfig loads but /apis call fails, it falls back to in-cluster"""
+        mock_api_client = MagicMock()
+        mock_client_module.ApiClient.return_value = mock_api_client
+        mock_client_module.CoreV1Api.return_value = MagicMock()
+
+        # Mock kubeconfig load succeeds
+        mock_config.load_kube_config.return_value = None
+        # But ApisApi call fails with 403 Forbidden (invalid credentials on /apis)
+        mock_apis_instance = MagicMock()
+        mock_apis_instance.get_api_versions.side_effect = ApiException(
+            status=403, reason="Forbidden"
+        )
+        mock_apis_api.return_value = mock_apis_instance
+
+        EphemeralK8sClient()
+
+        # Should have fallen back to in-cluster
+        mock_config.load_incluster_config.assert_called_once()
 
     @patch("bonfire_lib.k8s_client.DynamicClient")
     @patch("bonfire_lib.k8s_client.client")
