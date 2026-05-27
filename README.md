@@ -58,7 +58,7 @@ VENV_DIR=~/bonfire_venv
 mkdir -p $VENV_DIR
 python3 -m venv $VENV_DIR
 . $VENV_DIR/bin/activate
-pip install crc-bonfire[cli]
+pip install crc-bonfire
 ```
 
 To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs,
@@ -155,8 +155,6 @@ uv tool install "crc-bonfire[mcp]"
 ```
 
 This provides the `bonfire-mcp` command.
-
-> **Note:** The MCP server has a minimal dependency footprint (no `click`, `gql`, `ocviapy`, etc.). If you also want the full CLI, install with `pip install crc-bonfire[cli,mcp]`.
 
 ## Authentication
 
@@ -268,7 +266,7 @@ VENV_DIR=~/bonfire_venv
 mkdir -p $VENV_DIR
 python3 -m venv $VENV_DIR
 . $VENV_DIR/bin/activate
-pip install -e ".[cli]"
+pip install -e .
 ```
 
 
