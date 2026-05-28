@@ -14,7 +14,7 @@ from ocviapy import process_template
 from sh import ErrorReturnCode
 
 import bonfire.config as conf
-from bonfire.openshift import whoami
+from bonfire.openshift import get_kube_api_server, whoami
 from bonfire.utils import AppOrComponentSelector, FatalError, RepoFile
 from bonfire.utils import get_clowdapp_dependencies
 from bonfire.utils import get_dependencies as utils_get_dependencies
@@ -316,6 +316,7 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path, local=True)
         params["PULL_SECRET_NAME"] = f"{quay_user}-pull-secret"
     if target_ns:
         params["NAMESPACE"] = target_ns
+    params["_KUBE_API_SERVER"] = get_kube_api_server()
 
     processed_template = _process_template(template_data, params=params, local=local)
 
@@ -849,6 +850,7 @@ class TemplateProcessor:
         # set NAMESPACE on this component only if it is current unset
         if "NAMESPACE" not in params:
             params["NAMESPACE"] = self.namespace
+        params["_KUBE_API_SERVER"] = get_kube_api_server()
 
         # always override ENV_NAME
         params["ENV_NAME"] = self.clowd_env
