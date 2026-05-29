@@ -61,6 +61,14 @@ def has_clowder():
 
 # we will assume that 'oc whoami' will not change during execution
 @functools.lru_cache(maxsize=None, typed=False)
+def get_kube_api_server():
+    try:
+        return oc("whoami", "--show-server", _silent=True).strip()
+    except Exception:
+        return "unknown"
+
+
+@functools.lru_cache(maxsize=None, typed=False)
 def whoami():
     name = oc("whoami", _silent=True).strip()
     # a valid label must be an empty string or consist of alphanumeric characters,
