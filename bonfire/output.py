@@ -33,7 +33,7 @@ def _is_interactive():
         elif os.environ.get("BONFIRE_PLAIN_OUTPUT", "").lower() in ("1", "true"):
             _interactive = False
         else:
-            _interactive = sys.stderr.isatty()
+            _interactive = sys.stdout.isatty() and sys.stderr.isatty()
     return _interactive
 
 
