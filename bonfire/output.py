@@ -204,7 +204,6 @@ def render_ns_table(namespaces):
 
 
 def render_describe(info, project_name):
-    from tabulate import tabulate as tabulate_plain
 
     if not _is_interactive():
         return _render_describe_plain(info, project_name)
@@ -247,7 +246,6 @@ def _render_describe_plain(info, project_name):
 
 def _render_describe_rich(info, project_name):
     from rich.panel import Panel
-    from rich.text import Text
 
     console = get_console()
     console.print()
@@ -276,7 +274,9 @@ def _render_describe_rich(info, project_name):
         cred_table.add_column("Password")
         cred_table.add_column("Route")
         for name, route, user, pw in cred_rows:
-            cred_table.add_row(name, f"[info]{user}[/info]", f"[warning]{pw}[/warning]", route or "")
+            cred_table.add_row(
+                name, f"[info]{user}[/info]", f"[warning]{pw}[/warning]", route or ""
+            )
         console.print(Panel(cred_table, title="[header]Credentials[/header]", border_style="dim"))
 
     if info.get("has_cluster"):
