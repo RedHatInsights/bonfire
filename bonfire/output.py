@@ -286,7 +286,7 @@ def _render_describe_rich(info, project_name):
         code = (
             f"oc get secret {ns}-cluster-kubeconfig \\\n"
             f"  -n {ns} \\\n"
-            f"  -o jsonpath='{{{{.data.value}}}}' | base64 -d > /tmp/{ns}-kubeconfig\n"
+            f"  -o jsonpath='{{.data.value}}' | base64 -d > /tmp/{ns}-kubeconfig\n"
             f"KUBECONFIG=/tmp/{ns}-kubeconfig oc whoami"
         )
         console.print(
@@ -347,14 +347,14 @@ def render_apps_list(apps, list_components):
                     branch.add(f"[muted]{component_name}[/muted]")
         console.print(tree)
     else:
-        print("")
+        click_echo("")
         for app_name in sorted_keys:
             app_config = apps[app_name]
-            print(app_name)
+            click_echo(app_name)
             if list_components:
                 component_names = sorted([c["name"] for c in app_config["components"]])
                 for component_name in component_names:
-                    print(f" `-- {component_name}")
+                    click_echo(f" `-- {component_name}")
 
 
 def render_pool_list(pools):
