@@ -1648,3 +1648,186 @@ def test_alter_dependency_config_validates_only_matching_clowdapp():
 
     assert "not present in dependencies" in str(exc_info.value)
     assert "app1-component1" in str(exc_info.value)
+
+
+class TestSyncCjiExpectedImageTag:
+    """Tests for _sync_cji_expected_image_tag which updates the expected-image-tag
+    annotation on ClowdJobInvocations after image tag overrides."""
+
+    ANNOTATION_KEY = "clowder.redhat.com/expected-image-tag"
+
+    def _make_items(self, job_image, annotation_value):
+        """Helper to build a ClowdApp + CJI item list."""
+        items = [
+            {
+                "kind": "ClowdApp",
+                "metadata": {"name": "my-app"},
+                "spec": {"jobs": [{"name": "run-db-migrations", "podSpec": {"image": job_image}}]},
+            },
+            {
+                "kind": "ClowdJobInvocation",
+                "metadata": {
+                    "name": "run-db-migrations-abc1234",
+                    "annotations": {self.ANNOTATION_KEY: annotation_value},
+                },
+                "spec": {"appName": "my-app", "jobs": ["run-db-migrations"]},
+            },
+        ]
+        return items
+
+    def _get_processor_with_overrides(self, image_tag_overrides):
+        apps_config = get_apps_config()
+        return TemplateProcessor(
+            apps_config=apps_config,
+            app_names=[],
+            get_dependencies=True,
+            optional_deps_method="hybrid",
+            image_tag_overrides=image_tag_overrides,
+            template_ref_overrides={},
+            param_overrides={},
+            clowd_env="some_env",
+            remove_resources=AppOrComponentSelector(True, [], []),
+            no_remove_resources=AppOrComponentSelector(False, [], []),
+            remove_dependencies=AppOrComponentSelector(False, [], []),
+            no_remove_dependencies=AppOrComponentSelector(True, [], []),
+            single_replicas=True,
+            component_filter=[],
+            local=True,
+            frontends=False,
+        )
+
+    def test_updates_annotation_when_image_tag_matches(self):
+        """When the annotation matches IMAGE_TAG and the image was overridden,
+        the annotation should be updated to the new tag (after the last colon)."""
+        items = self._make_items(
+            job_image="quay.io/my-org/my-app:sha256:fa35bb2b938d",
+            annotation_value="abc1234",
+        )
+        processor = self._get_processor_with_overrides(
+            {"quay.io/my-org/my-app": "sha256:fa35bb2b938d"}
+        )
+        processor._sync_cji_expected_image_tag(items, original_image_tag="abc1234")
+
+        cji = items[1]
+        # rsplit(":", 1) extracts the part after the last colon
+        assert cji["metadata"]["annotations"][self.ANNOTATION_KEY] == "fa35bb2b938d"
+
+    def test_skips_when_annotation_does_not_match_image_tag(self):
+        """When the annotation has a custom value (not from IMAGE_TAG),
+        it should be left untouched."""
+        items = self._make_items(
+            job_image="quay.io/my-org/my-app:sha256:fa35bb2b938d",
+            annotation_value="my-custom-value",
+        )
+        processor = self._get_processor_with_overrides(
+            {"quay.io/my-org/my-app": "sha256:fa35bb2b938d"}
+        )
+        processor._sync_cji_expected_image_tag(items, original_image_tag="abc1234")
+
+        cji = items[1]
+        assert cji["metadata"]["annotations"][self.ANNOTATION_KEY] == "my-custom-value"
+
+    def test_skips_cji_without_annotation(self):
+        """CJIs without the expected-image-tag annotation should be ignored."""
+        items = [
+            {
+                "kind": "ClowdApp",
+                "metadata": {"name": "my-app"},
+                "spec": {
+                    "jobs": [
+                        {
+                            "name": "run-db-migrations",
+                            "podSpec": {"image": "quay.io/my-org/my-app:newdigest"},
+                        }
+                    ]
+                },
+            },
+            {
+                "kind": "ClowdJobInvocation",
+                "metadata": {"name": "run-db-migrations-abc1234", "annotations": {}},
+                "spec": {"appName": "my-app", "jobs": ["run-db-migrations"]},
+            },
+        ]
+        processor = self._get_processor_with_overrides({"quay.io/my-org/my-app": "newdigest"})
+        processor._sync_cji_expected_image_tag(items, original_image_tag="abc1234")
+
+        cji = items[1]
+        assert self.ANNOTATION_KEY not in cji["metadata"]["annotations"]
+
+    def test_no_update_when_tags_already_match(self):
+        """If the annotation already matches the job image tag, no update needed."""
+        items = self._make_items(
+            job_image="quay.io/my-org/my-app:abc1234",
+            annotation_value="abc1234",
+        )
+        processor = self._get_processor_with_overrides({"quay.io/my-org/my-app": "abc1234"})
+        processor._sync_cji_expected_image_tag(items, original_image_tag="abc1234")
+
+        cji = items[1]
+        assert cji["metadata"]["annotations"][self.ANNOTATION_KEY] == "abc1234"
+
+    def test_handles_no_clowdapp_jobs(self):
+        """If the ClowdApp has no jobs, CJI annotation is left untouched."""
+        items = [
+            {
+                "kind": "ClowdApp",
+                "metadata": {"name": "my-app"},
+                "spec": {"jobs": []},
+            },
+            {
+                "kind": "ClowdJobInvocation",
+                "metadata": {
+                    "name": "run-db-migrations-abc1234",
+                    "annotations": {self.ANNOTATION_KEY: "abc1234"},
+                },
+                "spec": {"appName": "my-app", "jobs": ["run-db-migrations"]},
+            },
+        ]
+        processor = self._get_processor_with_overrides({"quay.io/my-org/my-app": "newdigest"})
+        processor._sync_cji_expected_image_tag(items, original_image_tag="abc1234")
+
+        cji = items[1]
+        assert cji["metadata"]["annotations"][self.ANNOTATION_KEY] == "abc1234"
+
+    def test_disambiguates_by_app_name(self):
+        """When multiple ClowdApps have jobs with the same name, the CJI should
+        only pick the tag from the ClowdApp matching its spec.appName."""
+        items = [
+            {
+                "kind": "ClowdApp",
+                "metadata": {"name": "app-a"},
+                "spec": {
+                    "jobs": [
+                        {
+                            "name": "run-db-migrations",
+                            "podSpec": {"image": "quay.io/org/app-a:tag-a"},
+                        }
+                    ]
+                },
+            },
+            {
+                "kind": "ClowdApp",
+                "metadata": {"name": "app-b"},
+                "spec": {
+                    "jobs": [
+                        {
+                            "name": "run-db-migrations",
+                            "podSpec": {"image": "quay.io/org/app-b:tag-b"},
+                        }
+                    ]
+                },
+            },
+            {
+                "kind": "ClowdJobInvocation",
+                "metadata": {
+                    "name": "run-db-migrations-abc1234",
+                    "annotations": {self.ANNOTATION_KEY: "abc1234"},
+                },
+                "spec": {"appName": "app-b", "jobs": ["run-db-migrations"]},
+            },
+        ]
+        processor = self._get_processor_with_overrides({"quay.io/org/app-b": "tag-b"})
+        processor._sync_cji_expected_image_tag(items, original_image_tag="abc1234")
+
+        cji = items[2]
+        assert cji["metadata"]["annotations"][self.ANNOTATION_KEY] == "tag-b"

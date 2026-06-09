@@ -776,7 +776,7 @@ class TemplateProcessor:
         else:
             raise FatalError(f"component with name '{component_name}' not found")
 
-    def _sub_image_tags(self, items):
+    def _sub_image_tags(self, items, original_image_tag=None):
         content = json.dumps(items)
         for image, image_tag in self.image_tag_overrides.items():
             # easier to just re.sub on a whole string
@@ -784,7 +784,73 @@ class TemplateProcessor:
             if subs:
                 self.counter["image_tag_overrides"][image] += subs
                 log.info("replaced %d occurence(s) of image tag for image '%s'", subs, image)
-        return json.loads(content)
+        items = json.loads(content)
+
+        if self.image_tag_overrides:
+            self._sync_cji_expected_image_tag(items, original_image_tag)
+
+        return items
+
+    def _sync_cji_expected_image_tag(self, items, original_image_tag=None):
+        """Update expected-image-tag annotations on ClowdJobInvocations to match
+        the actual image tag present in the associated ClowdApp job specs.
+
+        When --set-image-tag overrides images (e.g. to a digest), the CJI annotation
+        must reflect the new tag so Clowder's image-gate check passes.
+
+        Only updates annotations whose value matches the original IMAGE_TAG parameter,
+        indicating they were set via ${IMAGE_TAG} in the template. Custom annotation
+        values are left untouched.
+        """
+        ANNOTATION_KEY = "clowder.redhat.com/expected-image-tag"
+
+        # collect actual image tags from ClowdApp job specs, keyed by (app_name, job_name)
+        # to avoid cross-app collisions when multiple ClowdApps define jobs with the same name
+        job_image_tags = {}
+        for item in items:
+            if item.get("kind") == "ClowdApp":
+                app_name = item.get("metadata", {}).get("name", "")
+                for job in item.get("spec", {}).get("jobs", []):
+                    image = job.get("podSpec", {}).get("image", "")
+                    if ":" in image:
+                        tag = image.rsplit(":", 1)[1]
+                        job_image_tags[(app_name, job.get("name", ""))] = tag
+
+        # update CJI annotations to match the resolved image tag
+        for item in items:
+            if item.get("kind") != "ClowdJobInvocation":
+                continue
+            annotations = item.get("metadata", {}).get("annotations", {})
+            if ANNOTATION_KEY not in annotations:
+                continue
+
+            old_val = annotations[ANNOTATION_KEY]
+
+            # only update if the annotation was derived from IMAGE_TAG
+            if original_image_tag and old_val != original_image_tag:
+                log.debug(
+                    "skipping expected-image-tag on CJI '%s': value '%s' does not match IMAGE_TAG '%s'",
+                    item.get("metadata", {}).get("name", "unknown"),
+                    old_val,
+                    original_image_tag,
+                )
+                continue
+
+            cji_app_name = item.get("spec", {}).get("appName", "")
+            cji_jobs = item.get("spec", {}).get("jobs", [])
+            for job_name in cji_jobs:
+                key = (cji_app_name, job_name)
+                if key in job_image_tags:
+                    new_val = job_image_tags[key]
+                    if old_val != new_val:
+                        annotations[ANNOTATION_KEY] = new_val
+                        log.info(
+                            "updated expected-image-tag on CJI '%s': '%s' -> '%s'",
+                            item.get("metadata", {}).get("name", "unknown"),
+                            old_val,
+                            new_val,
+                        )
+                    break
 
     def _sub_ref(self, current_component_name, repo_file):
         for component_name, value in self.template_ref_overrides.items():
@@ -887,7 +953,7 @@ class TemplateProcessor:
         new_items = _process_template(template, params, self.local)["items"]
 
         # override the tags for all occurences of an image if requested
-        new_items = self._sub_image_tags(new_items)
+        new_items = self._sub_image_tags(new_items, params.get("IMAGE_TAG"))
 
         # evaluate --remove-dependencies/--no-remove-dependencies
         should_alter_deps = _should_alter(
