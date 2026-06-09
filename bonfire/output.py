@@ -56,6 +56,7 @@ def configure_logging(debug=False):
             rich_tracebacks=True,
             tracebacks_show_locals=debug,
             markup=False,
+            log_time_format="%H:%M:%S",
         )
         handler.setFormatter(logging.Formatter("%(message)s"))
         logging.basicConfig(level=level, handlers=[handler])
