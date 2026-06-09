@@ -809,7 +809,7 @@ def _log_diff(old_apps_config, new_apps_config):
     new_lines = pprint.pformat(new_apps_config).splitlines()
     compare_result = difflib.unified_diff(old_lines, new_lines)
     diff = "\n".join(compare_result)
-    log.info("diff in apps config after merging local config into remote config:\n%s", diff)
+    log.debug("diff in apps config after merging local config into remote config:\n%s", diff)
 
 
 def merge_app_configs(apps_config, new_apps, method="merge"):

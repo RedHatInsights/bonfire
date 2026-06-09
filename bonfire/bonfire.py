@@ -1421,10 +1421,10 @@ def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
 
     try:
         if not no_release_on_fail and reserved_new_ns and not reserve:
-            # if we auto-reserved this ns, auto-release it on failure unless
-            # --no-release-on-fail was requested
             log.info("releasing namespace '%s'", ns)
             release_reservation(namespace=ns)
+        elif ns and not reserved_new_ns:
+            log.info("not releasing namespace '%s' since it was not reserved in this run", ns)
     finally:
         _error(msg)
 
