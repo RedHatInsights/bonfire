@@ -9,8 +9,20 @@ import truststore
 
 import click
 from ocviapy import apply_config, get_current_namespace, StatusError
-from tabulate import tabulate
 from wait_for import TimedOutError
+
+from bonfire.output import (
+    configure_logging,
+    echo_error,
+    echo_success,
+    echo_warning,
+    render_aliases,
+    render_apps_list,
+    render_ns_table,
+    render_pool_list,
+    render_version,
+    status_spinner,
+)
 
 import bonfire.config as conf
 from bonfire.elastic_logging import ElasticLogger
@@ -83,7 +95,7 @@ def options(options_list):
 
 def _error(msg):
     es_telemetry.send_telemetry(msg, success=False)
-    click.echo(f"\nERROR: {msg}", err=True)
+    echo_error(msg)
     sys.exit(1)
 
 
@@ -132,12 +144,7 @@ def main(ctx, debug, namespace):
     ctx.ensure_object(dict)
     ctx.obj["namespace"] = namespace
 
-    logging.getLogger("sh").setLevel(logging.CRITICAL)  # silence the 'sh' library logger
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)8s] [%(threadName)20s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        level=logging.DEBUG if debug else logging.INFO,
-    )
+    configure_logging(debug)
 
     def custom_formatwarning(msg, *args, **kwargs):
         # ignore everything except the message
@@ -190,7 +197,7 @@ def _confirm_or_abort(msg):
         _error(msg)
     else:
         # have end user confirm if they want to proceed anyway
-        click.echo(f"\n{msg}")
+        echo_warning(msg)
         prompt = "Continue anyway?"
         if not sys.stdout.isatty():
             _error(
@@ -861,18 +868,7 @@ def _list_namespaces(ctx, available, mine, output):
                 }
             click.echo(json.dumps(data, indent=2))
         else:
-            data = {
-                "NAME": [ns.name for ns in namespaces],
-                "RESERVED": [str(ns.reserved).lower() for ns in namespaces],
-                "ENV STATUS": [str(ns.status).lower() for ns in namespaces],
-                "CLOWDAPPS\n(ready/total)": [ns.clowdapps for ns in namespaces],
-                "CLUSTERS\n(ready/total)": [ns.clusters for ns in namespaces],
-                "REQUESTER": [ns.requester for ns in namespaces],
-                "POOL TYPE": [ns.pool_type for ns in namespaces],
-                "EXPIRES IN": [ns.expires_in for ns in namespaces],
-            }
-            tabulated = tabulate(data, headers="keys")
-            click.echo(tabulated)
+            render_ns_table(namespaces)
 
 
 @namespace.command("reserve")
@@ -973,7 +969,9 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only, defer_status_e
     if not namespace:
         namespace = current_namespace_or_error()
     try:
-        _wait_on_namespace_resources(namespace, timeout, db_only, defer_status_errors)
+        with status_spinner(f"Waiting for resources in '{namespace}'...", timeout=timeout):
+            _wait_on_namespace_resources(namespace, timeout, db_only, defer_status_errors)
+        echo_success(f"Resources in '{namespace}' are ready")
     except TimedOutError as err:
         log.error("hit timeout error: %s", err)
         _error("namespace wait timed out")
@@ -998,7 +996,9 @@ def _describe_namespace(ctx, namespace, output):
     if not _namespace:
         _namespace = current_namespace_or_error()
 
-    click.echo(describe_namespace(_namespace, output))
+    result = describe_namespace(_namespace, output)
+    if result is not None:
+        click.echo(result)
 
 
 def _get_apps_config(
@@ -1012,44 +1012,40 @@ def _get_apps_config(
 ):
     config = conf.load_config(local_config_path)
 
-    if source == APP_SRE_SRC:
-        log.info("fetching target env apps config using source: %s", source)
-        if not target_env:
-            _error("target env must be supplied for source '{APP_SRE_SRC}'")
-        apps_config = get_apps_for_env(target_env, preferred_params)
+    with status_spinner(f"Fetching app deployment configs (source: {source})..."):
+        if source == APP_SRE_SRC:
+            log.info("fetching target env apps config using source: %s", source)
+            if not target_env:
+                _error("target env must be supplied for source '{APP_SRE_SRC}'")
+            apps_config = get_apps_for_env(target_env, preferred_params)
 
-        if not ref_env and target_env == conf.EPHEMERAL_ENV_NAME:
-            # set git target to 'master' because ephemeral targets have no git ref defined
-            log.info(
-                "target env is '%s' and no ref env given, using 'master' git ref for all apps",
-                conf.EPHEMERAL_ENV_NAME,
-            )
-            for _, app_cfg in apps_config.items():
-                for component in app_cfg.get("components", []):
-                    component["ref"] = "master"
+            if not ref_env and target_env == conf.EPHEMERAL_ENV_NAME:
+                log.info(
+                    "target env is '%s' and no ref env given, using 'master' git ref for all apps",
+                    conf.EPHEMERAL_ENV_NAME,
+                )
+                for _, app_cfg in apps_config.items():
+                    for component in app_cfg.get("components", []):
+                        component["ref"] = "master"
 
-    elif source == FILE_SRC:
-        log.info("fetching apps config using source: %s", source)
-        apps_config = get_appsfile_apps(config)
+        elif source == FILE_SRC:
+            log.info("fetching apps config using source: %s", source)
+            apps_config = get_appsfile_apps(config)
 
-    # handle git ref/image substitutions if reference environment was provided
-    if ref_env:
-        apps_config = sub_refs(apps_config, ref_env, fallback_ref_env, preferred_params)
+        if ref_env:
+            apps_config = sub_refs(apps_config, ref_env, fallback_ref_env, preferred_params)
 
-    # merge remote apps config with local app config
-    local_apps = get_local_apps(config)
-    apps_config = merge_app_configs(apps_config, local_apps, local_config_method)
+        local_apps = get_local_apps(config)
+        apps_config = merge_app_configs(apps_config, local_apps, local_config_method)
 
     # validate the components look ok after merging
     for app_name, app_config in apps_config.items():
         for component in app_config["components"]:
-            # validate the config for a component
             if not component.get("name"):
                 raise FatalError(f"{SYNTAX_ERR}, component is missing 'name'")
             try:
                 RepoFile.from_config(component)
             except FatalError as err:
-                # re-raise with a bit more context
                 raise FatalError(f"{str(err)}, hit on app {app_name}")
 
     return apps_config
@@ -1173,7 +1169,7 @@ def _process(
 @pool.command("list")
 def _cmd_pool_types():
     """List all pool types"""
-    click.echo("\n".join(get_namespace_pools()))
+    render_pool_list(get_namespace_pools())
 
 
 def _get_return_args(*args, **kwargs):
@@ -1391,16 +1387,19 @@ def _check_and_reserve_namespace(
             " have been reserved"
         )
 
-    return reserve_namespace(
-        name,
-        requester,
-        duration,
-        pool,
-        timeout,
-        local,
-        team,
-        secrets_src_namespace=secrets_src_namespace,
-    )
+    with status_spinner(f"Reserving namespace from pool '{pool}'..."):
+        ns = reserve_namespace(
+            name,
+            requester,
+            duration,
+            pool,
+            timeout,
+            local,
+            team,
+            secrets_src_namespace=secrets_src_namespace,
+        )
+    echo_success(f"Namespace '{ns.name}' reserved")
+    return ns
 
 
 def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
@@ -1602,45 +1601,45 @@ def _cmd_config_deploy(
         clowd_env = None
 
     try:
-        log.info("processing app templates...")
-        apps_config = _process(
-            app_names,
-            source,
-            get_dependencies,
-            optional_deps_method,
-            local_config_method,
-            set_image_tag,
-            ref_env,
-            fallback_ref_env,
-            target_env,
-            set_template_ref,
-            set_parameter,
-            clowd_env,
-            local_config_path,
-            remove_resources,
-            no_remove_resources,
-            remove_dependencies,
-            no_remove_dependencies,
-            single_replicas,
-            component_filter,
-            local,
-            frontends,
-            preferred_params,
-            ns,
-            exclude_components,
-        )
+        with status_spinner("Processing app templates..."):
+            apps_config = _process(
+                app_names,
+                source,
+                get_dependencies,
+                optional_deps_method,
+                local_config_method,
+                set_image_tag,
+                ref_env,
+                fallback_ref_env,
+                target_env,
+                set_template_ref,
+                set_parameter,
+                clowd_env,
+                local_config_path,
+                remove_resources,
+                no_remove_resources,
+                remove_dependencies,
+                no_remove_dependencies,
+                single_replicas,
+                component_filter,
+                local,
+                frontends,
+                preferred_params,
+                ns,
+                exclude_components,
+            )
         log.debug("app configs:\n%s", json.dumps(apps_config, indent=2))
         if not apps_config["items"]:
             log.warning("no configurations found to apply!")
         else:
-            log.info("applying app configs...")
-            apply_config(ns, apps_config)
-            log.info("waiting on resources for max of %dsec...", timeout)
-            _wait_on_namespace_resources(ns, timeout, False, defer_status_errors)
+            with status_spinner(f"Applying configs to namespace '{ns}'..."):
+                apply_config(ns, apps_config)
+            with status_spinner("Waiting for resources to be ready...", timeout=timeout):
+                _wait_on_namespace_resources(ns, timeout, False, defer_status_errors)
     except (KeyboardInterrupt, Exception) as err:
         _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns)
     else:
-        log.info("successfully deployed to namespace %s", ns)
+        echo_success(f"Successfully deployed to namespace '{ns}'")
         es_telemetry.send_telemetry("successful deployment")
         log.info(
             "resource usage dashboard for namespace '%s': %s",
@@ -1748,22 +1747,24 @@ def _cmd_deploy_clowdenv(
     if import_configmaps:
         import_configmaps_from_dir(configmaps_dir)
 
-    clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
+    with status_spinner("Processing ClowdEnvironment template..."):
+        clowd_env_config = _process_clowdenv(namespace, quay_user, clowd_env, template_file, local)
 
     log.debug("ClowdEnvironment config:\n%s", clowd_env_config)
 
-    apply_config(None, clowd_env_config)
+    with status_spinner("Applying ClowdEnvironment config..."):
+        apply_config(None, clowd_env_config)
 
     if not namespace:
-        # wait for Clowder to tell us what target namespace it created
-        namespace = wait_for_clowd_env_target_ns(clowd_env)
+        with status_spinner("Waiting for Clowder to provision target namespace..."):
+            namespace = wait_for_clowd_env_target_ns(clowd_env)
 
-    log.info("waiting on resources for max of %dsec...", timeout)
-    _wait_on_namespace_resources(namespace, timeout, False, defer_status_errors)
+    with status_spinner("Waiting for resources to be ready...", timeout=timeout):
+        _wait_on_namespace_resources(namespace, timeout, False, defer_status_errors)
 
     clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
 
-    log.info("ClowdEnvironment '%s' using ns '%s' is ready", clowd_env_name, namespace)
+    echo_success(f"ClowdEnvironment '{clowd_env_name}' using ns '{namespace}' is ready")
     click.echo(namespace)
 
 
@@ -1911,18 +1912,19 @@ def _cmd_deploy_iqe_cji(
     except (KeyError, IndexError):
         raise Exception("error parsing name of CJI from processed template, check CJI template")
 
-    apply_config(namespace, cji_config)
+    with status_spinner("Applying CJI config..."):
+        apply_config(namespace, cji_config)
 
-    log.info("waiting on CJI '%s' for max of %dsec...", cji_name, timeout)
-    pod_name = wait_on_cji(namespace, cji_name, timeout, defer_status_errors)
-    log.info("pod '%s' related to CJI '%s' in ns '%s' is running", pod_name, cji_name, namespace)
+    with status_spinner(f"Waiting on CJI '{cji_name}'...", timeout=timeout):
+        pod_name = wait_on_cji(namespace, cji_name, timeout, defer_status_errors)
+    echo_success(f"Pod '{pod_name}' for CJI '{cji_name}' in ns '{namespace}' is running")
     click.echo(pod_name)
 
 
 @main.command("version")
 def _cmd_version():
     """Print bonfire version"""
-    click.echo("bonfire version " + get_version())
+    render_version(get_version())
 
 
 @config.command("write-default")
@@ -1952,11 +1954,7 @@ def _cmd_list_aliases(local_config_path):
     if not aliases:
         click.echo("No aliases configured.")
         return
-    for name, alias_cfg in sorted(aliases.items()):
-        app_names = " ".join(alias_cfg.get("app_names", [name]))
-        args = alias_cfg.get("args", {})
-        args_str = " ".join(f"--{k.replace('_', '-')}={v}" for k, v in args.items())
-        click.echo(f"  {name} => {app_names} {args_str}".rstrip())
+    render_aliases(aliases)
 
 
 @options(_app_source_options)
@@ -1976,19 +1974,11 @@ def _cmd_apps_list(
     preferred_params,
 ):
     """List names of all apps that are marked for deployment in given 'target_env'"""
-    apps = _get_apps_config(
+    apps_config = _get_apps_config(
         source, target_env, None, None, local_config_path, local_config_method, preferred_params
     )
 
-    print("")
-    sorted_keys = sorted(apps.keys())
-    for app_name in sorted_keys:
-        app_config = apps[app_name]
-        print(app_name)
-        if list_components:
-            component_names = sorted([c["name"] for c in app_config["components"]])
-            for component_name in component_names:
-                print(f" `-- {component_name}")
+    render_apps_list(apps_config, list_components)
 
 
 @options(_app_source_options)

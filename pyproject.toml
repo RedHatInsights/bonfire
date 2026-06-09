@@ -39,6 +39,7 @@ dependencies = [
     "ocviapy>=1.7.0",
     "python-dotenv",
     "requests>=2.33.0",
+    "rich>=13.0.0",
     "sh",
     "tabulate",
     "wait-for",
