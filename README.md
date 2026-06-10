@@ -10,6 +10,7 @@ As an example, typing `bonfire deploy host-inventory` leads to the host-inventor
 
 - [About](#about)
 - [Installation](#installation)
+  - [GitHub token configuration](#github-token-configuration)
 - [MCP Server (AI Agent Integration)](#mcp-server-ai-agent-integration)
   - [Installing the MCP Server](#installing-the-mcp-server)
   - [Authentication](#authentication)
@@ -83,28 +84,6 @@ python3 -m venv $VENV_DIR
 pip install crc-bonfire
 ```
 
-To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs,
-[create a personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-on your GitHub account which grants bonfire read access to your repos.
-
-**Token Expiration**: The token must have an expiration length of less than 366 days to adhere to organizational policies. Longer periods will result in 403 responses.
-
-**Tokens (Classic)**: When using the GitHub token (classic), it **must have** the `read:project` scope.
-In addition, since some projects may be private, you will need to add the `repo` (full control of private repositories) scope too.
-for the template fetching to work!
-
-**Fine-grained tokens**: When using the newer fine grained tokens in GitHub, you must select the following permissions for `All Repositories` with read-only permission.
-* Contents (Read-only)
-* Metadata (required and included by default)
-
-![GitHub Token Example](github-fine-token.png)
-
-Configure bonfire to use the token with:
-```
-echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
-```
-
-
 ## Using UV
 
 If you have `uv` installed on your system, you can also quickly install the bonfire tool globally on your system with:
@@ -154,6 +133,29 @@ If you desire for the kubeconfig to live in a non-standard location in the conta
 podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v $HOME/.kube/config:/opt/kubeconfig:Z \
     -e KUBECONFIG=/opt/kubeconfig \
     quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire namespace list
+```
+
+## GitHub token configuration
+
+To prevent GitHub rate limiting issues when bonfire reaches out to GitHub APIs,
+[create a personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+on your GitHub account which grants bonfire read access to your repos.
+
+**Token Expiration**: The token must have an expiration length of less than 366 days to adhere to organizational policies. Longer periods will result in 403 responses.
+
+**Tokens (Classic)**: When using the GitHub token (classic), it **must have** the `read:project` scope.
+In addition, since some projects may be private, you will need to add the `repo` (full control of private repositories) scope too.
+for the template fetching to work!
+
+**Fine-grained tokens**: When using the newer fine grained tokens in GitHub, you must select the following permissions for `All Repositories` with read-only permission.
+* Contents (Read-only)
+* Metadata (required and included by default)
+
+![GitHub Token Example](github-fine-token.png)
+
+Configure bonfire to use the token with:
+```
+echo 'GITHUB_TOKEN=<your api token>' >> ~/.config/bonfire/env
 ```
 
 # MCP Server (AI Agent Integration)
