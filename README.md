@@ -49,7 +49,29 @@ A wide range of CLI options allow you to customize exactly what combination of c
 
 # Installation
 
-## Installing locally
+## Quick install (recommended)
+
+Run the install script to automatically set up a virtualenv and install bonfire:
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/RedHatInsights/bonfire/master/install.sh)
+```
+
+Or clone the repo and run it locally:
+
+```bash
+./install.sh
+```
+
+By default the virtualenv is created at `~/.bonfire/venv`. Override this by setting `BONFIRE_VENV`:
+
+```bash
+BONFIRE_VENV=/opt/bonfire/venv bash install.sh
+```
+
+After installation, add the virtualenv to your PATH as instructed by the script's output.
+
+## Installing locally (manual)
 
 We'd recommend setting up a virtual environment for bonfire:
 
