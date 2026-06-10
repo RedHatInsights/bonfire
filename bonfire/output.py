@@ -401,7 +401,7 @@ def render_version(version):
     if _is_interactive():
         console.print(f"[bold cyan]bonfire[/bold cyan] version [success]{version}[/success]")
     else:
-        click_echo(f"bonfire version {version}")
+        click_echo(f"{version}")
 
 
 def click_echo(msg="", **kwargs):
