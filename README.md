@@ -91,13 +91,6 @@ If you have `uv` installed on your system, you can also quickly install the bonf
 uv tool install crc-bonfire
 ```
 
-## Using homebrew
-
-```bash
-brew tap redhatinsights/bonfire
-brew install bonfire
-```
-
 ## Using a container image (podman/docker)
 
 We provide a container image at quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire. The image wraps a Python virtual environment with **crc-bonfire** installed on it.
