@@ -606,7 +606,7 @@ def _compare_version(pypi_version):
             f"(yours: {my_version}, available: {pypi_version})"
             "\n\n"
             "upgrade with:\n"
-            f"    pip install --upgrade {PKG_NAME}"
+            f"    {sys.executable} -m pip install --upgrade {PKG_NAME}"
             "\n"
         )
     else:
