@@ -294,7 +294,6 @@ _ns_reserve_options = [
         default=None,
         help="Override the secret source namespace for the reservation (copies secrets from this namespace)",
     ),
-    _local_option,
 ]
 
 
@@ -877,6 +876,7 @@ def _list_namespaces(ctx, available, mine, output):
 
 @namespace.command("reserve")
 @options(_ns_reserve_options)
+@options([_local_option])
 @options(_timeout_options)
 @click.pass_context
 @click_exception_wrapper("namespace reserve")
@@ -1819,6 +1819,7 @@ def _cmd_process_iqe_cji(
 
 @main.command("deploy-iqe-cji")
 @options(_iqe_cji_process_options)
+@options([_local_option])
 @click.option(
     "--namespace",
     "-n",
