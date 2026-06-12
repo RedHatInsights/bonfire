@@ -1819,7 +1819,6 @@ def _cmd_process_iqe_cji(
 
 @main.command("deploy-iqe-cji")
 @options(_iqe_cji_process_options)
-@options([_local_option])
 @click.option(
     "--namespace",
     "-n",
