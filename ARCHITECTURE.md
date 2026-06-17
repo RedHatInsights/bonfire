@@ -87,7 +87,7 @@ Entry point: `bonfire_mcp.server:main`. Requires the `mcp` optional dependency
 
 ## Sub-package Relationships
 
-```
+```text
 bonfire/ (CLI — requires oc binary)
 ├── bonfire.config          ← module-level env constants, YAML config
 ├── bonfire.openshift       ← oc-based K8s ops (ocviapy)
@@ -135,7 +135,7 @@ dependency and independently usable.
 `main_with_handler()` (`bonfire/bonfire.py`) calls `truststore.inject_into_ssl()` (for corporate
 CA bundles) then delegates to `main()`.
 
-```
+```text
 main  [Click group — global options: --namespace/-n, --debug/-d]
 │
 ├── namespace  [group]
@@ -188,7 +188,7 @@ passed — it checks via `ctx.get_parameter_source()`.
 
 ### Deploy (`bonfire deploy <app>`)
 
-```
+```text
 _cmd_config_deploy()
   ├── _resolve_alias()                             # expand alias if applicable
   ├── get_base_namespace_for_env()                 # qontract: find base namespace for env
@@ -226,7 +226,7 @@ _cmd_config_deploy()
 
 ### Reserve (`bonfire namespace reserve`)
 
-```
+```text
 _cmd_namespace_reserve()
   └── _check_and_reserve_namespace()
         └── reserve_namespace()                    # bonfire/namespaces.py
@@ -239,7 +239,7 @@ _cmd_namespace_reserve()
 
 ### Release (`bonfire namespace release`)
 
-```
+```text
 _cmd_namespace_release()
   └── release_reservation()                        # bonfire/namespaces.py
         ├── EphemeralK8sClient()
@@ -441,7 +441,7 @@ the network).
 
 `get_apps_for_env()` merges parameters from four layers (later layers win):
 
-```
+```text
 1. Environment-level parameters   (environments_v1.parameters)
 2. Saas-file-level parameters     (saasFile.parameters)
 3. Resource-template-level params (resourceTemplate.parameters)
@@ -512,7 +512,7 @@ The output of `get_apps_for_env()` has this shape:
 The Ephemeral Namespace Operator (ENO) manages `NamespaceReservation` CRs on the cluster.
 Bonfire creates and patches these CRs; ENO drives their state:
 
-```
+```text
 [create CR] → waiting → active → expired
                                    ↑
                   [patch spec.duration = "0s"] immediately
