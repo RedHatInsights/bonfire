@@ -1601,7 +1601,11 @@ def _cmd_config_deploy(
         clowd_env = None
 
     try:
-        app_list = ", ".join(app_names) if len(app_names) <= 3 else f"{', '.join(app_names[:3])}... ({len(app_names)} total)"
+        app_list = (
+            ", ".join(app_names)
+            if len(app_names) <= 3
+            else f"{', '.join(app_names[:3])}... ({len(app_names)} total)"
+        )
         with status_spinner(f"Processing app templates from {source} ({app_list})..."):
             apps_config = _process(
                 app_names,
