@@ -8,6 +8,7 @@ from bonfire_lib.deploy import (
     wait_for_resources,
     _collect_components,
     _build_parameters,
+    _is_capi_cluster_ready,
     _is_clowdapp_ready,
     _is_deployment_ready,
 )
@@ -73,6 +74,52 @@ class TestBuildParameters:
             component, "abc1234567890abcdef", "ns", "env-ns"
         )
         assert params["IMAGE_TAG"] == "abc1234567"
+
+
+class TestIsCapiClusterReady:
+    def test_ready_condition(self):
+        cluster = {
+            "status": {
+                "conditions": [
+                    {"type": "Ready", "status": "True"}
+                ]
+            }
+        }
+        assert _is_capi_cluster_ready(cluster) is True
+
+    def test_available_condition(self):
+        cluster = {
+            "status": {
+                "conditions": [
+                    {"type": "Available", "status": "True"}
+                ]
+            }
+        }
+        assert _is_capi_cluster_ready(cluster) is True
+
+    def test_not_ready(self):
+        cluster = {
+            "status": {
+                "conditions": [
+                    {"type": "Ready", "status": "False"}
+                ]
+            }
+        }
+        assert _is_capi_cluster_ready(cluster) is False
+
+    def test_no_conditions(self):
+        assert _is_capi_cluster_ready({}) is False
+
+    def test_provisioning(self):
+        cluster = {
+            "status": {
+                "conditions": [
+                    {"type": "InfrastructureReady", "status": "True"},
+                    {"type": "Ready", "status": "False"},
+                ]
+            }
+        }
+        assert _is_capi_cluster_ready(cluster) is False
 
 
 class TestIsClowdappReady:
@@ -143,24 +190,59 @@ class TestIsDeploymentReady:
 class TestWaitForResources:
     @patch("bonfire_lib.deploy.time.sleep")
     @patch("bonfire_lib.deploy.time.time")
-    def test_ready_immediately(self, mock_time, mock_sleep):
-        mock_time.side_effect = [0, 6, 12]
+    def test_capi_cluster_ready(self, mock_time, mock_sleep):
+        mock_time.side_effect = [0, 1]
         mock_client = MagicMock()
         mock_client.list_dynamic_resources.side_effect = [
+            # CAPI Clusters — one ready cluster
             [{"status": {"conditions": [{"type": "Ready", "status": "True"}]}}],
+            # ClowdApps — none
+            [],
+            # Deployments — none
+            [],
+        ]
+        wait_for_resources(mock_client, "test-ns", timeout=60)
+
+    @patch("bonfire_lib.deploy.time.sleep")
+    @patch("bonfire_lib.deploy.time.time")
+    def test_clowdapp_and_deployment_ready(self, mock_time, mock_sleep):
+        mock_time.side_effect = [0, 1]
+        mock_client = MagicMock()
+        mock_client.list_dynamic_resources.side_effect = [
+            # CAPI Clusters — none
+            [],
+            # ClowdApps — one ready
+            [{"status": {"conditions": [{"type": "ReconciliationSuccessful", "status": "True"}]}}],
+            # Deployments — one ready
             [{"spec": {"replicas": 1}, "status": {"readyReplicas": 1}}],
         ]
         wait_for_resources(mock_client, "test-ns", timeout=60)
 
     @patch("bonfire_lib.deploy.time.sleep")
     @patch("bonfire_lib.deploy.time.time")
-    def test_timeout_raises(self, mock_time, mock_sleep):
+    def test_no_resources_waits_until_timeout(self, mock_time, mock_sleep):
         mock_time.return_value = 1000
         mock_client = MagicMock()
         mock_client.list_dynamic_resources.return_value = []
 
         with pytest.raises(TimeoutError, match="timed out"):
             wait_for_resources(mock_client, "test-ns", timeout=0)
+
+    @patch("bonfire_lib.deploy.time.sleep")
+    @patch("bonfire_lib.deploy.time.time")
+    def test_capi_cluster_not_ready_keeps_polling(self, mock_time, mock_sleep):
+        mock_time.side_effect = [0, 1, 2, 3]
+        mock_client = MagicMock()
+        mock_client.list_dynamic_resources.side_effect = [
+            # Poll 1: cluster not ready
+            [{"status": {"conditions": [{"type": "Ready", "status": "False"}]}}],
+            # Poll 2: cluster ready
+            [{"status": {"conditions": [{"type": "Ready", "status": "True"}]}}],
+            [],
+            [],
+        ]
+        wait_for_resources(mock_client, "test-ns", timeout=60)
+        mock_sleep.assert_called_once()
 
 
 class TestDeployRosa:

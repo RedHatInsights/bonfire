@@ -195,13 +195,17 @@ def wait_for_resources(
 ) -> None:
     """Wait for all resources in a namespace to become ready.
 
-    Polls ClowdApps and Deployments for readiness status.
+    Polls CAPI Clusters, ClowdApps, and Deployments for readiness.
+    The ROSA template creates cluster.x-k8s.io Cluster resources whose
+    status.conditions[type=Ready] aggregates readiness from the
+    ROSACluster and ROSAControlPlane children.
 
     Raises:
         TimeoutError: If resources not ready within timeout
     """
     start = time.time()
-    poll_interval = 5
+    poll_interval = 10
+    found_resources = False
 
     while True:
         elapsed = time.time() - start
@@ -213,36 +217,70 @@ def wait_for_resources(
 
         all_ready = True
 
+        # CAPI Clusters (ROSA deploys)
         try:
-            clowdapps = client.list_dynamic_resources(
-                "cloud.redhat.com/v1alpha1", "ClowdApp", namespace=namespace
+            clusters = client.list_dynamic_resources(
+                "cluster.x-k8s.io/v1beta1", "Cluster", namespace=namespace
             )
-            for app in clowdapps:
-                if not _is_clowdapp_ready(app):
+            if clusters:
+                found_resources = True
+            for cluster in clusters:
+                if not _is_capi_cluster_ready(cluster):
                     all_ready = False
                     break
         except Exception as err:
-            log.debug("error listing ClowdApps: %s", err)
-            all_ready = False
+            log.debug("error listing CAPI Clusters: %s", err)
 
+        # ClowdApps
+        if all_ready:
+            try:
+                clowdapps = client.list_dynamic_resources(
+                    "cloud.redhat.com/v1alpha1", "ClowdApp", namespace=namespace
+                )
+                if clowdapps:
+                    found_resources = True
+                for app in clowdapps:
+                    if not _is_clowdapp_ready(app):
+                        all_ready = False
+                        break
+            except Exception as err:
+                log.debug("error listing ClowdApps: %s", err)
+
+        # Deployments
         if all_ready:
             try:
                 deployments = client.list_dynamic_resources(
                     "apps/v1", "Deployment", namespace=namespace
                 )
+                if deployments:
+                    found_resources = True
                 for dep in deployments:
                     if not _is_deployment_ready(dep):
                         all_ready = False
                         break
             except Exception as err:
                 log.debug("error listing Deployments: %s", err)
-                all_ready = False
 
-        if all_ready and elapsed > poll_interval:
+        if all_ready and found_resources:
             log.info("all resources in namespace '%s' are ready", namespace)
             return
 
+        if not found_resources:
+            log.debug(
+                "no resources found yet in namespace '%s' (%.0fs elapsed)",
+                namespace, elapsed,
+            )
+
         time.sleep(poll_interval)
+
+
+def _is_capi_cluster_ready(cluster: dict) -> bool:
+    """Check if a CAPI Cluster is ready via status.conditions."""
+    conditions = cluster.get("status", {}).get("conditions", [])
+    for cond in conditions:
+        if cond.get("type") in ("Ready", "Available") and cond.get("status") == "True":
+            return True
+    return False
 
 
 def _is_clowdapp_ready(app: dict) -> bool:
