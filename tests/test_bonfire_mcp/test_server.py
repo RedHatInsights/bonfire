@@ -249,9 +249,7 @@ class TestNamespaceToolDispatch:
                 {"name": "res-1", "namespace": "ns-1", "state": "active", "pool": "default"},
                 {"name": "res-rosa", "namespace": "ns-rosa", "state": "active", "pool": "rosa"},
             ]
-            result = await call_tool(
-                "ephemeral_list_reservations", {"type": "rosa_cluster"}
-            )
+            result = await call_tool("ephemeral_list_reservations", {"type": "rosa_cluster"})
             assert "res-rosa" in result[0].text
             assert "res-1" not in result[0].text
 

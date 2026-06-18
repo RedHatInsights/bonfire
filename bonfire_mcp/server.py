@@ -124,9 +124,7 @@ TOOLS = [
     ),
     Tool(
         name="ephemeral_status",
-        description=(
-            "Get the status of a namespace reservation by name or by namespace."
-        ),
+        description=("Get the status of a namespace reservation by name or by namespace."),
         inputSchema={
             "type": "object",
             "properties": {
@@ -332,17 +330,13 @@ async def _deploy_rosa(
         )
     except asyncio.TimeoutError:
         proc.kill()
-        raise TimeoutError(
-            f"bonfire deploy rosa timed out after {timeout + 60}s"
-        )
+        raise TimeoutError(f"bonfire deploy rosa timed out after {timeout + 60}s")
 
     stdout = stdout_bytes.decode("utf-8", errors="replace")
     stderr = stderr_bytes.decode("utf-8", errors="replace")
 
     if proc.returncode != 0:
-        raise FatalError(
-            f"bonfire deploy rosa failed (exit {proc.returncode}):\n{stderr}"
-        )
+        raise FatalError(f"bonfire deploy rosa failed (exit {proc.returncode}):\n{stderr}")
 
     # The CLI prints the namespace name as the last non-empty line of stdout
     lines = [line for line in stdout.splitlines() if line.strip()]

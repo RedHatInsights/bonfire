@@ -95,6 +95,3 @@ def render_cji(
         ibutsu_secret=ibutsu_secret,
     )
     return yaml.safe_load(rendered)
-
-
-
