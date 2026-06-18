@@ -1,7 +1,7 @@
 """Tests for bonfire_mcp.server module — tool definitions and dispatch."""
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from bonfire_mcp.server import call_tool, list_tools, TOOLS
 from mcp.types import CallToolResult
@@ -21,6 +21,7 @@ class TestToolDefinitions:
             "ephemeral_list_reservations",
             "ephemeral_describe",
             "ephemeral_get_kubeconfig",
+            "ephemeral_deploy_rosa",
         }
 
     @pytest.mark.asyncio
@@ -40,7 +41,17 @@ class TestToolDefinitions:
         reserve = next(t for t in TOOLS if t.name == "ephemeral_reserve")
         props = reserve.inputSchema["properties"]
         assert "type" in props
-        assert props["type"]["enum"] == ["namespace", "cluster"]
+        assert props["type"]["enum"] == ["default_namespace", "rosa_cluster"]
+
+    def test_list_pools_type_enum(self):
+        tool = next(t for t in TOOLS if t.name == "ephemeral_list_pools")
+        props = tool.inputSchema["properties"]
+        assert props["type"]["enum"] == ["default_namespace", "rosa_cluster", "all"]
+
+    def test_list_reservations_type_enum(self):
+        tool = next(t for t in TOOLS if t.name == "ephemeral_list_reservations")
+        props = tool.inputSchema["properties"]
+        assert props["type"]["enum"] == ["default_namespace", "rosa_cluster", "all"]
 
     def test_get_kubeconfig_requires_name(self):
         tool = next(t for t in TOOLS if t.name == "ephemeral_get_kubeconfig")
@@ -49,6 +60,18 @@ class TestToolDefinitions:
     def test_describe_tool_requires_namespace(self):
         describe = next(t for t in TOOLS if t.name == "ephemeral_describe")
         assert "namespace" in describe.inputSchema.get("required", [])
+
+    def test_deploy_rosa_has_no_name_param(self):
+        tool = next(t for t in TOOLS if t.name == "ephemeral_deploy_rosa")
+        assert "name" not in tool.inputSchema["properties"]
+
+    def test_deploy_rosa_has_duration_param(self):
+        tool = next(t for t in TOOLS if t.name == "ephemeral_deploy_rosa")
+        assert "duration" in tool.inputSchema["properties"]
+
+    def test_deploy_rosa_has_timeout_param(self):
+        tool = next(t for t in TOOLS if t.name == "ephemeral_deploy_rosa")
+        assert "timeout" in tool.inputSchema["properties"]
 
 
 class TestNamespaceToolDispatch:
@@ -59,7 +82,7 @@ class TestNamespaceToolDispatch:
             yield
 
     @pytest.mark.asyncio
-    async def test_list_pools_namespace(self):
+    async def test_list_pools_default_namespace(self):
         with patch("bonfire_mcp.server.pools") as mock_pools:
             mock_pools.list_pools.return_value = [
                 {
@@ -71,7 +94,7 @@ class TestNamespaceToolDispatch:
                     "size_limit": 10,
                 }
             ]
-            result = await call_tool("ephemeral_list_pools", {"type": "namespace"})
+            result = await call_tool("ephemeral_list_pools", {"type": "default_namespace"})
             assert "default" in result[0].text
             mock_pools.list_pools.assert_called_once_with(self.mock_client)
 
@@ -88,12 +111,21 @@ class TestNamespaceToolDispatch:
                     "size_limit": 10,
                 }
             ]
-            mock_pools.list_cluster_pools.return_value = []
             result = await call_tool("ephemeral_list_pools", {})
             assert "default" in result[0].text
 
     @pytest.mark.asyncio
-    async def test_reserve_namespace(self):
+    async def test_list_pools_rosa_cluster(self):
+        with patch("bonfire_mcp.server.pools") as mock_pools:
+            mock_pools.list_pools.return_value = [
+                {"name": "rosa", "ready": 2, "creating": 0, "reserved": 1, "size": 3},
+                {"name": "default", "ready": 3, "creating": 0, "reserved": 1, "size": 5},
+            ]
+            result = await call_tool("ephemeral_list_pools", {"type": "rosa_cluster"})
+            assert "rosa" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_reserve_default_namespace(self):
         with patch("bonfire_mcp.server.reservations") as mock_res:
             mock_res.reserve.return_value = {
                 "name": "my-res",
@@ -106,6 +138,26 @@ class TestNamespaceToolDispatch:
             result = await call_tool("ephemeral_reserve", {"name": "my-res", "duration": "1h"})
             assert "my-res" in result[0].text
             assert "ephemeral-xyz" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_reserve_rosa_cluster_uses_rosa_pool(self):
+        with patch("bonfire_mcp.server.reservations") as mock_res:
+            mock_res.reserve.return_value = {
+                "name": "my-rosa-res",
+                "namespace": "ephemeral-rosa-abc",
+                "state": "active",
+                "expiration": "2026-04-09T13:00:00Z",
+                "requester": "user",
+                "pool": "rosa",
+            }
+            result = await call_tool(
+                "ephemeral_reserve",
+                {"type": "rosa_cluster", "name": "my-rosa-res", "duration": "2h"},
+            )
+            assert "my-rosa-res" in result[0].text
+            # Verify the pool used was "rosa"
+            call_kwargs = mock_res.reserve.call_args
+            assert call_kwargs.kwargs.get("pool") == "rosa"
 
     @pytest.mark.asyncio
     async def test_reserve_invalid_name(self):
@@ -154,11 +206,54 @@ class TestNamespaceToolDispatch:
             assert "2h0m0s" in result[0].text
 
     @pytest.mark.asyncio
+    async def test_extend_requires_namespace(self):
+        result = await call_tool("ephemeral_extend", {"duration": "1h"})
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert "Error" in result.content[0].text
+
+    @pytest.mark.asyncio
     async def test_release_namespace(self):
         with patch("bonfire_mcp.server.reservations") as mock_res:
             mock_res.release.return_value = {"name": "my-res", "released": True}
             result = await call_tool("ephemeral_release", {"name": "my-res"})
             assert "released" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_release_requires_name_or_namespace(self):
+        result = await call_tool("ephemeral_release", {})
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert "Error" in result.content[0].text
+
+    @pytest.mark.asyncio
+    async def test_list_reservations_all(self):
+        with patch("bonfire_mcp.server.status") as mock_status:
+            mock_status.list_reservations.return_value = [
+                {
+                    "name": "res-1",
+                    "namespace": "ns-1",
+                    "state": "active",
+                    "requester": "user",
+                    "pool": "default",
+                    "duration": "1h",
+                }
+            ]
+            result = await call_tool("ephemeral_list_reservations", {})
+            assert "res-1" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_list_reservations_rosa_cluster_filters_by_pool(self):
+        with patch("bonfire_mcp.server.status") as mock_status:
+            mock_status.list_reservations.return_value = [
+                {"name": "res-1", "namespace": "ns-1", "state": "active", "pool": "default"},
+                {"name": "res-rosa", "namespace": "ns-rosa", "state": "active", "pool": "rosa"},
+            ]
+            result = await call_tool(
+                "ephemeral_list_reservations", {"type": "rosa_cluster"}
+            )
+            assert "res-rosa" in result[0].text
+            assert "res-1" not in result[0].text
 
     @pytest.mark.asyncio
     async def test_describe(self):
@@ -171,6 +266,16 @@ class TestNamespaceToolDispatch:
             }
             result = await call_tool("ephemeral_describe", {"namespace": "ns-1"})
             assert "ns-1" in result[0].text
+
+    @pytest.mark.asyncio
+    async def test_get_kubeconfig(self):
+        with patch("bonfire_mcp.server.reservations") as mock_res:
+            mock_res.get_kubeconfig.return_value = (
+                "apiVersion: v1\nclusters:\n- cluster:\n    server: https://api.example.com:6443"
+            )
+            result = await call_tool("ephemeral_get_kubeconfig", {"name": "my-rosa"})
+            assert "apiVersion: v1" in result[0].text
+            assert "my-rosa" in result[0].text
 
     @pytest.mark.asyncio
     async def test_unknown_tool(self):
@@ -201,7 +306,7 @@ class TestNamespaceToolDispatch:
             assert "Timeout" in result.content[0].text
 
 
-class TestClusterToolDispatch:
+class TestDeployRosa:
     @pytest.fixture(autouse=True)
     def setup_mock_client(self):
         self.mock_client = MagicMock()
@@ -209,153 +314,95 @@ class TestClusterToolDispatch:
             yield
 
     @pytest.mark.asyncio
-    async def test_reserve_cluster(self):
-        with patch("bonfire_mcp.server.clusters") as mock_cl:
-            mock_cl.reserve_cluster.return_value = {
-                "name": "my-rosa",
-                "state": "waiting",
-                "requester": "user",
-                "pool": "rosa-default",
-                "type": "cluster",
-            }
-            result = await call_tool(
-                "ephemeral_reserve",
-                {
-                    "type": "cluster",
-                    "name": "my-rosa",
-                    "duration": "4h",
-                },
+    async def test_deploy_rosa_success(self):
+        """Test successful rosa deployment — mock subprocess and describe_namespace."""
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(
+            return_value=(
+                b"Deploying rosa...\nephemeral-rosa-abc\n",
+                b"",
             )
-            assert "my-rosa" in result[0].text
-            assert "waiting" in result[0].text
-            assert "Poll with" in result[0].text
+        )
+
+        describe_result = {
+            "namespace": "ephemeral-rosa-abc",
+            "console_namespace_route": "https://console.example.com/k8s/cluster/projects/ephemeral-rosa-abc",
+            "gateway_route": "https://my-gateway.example.com",
+            "clowdapps_deployed": 3,
+            "frontends_deployed": 2,
+            "keycloak_admin_route": "https://keycloak.example.com",
+            "keycloak_admin_username": "admin",
+            "keycloak_admin_password": "secret",
+            "default_username": "user@example.com",
+            "default_password": "userpass",
+        }
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            with patch("bonfire_mcp.server.status") as mock_status:
+                mock_status.describe_namespace.return_value = describe_result
+                result = await call_tool(
+                    "ephemeral_deploy_rosa",
+                    {"duration": "2h", "timeout": 1800},
+                )
+
+        assert not isinstance(result, CallToolResult) or not result.isError
+        text = result[0].text
+        assert "ROSA Cluster Deployed" in text
+        assert "ephemeral-rosa-abc" in text
 
     @pytest.mark.asyncio
-    async def test_cluster_status(self):
-        with patch("bonfire_mcp.server.clusters") as mock_cl:
-            mock_cl.get_cluster_status.return_value = {
-                "name": "my-rosa",
-                "type": "cluster",
-                "state": "provisioning",
-                "cluster_name": "",
-                "console_url": "",
-                "requester": "user",
-                "pool": "rosa-default",
-            }
-            result = await call_tool(
-                "ephemeral_status",
-                {
-                    "type": "cluster",
-                    "name": "my-rosa",
-                },
+    async def test_deploy_rosa_failure(self):
+        """Test that non-zero exit code returns isError=True."""
+        mock_proc = MagicMock()
+        mock_proc.returncode = 1
+        mock_proc.communicate = AsyncMock(
+            return_value=(
+                b"",
+                b"bonfire deploy rosa: error: no namespace available in pool\n",
             )
-            assert "provisioning" in result[0].text
+        )
 
-    @pytest.mark.asyncio
-    async def test_cluster_status_active(self):
-        with patch("bonfire_mcp.server.clusters") as mock_cl:
-            mock_cl.get_cluster_status.return_value = {
-                "name": "my-rosa",
-                "type": "cluster",
-                "state": "active",
-                "cluster_name": "rosa-abc123",
-                "console_url": "https://console.apps.rosa-abc123.example.com",
-                "requester": "user",
-                "pool": "rosa-default",
-                "expiration": "2026-04-09T16:00:00Z",
-            }
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
             result = await call_tool(
-                "ephemeral_status",
-                {
-                    "type": "cluster",
-                    "name": "my-rosa",
-                },
+                "ephemeral_deploy_rosa",
+                {"duration": "2h"},
             )
-            assert "active" in result[0].text
-            assert "rosa-abc123" in result[0].text
 
-    @pytest.mark.asyncio
-    async def test_cluster_status_not_found(self):
-        with patch("bonfire_mcp.server.clusters") as mock_cl:
-            mock_cl.get_cluster_status.return_value = None
-            result = await call_tool(
-                "ephemeral_status",
-                {
-                    "type": "cluster",
-                    "name": "nonexistent",
-                },
-            )
-            assert "No cluster reservation found" in result[0].text
-
-    @pytest.mark.asyncio
-    async def test_cluster_status_requires_name(self):
-        result = await call_tool("ephemeral_status", {"type": "cluster"})
         assert isinstance(result, CallToolResult)
         assert result.isError is True
         assert "Error" in result.content[0].text
+        assert "failed" in result.content[0].text
 
     @pytest.mark.asyncio
-    async def test_extend_cluster(self):
-        with patch("bonfire_mcp.server.clusters") as mock_cl:
-            mock_cl.extend_cluster.return_value = {"name": "my-rosa", "new_duration": "6h0m0s"}
-            result = await call_tool(
-                "ephemeral_extend",
-                {
-                    "type": "cluster",
-                    "name": "my-rosa",
-                    "duration": "2h",
-                },
-            )
-            assert "6h0m0s" in result[0].text
-
-    @pytest.mark.asyncio
-    async def test_extend_cluster_requires_name(self):
-        result = await call_tool("ephemeral_extend", {"type": "cluster", "duration": "1h"})
+    async def test_deploy_rosa_invalid_duration(self):
+        """Test that an invalid duration string returns a validation error."""
+        result = await call_tool(
+            "ephemeral_deploy_rosa",
+            {"duration": "not-a-duration"},
+        )
         assert isinstance(result, CallToolResult)
         assert result.isError is True
-        assert "Error" in result.content[0].text
+        assert "Validation error" in result.content[0].text
 
     @pytest.mark.asyncio
-    async def test_release_cluster(self):
-        with patch("bonfire_mcp.server.clusters") as mock_cl:
-            mock_cl.release_cluster.return_value = {"name": "my-rosa", "released": True}
-            result = await call_tool(
-                "ephemeral_release",
-                {
-                    "type": "cluster",
-                    "name": "my-rosa",
-                },
-            )
-            assert "released" in result[0].text
+    async def test_deploy_rosa_timeout(self):
+        """Test that subprocess timeout returns a Timeout error."""
+        import asyncio as _asyncio
 
-    @pytest.mark.asyncio
-    async def test_release_cluster_requires_name(self):
-        result = await call_tool("ephemeral_release", {"type": "cluster"})
+        mock_proc = MagicMock()
+        mock_proc.returncode = None
+        mock_proc.kill = MagicMock()
+        # communicate is an AsyncMock that blocks, but wait_for will raise before it resolves
+        mock_proc.communicate = AsyncMock(side_effect=_asyncio.TimeoutError())
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
+            with patch("asyncio.wait_for", side_effect=_asyncio.TimeoutError()):
+                result = await call_tool(
+                    "ephemeral_deploy_rosa",
+                    {"duration": "2h", "timeout": 1},
+                )
+
         assert isinstance(result, CallToolResult)
         assert result.isError is True
-        assert "Error" in result.content[0].text
-
-    @pytest.mark.asyncio
-    async def test_get_kubeconfig(self):
-        with patch("bonfire_mcp.server.clusters") as mock_cl:
-            mock_cl.get_kubeconfig.return_value = "apiVersion: v1\nclusters:\n- cluster:\n    server: https://api.rosa-abc123.example.com:6443"
-            result = await call_tool("ephemeral_get_kubeconfig", {"name": "my-rosa"})
-            assert "apiVersion: v1" in result[0].text
-            assert "my-rosa" in result[0].text
-
-    @pytest.mark.asyncio
-    async def test_list_pools_cluster(self):
-        with patch("bonfire_mcp.server.pools") as mock_pools:
-            mock_pools.list_cluster_pools.return_value = [
-                {
-                    "name": "rosa-default",
-                    "ready": 2,
-                    "provisioning": 1,
-                    "reserved": 1,
-                    "size": 3,
-                    "size_limit": 5,
-                }
-            ]
-            result = await call_tool("ephemeral_list_pools", {"type": "cluster"})
-            assert "rosa-default" in result[0].text
-            assert "Cluster Pools" in result[0].text
+        assert "Timeout" in result.content[0].text

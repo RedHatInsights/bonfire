@@ -112,81 +112,46 @@ def format_extend(result: dict) -> str:
     return f"Reservation '{name}' extended. New total duration: {new_duration}."
 
 
-def format_cluster_reservation(reservation: dict) -> str:
-    """Format a cluster reservation dict for MCP responses."""
-    name = reservation.get("name", "unknown")
-    state = reservation.get("state", "unknown")
-    cluster_name = reservation.get("cluster_name", "")
-    console_url = reservation.get("console_url", "")
-    requester = reservation.get("requester", "")
-    pool = reservation.get("pool", "rosa-default")
-    expiration = reservation.get("expiration", "")
-
-    lines = [
-        f"Cluster Reservation: {name}",
-        f"  State: {state}",
-        f"  Pool: {pool}",
-        f"  Requester: {requester}",
-    ]
-    if cluster_name:
-        lines.append(f"  Cluster: {cluster_name}")
-    if console_url:
-        lines.append(f"  Console: {console_url}")
-    if expiration:
-        lines.append(f"  Expiration: {expiration}")
-    if state in ("waiting", "provisioning") and not cluster_name:
-        lines.append(
-            "  Note: Poll with ephemeral_status(name='%s', type='cluster') to track progress."
-            % name
-        )
-    return "\n".join(lines)
-
-
-def format_cluster_pool_list(pools: list[dict]) -> str:
-    """Format a list of cluster pool dicts as a readable table."""
-    if not pools:
-        return "No cluster pools found."
-
-    lines = ["Cluster Pools:", ""]
-    header = (
-        f"  {'Name':<25} {'Ready':>5} {'Provisioning':>12} {'Reserved':>8} {'Size':>4} {'Limit':>5}"
-    )
-    lines.append(header)
-    lines.append("  " + "-" * (len(header) - 2))
-
-    for pool in pools:
-        lines.append(
-            f"  {pool['name']:<25} {pool.get('ready', 0):>5} "
-            f"{pool.get('provisioning', 0):>12} {pool.get('reserved', 0):>8} "
-            f"{pool.get('size', 0):>4} {pool.get('size_limit', 0):>5}"
-        )
-
-    return "\n".join(lines)
-
-
 def format_kubeconfig(name: str, kubeconfig: str) -> str:
     """Format a kubeconfig response."""
     return f"Kubeconfig for cluster reservation '{name}':\n\n{kubeconfig}"
 
 
-def format_cluster_reservation_list(reservations_list: list[dict]) -> str:
-    """Format a list of cluster reservations."""
-    if not reservations_list:
-        return "No active cluster reservations found."
+def format_deploy_rosa(result: dict) -> str:
+    """Format the result of ephemeral_deploy_rosa."""
+    namespace = result.get("namespace", "unknown")
+    describe = result.get("describe", {})
 
-    lines = ["Active Cluster Reservations:", ""]
-    header = (
-        f"  {'Name':<35} {'Cluster':<25} {'State':<14} "
-        f"{'Requester':<20} {'Pool':<15} {'Duration':<10}"
-    )
-    lines.append(header)
-    lines.append("  " + "-" * (len(header) - 2))
+    lines = [
+        "ROSA Cluster Deployed",
+        "=" * 40,
+        f"Namespace: {namespace}",
+    ]
 
-    for res in reservations_list:
+    console_url = describe.get("console_namespace_route", "")
+    if console_url:
+        lines.append(f"Console URL: {console_url}")
+
+    gateway = describe.get("gateway_route", "")
+    if gateway:
+        lines.append(f"Gateway route: {gateway}")
+
+    lines.append(f"ClowdApps deployed: {describe.get('clowdapps_deployed', 0)}")
+    lines.append(f"Frontends deployed: {describe.get('frontends_deployed', 0)}")
+
+    kc_route = describe.get("keycloak_admin_route", "")
+    if kc_route:
+        lines.append(f"Keycloak admin route: {kc_route}")
         lines.append(
-            f"  {res.get('name', ''):<35} {res.get('cluster_name', ''):<25} "
-            f"{res.get('state', ''):<14} {res.get('requester', ''):<20} "
-            f"{res.get('pool', ''):<15} {res.get('duration', ''):<10}"
+            f"Keycloak admin login: "
+            f"{describe.get('keycloak_admin_username', 'N/A')} | "
+            f"{describe.get('keycloak_admin_password', 'N/A')}"
+        )
+
+    default_user = describe.get("default_username", "")
+    if default_user and default_user != "N/A":
+        lines.append(
+            f"Default user login: {default_user} | {describe.get('default_password', 'N/A')}"
         )
 
     return "\n".join(lines)

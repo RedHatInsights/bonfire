@@ -1,9 +1,7 @@
 """Tests for bonfire_mcp.formatters module."""
 
 from bonfire_mcp.formatters import (
-    format_cluster_pool_list,
-    format_cluster_reservation,
-    format_cluster_reservation_list,
+    format_deploy_rosa,
     format_describe,
     format_extend,
     format_kubeconfig,
@@ -141,71 +139,6 @@ class TestFormatExtend:
         assert "2h0m0s" in result
 
 
-class TestFormatClusterReservation:
-    def test_waiting(self):
-        result = format_cluster_reservation(
-            {
-                "name": "my-rosa",
-                "state": "waiting",
-                "requester": "user",
-                "pool": "rosa-default",
-            }
-        )
-        assert "my-rosa" in result
-        assert "waiting" in result
-        assert "Poll with" in result
-
-    def test_provisioning(self):
-        result = format_cluster_reservation(
-            {
-                "name": "my-rosa",
-                "state": "provisioning",
-                "requester": "user",
-                "pool": "rosa-default",
-            }
-        )
-        assert "provisioning" in result
-        assert "Poll with" in result
-
-    def test_active(self):
-        result = format_cluster_reservation(
-            {
-                "name": "my-rosa",
-                "state": "active",
-                "cluster_name": "rosa-abc123",
-                "console_url": "https://console.apps.rosa-abc123.example.com",
-                "requester": "user",
-                "pool": "rosa-default",
-                "expiration": "2026-04-09T16:00:00Z",
-            }
-        )
-        assert "active" in result
-        assert "rosa-abc123" in result
-        assert "https://console" in result
-        assert "Poll with" not in result
-
-
-class TestFormatClusterPoolList:
-    def test_empty(self):
-        assert "No cluster pools" in format_cluster_pool_list([])
-
-    def test_with_pools(self):
-        result = format_cluster_pool_list(
-            [
-                {
-                    "name": "rosa-default",
-                    "ready": 2,
-                    "provisioning": 1,
-                    "reserved": 1,
-                    "size": 3,
-                    "size_limit": 5,
-                },
-            ]
-        )
-        assert "rosa-default" in result
-        assert "Cluster Pools" in result
-
-
 class TestFormatKubeconfig:
     def test_kubeconfig(self):
         result = format_kubeconfig("my-rosa", "apiVersion: v1\nclusters: []")
@@ -213,23 +146,44 @@ class TestFormatKubeconfig:
         assert "apiVersion: v1" in result
 
 
-class TestFormatClusterReservationList:
-    def test_empty(self):
-        assert "No active cluster reservations" in format_cluster_reservation_list([])
-
-    def test_with_reservations(self):
-        result = format_cluster_reservation_list(
-            [
-                {
-                    "name": "rosa-res-1",
-                    "cluster_name": "rosa-abc123",
-                    "state": "active",
-                    "requester": "user1",
-                    "pool": "rosa-default",
-                    "duration": "4h",
+class TestFormatDeployRosa:
+    def test_full_result(self):
+        result = format_deploy_rosa(
+            {
+                "namespace": "ephemeral-rosa-abc",
+                "describe": {
+                    "namespace": "ephemeral-rosa-abc",
+                    "console_namespace_route": "https://console.example.com/k8s/cluster/projects/ephemeral-rosa-abc",
+                    "gateway_route": "https://my-gateway.example.com",
+                    "clowdapps_deployed": 3,
+                    "frontends_deployed": 2,
+                    "keycloak_admin_route": "https://keycloak.example.com",
+                    "keycloak_admin_username": "admin",
+                    "keycloak_admin_password": "secret",
+                    "default_username": "user@example.com",
+                    "default_password": "userpass",
                 },
-            ]
+                "deploy_output": "Deploying...\nephemeral-rosa-abc\n",
+            }
         )
-        assert "rosa-res-1" in result
-        assert "rosa-abc123" in result
-        assert "Active Cluster Reservations" in result
+        assert "ROSA Cluster Deployed" in result
+        assert "ephemeral-rosa-abc" in result
+        assert "https://console.example.com" in result
+        assert "https://my-gateway.example.com" in result
+        assert "3" in result
+        assert "admin" in result
+
+    def test_minimal_result(self):
+        result = format_deploy_rosa(
+            {
+                "namespace": "ephemeral-rosa-xyz",
+                "describe": {
+                    "namespace": "ephemeral-rosa-xyz",
+                    "clowdapps_deployed": 0,
+                    "frontends_deployed": 0,
+                },
+                "deploy_output": "ephemeral-rosa-xyz\n",
+            }
+        )
+        assert "ROSA Cluster Deployed" in result
+        assert "ephemeral-rosa-xyz" in result

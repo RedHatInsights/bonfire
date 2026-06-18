@@ -2,7 +2,8 @@
 
 Exposes reservation lifecycle (reserve, release, extend, list, status)
 as MCP tools usable by any MCP-compatible AI agent. Supports both
-namespace and cluster resource types with polymorphic dispatch.
+default_namespace and rosa_cluster resource types — both are namespace
+reservations that differ only by pool selection.
 """
 
 import asyncio
@@ -15,15 +16,12 @@ from bonfire_lib.config import Settings
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.utils import FatalError, validate_dns_name, validate_time_string
 import bonfire_lib.reservations as reservations
-import bonfire_lib.clusters as clusters
 import bonfire_lib.pools as pools
 import bonfire_lib.status as status
 
 from bonfire_mcp.auth import load_k8s_client
 from bonfire_mcp.formatters import (
-    format_cluster_reservation,
-    format_cluster_pool_list,
-    format_cluster_reservation_list,
+    format_deploy_rosa,
     format_describe,
     format_extend,
     format_kubeconfig,
@@ -59,15 +57,15 @@ TOOLS = [
     Tool(
         name="ephemeral_list_pools",
         description=(
-            "List available ephemeral resource pools with capacity stats. "
-            "Returns both namespace pools and cluster pools (if available)."
+            "List available ephemeral namespace pools with capacity stats. "
+            "Filter by type to see only default_namespace or rosa_cluster pools."
         ),
         inputSchema={
             "type": "object",
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["namespace", "cluster", "all"],
+                    "enum": ["default_namespace", "rosa_cluster", "all"],
                     "description": "Filter by pool type. Default: 'all'.",
                     "default": "all",
                 },
@@ -77,18 +75,22 @@ TOOLS = [
     Tool(
         name="ephemeral_reserve",
         description=(
-            "Reserve an ephemeral resource (namespace or cluster). "
-            "For namespaces: polls until assigned (seconds). "
-            "For clusters: returns immediately — poll with ephemeral_status()."
+            "Reserve an ephemeral namespace. "
+            "Use type='default_namespace' for a standard namespace from the default pool, "
+            "or type='rosa_cluster' for a namespace from the rosa pool. "
+            "Polls until a namespace is assigned (may take a few seconds)."
         ),
         inputSchema={
             "type": "object",
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["namespace", "cluster"],
-                    "description": "Resource type. Default: 'namespace'.",
-                    "default": "namespace",
+                    "enum": ["default_namespace", "rosa_cluster"],
+                    "description": (
+                        "Resource type. 'default_namespace' uses pool='default', "
+                        "'rosa_cluster' uses pool='rosa'. Default: 'default_namespace'."
+                    ),
+                    "default": "default_namespace",
                 },
                 "name": {
                     "type": "string",
@@ -99,17 +101,7 @@ TOOLS = [
                 },
                 "duration": {
                     "type": "string",
-                    "description": (
-                        "Duration (e.g., '1h', '2h30m'). "
-                        "Default: '1h' for namespaces, '4h' for clusters."
-                    ),
-                },
-                "pool": {
-                    "type": "string",
-                    "description": (
-                        "Pool to reserve from. "
-                        "Default: 'default' for namespaces, 'rosa-default' for clusters."
-                    ),
+                    "description": "Duration (e.g., '1h', '2h30m'). Default: '1h'.",
                 },
                 "requester": {
                     "type": "string",
@@ -124,10 +116,7 @@ TOOLS = [
                 },
                 "timeout": {
                     "type": "integer",
-                    "description": (
-                        "Max seconds to wait for namespace assignment (namespace only). "
-                        "Default: 600. Ignored for clusters."
-                    ),
+                    "description": "Max seconds to wait for namespace assignment. Default: 600.",
                     "default": 600,
                 },
             },
@@ -136,9 +125,7 @@ TOOLS = [
     Tool(
         name="ephemeral_status",
         description=(
-            "Get the status of a reservation by name or by namespace. "
-            "For clusters, shows state (waiting/provisioning/active), "
-            "cluster name, and console URL."
+            "Get the status of a namespace reservation by name or by namespace."
         ),
         inputSchema={
             "type": "object",
@@ -149,13 +136,13 @@ TOOLS = [
                 },
                 "namespace": {
                     "type": "string",
-                    "description": "Namespace name to find the reservation for (namespace type only).",
+                    "description": "Namespace name to find the reservation for.",
                 },
                 "type": {
                     "type": "string",
-                    "enum": ["namespace", "cluster"],
-                    "description": "Resource type. Default: 'namespace'.",
-                    "default": "namespace",
+                    "enum": ["default_namespace", "rosa_cluster"],
+                    "description": "Resource type (informational). Default: 'default_namespace'.",
+                    "default": "default_namespace",
                 },
             },
         },
@@ -163,19 +150,15 @@ TOOLS = [
     Tool(
         name="ephemeral_extend",
         description=(
-            "Extend the duration of an active reservation. "
+            "Extend the duration of an active namespace reservation. "
             "Adds the specified duration to the reservation's current total."
         ),
         inputSchema={
             "type": "object",
             "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "Reservation name (required for clusters).",
-                },
                 "namespace": {
                     "type": "string",
-                    "description": "Namespace of the reservation to extend (namespace type only).",
+                    "description": "Namespace of the reservation to extend.",
                 },
                 "duration": {
                     "type": "string",
@@ -183,9 +166,9 @@ TOOLS = [
                 },
                 "type": {
                     "type": "string",
-                    "enum": ["namespace", "cluster"],
-                    "description": "Resource type. Default: 'namespace'.",
-                    "default": "namespace",
+                    "enum": ["default_namespace", "rosa_cluster"],
+                    "description": "Resource type (informational). Default: 'default_namespace'.",
+                    "default": "default_namespace",
                 },
             },
             "required": ["duration"],
@@ -194,7 +177,8 @@ TOOLS = [
     Tool(
         name="ephemeral_release",
         description=(
-            "Release an ephemeral reservation. The resource will be reclaimed by the operator."
+            "Release an ephemeral namespace reservation. "
+            "The resource will be reclaimed by the operator."
         ),
         inputSchema={
             "type": "object",
@@ -205,13 +189,13 @@ TOOLS = [
                 },
                 "namespace": {
                     "type": "string",
-                    "description": "Namespace name to find and release (namespace type only).",
+                    "description": "Namespace name to find and release.",
                 },
                 "type": {
                     "type": "string",
-                    "enum": ["namespace", "cluster"],
-                    "description": "Resource type. Default: 'namespace'.",
-                    "default": "namespace",
+                    "enum": ["default_namespace", "rosa_cluster"],
+                    "description": "Resource type (informational). Default: 'default_namespace'.",
+                    "default": "default_namespace",
                 },
             },
         },
@@ -219,8 +203,8 @@ TOOLS = [
     Tool(
         name="ephemeral_list_reservations",
         description=(
-            "List active reservations, optionally filtered by requester. "
-            "Shows reservation name, assigned resource, state, and pool."
+            "List active reservations, optionally filtered by requester or pool type. "
+            "Shows reservation name, assigned namespace, state, and pool."
         ),
         inputSchema={
             "type": "object",
@@ -231,8 +215,8 @@ TOOLS = [
                 },
                 "type": {
                     "type": "string",
-                    "enum": ["namespace", "cluster", "all"],
-                    "description": "Filter by reservation type. Default: 'all'.",
+                    "enum": ["default_namespace", "rosa_cluster", "all"],
+                    "description": "Filter by reservation type/pool. Default: 'all'.",
                     "default": "all",
                 },
             },
@@ -273,6 +257,36 @@ TOOLS = [
             "required": ["name"],
         },
     ),
+    Tool(
+        name="ephemeral_deploy_rosa",
+        description=(
+            "Deploy a ROSA ephemeral cluster. Reserves a namespace from the rosa pool, "
+            "deploys the rosa-ephemeral-cluster component, waits for readiness, "
+            "and returns connection info. This is a long-running operation (may take several minutes)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "string",
+                    "description": "Reservation duration (e.g., '2h', '1h30m'). Default: '2h'.",
+                    "default": "2h",
+                },
+                "requester": {
+                    "type": "string",
+                    "description": (
+                        "Requester identity, defaults to authenticated user. "
+                        "In CI this is typically a job identifier."
+                    ),
+                },
+                "timeout": {
+                    "type": "integer",
+                    "description": "Max seconds to wait for deployment. Default: 1800.",
+                    "default": 1800,
+                },
+            },
+        },
+    ),
 ]
 
 
@@ -289,26 +303,80 @@ def _error_result(message: str) -> CallToolResult:
     )
 
 
+async def _deploy_rosa(
+    duration: str | None = None,
+    requester: str | None = None,
+    timeout: int = 1800,
+) -> dict:
+    """Run bonfire deploy rosa as an async subprocess and return result dict."""
+    if duration:
+        validate_time_string(duration)
+
+    cmd = ["bonfire", "deploy", "rosa"]
+    if duration:
+        cmd += ["--duration", duration]
+    if requester:
+        cmd += ["--requester", requester]
+    if timeout:
+        cmd += ["--timeout", str(timeout)]
+
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    try:
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(), timeout=timeout + 60
+        )
+    except asyncio.TimeoutError:
+        proc.kill()
+        raise TimeoutError(
+            f"bonfire deploy rosa timed out after {timeout + 60}s"
+        )
+
+    stdout = stdout_bytes.decode("utf-8", errors="replace")
+    stderr = stderr_bytes.decode("utf-8", errors="replace")
+
+    if proc.returncode != 0:
+        raise FatalError(
+            f"bonfire deploy rosa failed (exit {proc.returncode}):\n{stderr}"
+        )
+
+    # The CLI prints the namespace name as the last non-empty line of stdout
+    lines = [line for line in stdout.splitlines() if line.strip()]
+    if not lines:
+        raise FatalError("bonfire deploy rosa produced no output — could not determine namespace")
+
+    namespace = lines[-1].strip()
+
+    client = _get_client()
+    describe_info = status.describe_namespace(client, namespace)
+
+    return {
+        "namespace": namespace,
+        "describe": describe_info,
+        "deploy_output": stdout,
+    }
+
+
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolResult:
     try:
         client = _get_client()
-        resource_type = arguments.get("type", "namespace")
+        resource_type = arguments.get("type", "default_namespace")
 
         if name == "ephemeral_list_pools":
-            if resource_type == "cluster":
-                result = pools.list_cluster_pools(client)
-                return [TextContent(type="text", text=format_cluster_pool_list(result))]
-            elif resource_type == "namespace":
-                result = pools.list_pools(client)
-                return [TextContent(type="text", text=format_pool_list(result))]
+            # Both types list namespace pools; filter by pool name if requested
+            all_ns_pools = pools.list_pools(client)
+            if resource_type == "default_namespace":
+                result = [p for p in all_ns_pools if p["name"] != "rosa"]
+            elif resource_type == "rosa_cluster":
+                result = [p for p in all_ns_pools if p["name"] == "rosa"]
             else:
-                ns_pools = pools.list_pools(client)
-                cl_pools = pools.list_cluster_pools(client)
-                text = format_pool_list(ns_pools)
-                if cl_pools:
-                    text += "\n\n" + format_cluster_pool_list(cl_pools)
-                return [TextContent(type="text", text=text)]
+                result = all_ns_pools
+            return [TextContent(type="text", text=format_pool_list(result))]
 
         elif name == "ephemeral_reserve":
             res_name = arguments.get("name")
@@ -321,114 +389,90 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolR
 
             settings = _get_settings()
 
-            if resource_type == "cluster":
-                result = clusters.reserve_cluster(
-                    client,
-                    name=res_name,
-                    duration=duration or "4h",
-                    requester=arguments.get("requester"),
-                    pool=arguments.get("pool", "rosa-default"),
-                    team=arguments.get("team"),
-                )
-                return [TextContent(type="text", text=format_cluster_reservation(result))]
-            else:
-                result = await asyncio.to_thread(
-                    reservations.reserve,
-                    client,
-                    name=res_name,
-                    duration=duration or settings.default_reservation_duration,
-                    requester=arguments.get("requester"),
-                    pool=arguments.get("pool", settings.default_namespace_pool),
-                    team=arguments.get("team"),
-                    timeout=arguments.get("timeout", 600),
-                )
-                return [TextContent(type="text", text=format_reservation(result))]
+            # Map type to pool: default_namespace -> "default", rosa_cluster -> "rosa"
+            pool = "rosa" if resource_type == "rosa_cluster" else settings.default_namespace_pool
+
+            result = await asyncio.to_thread(
+                reservations.reserve,
+                client,
+                name=res_name,
+                duration=duration or settings.default_reservation_duration,
+                requester=arguments.get("requester"),
+                pool=pool,
+                team=arguments.get("team"),
+                timeout=arguments.get("timeout", 600),
+            )
+            return [TextContent(type="text", text=format_reservation(result))]
 
         elif name == "ephemeral_status":
             res_name = arguments.get("name")
             namespace = arguments.get("namespace")
 
-            if resource_type == "cluster":
-                if not res_name:
-                    return _error_result("Error: 'name' is required for cluster status lookup.")
-                result = clusters.get_cluster_status(client, res_name)
-                if not result:
-                    return [
-                        TextContent(
-                            type="text", text=f"No cluster reservation found for name='{res_name}'."
-                        )
-                    ]
-                return [TextContent(type="text", text=format_cluster_reservation(result))]
-            else:
-                if not res_name and not namespace:
-                    return _error_result(
-                        "Error: provide either 'name' or 'namespace' to look up a reservation."
+            if not res_name and not namespace:
+                return _error_result(
+                    "Error: provide either 'name' or 'namespace' to look up a reservation."
+                )
+            res = status.get_reservation(client, name=res_name, namespace=namespace)
+            if not res:
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"No reservation found for "
+                        f"{'name=' + res_name if res_name else 'namespace=' + namespace}.",
                     )
-                res = status.get_reservation(client, name=res_name, namespace=namespace)
-                if not res:
-                    return [
-                        TextContent(
-                            type="text",
-                            text=f"No reservation found for "
-                            f"{'name=' + res_name if res_name else 'namespace=' + namespace}.",
-                        )
-                    ]
-                result = status.get_reservation_summary(res)
-                return [TextContent(type="text", text=format_reservation(result))]
+                ]
+            result = status.get_reservation_summary(res)
+            return [TextContent(type="text", text=format_reservation(result))]
 
         elif name == "ephemeral_extend":
-            if resource_type == "cluster":
-                res_name = arguments.get("name")
-                if not res_name:
-                    return _error_result("Error: 'name' is required for cluster extend.")
-                result = clusters.extend_cluster(client, res_name, arguments["duration"])
-            else:
-                namespace = arguments.get("namespace")
-                if not namespace:
-                    return _error_result("Error: 'namespace' is required for namespace extend.")
-                result = reservations.extend(
-                    client, namespace=namespace, duration=arguments["duration"]
-                )
+            namespace = arguments.get("namespace")
+            if not namespace:
+                return _error_result("Error: 'namespace' is required for extend.")
+            result = reservations.extend(
+                client, namespace=namespace, duration=arguments["duration"]
+            )
             return [TextContent(type="text", text=format_extend(result))]
 
         elif name == "ephemeral_release":
             res_name = arguments.get("name")
             namespace = arguments.get("namespace")
 
-            if resource_type == "cluster":
-                if not res_name:
-                    return _error_result("Error: 'name' is required for cluster release.")
-                result = clusters.release_cluster(client, res_name)
-            else:
-                if not res_name and not namespace:
-                    return _error_result(
-                        "Error: provide either 'name' or 'namespace' to release a reservation."
-                    )
-                result = reservations.release(client, name=res_name, namespace=namespace)
+            if not res_name and not namespace:
+                return _error_result(
+                    "Error: provide either 'name' or 'namespace' to release a reservation."
+                )
+            result = reservations.release(client, name=res_name, namespace=namespace)
             return [TextContent(type="text", text=format_release(result))]
 
         elif name == "ephemeral_list_reservations":
             requester = arguments.get("requester")
-            parts = []
+            all_reservations = status.list_reservations(client, requester=requester)
 
-            if resource_type in ("namespace", "all"):
-                ns_result = status.list_reservations(client, requester=requester)
-                parts.append(format_reservation_list(ns_result))
+            # Filter by pool when a specific type is requested
+            if resource_type == "default_namespace":
+                result = [r for r in all_reservations if r.get("pool") != "rosa"]
+            elif resource_type == "rosa_cluster":
+                result = [r for r in all_reservations if r.get("pool") == "rosa"]
+            else:
+                result = all_reservations
 
-            if resource_type in ("cluster", "all"):
-                cl_reservations = clusters.list_cluster_reservations(client, requester=requester)
-                if cl_reservations or resource_type == "cluster":
-                    parts.append(format_cluster_reservation_list(cl_reservations))
-
-            return [TextContent(type="text", text="\n\n".join(parts))]
+            return [TextContent(type="text", text=format_reservation_list(result))]
 
         elif name == "ephemeral_describe":
             result = status.describe_namespace(client, arguments["namespace"])
             return [TextContent(type="text", text=format_describe(result))]
 
         elif name == "ephemeral_get_kubeconfig":
-            kubeconfig = clusters.get_kubeconfig(client, arguments["name"])
+            kubeconfig = reservations.get_kubeconfig(client, arguments["name"])
             return [TextContent(type="text", text=format_kubeconfig(arguments["name"], kubeconfig))]
+
+        elif name == "ephemeral_deploy_rosa":
+            result = await _deploy_rosa(
+                duration=arguments.get("duration"),
+                requester=arguments.get("requester"),
+                timeout=arguments.get("timeout", 1800),
+            )
+            return [TextContent(type="text", text=format_deploy_rosa(result))]
 
         else:
             return _error_result(f"Unknown tool: {name}")
