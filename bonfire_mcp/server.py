@@ -483,6 +483,21 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolR
 async def run_server():
     from mcp.server.stdio import stdio_server
 
+    log.info("bonfire-mcp starting, %d tools available", len(TOOLS))
+    try:
+        _get_client()
+    except PermissionError as e:
+        log.error(
+            "permission denied reading kubeconfig: %s\n"
+            "  If running with podman, add: --userns=keep-id:uid=1000,gid=1000",
+            e,
+        )
+        raise SystemExit(1)
+    except RuntimeError as e:
+        log.error("startup failed: %s", e)
+        raise SystemExit(1)
+    log.info("bonfire-mcp ready, waiting for client connection")
+
     async with stdio_server() as (read_stream, write_stream):
         await app.run(read_stream, write_stream, app.create_initialization_options())
 
@@ -490,5 +505,5 @@ async def run_server():
 def main():
     import asyncio
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     asyncio.run(run_server())

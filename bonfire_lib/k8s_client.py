@@ -318,7 +318,9 @@ class EphemeralK8sClient:
             kwargs["namespace"] = namespace
         return [item.to_dict() for item in resource.get(**kwargs).items]
 
-    def process_template(self, template: dict, parameters: dict) -> list[dict]:
+    def process_template(
+        self, template: dict, parameters: dict, namespace: str = "default"
+    ) -> list[dict]:
         """Process an OpenShift Template via the processedtemplates API.
 
         Fills parameter values into the template, POSTs to the cluster's
@@ -328,6 +330,7 @@ class EphemeralK8sClient:
         Args:
             template: OpenShift Template dict (kind: Template)
             parameters: Parameter name->value pairs to substitute
+            namespace: Namespace for the processedtemplates API call
 
         Returns:
             List of processed K8s resource dicts
@@ -345,13 +348,13 @@ class EphemeralK8sClient:
                     val = str(val).lower()
                 param_def["value"] = str(val)
 
-        path = "/apis/template.openshift.io/v1/processedtemplates"
+        path = f"/apis/template.openshift.io/v1/namespaces/{namespace}/processedtemplates"
 
         response = self._api_client.call_api(
             path,
             "POST",
             body=template,
-            response_type="object",
+            response_types_map={200: "object", 201: "object"},
             _request_timeout=DEFAULT_WRITE_TIMEOUT,
             header_params={
                 "Content-Type": "application/json",

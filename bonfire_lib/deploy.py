@@ -85,7 +85,7 @@ def deploy_rosa(
         template = _parse_template(component["name"], template_content)
         params = _build_parameters(component, commit, namespace, env_name)
 
-        processed_items = client.process_template(template, params)
+        processed_items = client.process_template(template, params, namespace=namespace)
         log.info(
             "component '%s' produced %d resources",
             component["name"], len(processed_items),
