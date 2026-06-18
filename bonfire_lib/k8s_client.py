@@ -6,6 +6,8 @@ Supports three auth modes: explicit server+token, in-cluster, kubeconfig.
 
 import atexit
 import base64
+import copy
+import json
 import logging
 import os
 import tempfile
@@ -261,6 +263,105 @@ class EphemeralK8sClient:
             if e.status == 404:
                 return None
             raise
+
+    # --- Generic resource operations (for deploy flow) ---
+
+    def get_dynamic_resource(self, api_version: str, kind: str):
+        """Get a DynamicClient resource handle for any API version/kind."""
+        return self._dynamic.resources.get(api_version=api_version, kind=kind)
+
+    def apply_resource(self, body: dict, namespace: str | None = None) -> dict:
+        """Create or update a K8s resource.
+
+        Tries GET first; creates on 404, patches on existing.
+        """
+        api_version = body.get("apiVersion", "")
+        kind = body.get("kind", "")
+        name = body.get("metadata", {}).get("name", "")
+        ns = namespace or body.get("metadata", {}).get("namespace")
+
+        resource = self.get_dynamic_resource(api_version, kind)
+
+        get_kwargs = {"name": name, "_request_timeout": DEFAULT_READ_TIMEOUT}
+        if ns:
+            get_kwargs["namespace"] = ns
+
+        try:
+            resource.get(**get_kwargs)
+            patch_kwargs = {
+                "name": name,
+                "body": body,
+                "content_type": "application/merge-patch+json",
+                "_request_timeout": DEFAULT_WRITE_TIMEOUT,
+            }
+            if ns:
+                patch_kwargs["namespace"] = ns
+            return resource.patch(**patch_kwargs).to_dict()
+        except ApiException as e:
+            if e.status == 404:
+                create_kwargs = {
+                    "body": body,
+                    "_request_timeout": DEFAULT_WRITE_TIMEOUT,
+                }
+                if ns:
+                    create_kwargs["namespace"] = ns
+                return resource.create(**create_kwargs).to_dict()
+            raise
+
+    def list_dynamic_resources(
+        self, api_version: str, kind: str, namespace: str | None = None
+    ) -> list[dict]:
+        """List resources of any API version/kind."""
+        resource = self.get_dynamic_resource(api_version, kind)
+        kwargs = {"_request_timeout": DEFAULT_READ_TIMEOUT}
+        if namespace:
+            kwargs["namespace"] = namespace
+        return [item.to_dict() for item in resource.get(**kwargs).items]
+
+    def process_template(self, template: dict, parameters: dict) -> list[dict]:
+        """Process an OpenShift Template via the processedtemplates API.
+
+        Fills parameter values into the template, POSTs to the cluster's
+        template.openshift.io/v1 processedtemplates endpoint, and returns
+        the expanded objects list.
+
+        Args:
+            template: OpenShift Template dict (kind: Template)
+            parameters: Parameter name->value pairs to substitute
+
+        Returns:
+            List of processed K8s resource dicts
+        """
+        template = copy.deepcopy(template)
+
+        if template.get("apiVersion") == "v1" and template.get("kind") == "Template":
+            template["apiVersion"] = "template.openshift.io/v1"
+
+        for param_def in template.get("parameters", []):
+            name = param_def["name"]
+            if name in parameters:
+                val = parameters[name]
+                if isinstance(val, bool):
+                    val = str(val).lower()
+                param_def["value"] = str(val)
+
+        path = "/apis/template.openshift.io/v1/processedtemplates"
+
+        response = self._api_client.call_api(
+            path,
+            "POST",
+            body=template,
+            response_type="object",
+            _request_timeout=DEFAULT_WRITE_TIMEOUT,
+            header_params={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            auth_settings=["BearerToken"],
+        )
+
+        processed = response[0]
+        return processed.get("objects", [])
 
     # --- Identity ---
 

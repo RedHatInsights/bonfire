@@ -313,15 +313,21 @@ class TestDeployRosa:
 
     @pytest.mark.asyncio
     async def test_deploy_rosa_success(self):
-        """Test successful rosa deployment — mock subprocess and describe_namespace."""
-        mock_proc = MagicMock()
-        mock_proc.returncode = 0
-        mock_proc.communicate = AsyncMock(
-            return_value=(
-                b"Deploying rosa...\nephemeral-rosa-abc\n",
-                b"",
-            )
-        )
+        """Test successful rosa deployment — mock reserve, deploy, and describe."""
+        reservation_result = {
+            "name": "bonfire-reservation-abc",
+            "namespace": "ephemeral-rosa-abc",
+            "state": "active",
+            "expiration": "2026-06-18T14:00:00Z",
+            "requester": "test-user",
+            "pool": "rosa",
+        }
+
+        deploy_result = {
+            "namespace": "ephemeral-rosa-abc",
+            "components_deployed": ["rosa-ephemeral-cluster"],
+            "resources_applied": 3,
+        }
 
         describe_result = {
             "namespace": "ephemeral-rosa-abc",
@@ -336,13 +342,16 @@ class TestDeployRosa:
             "default_password": "userpass",
         }
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with patch("bonfire_mcp.server.status") as mock_status:
-                mock_status.describe_namespace.return_value = describe_result
-                result = await call_tool(
-                    "ephemeral_deploy_rosa",
-                    {"duration": "2h", "timeout": 1800},
-                )
+        with patch("bonfire_mcp.server.reservations") as mock_reservations:
+            mock_reservations.reserve.return_value = reservation_result
+            with patch("bonfire_mcp.server.deploy") as mock_deploy:
+                mock_deploy.deploy_rosa.return_value = deploy_result
+                with patch("bonfire_mcp.server.status") as mock_status:
+                    mock_status.describe_namespace.return_value = describe_result
+                    result = await call_tool(
+                        "ephemeral_deploy_rosa",
+                        {"duration": "2h", "timeout": 1800},
+                    )
 
         assert not isinstance(result, CallToolResult) or not result.isError
         text = result[0].text
@@ -350,27 +359,33 @@ class TestDeployRosa:
         assert "ephemeral-rosa-abc" in text
 
     @pytest.mark.asyncio
-    async def test_deploy_rosa_failure(self):
-        """Test that non-zero exit code returns isError=True."""
-        mock_proc = MagicMock()
-        mock_proc.returncode = 1
-        mock_proc.communicate = AsyncMock(
-            return_value=(
-                b"",
-                b"bonfire deploy rosa: error: no namespace available in pool\n",
-            )
-        )
+    async def test_deploy_rosa_failure_releases_namespace(self):
+        """Test that deployment failure releases the reserved namespace."""
+        reservation_result = {
+            "name": "bonfire-reservation-abc",
+            "namespace": "ephemeral-rosa-abc",
+            "state": "active",
+            "expiration": "2026-06-18T14:00:00Z",
+            "requester": "test-user",
+            "pool": "rosa",
+        }
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            result = await call_tool(
-                "ephemeral_deploy_rosa",
-                {"duration": "2h"},
-            )
+        with patch("bonfire_mcp.server.reservations") as mock_reservations:
+            mock_reservations.reserve.return_value = reservation_result
+            with patch("bonfire_mcp.server.deploy") as mock_deploy:
+                from bonfire_lib.utils import FatalError as _FE
+                mock_deploy.deploy_rosa.side_effect = _FE("deploy failed")
+                result = await call_tool(
+                    "ephemeral_deploy_rosa",
+                    {"duration": "2h"},
+                )
 
         assert isinstance(result, CallToolResult)
         assert result.isError is True
-        assert "Error" in result.content[0].text
         assert "failed" in result.content[0].text
+        mock_reservations.release.assert_called_once_with(
+            self.mock_client, namespace="ephemeral-rosa-abc"
+        )
 
     @pytest.mark.asyncio
     async def test_deploy_rosa_invalid_duration(self):
@@ -385,17 +400,22 @@ class TestDeployRosa:
 
     @pytest.mark.asyncio
     async def test_deploy_rosa_timeout(self):
-        """Test that subprocess timeout returns a Timeout error."""
-        import asyncio as _asyncio
+        """Test that a deploy timeout returns a Timeout error."""
+        reservation_result = {
+            "name": "bonfire-reservation-abc",
+            "namespace": "ephemeral-rosa-abc",
+            "state": "active",
+            "expiration": "2026-06-18T14:00:00Z",
+            "requester": "test-user",
+            "pool": "rosa",
+        }
 
-        mock_proc = MagicMock()
-        mock_proc.returncode = None
-        mock_proc.kill = MagicMock()
-        # communicate is an AsyncMock that blocks, but wait_for will raise before it resolves
-        mock_proc.communicate = AsyncMock(side_effect=_asyncio.TimeoutError())
-
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc):
-            with patch("asyncio.wait_for", side_effect=_asyncio.TimeoutError()):
+        with patch("bonfire_mcp.server.reservations") as mock_reservations:
+            mock_reservations.reserve.return_value = reservation_result
+            with patch("bonfire_mcp.server.deploy") as mock_deploy:
+                mock_deploy.deploy_rosa.side_effect = TimeoutError(
+                    "timed out waiting for resources"
+                )
                 result = await call_tool(
                     "ephemeral_deploy_rosa",
                     {"duration": "2h", "timeout": 1},

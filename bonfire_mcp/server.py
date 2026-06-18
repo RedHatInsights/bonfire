@@ -15,6 +15,7 @@ from mcp.types import CallToolResult, TextContent, Tool
 from bonfire_lib.config import Settings
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.utils import FatalError, validate_dns_name, validate_time_string
+import bonfire_lib.deploy as deploy
 import bonfire_lib.reservations as reservations
 import bonfire_lib.pools as pools
 import bonfire_lib.status as status
@@ -306,53 +307,48 @@ async def _deploy_rosa(
     requester: str | None = None,
     timeout: int = 1800,
 ) -> dict:
-    """Run bonfire deploy rosa as an async subprocess and return result dict."""
+    """Reserve a ROSA namespace, deploy components, and return result dict."""
     if duration:
         validate_time_string(duration)
 
-    cmd = ["bonfire", "deploy", "rosa"]
-    if duration:
-        cmd += ["--duration", duration]
-    if requester:
-        cmd += ["--requester", requester]
-    if timeout:
-        cmd += ["--timeout", str(timeout)]
+    client = _get_client()
 
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+    reservation = await asyncio.to_thread(
+        reservations.reserve,
+        client,
+        duration=duration or "2h",
+        requester=requester,
+        pool="rosa",
+        timeout=min(timeout, 600),
     )
+    namespace = reservation["namespace"]
 
     try:
-        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=timeout + 60
+        deploy_result = await asyncio.to_thread(
+            deploy.deploy_rosa,
+            client,
+            namespace=namespace,
+            timeout=timeout,
         )
-    except asyncio.TimeoutError:
-        proc.kill()
-        raise TimeoutError(f"bonfire deploy rosa timed out after {timeout + 60}s")
 
-    stdout = stdout_bytes.decode("utf-8", errors="replace")
-    stderr = stderr_bytes.decode("utf-8", errors="replace")
+        describe_info = await asyncio.to_thread(
+            status.describe_namespace, client, namespace,
+        )
 
-    if proc.returncode != 0:
-        raise FatalError(f"bonfire deploy rosa failed (exit {proc.returncode}):\n{stderr}")
-
-    # The CLI prints the namespace name as the last non-empty line of stdout
-    lines = [line for line in stdout.splitlines() if line.strip()]
-    if not lines:
-        raise FatalError("bonfire deploy rosa produced no output — could not determine namespace")
-
-    namespace = lines[-1].strip()
-
-    client = _get_client()
-    describe_info = status.describe_namespace(client, namespace)
-
-    return {
-        "namespace": namespace,
-        "describe": describe_info,
-        "deploy_output": stdout,
-    }
+        return {
+            "namespace": namespace,
+            "describe": describe_info,
+            "deploy_output": (
+                f"Deployed {deploy_result['resources_applied']} resources "
+                f"({', '.join(deploy_result['components_deployed'])})"
+            ),
+        }
+    except Exception:
+        try:
+            reservations.release(client, namespace=namespace)
+        except Exception:
+            pass
+        raise
 
 
 @app.call_tool()

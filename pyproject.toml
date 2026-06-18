@@ -62,9 +62,12 @@ exclude = ["tests*"]
 namespaces = false
 
 [project.optional-dependencies]
-lib = []
+lib = [
+    "gql[requests]>=3.5.0",
+]
 mcp = [
     "mcp>=1.0.0",
+    "gql[requests]>=3.5.0",
 ]
 test = [
     "mock",
