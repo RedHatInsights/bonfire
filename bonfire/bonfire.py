@@ -1012,31 +1012,31 @@ def _get_apps_config(
 ):
     config = conf.load_config(local_config_path)
 
-    with status_spinner(f"Fetching app deployment configs (source: {source})..."):
-        if source == APP_SRE_SRC:
-            log.info("fetching target env apps config using source: %s", source)
-            if not target_env:
-                _error("target env must be supplied for source '{APP_SRE_SRC}'")
-            apps_config = get_apps_for_env(target_env, preferred_params)
+    if source == APP_SRE_SRC:
+        log.info("fetching target env apps config using source: %s", source)
+        if not target_env:
+            _error("target env must be supplied for source '{APP_SRE_SRC}'")
+        log.info("fetching app deployment configs for env '%s'", target_env)
+        apps_config = get_apps_for_env(target_env, preferred_params)
 
-            if not ref_env and target_env == conf.EPHEMERAL_ENV_NAME:
-                log.info(
-                    "target env is '%s' and no ref env given, using 'master' git ref for all apps",
-                    conf.EPHEMERAL_ENV_NAME,
-                )
-                for _, app_cfg in apps_config.items():
-                    for component in app_cfg.get("components", []):
-                        component["ref"] = "master"
+        if not ref_env and target_env == conf.EPHEMERAL_ENV_NAME:
+            log.info(
+                "target env is '%s' and no ref env given, using 'master' git ref for all apps",
+                conf.EPHEMERAL_ENV_NAME,
+            )
+            for _, app_cfg in apps_config.items():
+                for component in app_cfg.get("components", []):
+                    component["ref"] = "master"
 
-        elif source == FILE_SRC:
-            log.info("fetching apps config using source: %s", source)
-            apps_config = get_appsfile_apps(config)
+    elif source == FILE_SRC:
+        log.info("fetching apps config using source: %s", source)
+        apps_config = get_appsfile_apps(config)
 
-        if ref_env:
-            apps_config = sub_refs(apps_config, ref_env, fallback_ref_env, preferred_params)
+    if ref_env:
+        apps_config = sub_refs(apps_config, ref_env, fallback_ref_env, preferred_params)
 
-        local_apps = get_local_apps(config)
-        apps_config = merge_app_configs(apps_config, local_apps, local_config_method)
+    local_apps = get_local_apps(config)
+    apps_config = merge_app_configs(apps_config, local_apps, local_config_method)
 
     # validate the components look ok after merging
     for app_name, app_config in apps_config.items():
@@ -1601,7 +1601,12 @@ def _cmd_config_deploy(
         clowd_env = None
 
     try:
-        with status_spinner("Processing app templates..."):
+        app_list = (
+            ", ".join(app_names)
+            if len(app_names) <= 3
+            else f"{', '.join(app_names[:3])}... ({len(app_names)} total)"
+        )
+        with status_spinner(f"Processing app templates from {source} ({app_list})..."):
             apps_config = _process(
                 app_names,
                 source,
