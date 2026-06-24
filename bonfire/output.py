@@ -408,3 +408,300 @@ def click_echo(msg="", **kwargs):
     import click
 
     click.echo(msg, **kwargs)
+
+
+_SKIPPED_TREE_RESTYPES = frozenset(("pod", "replicaset", "replicationcontroller"))
+
+
+def _resource_status_summary(resource):
+    conditions = resource.data.get("status", {}).get("conditions", [])
+    for c in conditions:
+        if c.get("status") != "True":
+            reason = c.get("reason") or c.get("message") or c.get("type")
+            if reason:
+                return reason
+    if conditions:
+        types_true = [c.get("type") for c in conditions if c.get("status") == "True"]
+        if types_true:
+            return ", ".join(types_true)
+    return ""
+
+
+def _resource_label_text(resource):
+    name_part = f"[dim]{resource.restype}/[/dim]"
+    if resource.ready:
+        return f"[bold green]✓[/bold green] {name_part}[bold cyan]{resource.name}[/bold cyan]"
+    status = _resource_status_summary(resource)
+    status_part = f"  [dim italic]{status}[/dim italic]" if status else ""
+    return f"[bold yellow]⠶[/bold yellow] {name_part}[bold yellow]{resource.name}[/bold yellow]{status_part}"
+
+
+def _build_hierarchy(resources_snapshot):
+    filtered = {
+        k: r for k, r in resources_snapshot.items() if r.restype not in _SKIPPED_TREE_RESTYPES
+    }
+
+    # only show ClowdEnvironments referenced by a ClowdApp in this namespace
+    relevant_envs = {
+        r.data.get("spec", {}).get("envName")
+        for r in filtered.values()
+        if r.restype == "clowdapp"
+    }
+    relevant_envs.discard(None)
+    if relevant_envs:
+        filtered = {
+            k: r
+            for k, r in filtered.items()
+            if r.restype != "clowdenvironment" or r.name in relevant_envs
+        }
+
+    uid_to_resource = {}
+    for r in filtered.values():
+        try:
+            uid_to_resource[r.uid] = r
+        except (KeyError, AttributeError):
+            pass
+
+    children = {}
+    roots = []
+    for r in filtered.values():
+        owner_refs = r.data.get("metadata", {}).get("ownerReferences", [])
+        parent_found = False
+        for ref in owner_refs:
+            parent_uid = ref.get("uid")
+            if parent_uid in uid_to_resource:
+                children.setdefault(parent_uid, []).append(r)
+                parent_found = True
+                break
+        if not parent_found:
+            roots.append(r)
+
+    roots.sort(key=lambda r: (r.restype, r.name))
+    for kids in children.values():
+        kids.sort(key=lambda r: (r.restype, r.name))
+
+    total = len(filtered)
+    ready = sum(1 for r in filtered.values() if r.ready)
+    return roots, children, total, ready
+
+
+def _make_tree_app_class():
+    from textual.app import App, ComposeResult
+    from textual.binding import Binding
+    from textual.containers import Container
+    from textual.widgets import Label, ProgressBar, Tree
+
+    class ResourceWaitApp(App):
+
+        CSS = """
+        Tree {
+            height: 1fr;
+        }
+        #footer-bar {
+            dock: bottom;
+            height: 3;
+            padding: 0 1;
+        }
+        #progress {
+            width: 100%;
+        }
+        #status-label {
+            width: 100%;
+            color: $accent;
+        }
+        """
+
+        ENABLE_COMMAND_PALETTE = False
+
+        BINDINGS = [
+            Binding("q,ctrl+q", "leave_tree", "Leave tree view", show=True),
+            Binding("ctrl+c", "leave_tree", "Leave tree view", show=False, priority=True),
+        ]
+
+        def __init__(self, watcher, timeout, start_time, done_event):
+            super().__init__()
+            self._watcher = watcher
+            self._timeout = timeout
+            self._start_time = start_time
+            self._done_event = done_event
+            self._prev_keys = set()
+            self._prev_ready = {}
+            self._node_map = {}
+            self._spinner_frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+            self._spinner_idx = 0
+
+        def compose(self) -> ComposeResult:
+            yield Tree("Namespace Resources")
+            with Container(id="footer-bar"):
+                yield ProgressBar(id="progress", total=100, show_eta=False)
+                yield Label("", id="status-label")
+
+        def on_mount(self) -> None:
+            tree = self.query_one(Tree)
+            tree.show_root = True
+            tree.root.expand()
+            self._refresh_tree()
+            self.set_interval(5, self._refresh_tree)
+            self.set_interval(1, self._refresh_status)
+
+        def _refresh_status(self) -> None:
+            if self._done_event.is_set():
+                self.exit()
+                return
+            resources_snapshot = self._watcher.resources.copy()
+            filtered = {
+                k: r for k, r in resources_snapshot.items() if r.restype not in _SKIPPED_TREE_RESTYPES
+            }
+            total = len(filtered)
+            ready = sum(1 for r in filtered.values() if r.ready)
+            self._update_status_label(total, ready)
+
+        def _refresh_tree(self) -> None:
+            resources_snapshot = self._watcher.resources.copy()
+            if not resources_snapshot:
+                return
+
+            roots, children_map, total, ready = _build_hierarchy(resources_snapshot)
+            tree = self.query_one(Tree)
+
+            current_keys = set()
+            current_ready = {}
+            for r in resources_snapshot.values():
+                if r.restype not in _SKIPPED_TREE_RESTYPES:
+                    current_keys.add(r.key)
+                    current_ready[r.key] = r.ready
+
+            added = current_keys - self._prev_keys
+            removed = self._prev_keys - current_keys
+            changed_ready = {
+                k for k in current_keys & self._prev_keys if current_ready[k] != self._prev_ready.get(k)
+            }
+
+            if added or removed:
+                tree.clear()
+                self._node_map.clear()
+                tree.root.expand()
+
+                def _add_nodes(parent_node, resource):
+                    label = _resource_label_text(resource)
+                    node = parent_node.add(label, data=resource.key, expand=True)
+                    self._node_map[resource.key] = node
+                    for child in children_map.get(resource.uid, []):
+                        _add_nodes(node, child)
+
+                for root in roots:
+                    _add_nodes(tree.root, root)
+            elif changed_ready:
+                filtered = {
+                    k: r
+                    for k, r in resources_snapshot.items()
+                    if r.restype not in _SKIPPED_TREE_RESTYPES
+                }
+                for key in changed_ready:
+                    node = self._node_map.get(key)
+                    r = filtered.get(key)
+                    if node and r:
+                        node.set_label(_resource_label_text(r))
+
+            self._prev_keys = current_keys
+            self._prev_ready = current_ready
+
+            bar = self.query_one("#progress", ProgressBar)
+            bar.update(total=max(total, 1), progress=ready)
+
+            self._update_status_label(total, ready)
+
+        def _update_status_label(self, total, ready) -> None:
+            pct = (ready / total * 100) if total > 0 else 0
+            elapsed = time.monotonic() - self._start_time
+            remaining = max(0, self._timeout - elapsed) if self._timeout else None
+            countdown = (
+                f" — {_fmt_countdown(remaining)} until timeout, press ctrl+q to leave tree view"
+                if remaining is not None
+                else ""
+            )
+            spinner = self._spinner_frames[self._spinner_idx % len(self._spinner_frames)]
+            self._spinner_idx += 1
+            label = self.query_one("#status-label", Label)
+            label.update(f" {spinner} {ready}/{total} ready ({pct:.0f}%){countdown}")
+
+        def action_leave_tree(self) -> None:
+            self.exit()
+
+    return ResourceWaitApp
+
+
+def resource_wait_display(watcher, timeout, wait_fn):
+    console = get_console()
+
+    if not _is_interactive():
+        console.print("Waiting for resources to be ready...")
+        wait_fn()
+        return
+
+    done_event = threading.Event()
+    wait_error = [None]
+    start_time = time.monotonic()
+
+    def _run_wait():
+        try:
+            wait_fn()
+        except Exception as exc:
+            wait_error[0] = exc
+        finally:
+            done_event.set()
+
+    wait_thread = threading.Thread(target=_run_wait, daemon=True)
+    wait_thread.start()
+
+    in_tree_view = True
+    ResourceWaitApp = _make_tree_app_class()
+
+    while not done_event.is_set():
+        if in_tree_view:
+            app = ResourceWaitApp(watcher, timeout, start_time, done_event)
+            app.run()
+            in_tree_view = False
+            if done_event.is_set():
+                break
+        else:
+            import select
+
+            remaining = max(0, timeout - (time.monotonic() - start_time)) if timeout else None
+            countdown = f"  [muted]({_fmt_countdown(remaining)} until timeout)[/muted]" if remaining is not None else ""
+            msg = f"[info]Waiting for resources...[/info]{countdown}  [muted](press ctrl+t to open tree view, ctrl+c to cancel)[/muted]"
+            with console.status(msg, spinner="dots") as status:
+                while not done_event.is_set():
+                    # check for ctrl+t keypress via stdin
+                    if sys.stdin.isatty():
+                        import termios
+                        import tty
+
+                        fd = sys.stdin.fileno()
+                        old_settings = termios.tcgetattr(fd)
+                        try:
+                            tty.setcbreak(fd)
+                            rlist, _, _ = select.select([sys.stdin], [], [], 1.0)
+                            if rlist:
+                                ch = sys.stdin.read(1)
+                                if ch == "\x14":  # ctrl+t
+                                    in_tree_view = True
+                                    break
+                                elif ch == "\x03":  # ctrl+c
+                                    done_event.set()
+                                    wait_error[0] = KeyboardInterrupt()
+                                    break
+                        finally:
+                            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                    else:
+                        done_event.wait(1)
+
+                    remaining = max(0, timeout - (time.monotonic() - start_time)) if timeout else None
+                    countdown = f"  [muted]({_fmt_countdown(remaining)} until timeout)[/muted]" if remaining is not None else ""
+                    msg = f"[info]Waiting for resources...[/info]{countdown}  [muted](press ctrl+t to open tree view, ctrl+c to cancel)[/muted]"
+                    status.update(msg)
+
+    wait_thread.join(timeout=5)
+
+    if wait_error[0] is not None:
+        raise wait_error[0]

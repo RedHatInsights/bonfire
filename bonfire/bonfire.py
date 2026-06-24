@@ -21,6 +21,7 @@ from bonfire.output import (
     render_ns_table,
     render_pool_list,
     render_version,
+    resource_wait_display,
     status_spinner,
 )
 
@@ -38,6 +39,7 @@ from bonfire.namespaces import (
 )
 from bonfire.openshift import (
     check_for_existing_reservation,
+    create_resource_watcher,
     find_clowd_env_for_ns,
     get_namespace_pools,
     get_reservation,
@@ -239,11 +241,13 @@ def _get_requester():
     return requester
 
 
-def _wait_on_namespace_resources(namespace, timeout, db_only=False, defer_status_errors=False):
+def _wait_on_namespace_resources(
+    namespace, timeout, db_only=False, defer_status_errors=False, watcher=None
+):
     if db_only:
         wait_for_db_resources(namespace, timeout, defer_status_errors)
     else:
-        wait_for_all_resources(namespace, timeout, defer_status_errors)
+        wait_for_all_resources(namespace, timeout, defer_status_errors, watcher=watcher)
 
 
 def _validate_reservation_duration(ctx, param, value):
@@ -969,8 +973,23 @@ def _cmd_namespace_wait_on_resources(namespace, timeout, db_only, defer_status_e
     if not namespace:
         namespace = current_namespace_or_error()
     try:
-        with status_spinner(f"Waiting for resources in '{namespace}'...", timeout=timeout):
-            _wait_on_namespace_resources(namespace, timeout, db_only, defer_status_errors)
+        if db_only:
+            with status_spinner(f"Waiting for DB resources in '{namespace}'...", timeout=timeout):
+                _wait_on_namespace_resources(namespace, timeout, db_only, defer_status_errors)
+        else:
+            with status_spinner("Starting resource tree view..."):
+                watcher = create_resource_watcher(namespace)
+                watcher.start()
+            try:
+                resource_wait_display(
+                    watcher,
+                    timeout=timeout,
+                    wait_fn=lambda: _wait_on_namespace_resources(
+                        namespace, timeout, False, defer_status_errors, watcher=watcher
+                    ),
+                )
+            finally:
+                watcher.stop()
         echo_success(f"Resources in '{namespace}' are ready")
     except TimedOutError as err:
         log.error("hit timeout error: %s", err)
@@ -1639,8 +1658,19 @@ def _cmd_config_deploy(
         else:
             with status_spinner(f"Applying configs to namespace '{ns}'..."):
                 apply_config(ns, apps_config)
-            with status_spinner("Waiting for resources to be ready...", timeout=timeout):
-                _wait_on_namespace_resources(ns, timeout, False, defer_status_errors)
+            with status_spinner("Starting resource tree view..."):
+                watcher = create_resource_watcher(ns)
+                watcher.start()
+            try:
+                resource_wait_display(
+                    watcher,
+                    timeout=timeout,
+                    wait_fn=lambda: _wait_on_namespace_resources(
+                        ns, timeout, False, defer_status_errors, watcher=watcher
+                    ),
+                )
+            finally:
+                watcher.stop()
     except (KeyboardInterrupt, Exception) as err:
         _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns)
     else:
@@ -1764,8 +1794,19 @@ def _cmd_deploy_clowdenv(
         with status_spinner("Waiting for Clowder to provision target namespace..."):
             namespace = wait_for_clowd_env_target_ns(clowd_env)
 
-    with status_spinner("Waiting for resources to be ready...", timeout=timeout):
-        _wait_on_namespace_resources(namespace, timeout, False, defer_status_errors)
+    with status_spinner("Starting resource tree view..."):
+        watcher = create_resource_watcher(namespace)
+        watcher.start()
+    try:
+        resource_wait_display(
+            watcher,
+            timeout=timeout,
+            wait_fn=lambda: _wait_on_namespace_resources(
+                namespace, timeout, False, defer_status_errors, watcher=watcher
+            ),
+        )
+    finally:
+        watcher.stop()
 
     clowd_env_name = find_clowd_env_for_ns(namespace)["metadata"]["name"]
 
