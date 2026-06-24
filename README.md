@@ -35,6 +35,10 @@ As an example, typing `bonfire deploy host-inventory` leads to the host-inventor
     - [Deploying changes changes in a remote git branch](#deploying-changes-changes-in-a-remote-git-branch)
   - [Advanced](#advanced)
     - [Running a local qontract-server](#running-a-local-qontract-server)
+- [Local Development](#local-development)
+- [Architecture](#architecture)
+- [Contributing](#contributing)
+- [License](#license)
 
 # About
 
@@ -273,19 +277,6 @@ The server communicates over **stdio** using the standard MCP protocol. Any MCP-
 | `ephemeral_get_kubeconfig` | Fetch kubeconfig YAML for a provisioned ROSA HCP cluster |
 
 For detailed tool parameters, example agent interactions, and the full API reference, see the [MCP server documentation](bonfire_mcp/README.md).
-
-# Local development
-
-To install local changes and use local version of bonfire, switch to the root directory of this repository, switch to virtual environment and install bonfire package with local changes:
-
-```bash
-VENV_DIR=~/bonfire_venv
-mkdir -p $VENV_DIR
-python3 -m venv $VENV_DIR
-. $VENV_DIR/bin/activate
-pip install -e .
-```
-
 
 # Quick Start
 
@@ -612,3 +603,47 @@ yarn build
 make bundle APP_INTERFACE_PATH=/path/to/app-interface
 LOAD_METHOD=fs DATAFILES_FILE=bundle/bundle.json yarn run server
 ```
+
+# Local Development
+
+To install local changes and work with a local version of bonfire, switch to the root of this repository, activate a virtual environment, and install in editable mode:
+
+```bash
+VENV_DIR=~/bonfire_venv
+mkdir -p $VENV_DIR
+python3 -m venv $VENV_DIR
+. $VENV_DIR/bin/activate
+pip install -e .
+```
+
+To install with MCP server support:
+
+```bash
+pip install -e ".[mcp]"
+```
+
+To install with test dependencies:
+
+```bash
+pip install -e ".[test]"
+```
+
+Run the test suite:
+
+```bash
+pytest -sv
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, PR process, and commit conventions.
+
+# Architecture
+
+For internal design decisions, data flows, component relationships, and known tradeoffs, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+# Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, PR conventions, commit signing, and code review guidelines.
+
+# License
+
+MIT License. See the `license` field in [pyproject.toml](pyproject.toml).
