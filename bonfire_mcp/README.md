@@ -2,6 +2,8 @@
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that exposes ephemeral environment operations as tools, enabling any MCP-compatible AI agent to programmatically reserve, manage, and release ephemeral namespaces on an OpenShift cluster managed by the [Ephemeral Namespace Operator (ENO)](https://github.com/RedHatInsights/ephemeral-namespace-operator).
 
+For installation, authentication, container usage, and MCP client configuration, see the [MCP Server section in the main README](../README.md#mcp-server-ai-agent-integration).
+
 ## Architecture
 
 ```
@@ -18,97 +20,6 @@ Ephemeral Namespace Operator
 
 The MCP server is a thin dispatch layer over `bonfire_lib`, which implements the reservation lifecycle using the [`kubernetes` Python client](https://github.com/kubernetes-client/python) directly — no `oc` binary required.
 
-## Installation
-
-```bash
-pip install crc-bonfire[mcp]
-```
-
-Or for development:
-
-```bash
-cd bonfire/
-pip install -e ".[test,mcp]"
-```
-
-## Authentication
-
-The server mirrors the auth model of [`containers/kubernetes-mcp-server`](https://github.com/containers/kubernetes-mcp-server), with three modes auto-detected in priority order:
-
-### 1. Environment Variables (recommended for CI/containers)
-
-```
-K8S_SERVER=https://api.mgmt-cluster.example.com:6443
-K8S_TOKEN=sha256~...
-K8S_CA_DATA=LS0tLS1CRUdJTi...   (optional, base64-encoded CA cert)
-K8S_SKIP_TLS_VERIFY=false        (optional)
-```
-
-### 2. In-Cluster (automatic in pods)
-
-When running inside a Kubernetes pod, the server auto-detects the projected service account token at `/var/run/secrets/kubernetes.io/serviceaccount/token`.
-
-### 3. Kubeconfig (default for local development)
-
-```
-KUBECONFIG=/path/to/kubeconfig    (optional, defaults to ~/.kube/config)
-K8S_CONTEXT=my-context            (optional, defaults to current-context)
-```
-
-## MCP Client Configuration
-
-### Claude Desktop
-
-Add to `~/.config/claude/claude_desktop_config.json`:
-
-**Using environment variables:**
-
-```json
-{
-  "mcpServers": {
-    "ephemeral": {
-      "command": "bonfire-mcp",
-      "env": {
-        "K8S_SERVER": "https://api.mgmt-cluster.example.com:6443",
-        "K8S_TOKEN": "sha256~your-token-here"
-      }
-    }
-  }
-}
-```
-
-**Using kubeconfig:**
-
-```json
-{
-  "mcpServers": {
-    "ephemeral": {
-      "command": "bonfire-mcp",
-      "env": {
-        "KUBECONFIG": "/home/user/.kube/mgmt-cluster.kubeconfig",
-        "K8S_CONTEXT": "mgmt-cluster"
-      }
-    }
-  }
-}
-```
-
-**Using `python -m`:**
-
-```json
-{
-  "mcpServers": {
-    "ephemeral": {
-      "command": "python",
-      "args": ["-m", "bonfire_mcp"],
-      "env": {
-        "KUBECONFIG": "/home/user/.kube/config"
-      }
-    }
-  }
-}
-```
-
 ## Available Tools
 
 | Tool | Type | Description |
@@ -121,6 +32,7 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 | `ephemeral_list_reservations` | Read | List active reservations, filterable by requester and type |
 | `ephemeral_describe` | Read | Detailed namespace info: ClowdApps, frontends, console URL, keycloak creds |
 | `ephemeral_get_kubeconfig` | Read | Fetch kubeconfig YAML for a provisioned ROSA HCP cluster reservation |
+| `ephemeral_deploy_rosa` | Mutate | Deploy a ROSA ephemeral cluster: reserves a namespace, deploys components, waits for readiness, returns connection info |
 
 ### Tool Parameters
 
@@ -190,6 +102,14 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 |-----------|------|----------|-------------|
 | `name` | string | Yes | Cluster reservation name (cluster must be in `active` state) |
 
+#### `ephemeral_deploy_rosa`
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `duration` | string | No | `"2h"` | Reservation duration (e.g., `"2h"`, `"1h30m"`) |
+| `requester` | string | No | K8s identity | Requester identity (in CI, typically a job identifier) |
+| `timeout` | integer | No | `1800` | Max seconds to wait for deployment |
+
 ## Example Agent Interaction
 
 ### Namespace workflow
@@ -257,9 +177,3 @@ MCP:   Reservation 'my-rosa' released. Resource will be reclaimed by the operato
 ```bash
 pytest tests/test_bonfire_mcp/ -sv
 ```
-
-## Prerequisites
-
-- Python 3.10+
-- Access to a management cluster running the [Ephemeral Namespace Operator](https://github.com/RedHatInsights/ephemeral-namespace-operator)
-- Valid K8s credentials (kubeconfig, token, or in-cluster SA)

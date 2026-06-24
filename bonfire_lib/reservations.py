@@ -4,6 +4,7 @@ Replaces bonfire/namespaces.py reserve_namespace(), release_reservation(),
 extend_namespace() — using EphemeralK8sClient instead of ocviapy.
 """
 
+import base64
 import logging
 import uuid
 
@@ -11,6 +12,9 @@ from bonfire_lib.core_resources import render_reservation
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.status import wait_on_reservation
 from bonfire_lib.utils import FatalError, hms_to_seconds, duration_fmt
+
+KUBECONFIG_SECRET_SUFFIX = "-kubeconfig"
+KUBECONFIG_SECRET_NAMESPACE = "ephemeral-cluster-operator"
 
 log = logging.getLogger(__name__)
 
@@ -185,3 +189,55 @@ def _find_reservation(
         raise FatalError(f"No reservation found for namespace '{namespace}'")
     else:
         raise FatalError("Must provide either name or namespace")
+
+
+def get_kubeconfig(
+    client: EphemeralK8sClient,
+    name: str,
+) -> str:
+    """Fetch kubeconfig YAML for a provisioned cluster reservation.
+
+    The kubeconfig is stored in a Secret named <clusterName>-kubeconfig
+    on the management cluster.
+
+    Args:
+        client: K8s API client
+        name: Cluster reservation name
+
+    Returns:
+        Kubeconfig YAML string
+
+    Raises:
+        FatalError: If reservation not found, cluster not assigned,
+                    or kubeconfig Secret not yet available
+    """
+    res = client.get_cluster_reservation(name)
+    if not res:
+        raise FatalError(f"Cluster reservation '{name}' not found")
+
+    cluster_name = res.get("status", {}).get("clusterName", "")
+    if not cluster_name:
+        state = res.get("status", {}).get("state", "unknown")
+        raise FatalError(
+            f"Cluster not yet assigned to reservation '{name}' (state: {state}). "
+            "Poll with ephemeral_status() until state is 'active'."
+        )
+
+    secret_name = f"{cluster_name}{KUBECONFIG_SECRET_SUFFIX}"
+    secret = client.get_secret(secret_name, KUBECONFIG_SECRET_NAMESPACE)
+    if not secret:
+        raise FatalError(
+            f"Kubeconfig Secret '{secret_name}' not found in namespace "
+            f"'{KUBECONFIG_SECRET_NAMESPACE}'. The cluster may still be bootstrapping."
+        )
+
+    kubeconfig_data = secret.get("data", {}).get("kubeconfig", "")
+    if not kubeconfig_data:
+        kubeconfig_data = secret.get("data", {}).get("value", "")
+
+    if not kubeconfig_data:
+        raise FatalError(
+            f"Kubeconfig Secret '{secret_name}' exists but contains no kubeconfig data."
+        )
+
+    return base64.b64decode(kubeconfig_data).decode("utf-8")
