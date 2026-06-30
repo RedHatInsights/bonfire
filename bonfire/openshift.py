@@ -262,7 +262,7 @@ def wait_for_clowd_env_target_ns(clowd_env_name):
         get_clowd_env_target_ns,
         func_args=(clowd_env_name,),
         fail_condition=None,
-        num_sec=60,
+        timeout=60,
         message="wait for Clowder to provision target namespace",
     ).out
 
@@ -281,7 +281,7 @@ def wait_on_cji(namespace, cji_name, timeout, defer_status_errors=False):
     cji = Resource("clowdjobinvocation", cji_name, namespace)
     try:
         job_name, elapsed = wait_for(
-            _find_job, num_sec=timeout, message=f"wait for Job to appear owned by CJI '{cji_name}'"
+            _find_job, timeout=timeout, message=f"wait for Job to appear owned by CJI '{cji_name}'"
         )
     except TimedOutError:
         if not cji.ready:
@@ -303,7 +303,7 @@ def wait_on_cji(namespace, cji_name, timeout, defer_status_errors=False):
 
     pod_name, elapsed = wait_for(
         _pod_found,
-        num_sec=remaining_time,
+        timeout=remaining_time,
         message=f"wait for Pod to appear owned by CJI '{cji_name}'",
     )
 
@@ -331,7 +331,7 @@ def wait_on_reservation(res_name, timeout):
 
     ns_name, _ = wait_for(
         _find_reservation,
-        num_sec=timeout,
+        timeout=timeout,
         message=f"waiting for namespace to be allocated to reservation '{res_name}'",
     )
     return ns_name
