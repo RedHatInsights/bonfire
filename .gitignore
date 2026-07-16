@@ -140,3 +140,7 @@ dmypy.json
 cython_debug/
 
 .vscode/
+
+# setuptools build artifacts from bonfire_mcp's "where = [..]" config
+bonfire_mcp/bonfire_lib/
+bonfire_mcp/bonfire_mcp/

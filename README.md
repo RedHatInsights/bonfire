@@ -120,17 +120,12 @@ podman run -it --rm -e OC_LOGIN_SERVER=https://api.openshift.example.com:6443 \
 You can also make use of the kubeconfig file on your host by mounting it into the container's `$HOME` directory:
 
 ```
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v ${KUBECONFIG:="$HOME/.kube/config"}:/opt/bonfire/.kube/config:Z \
+KUBECONFIG=${KUBECONFIG:="$HOME/.kube/config"}
+chmod g+rw $KUBECONFIG
+podman run -it --rm -v $KUBECONFIG:/opt/bonfire/.kube/config:rw,Z \
     quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire namespace list
 ```
 
-If you desire for the kubeconfig to live in a non-standard location in the container, you can mount the kubeconfig into another path in the container, and set the KUBECONFIG environment variable:
-
-```
-podman run -it --rm --userns=keep-id:uid=1000,gid=1000 -v $HOME/.kube/config:/opt/kubeconfig:Z \
-    -e KUBECONFIG=/opt/kubeconfig \
-    quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire namespace list
-```
 
 ## GitHub token configuration
 
@@ -163,16 +158,16 @@ The MCP server uses the `kubernetes` Python client directly — it does **not** 
 
 ## Installing the MCP Server
 
-Install bonfire with the `mcp` extra:
+The MCP server is published as a separate lightweight package, `crc-bonfire-mcp`, which only pulls in the dependencies needed by the MCP server and `bonfire_lib` (no CLI dependencies like `click`, `ocviapy`, `rich`, etc.):
 
 ```bash
-pip install crc-bonfire[mcp]
+pip install git+https://github.com/RedHatInsights/bonfire#subdirectory=bonfire_mcp
 ```
 
 Or with `uv`:
 
 ```bash
-uv tool install "crc-bonfire[mcp]"
+uv pip install git+https://github.com/RedHatInsights/bonfire#subdirectory=bonfire_mcp
 ```
 
 This provides the `bonfire-mcp` command.
@@ -205,29 +200,39 @@ K8S_CONTEXT=my-context            # optional, defaults to current-context
 
 At startup, the server runs a preflight check to verify it can reach the cluster and that the [Ephemeral Namespace Operator](https://github.com/RedHatInsights/ephemeral-namespace-operator) CRDs are installed.
 
-## Configuring Your MCP Client
+## Running with a Container Image
 
-### Claude Desktop / Claude Code
+Build the MCP server image:
 
-Add to your MCP client configuration (e.g., `~/.config/claude/claude_desktop_config.json` for Claude Desktop):
-
-**Using environment variables:**
-
-```json
-{
-  "mcpServers": {
-    "ephemeral": {
-      "command": "bonfire-mcp",
-      "env": {
-        "K8S_SERVER": "https://api.mgmt-cluster.example.com:6443",
-        "K8S_TOKEN": "sha256~your-token-here"
-      }
-    }
-  }
-}
+```bash
+podman build -t bonfire-mcp -f Dockerfile-mcp .
 ```
 
-**Using kubeconfig:**
+Run it with a kubeconfig mounted in:
+
+```bash
+KUBECONFIG=${KUBECONFIG:="$HOME/.kube/config"}
+chmod g+r $KUBECONFIG
+podman run -it --rm \
+  -v ${KUBECONFIG:-$HOME/.kube/config}:/opt/bonfire/.kube/config:Z \
+  -e KUBECONFIG=/opt/bonfire/.kube/config \
+  bonfire-mcp
+```
+
+Or using environment variables instead of a kubeconfig:
+
+```bash
+podman run -it --rm \
+  -e K8S_SERVER=https://api.mgmt-cluster.example.com:6443 \
+  -e K8S_TOKEN=sha256~your-token-here \
+  bonfire-mcp
+```
+
+## Configuring Claude Code
+
+Add the MCP server to your Claude Code settings file (`.claude/settings.json` in your project, or `~/.claude/settings.json` globally):
+
+**Using a locally installed `bonfire-mcp`:**
 
 ```json
 {
@@ -235,7 +240,7 @@ Add to your MCP client configuration (e.g., `~/.config/claude/claude_desktop_con
     "ephemeral": {
       "command": "bonfire-mcp",
       "env": {
-        "KUBECONFIG": "/home/user/.kube/mgmt-cluster.kubeconfig",
+        "KUBECONFIG": "/home/yourusername/.kube/config",
         "K8S_CONTEXT": "mgmt-cluster"
       }
     }
@@ -243,25 +248,49 @@ Add to your MCP client configuration (e.g., `~/.config/claude/claude_desktop_con
 }
 ```
 
-**Using `python -m` (useful if `bonfire-mcp` is not on your PATH):**
+**Using the container image (with kubeconfig):**
 
 ```json
 {
   "mcpServers": {
     "ephemeral": {
-      "command": "python",
-      "args": ["-m", "bonfire_mcp"],
-      "env": {
-        "KUBECONFIG": "/home/user/.kube/config"
-      }
+      "command": "podman",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "/home/yourusername/.kube/config:/opt/bonfire/.kube/config:Z",
+        "-e", "KUBECONFIG=/opt/bonfire/.kube/config",
+        "bonfire-mcp"
+      ]
     }
   }
 }
 ```
 
-### Other MCP Clients
+**Using the container image (with env vars):**
 
-The server communicates over **stdio** using the standard MCP protocol. Any MCP-compatible client can use it — point the client at the `bonfire-mcp` command (or `python -m bonfire_mcp`) with the appropriate environment variables for authentication.
+```json
+{
+  "mcpServers": {
+    "ephemeral": {
+      "command": "podman",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "K8S_SERVER=https://api.mgmt-cluster.example.com:6443",
+        "-e", "K8S_TOKEN=sha256~your-token-here",
+        "bonfire-mcp"
+      ]
+    }
+  }
+}
+```
+
+> **Note:** Claude Code communicates with MCP servers over stdio, so use `-i` (not `-it`) when running the container — the `-t` flag allocates a TTY which interferes with the MCP protocol.
+
+## Configuring Other MCP Clients
+
+The server communicates over **stdio** using the standard MCP protocol. Any MCP-compatible client can use it — point the client at the `bonfire-mcp` command (or `podman run -i --rm bonfire-mcp`) with the appropriate environment variables for authentication.
+
+For Claude Desktop, add the same configuration shown above to `~/.config/claude/claude_desktop_config.json`.
 
 ## Available Tools
 
@@ -275,6 +304,7 @@ The server communicates over **stdio** using the standard MCP protocol. Any MCP-
 | `ephemeral_list_reservations` | List active reservations, filterable by requester and type |
 | `ephemeral_describe` | Detailed namespace info: ClowdApps, frontends, console URL, keycloak credentials |
 | `ephemeral_get_kubeconfig` | Fetch kubeconfig YAML for a provisioned ROSA HCP cluster |
+| `ephemeral_deploy_rosa` | Deploy a ROSA ephemeral cluster end-to-end (reserve, deploy, wait for readiness) |
 
 For detailed tool parameters, example agent interactions, and the full API reference, see the [MCP server documentation](bonfire_mcp/README.md).
 

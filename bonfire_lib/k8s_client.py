@@ -6,6 +6,8 @@ Supports three auth modes: explicit server+token, in-cluster, kubeconfig.
 
 import atexit
 import base64
+import copy
+import json
 import logging
 import os
 import tempfile
@@ -187,51 +189,9 @@ class EphemeralK8sClient:
 
     # --- ClusterReservation operations ---
 
-    def create_cluster_reservation(self, body: dict) -> dict:
-        """Create a ClusterReservation CR."""
-        resource = self._get_resource("ClusterReservation")
-        return resource.create(body=body, _request_timeout=DEFAULT_WRITE_TIMEOUT).to_dict()
-
     def get_cluster_reservation(self, name: str) -> dict | None:
         """Get a ClusterReservation by name. Returns None if not found."""
         resource = self._get_resource("ClusterReservation")
-        try:
-            return resource.get(name=name, _request_timeout=DEFAULT_READ_TIMEOUT).to_dict()
-        except ApiException as e:
-            if e.status == 404:
-                return None
-            raise
-
-    def list_cluster_reservations(self, label_selector: str | None = None) -> list[dict]:
-        """List all ClusterReservation CRs."""
-        resource = self._get_resource("ClusterReservation")
-        kwargs = {"_request_timeout": DEFAULT_READ_TIMEOUT}
-        if label_selector:
-            kwargs["label_selector"] = label_selector
-        return [item.to_dict() for item in resource.get(**kwargs).items]
-
-    def patch_cluster_reservation(self, name: str, body: dict) -> dict:
-        """Patch a ClusterReservation CR (merge patch)."""
-        resource = self._get_resource("ClusterReservation")
-        return resource.patch(
-            name=name,
-            body=body,
-            content_type="application/merge-patch+json",
-            _request_timeout=DEFAULT_WRITE_TIMEOUT,
-        ).to_dict()
-
-    # --- ClusterPool operations ---
-
-    def list_cluster_pools(self) -> list[dict]:
-        """List all ClusterPool CRs."""
-        resource = self._get_resource("ClusterPool")
-        return [
-            item.to_dict() for item in resource.get(_request_timeout=DEFAULT_READ_TIMEOUT).items
-        ]
-
-    def get_cluster_pool(self, name: str) -> dict | None:
-        """Get a ClusterPool by name."""
-        resource = self._get_resource("ClusterPool")
         try:
             return resource.get(name=name, _request_timeout=DEFAULT_READ_TIMEOUT).to_dict()
         except ApiException as e:
@@ -303,6 +263,108 @@ class EphemeralK8sClient:
             if e.status == 404:
                 return None
             raise
+
+    # --- Generic resource operations (for deploy flow) ---
+
+    def get_dynamic_resource(self, api_version: str, kind: str):
+        """Get a DynamicClient resource handle for any API version/kind."""
+        return self._dynamic.resources.get(api_version=api_version, kind=kind)
+
+    def apply_resource(self, body: dict, namespace: str | None = None) -> dict:
+        """Create or update a K8s resource.
+
+        Tries GET first; creates on 404, patches on existing.
+        """
+        api_version = body.get("apiVersion", "")
+        kind = body.get("kind", "")
+        name = body.get("metadata", {}).get("name", "")
+        ns = namespace or body.get("metadata", {}).get("namespace")
+
+        resource = self.get_dynamic_resource(api_version, kind)
+
+        get_kwargs = {"name": name, "_request_timeout": DEFAULT_READ_TIMEOUT}
+        if ns:
+            get_kwargs["namespace"] = ns
+
+        try:
+            resource.get(**get_kwargs)
+            patch_kwargs = {
+                "name": name,
+                "body": body,
+                "content_type": "application/merge-patch+json",
+                "_request_timeout": DEFAULT_WRITE_TIMEOUT,
+            }
+            if ns:
+                patch_kwargs["namespace"] = ns
+            return resource.patch(**patch_kwargs).to_dict()
+        except ApiException as e:
+            if e.status == 404:
+                create_kwargs = {
+                    "body": body,
+                    "_request_timeout": DEFAULT_WRITE_TIMEOUT,
+                }
+                if ns:
+                    create_kwargs["namespace"] = ns
+                return resource.create(**create_kwargs).to_dict()
+            raise
+
+    def list_dynamic_resources(
+        self, api_version: str, kind: str, namespace: str | None = None
+    ) -> list[dict]:
+        """List resources of any API version/kind."""
+        resource = self.get_dynamic_resource(api_version, kind)
+        kwargs = {"_request_timeout": DEFAULT_READ_TIMEOUT}
+        if namespace:
+            kwargs["namespace"] = namespace
+        return [item.to_dict() for item in resource.get(**kwargs).items]
+
+    def process_template(
+        self, template: dict, parameters: dict, namespace: str = "default"
+    ) -> list[dict]:
+        """Process an OpenShift Template via the processedtemplates API.
+
+        Fills parameter values into the template, POSTs to the cluster's
+        template.openshift.io/v1 processedtemplates endpoint, and returns
+        the expanded objects list.
+
+        Args:
+            template: OpenShift Template dict (kind: Template)
+            parameters: Parameter name->value pairs to substitute
+            namespace: Namespace for the processedtemplates API call
+
+        Returns:
+            List of processed K8s resource dicts
+        """
+        template = copy.deepcopy(template)
+
+        if template.get("apiVersion") == "v1" and template.get("kind") == "Template":
+            template["apiVersion"] = "template.openshift.io/v1"
+
+        for param_def in template.get("parameters", []):
+            name = param_def["name"]
+            if name in parameters:
+                val = parameters[name]
+                if isinstance(val, bool):
+                    val = str(val).lower()
+                param_def["value"] = str(val)
+
+        path = f"/apis/template.openshift.io/v1/namespaces/{namespace}/processedtemplates"
+
+        response = self._api_client.call_api(
+            path,
+            "POST",
+            body=template,
+            response_types_map={200: "object", 201: "object"},
+            _request_timeout=DEFAULT_WRITE_TIMEOUT,
+            header_params={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            auth_settings=["BearerToken"],
+        )
+
+        processed = response[0]
+        return processed.get("objects", [])
 
     # --- Identity ---
 

@@ -6,11 +6,13 @@ Python client directly (no ocviapy/oc dependency).
 """
 
 __all__ = [
-    "clusters",
     "config",
     "core_resources",
+    "deploy",
     "k8s_client",
     "pools",
+    "qontract",
+    "repo_fetch",
     "reservations",
     "status",
     "utils",
