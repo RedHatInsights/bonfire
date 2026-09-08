@@ -49,23 +49,18 @@ dependencies = [
 
 [project.scripts]
 bonfire = "bonfire.bonfire:main_with_handler"
-bonfire-mcp = "bonfire_mcp.server:main"
 
 [tool.setuptools_scm]
 
 [tool.setuptools.packages.find]
 # package names should match these glob patterns (["*"] by default)
-include = ["bonfire*", "bonfire_lib*", "bonfire_mcp*"]
+include = ["bonfire*", "bonfire_lib*"]
 # exclude packages matching these glob patterns (empty by default)
-exclude = ["tests*"]
+exclude = ["bonfire_mcp*", "tests*"]
 # to disable scanning PEP 420 namespaces (true by default)
 namespaces = false
 
 [project.optional-dependencies]
-lib = []
-mcp = [
-    "mcp>=1.0.0",
-]
 test = [
     "mock",
     "pytest",
