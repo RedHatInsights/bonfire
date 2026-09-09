@@ -175,5 +175,5 @@ MCP:   Reservation 'my-rosa' released. Resource will be reclaimed by the operato
 ## Running Tests
 
 ```bash
-pytest tests/test_bonfire_mcp/ -sv
+pytest bonfire_mcp/tests/ -sv
 ```

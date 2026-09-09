@@ -30,7 +30,9 @@ jobs:
         pip install -U wheel setuptools build
 
     - name: Build
-      run: python -m build -o dist/
+      run: |
+        python -m build -o dist/
+        python -m build -o dist/ bonfire_mcp/
 
     - uses: actions/upload-artifact@v7
       with:
@@ -81,15 +83,20 @@ jobs:
       with:
         name: dist
         path: dist
-    - name: install wheel with test extras
+    - name: install packages with test extras
       run: |
-        WHEEL_FILE=$(ls dist/*.whl)
-        pip install "$WHEEL_FILE[cli,test,mcp]"
+        BONFIRE_WHEEL=$(ls dist/crc_bonfire-*.whl)
+        MCP_WHEEL=$(ls dist/crc_bonfire_mcp-*.whl)
+        pip install "$BONFIRE_WHEEL[test]"
+        pip install "$MCP_WHEEL"
     - name: test bonfire version and create default config file
       run: |
         pip list | grep crc-bonfire
         which bonfire
+        which bonfire-mcp
         bonfire --help
         bonfire config write-default
-    - name: pytest
+    - name: pytest bonfire
       run: pytest -sv
+    - name: pytest bonfire-mcp
+      run: pytest bonfire_mcp/tests/ -sv
