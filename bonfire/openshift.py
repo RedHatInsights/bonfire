@@ -7,14 +7,14 @@ from ocviapy import (
     ResourceWaiter,
     ResourceWatcher,
     available_checkable_resources,
+    get_all_namespaces,
     get_api_resources,
     get_json,
     oc,
-    wait_for_ready_threaded,
     on_k8s,
-    get_all_namespaces,
+    wait_for_ready_threaded,
 )
-from sh import ErrorReturnCode
+from sh import CommandNotFound, ErrorReturnCode
 from wait_for import TimedOutError, wait_for
 
 log = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def get_console_url():
         try:
             cfg_map = get_json("configmap", "console-public", namespace="openshift-config-managed")
             url = cfg_map["data"]["consoleURL"]
-        except Exception as err:
+        except (CommandNotFound, ErrorReturnCode, KeyError, TypeError, ValueError, OSError) as err:
             log.debug("unable to obtain console url: %s: %s", err.__class__.__name__, err)
             return None
         return url
@@ -64,7 +64,7 @@ def has_clowder():
 def get_kube_api_server():
     try:
         return oc("whoami", "--show-server", _silent=True).strip()
-    except Exception:
+    except (CommandNotFound, ErrorReturnCode, OSError):
         return "unknown"
 
 
@@ -161,7 +161,7 @@ def _wait_on_remaining_resources(
     log.info("checking for remaining namespace resources to wait on...")
     waiters = [
         ResourceWaiter(r.namespace, r.restype, r.name, watch_owned=True, watcher=watcher)
-        for _, r in watcher.resources.copy().items()
+        for r in watcher.resources.copy().values()
         if r.restype in _resources_for_ns_wait() and r.key not in already_waited_on
     ]
 
