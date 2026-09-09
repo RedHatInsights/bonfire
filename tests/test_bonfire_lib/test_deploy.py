@@ -1,16 +1,17 @@
 """Tests for bonfire_lib.deploy module."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from bonfire_lib.deploy import (
-    deploy_rosa,
-    wait_for_resources,
-    _collect_components,
     _build_parameters,
+    _collect_components,
     _is_capi_cluster_ready,
     _is_clowdapp_ready,
     _is_deployment_ready,
+    deploy_rosa,
+    wait_for_resources,
 )
 from bonfire_lib.utils import FatalError
 
@@ -297,3 +298,75 @@ objects:
 
         with pytest.raises(FatalError, match="no components matching"):
             deploy_rosa(mock_client, namespace="ns")
+
+
+class TestDeployResourceErrors:
+    def test_apply_resources_resource_not_found(self):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        from bonfire_lib.deploy import _apply_resources
+
+        client = MagicMock()
+        client.apply_resource.side_effect = ResourceNotFoundError("CRD not found")
+
+        with pytest.raises(FatalError, match="failed to apply"):
+            _apply_resources(client, "test-ns", [{"kind": "Cluster", "metadata": {"name": "c1"}}])
+
+    @patch("time.sleep")
+    def test_wait_for_resources_handles_missing_crds(self, mock_sleep):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        from bonfire_lib.deploy import wait_for_resources
+
+        client = MagicMock()
+        # Missing CAPI Cluster CRD and missing ClowdApp CRD, but Deployments ready
+        client.list_dynamic_resources.side_effect = [
+            ResourceNotFoundError("No matches for Cluster"),
+            ResourceNotFoundError("No matches for ClowdApp"),
+            [{"status": {"replicas": 1, "readyReplicas": 1}}],
+        ]
+
+        # Should log and continue, successfully detecting Deployments are ready
+        wait_for_resources(client, "test-ns", timeout=30)
+
+    def test_apply_resources_http_error(self):
+        from urllib3.exceptions import HTTPError
+
+        from bonfire_lib.deploy import _apply_resources
+
+        client = MagicMock()
+        client.apply_resource.side_effect = HTTPError("Connection reset")
+
+        with pytest.raises(FatalError, match="failed to apply"):
+            _apply_resources(client, "test-ns", [{"kind": "Cluster", "metadata": {"name": "c1"}}])
+
+    @patch("bonfire_lib.deploy.time.time")
+    @patch("time.sleep")
+    def test_wait_for_resources_handles_http_errors(self, mock_sleep, mock_time):
+        from itertools import count
+
+        from urllib3.exceptions import HTTPError
+
+        from bonfire_lib.deploy import wait_for_resources
+
+        mock_time.side_effect = count(0)
+        client = MagicMock()
+        # Network errors on first poll, then resources ready on second poll
+        client.list_dynamic_resources.side_effect = [
+            HTTPError("Connection reset"),  # Iteration 1: CAPI
+            HTTPError("Connection reset"),  # Iteration 1: ClowdApp
+            HTTPError("Connection reset"),  # Iteration 1: Deployments
+            [
+                {"status": {"conditions": [{"type": "Ready", "status": "True"}]}}
+            ],  # Iteration 2: CAPI ready
+            [
+                {"status": {"conditions": [{"type": "ReconciliationSuccessful", "status": "True"}]}}
+            ],  # Iteration 2: ClowdApp ready
+            [
+                {"spec": {"replicas": 1}, "status": {"readyReplicas": 1}}
+            ],  # Iteration 2: Deployment ready
+        ]
+
+        # Should log, continue polling after failures, and detect resources ready
+        wait_for_resources(client, "test-ns", timeout=30)
+        mock_sleep.assert_called_once()

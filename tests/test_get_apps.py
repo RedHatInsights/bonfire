@@ -1,5 +1,5 @@
 import bonfire
-from bonfire.qontract import get_apps_for_env, sub_refs, ENVS_QUERY, APPS_QUERY
+from bonfire.qontract import APPS_QUERY, ENVS_QUERY, get_apps_for_env, sub_refs
 
 
 def _mock_envs_gql_resp():

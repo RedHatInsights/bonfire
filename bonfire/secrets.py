@@ -31,7 +31,7 @@ def _parse_secret_file(path):
             try:
                 secrets[item["metadata"]["name"]] = item
             except KeyError:
-                raise FatalError("Secret at path '{}' has no metadata/name".format(path))
+                raise FatalError(f"Secret at path '{path}' has no metadata/name")
 
     return secrets
 

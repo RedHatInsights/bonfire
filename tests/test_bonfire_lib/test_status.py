@@ -2,14 +2,15 @@ import base64
 from unittest.mock import patch
 
 import pytest
+from kubernetes.client import ApiException
 
 from bonfire_lib.status import (
+    check_for_existing_reservation,
+    describe_namespace,
+    get_console_url,
     get_reservation,
     list_reservations,
     wait_on_reservation,
-    check_for_existing_reservation,
-    get_console_url,
-    describe_namespace,
 )
 from bonfire_lib.utils import FatalError
 
@@ -130,7 +131,16 @@ class TestGetConsoleUrl:
         assert result is None
 
     def test_exception_returns_none(self, mock_client):
-        mock_client.get_configmap.side_effect = Exception("connection error")
+        mock_client.get_configmap.side_effect = ApiException(status=500, reason="connection error")
+        result = get_console_url(mock_client)
+        assert result is None
+
+    def test_network_error_returns_none(self, mock_client):
+        from urllib3.exceptions import MaxRetryError
+
+        mock_client.get_configmap.side_effect = MaxRetryError(
+            None, "https://api.k8s", "Connection refused"
+        )
         result = get_console_url(mock_client)
         assert result is None
 
@@ -196,3 +206,18 @@ class TestDescribeNamespace:
         assert result["keycloak_admin_password"] == "N/A"
         assert result["gateway_route"] == ""
         assert result["console_namespace_route"] == ""
+
+    def test_missing_crds_gracefully_degrades(self, mock_client):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        mock_client.get_namespace.return_value = {
+            "metadata": {"name": "ephemeral-test", "labels": {"operator-ns": "true"}}
+        }
+        mock_client.list_crds.side_effect = ResourceNotFoundError("CRD not found")
+        mock_client.get_crd.side_effect = ResourceNotFoundError("CRD not found")
+        mock_client.get_secret.return_value = None
+        mock_client.get_configmap.return_value = None
+
+        result = describe_namespace(mock_client, "ephemeral-test")
+        assert result["clowdapps_deployed"] == 0
+        assert result["frontends_deployed"] == 0

@@ -4,8 +4,8 @@ Can be constructed explicitly (for MCP server / testing) or
 loaded from environment variables via Settings.from_env().
 """
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 # GitHub API config for fetching templates from GitHub repos.
 GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")

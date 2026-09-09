@@ -10,6 +10,9 @@ import logging
 import os
 
 from kubernetes.client import ApiException
+from kubernetes.config import ConfigException
+from kubernetes.dynamic.exceptions import ResourceNotFoundError
+from urllib3.exceptions import HTTPError
 
 from bonfire_lib.k8s_client import EphemeralK8sClient
 
@@ -95,7 +98,12 @@ def _preflight_check(client: EphemeralK8sClient) -> None:
             raise RuntimeError(
                 f"Unexpected error accessing {crd_name} CRD (HTTP {e.status}): {e.reason}"
             ) from e
-        except Exception as e:
+        except ResourceNotFoundError as e:
+            raise RuntimeError(
+                f"{crd_name} CRD not found on cluster (404). "
+                "Is the Ephemeral Namespace Operator installed?"
+            ) from e
+        except (ConfigException, HTTPError, OSError, ValueError) as e:
             raise RuntimeError(
                 f"Failed to connect to the management cluster: {e}. "
                 "Check network connectivity, K8S_SERVER, or KUBECONFIG."

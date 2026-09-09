@@ -32,7 +32,7 @@ def _parse_configmaps_file(path):
             try:
                 configmaps[item["metadata"]["name"]] = item
             except KeyError:
-                raise FatalError("Configmap at path '{}' has no metadata/name".format(path))
+                raise FatalError(f"Configmap at path '{path}' has no metadata/name")
 
     return configmaps
 
