@@ -652,3 +652,120 @@ class TestCLIAliases:
         assert result.exit_code == 0
         assert "rosa" in result.output
         assert "ephemeral" in result.output
+
+
+class TestRegressionExceptionHandling:
+    def test_get_kube_api_server_command_not_found(self, monkeypatch):
+        from sh import CommandNotFound
+
+        from bonfire.openshift import get_kube_api_server
+
+        get_kube_api_server.cache_clear()
+
+        def mock_oc(*args, **kwargs):
+            raise CommandNotFound("oc")
+
+        monkeypatch.setattr("bonfire.openshift.oc", mock_oc)
+        assert get_kube_api_server() == "unknown"
+
+    def test_get_requester_command_not_found(self, monkeypatch):
+        from sh import CommandNotFound
+
+        from bonfire.bonfire import _get_requester
+
+        def mock_whoami():
+            raise CommandNotFound("oc")
+
+        monkeypatch.setattr("bonfire.bonfire.conf.BONFIRE_NS_REQUESTER", None)
+        monkeypatch.setattr("bonfire.bonfire.whoami", mock_whoami)
+        assert _get_requester() == "bonfire"
+
+    def test_namespace_clusters_error_return_code(self, monkeypatch):
+        from sh import ErrorReturnCode_1
+
+        from bonfire.namespaces import Namespace
+
+        ns = Namespace(
+            name="test-ns",
+            namespace_data={
+                "metadata": {
+                    "name": "test-ns",
+                    "annotations": {"reserved": "true", "env-status": "ready"},
+                }
+            },
+            reservation_data={
+                "metadata": {"name": "res"},
+                "spec": {"duration": "1h", "requester": "user"},
+                "status": {"state": "ready", "expiration": "2026-09-09T12:00:00Z"},
+            },
+        )
+
+        def mock_get_json(*args, **kwargs):
+            raise ErrorReturnCode_1(
+                "oc",
+                b"",
+                b'error: the server doesn\'t have a resource type "cluster.cluster.x-k8s.io"',
+            )
+
+        monkeypatch.setattr("bonfire.namespaces.get_json", mock_get_json)
+        assert ns.clusters == "n/a"
+
+    def test_namespace_clusters_command_not_found(self, monkeypatch):
+        from sh import CommandNotFound
+
+        from bonfire.namespaces import Namespace
+
+        ns = Namespace(
+            name="test-ns",
+            namespace_data={
+                "metadata": {
+                    "name": "test-ns",
+                    "annotations": {"reserved": "true", "env-status": "ready"},
+                }
+            },
+            reservation_data={
+                "metadata": {"name": "res"},
+                "spec": {"duration": "1h", "requester": "user"},
+                "status": {"state": "ready", "expiration": "2026-09-09T12:00:00Z"},
+            },
+        )
+
+        def mock_get_json(*args, **kwargs):
+            raise CommandNotFound("oc")
+
+        monkeypatch.setattr("bonfire.namespaces.get_json", mock_get_json)
+        assert ns.clusters == "n/a"
+
+    def test_load_aliases_malformed_yaml(self, tmp_path):
+        from bonfire.config import DEFAULT_ALIASES, load_aliases
+
+        bad_config = tmp_path / "config.yaml"
+        bad_config.write_text("aliases: [unclosed list")
+
+        aliases = load_aliases(bad_config)
+        assert aliases == dict(DEFAULT_ALIASES)
+
+    def test_cmd_deploy_base_namespace_transport_error(self, mocker):
+        from gql.transport.exceptions import TransportError
+
+        import bonfire.bonfire as cli_module
+
+        mocker.patch.object(cli_module, "has_clowder", return_value=True)
+        mocker.patch.object(
+            cli_module,
+            "get_base_namespace_for_env",
+            side_effect=TransportError("Connection failed"),
+        )
+        mocker.patch.object(cli_module, "get_namespace_from_context", return_value="my-ns")
+        mocker.patch.object(cli_module, "_get_namespace", return_value=("my-ns", False))
+        mocker.patch.object(cli_module, "_get_env_name", return_value="env-my-ns")
+        mocker.patch.object(cli_module, "_process", return_value={"items": [{"kind": "ClowdApp"}]})
+        mocker.patch.object(cli_module, "apply_config")
+        mocker.patch.object(cli_module, "_wait_on_namespace_resources")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli_module.main,
+            ["deploy", "app1", "--namespace", "my-ns", "--no-release-on-fail"],
+        )
+        assert result.exit_code == 0

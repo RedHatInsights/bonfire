@@ -9,7 +9,6 @@ reservations that differ only by pool selection.
 import asyncio
 import logging
 
-from kubernetes.client import ApiException
 from mcp.server import Server
 from mcp.types import CallToolResult, TextContent, Tool
 
@@ -345,7 +344,7 @@ async def _deploy_rosa(
     except Exception:  # noqa: BLE001, RUF100 - cleanup must preserve the original deployment failure
         try:
             reservations.release(client, namespace=namespace)
-        except (ApiException, FatalError, OSError, RuntimeError, ValueError) as err:
+        except Exception as err:  # noqa: BLE001, RUF100 - cleanup failure must not mask deployment failure
             log.warning("failed to release namespace '%s' during cleanup: %s", namespace, err)
 
         raise

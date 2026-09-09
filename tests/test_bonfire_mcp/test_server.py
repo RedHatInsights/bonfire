@@ -390,6 +390,34 @@ class TestDeployRosa:
         )
 
     @pytest.mark.asyncio
+    async def test_deploy_rosa_cleanup_failure_preserves_error(self):
+        """Test that failure in cleanup does not mask the original deployment error."""
+        reservation_result = {
+            "name": "bonfire-reservation-abc",
+            "namespace": "ephemeral-rosa-abc",
+            "state": "active",
+            "expiration": "2026-06-18T14:00:00Z",
+            "requester": "test-user",
+            "pool": "rosa",
+        }
+
+        with patch("bonfire_mcp.server.reservations") as mock_reservations:
+            mock_reservations.reserve.return_value = reservation_result
+            mock_reservations.release.side_effect = RuntimeError("release failed")
+            with patch("bonfire_mcp.server.deploy") as mock_deploy:
+                from bonfire_lib.utils import FatalError as _FE
+
+                mock_deploy.deploy_rosa.side_effect = _FE("original deploy failure")
+                result = await call_tool(
+                    "ephemeral_deploy_rosa",
+                    {"duration": "2h"},
+                )
+
+        assert isinstance(result, CallToolResult)
+        assert result.isError is True
+        assert "original deploy failure" in result.content[0].text
+
+    @pytest.mark.asyncio
     async def test_deploy_rosa_invalid_duration(self):
         """Test that an invalid duration string returns a validation error."""
         result = await call_tool(

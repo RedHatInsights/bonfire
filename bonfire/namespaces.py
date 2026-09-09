@@ -4,7 +4,8 @@ import datetime
 import json
 import logging
 
-from ocviapy import get_all_namespaces, get_json, on_k8s, set_current_namespace
+from ocviapy import StatusError, get_all_namespaces, get_json, on_k8s, set_current_namespace
+from sh import CommandNotFound, ErrorReturnCode
 from wait_for import TimedOutError
 
 import bonfire.config as conf
@@ -217,7 +218,7 @@ class Namespace:
             log.debug("fetching clowdapps for ns %s", self.name)
             try:
                 self._clowdapps = get_json("clowdapp", namespace=self.name).get("items", [])
-            except ValueError:
+            except (CommandNotFound, ErrorReturnCode, StatusError, ValueError, OSError):
                 return "none"
 
         if not self._clowdapps:
@@ -241,7 +242,7 @@ class Namespace:
         try:
             cluster_data = get_json("cluster.cluster.x-k8s.io", namespace=self.name)
             items = cluster_data.get("items", [])
-        except (ValueError, OSError):
+        except (CommandNotFound, ErrorReturnCode, StatusError, ValueError, OSError):
             return "n/a"
 
         if not items:

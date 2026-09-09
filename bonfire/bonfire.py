@@ -7,9 +7,11 @@ import warnings
 from functools import wraps
 
 import click
+import requests
 import truststore
+from gql.transport.exceptions import TransportError
 from ocviapy import StatusError, apply_config, get_current_namespace
-from sh import ErrorReturnCode
+from sh import CommandNotFound, ErrorReturnCode
 from wait_for import TimedOutError
 
 import bonfire.config as conf
@@ -229,7 +231,7 @@ def _get_requester():
     else:
         try:
             requester = whoami()
-        except (ErrorReturnCode, OSError):
+        except (CommandNotFound, ErrorReturnCode, OSError):
             log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
             requester = "bonfire"
     return requester
@@ -1557,7 +1559,7 @@ def _cmd_config_deploy(
                     secrets_src_namespace,
                     target_env,
                 )
-        except (FatalError, ValueError, OSError):
+        except (FatalError, ValueError, OSError, TransportError, requests.RequestException):
             log.info("could not resolve base namespace for env '%s'", target_env)
 
     # Get namespace from global context, can be None

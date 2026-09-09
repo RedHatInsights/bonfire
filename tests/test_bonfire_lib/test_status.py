@@ -135,6 +135,15 @@ class TestGetConsoleUrl:
         result = get_console_url(mock_client)
         assert result is None
 
+    def test_network_error_returns_none(self, mock_client):
+        from urllib3.exceptions import MaxRetryError
+
+        mock_client.get_configmap.side_effect = MaxRetryError(
+            None, "https://api.k8s", "Connection refused"
+        )
+        result = get_console_url(mock_client)
+        assert result is None
+
 
 class TestDescribeNamespace:
     def test_comprehensive_output(self, mock_client):
@@ -197,3 +206,18 @@ class TestDescribeNamespace:
         assert result["keycloak_admin_password"] == "N/A"
         assert result["gateway_route"] == ""
         assert result["console_namespace_route"] == ""
+
+    def test_missing_crds_gracefully_degrades(self, mock_client):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        mock_client.get_namespace.return_value = {
+            "metadata": {"name": "ephemeral-test", "labels": {"operator-ns": "true"}}
+        }
+        mock_client.list_crds.side_effect = ResourceNotFoundError("CRD not found")
+        mock_client.get_crd.side_effect = ResourceNotFoundError("CRD not found")
+        mock_client.get_secret.return_value = None
+        mock_client.get_configmap.return_value = None
+
+        result = describe_namespace(mock_client, "ephemeral-test")
+        assert result["clowdapps_deployed"] == 0
+        assert result["frontends_deployed"] == 0

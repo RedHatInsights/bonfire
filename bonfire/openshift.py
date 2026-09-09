@@ -14,7 +14,7 @@ from ocviapy import (
     on_k8s,
     wait_for_ready_threaded,
 )
-from sh import ErrorReturnCode
+from sh import CommandNotFound, ErrorReturnCode
 from wait_for import TimedOutError, wait_for
 
 log = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def get_console_url():
         try:
             cfg_map = get_json("configmap", "console-public", namespace="openshift-config-managed")
             url = cfg_map["data"]["consoleURL"]
-        except (ErrorReturnCode, KeyError, TypeError, ValueError, OSError) as err:
+        except (CommandNotFound, ErrorReturnCode, KeyError, TypeError, ValueError, OSError) as err:
             log.debug("unable to obtain console url: %s: %s", err.__class__.__name__, err)
             return None
         return url
@@ -64,7 +64,7 @@ def has_clowder():
 def get_kube_api_server():
     try:
         return oc("whoami", "--show-server", _silent=True).strip()
-    except (ErrorReturnCode, OSError):
+    except (CommandNotFound, ErrorReturnCode, OSError):
         return "unknown"
 
 

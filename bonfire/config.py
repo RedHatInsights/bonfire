@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import yaml
 from dotenv import load_dotenv
 
 from bonfire.utils import FatalError, get_config_path, load_file
@@ -190,7 +191,7 @@ def load_aliases(config_path=None):
     """Load CLI aliases, merging user config with built-in defaults."""
     try:
         config = load_config(config_path)
-    except (FatalError, OSError, TypeError, ValueError):
+    except (FatalError, OSError, TypeError, ValueError, yaml.YAMLError):
         config = {}
 
     user_aliases = config.get("aliases", {}) if config else {}

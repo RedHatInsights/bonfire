@@ -11,7 +11,7 @@ import requests
 import yaml
 from cached_property import cached_property
 from ocviapy import process_template
-from sh import ErrorReturnCode
+from sh import CommandNotFound, ErrorReturnCode
 
 import bonfire.config as conf
 from bonfire.openshift import get_kube_api_server, whoami
@@ -419,7 +419,7 @@ def process_reservation(
     if requester is None:
         try:
             requester = whoami()
-        except (ErrorReturnCode, OSError):
+        except (CommandNotFound, ErrorReturnCode, OSError):
             log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
             requester = "bonfire"
 

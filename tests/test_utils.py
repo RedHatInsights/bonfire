@@ -172,3 +172,34 @@ def test_selector_defaults():
     selector = AppOrComponentSelector(False, None, ["hello/world"])
     assert selector.flattened_components == ["hello/world"]
     assert selector.components == {"hello": {"world"}}
+
+
+def test_find_what_depends_on_fetch_failure(monkeypatch):
+    from bonfire.utils import find_what_depends_on
+
+    apps_config = {
+        "app1": {
+            "components": [
+                {"name": "broken-comp", "host": "github", "repo": "org/repo1", "path": "/t.yaml"},
+                {"name": "good-comp", "host": "github", "repo": "org/repo2", "path": "/t.yaml"},
+            ]
+        }
+    }
+
+    def mock_fetch(self):
+        if self.repo == "repo1":
+            raise FatalError("failed to fetch template")
+        template_yaml = """
+objects:
+  - kind: ClowdApp
+    metadata:
+      name: good-app
+    spec:
+      dependencies:
+        - target-service
+"""
+        return "sha123", template_yaml
+
+    monkeypatch.setattr("bonfire.utils.RepoFile.fetch", mock_fetch)
+    result = find_what_depends_on(apps_config, "target-service")
+    assert result == {"good-app"}

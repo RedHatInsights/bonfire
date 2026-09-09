@@ -126,3 +126,38 @@ class TestAuthModeSelection:
 
         EphemeralK8sClient(server="https://api.example.com", token="mytoken", skip_tls=True)
         assert mock_config.verify_ssl is False
+
+
+class TestK8sClientResourceErrors:
+    @patch("bonfire_lib.k8s_client.DynamicClient")
+    @patch("bonfire_lib.k8s_client.client")
+    def test_get_resource_resource_not_found(self, mock_client_module, mock_dynamic_cls):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        mock_client_module.ApiClient.return_value = MagicMock()
+        mock_client_module.CoreV1Api.return_value = MagicMock()
+        mock_dynamic = MagicMock()
+        mock_dynamic.resources.get.side_effect = ResourceNotFoundError("CRD not found")
+        mock_dynamic_cls.return_value = mock_dynamic
+
+        k8s = EphemeralK8sClient(server="https://api.example.com", token="mytoken")
+        # Should catch ResourceNotFoundError without raising
+        res = k8s._get_resource("NamespaceReservation")
+        assert res is None
+
+    @patch("bonfire_lib.k8s_client.DynamicClient")
+    @patch("bonfire_lib.k8s_client.client")
+    def test_whoami_network_error(self, mock_client_module, mock_dynamic):
+        from urllib3.exceptions import MaxRetryError
+
+        mock_api_client = MagicMock()
+        mock_client_module.ApiClient.return_value = mock_api_client
+        mock_client_module.CoreV1Api.return_value = MagicMock()
+        mock_auth_api = MagicMock()
+        mock_auth_api.create_token_review.side_effect = MaxRetryError(
+            None, "https://api.k8s", "Connection failed"
+        )
+        mock_client_module.AuthenticationV1Api.return_value = mock_auth_api
+
+        k8s = EphemeralK8sClient(server="https://api.example.com", token="mytoken")
+        assert k8s.whoami() == "unknown"

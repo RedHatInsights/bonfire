@@ -300,3 +300,33 @@ objects:
 
         with pytest.raises(FatalError, match="no components matching"):
             deploy_rosa(mock_client, namespace="ns")
+
+
+class TestDeployResourceErrors:
+    def test_apply_resources_resource_not_found(self):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        from bonfire_lib.deploy import _apply_resources
+
+        client = MagicMock()
+        client.apply_resource.side_effect = ResourceNotFoundError("CRD not found")
+
+        with pytest.raises(FatalError, match="failed to apply"):
+            _apply_resources(client, "test-ns", [{"kind": "Cluster", "metadata": {"name": "c1"}}])
+
+    @patch("time.sleep")
+    def test_wait_for_resources_handles_missing_crds(self, mock_sleep):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        from bonfire_lib.deploy import wait_for_resources
+
+        client = MagicMock()
+        # Missing CAPI Cluster CRD and missing ClowdApp CRD, but Deployments ready
+        client.list_dynamic_resources.side_effect = [
+            ResourceNotFoundError("No matches for Cluster"),
+            ResourceNotFoundError("No matches for ClowdApp"),
+            [{"status": {"replicas": 1, "readyReplicas": 1}}],
+        ]
+
+        # Should log and continue, successfully detecting Deployments are ready
+        wait_for_resources(client, "test-ns", timeout=30)

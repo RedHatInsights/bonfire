@@ -15,6 +15,8 @@ from kubernetes import client, config
 from kubernetes.client import ApiException, ApisApi
 from kubernetes.config import ConfigException
 from kubernetes.dynamic import DynamicClient
+from kubernetes.dynamic.exceptions import DynamicApiError, ResourceNotFoundError
+from urllib3.exceptions import HTTPError
 
 log = logging.getLogger(__name__)
 
@@ -124,7 +126,14 @@ class EphemeralK8sClient:
         """Get a DynamicClient resource handle for a cloud.redhat.com/v1alpha1 CRD."""
         try:
             return self._dynamic.resources.get(api_version=CRD_API_VERSION, kind=kind)
-        except (ApiException, KeyError, TypeError, ValueError) as e:
+        except (
+            ApiException,
+            DynamicApiError,
+            ResourceNotFoundError,
+            KeyError,
+            TypeError,
+            ValueError,
+        ) as e:
             # Log available resources for debugging
             log.error(
                 f"Failed to get resource {kind} from {CRD_API_VERSION}. "
@@ -402,7 +411,7 @@ class EphemeralK8sClient:
             username = review.status.user.username
             if username:
                 return _sanitize_username(username)
-        except (ApiException, ConfigException, KeyError, OSError, ValueError) as err:
+        except (ApiException, ConfigException, HTTPError, KeyError, OSError, ValueError) as err:
             log.debug("unable to determine Kubernetes username: %s", err)
 
         return "unknown"
