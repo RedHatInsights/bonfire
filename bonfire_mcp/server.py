@@ -9,6 +9,7 @@ reservations that differ only by pool selection.
 import asyncio
 import logging
 
+from kubernetes.client import ApiException
 from mcp.server import Server
 from mcp.types import CallToolResult, TextContent, Tool
 
@@ -341,11 +342,12 @@ async def _deploy_rosa(
                 f"({', '.join(deploy_result['components_deployed'])})"
             ),
         }
-    except Exception:
+    except Exception:  # noqa: BLE001, RUF100 - cleanup must preserve the original deployment failure
         try:
             reservations.release(client, namespace=namespace)
-        except Exception:
-            pass
+        except (ApiException, FatalError, OSError, RuntimeError, ValueError) as err:
+            log.warning("failed to release namespace '%s' during cleanup: %s", namespace, err)
+
         raise
 
 
@@ -473,7 +475,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolR
         return _error_result(f"Validation error: {e}")
     except RuntimeError as e:
         return _error_result(f"Connection error: {e}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001, RUF100 - MCP must convert unexpected failures to tool results
         log.exception("unexpected error in tool %s", name)
         return _error_result(f"Unexpected error: {e}")
 

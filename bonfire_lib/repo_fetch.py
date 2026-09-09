@@ -48,7 +48,7 @@ def _get_gl_ca_cert():
             _gl_ca_cert_path = fp.name
         atexit.register(os.unlink, _gl_ca_cert_path)
         return _gl_ca_cert_path
-    except Exception as err:
+    except (OSError, ValueError, requests.RequestException) as err:
         raise FatalError(f"Failed to download GitLab CA certificate from {GL_CA_CERT_URL}: {err}")
 
 

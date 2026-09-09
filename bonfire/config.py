@@ -1,18 +1,13 @@
+import importlib.resources as importlib_resources
 import logging
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 from bonfire.utils import FatalError, get_config_path, load_file
-
-if sys.version_info < (3, 9):
-    import importlib_resources
-else:
-    import importlib.resources as importlib_resources
 
 log = logging.getLogger(__name__)
 
@@ -134,7 +129,7 @@ def _get_auto_added_frontend_dependencies():
 
     if env_var is None:
         return set(DEFAULT_FRONTEND_DEPENDENCIES)
-    return set([val.strip() for val in env_var.split(",") if val.strip()])
+    return {val.strip() for val in env_var.split(",") if val.strip()}
 
 
 AUTO_ADDED_FRONTEND_DEPENDENCIES = _get_auto_added_frontend_dependencies()
@@ -195,7 +190,7 @@ def load_aliases(config_path=None):
     """Load CLI aliases, merging user config with built-in defaults."""
     try:
         config = load_config(config_path)
-    except Exception:
+    except (FatalError, OSError, TypeError, ValueError):
         config = {}
 
     user_aliases = config.get("aliases", {}) if config else {}

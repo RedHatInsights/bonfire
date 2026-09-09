@@ -2,6 +2,7 @@ import atexit
 import collections
 import copy
 import difflib
+import importlib.metadata as importlib_metadata
 import json
 import logging
 import os
@@ -12,16 +13,9 @@ import subprocess
 import sys
 import tempfile
 import time
-from urllib.request import urlretrieve
-
-if sys.version_info >= (3, 8):
-    import importlib.metadata as importlib_metadata
-else:
-    import importlib_metadata
-
-import sys
 from pathlib import Path
 from urllib.parse import quote, urlparse
+from urllib.request import urlretrieve
 
 import requests
 import yaml
@@ -108,7 +102,7 @@ def _get_gl_ca_cert():
 
         log.debug("GitLab CA certificate downloaded to %s", _gl_ca_cert_path)
         return _gl_ca_cert_path
-    except Exception as err:
+    except (OSError, ValueError) as err:
         raise FatalError(f"Failed to download GitLab CA certificate from {GL_CA_CERT_URL}: {err}")
 
 
@@ -116,8 +110,8 @@ class AppOrComponentSelector:
     def __init__(
         self,
         select_all: bool = False,
-        apps: list[str] = None,
-        components: list[str] = None,
+        apps: list[str] | None = None,
+        components: list[str] | None = None,
     ):
         self.select_all = select_all
         self.apps = apps or []
@@ -244,7 +238,7 @@ class RepoFile:
     @classmethod
     def from_config(cls, d):
         required_keys = ["host", "repo", "path"]
-        missing_keys = [k for k in required_keys if k not in d.keys()]
+        missing_keys = [k for k in required_keys if k not in d]
         if missing_keys:
             raise FatalError(f"{SYNTAX_ERR}, repo config missing keys: {', '.join(missing_keys)}")
 
@@ -334,7 +328,7 @@ class RepoFile:
                     if self.ref in self._alternate_refs:
                         alts = ", ".join(self._alternate_refs[self.ref])
                         alts_txt = f" and its alternates: {alts}"
-                    raise Exception(
+                    raise FatalError(
                         f"git ref fetch failed for '{self.ref}'{alts_txt}, see logs for details"
                     )
 
@@ -405,7 +399,7 @@ class RepoFile:
 
         if status == 429 or (status == 403 and "api rate limit exceeded" in response.text.lower()):
             if attempt == 3:
-                raise Exception(f"GET {url} continues to hit rate limit after 3 attempts")
+                raise FatalError(f"GET {url} continues to hit rate limit after 3 attempts")
 
             if "retry-after" in response.headers:
                 sleep_seconds = int(response.headers["retry-after"])
@@ -477,7 +471,7 @@ def get_clowdapp_dependencies(items, optional=False):
     key = "optionalDependencies" if optional else "dependencies"
     clowdapp_items = [item for item in items if item.get("kind").lower() == "clowdapp"]
 
-    deps_for_app = dict()
+    deps_for_app = {}
 
     for clowdapp in clowdapp_items:
         name = clowdapp["metadata"]["name"]
@@ -523,7 +517,7 @@ def find_what_depends_on(apps_config, clowdapp_name):
             try:
                 rf = RepoFile.from_config(component)
                 _, template_content = rf.fetch()
-            except Exception as err:
+            except (FatalError, OSError, ValueError, yaml.YAMLError) as err:
                 log.error("failed to fetch template file for %s: %s", component_name, err)
 
             template = yaml.safe_load(template_content)

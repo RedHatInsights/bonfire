@@ -31,11 +31,17 @@ TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def _utc_tz(dt):
-    return dt.replace(tzinfo=datetime.timezone.utc)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.astimezone(datetime.timezone.utc)
 
 
 def _parse_time(string):
-    return _utc_tz(datetime.datetime.strptime(string, TIME_FMT)) if string else None
+    return (
+        datetime.datetime.strptime(string, TIME_FMT).replace(tzinfo=datetime.timezone.utc)
+        if string
+        else None
+    )
 
 
 def _fmt_time(dt):
@@ -53,13 +59,13 @@ def _pretty_time_delta(seconds):
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
     if days > 0:
-        return "%dd%dh%dm%ds" % (days, hours, minutes, seconds)
+        return f"{days}d{hours}h{minutes}m{seconds}s"
     elif hours > 0:
-        return "%dh%dm%ds" % (hours, minutes, seconds)
+        return f"{hours}h{minutes}m{seconds}s"
     elif minutes > 0:
-        return "%dm%ds" % (minutes, seconds)
+        return f"{minutes}m{seconds}s"
     else:
-        return "%ds" % (seconds,)
+        return f"{seconds}s"
 
 
 def _duration_fmt(seconds):
@@ -68,11 +74,11 @@ def _duration_fmt(seconds):
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
     if hours > 0:
-        return "%dh%dm%ds" % (hours, minutes, seconds)
+        return f"{hours}h{minutes}m{seconds}s"
     elif minutes > 0:
-        return "%dm%ds" % (minutes, seconds)
+        return f"{minutes}m{seconds}s"
     else:
-        return "%ds" % (seconds,)
+        return f"{seconds}s"
 
 
 class Namespace:
@@ -235,7 +241,7 @@ class Namespace:
         try:
             cluster_data = get_json("cluster.cluster.x-k8s.io", namespace=self.name)
             items = cluster_data.get("items", [])
-        except Exception:
+        except (ValueError, OSError):
             return "n/a"
 
         if not items:

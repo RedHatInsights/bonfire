@@ -9,6 +9,7 @@ from functools import wraps
 import click
 import truststore
 from ocviapy import StatusError, apply_config, get_current_namespace
+from sh import ErrorReturnCode
 from wait_for import TimedOutError
 
 import bonfire.config as conf
@@ -135,7 +136,7 @@ _global_options = [
 ]
 
 
-@click.group(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @options(_global_options)
 @click.pass_context
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
@@ -228,7 +229,7 @@ def _get_requester():
     else:
         try:
             requester = whoami()
-        except Exception:
+        except (ErrorReturnCode, OSError):
             log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
             requester = "bonfire"
     return requester
@@ -346,7 +347,7 @@ def _validate_set_template_ref(ctx, param, value):
         split_value = split_equals(value)
         if split_value:
             # check that values unpack properly
-            for app_component, value in split_value.items():
+            for app_component in split_value:
                 # TODO: remove once app name syntax fully deprecated
                 split = app_component.split("/")
                 if len(split) == 2:
@@ -369,7 +370,7 @@ def _validate_set_parameter(ctx, param, value):
         split_value = split_equals(value)
         if split_value:
             # check that values unpack properly
-            for param_path, value in split_value.items():
+            for param_path in split_value:
                 # TODO: remove once app name syntax fully deprecated
                 split = param_path.split("/")
                 if len(split) == 3:
@@ -429,7 +430,7 @@ def _translate_to_obj(value_list, param_name):
 
 
 def _app_or_component_selector(ctx, param, this_value):
-    if any([val.startswith("-") for val in this_value]):
+    if any(val.startswith("-") for val in this_value):
         raise click.BadParameter("requires a component name or keyword 'all'")
 
     # check if 'app:' syntax or "/dependency" syntax has been used and
@@ -1019,7 +1020,7 @@ def _get_apps_config(
                 "target env is '%s' and no ref env given, using 'master' git ref for all apps",
                 conf.EPHEMERAL_ENV_NAME,
             )
-            for _, app_cfg in apps_config.items():
+            for app_cfg in apps_config.values():
                 for component in app_cfg.get("components", []):
                     component["ref"] = "master"
 
@@ -1556,7 +1557,7 @@ def _cmd_config_deploy(
                     secrets_src_namespace,
                     target_env,
                 )
-        except Exception:
+        except (FatalError, ValueError, OSError):
             log.info("could not resolve base namespace for env '%s'", target_env)
 
     # Get namespace from global context, can be None
@@ -1635,7 +1636,9 @@ def _cmd_config_deploy(
                 apply_config(ns, apps_config)
             with status_spinner("Waiting for resources to be ready...", timeout=timeout):
                 _wait_on_namespace_resources(ns, timeout, False, defer_status_errors)
-    except (KeyboardInterrupt, Exception) as err:
+    except KeyboardInterrupt as err:
+        _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns)
+    except Exception as err:  # noqa: BLE001, RUF100 - deployment must clean up all failures
         _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns)
     else:
         echo_success(f"Successfully deployed to namespace '{ns}'")
@@ -1909,7 +1912,7 @@ def _cmd_deploy_iqe_cji(
     try:
         cji_name = cji_config["items"][0]["metadata"]["name"]
     except (KeyError, IndexError):
-        raise Exception("error parsing name of CJI from processed template, check CJI template")
+        raise FatalError("error parsing name of CJI from processed template, check CJI template")
 
     with status_spinner("Applying CJI config..."):
         apply_config(namespace, cji_config)

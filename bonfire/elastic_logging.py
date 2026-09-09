@@ -4,6 +4,7 @@ import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime as dt
+from datetime import timezone
 
 import requests
 
@@ -38,7 +39,7 @@ class AsyncElasticsearchHandler(logging.Handler):
         super().__init__()
         self.es_url = es_url
         self.executor = ThreadPoolExecutor(max_workers=10)
-        self.start_time = dt.now()
+        self.start_time = dt.now(timezone.utc)
         self.metadata = {
             "uuid": str(uuid.uuid4()),
             "start_time": self.start_time.isoformat(),
@@ -48,8 +49,9 @@ class AsyncElasticsearchHandler(logging.Handler):
         }
 
     def emit(self, record):
-        self.metadata["@timestamp"] = dt.now().isoformat()
-        self.metadata["elapsed_sec"] = (dt.now() - self.start_time).total_seconds()
+        now = dt.now(timezone.utc)
+        self.metadata["@timestamp"] = now.isoformat()
+        self.metadata["elapsed_sec"] = (now - self.start_time).total_seconds()
 
         log_entry = {"log": self.format(record), "metadata": self.metadata}
 
@@ -76,7 +78,7 @@ class AsyncElasticsearchHandler(logging.Handler):
             response = requests.post(self.es_url, headers=headers, data=log_entry, timeout=0.1)
             response.raise_for_status()
             log.info("Successfully sent telemetry data")
-        except Exception as e:
+        except (requests.RequestException, OSError, TypeError, ValueError) as e:
             # Handle exceptions (e.g., network issues, Elasticsearch down)
             log.error("Error sending data to elasticsearch: %s", e)
 

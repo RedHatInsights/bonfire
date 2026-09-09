@@ -65,7 +65,7 @@ def reservation_cleanup(client):
             from bonfire_lib.reservations import release
 
             release(client, name=res_name)
-        except Exception as exc:
+        except (FatalError, OSError, RuntimeError, ValueError) as exc:
             log.warning("cleanup: failed to release reservation '%s': %s", res_name, exc)
 
 

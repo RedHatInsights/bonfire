@@ -9,6 +9,7 @@ import logging
 import time
 
 import yaml
+from kubernetes.client import ApiException
 
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.qontract import QontractClient, get_apps_for_env
@@ -117,7 +118,7 @@ def _collect_components(apps_config: dict, component_filter: list[str]) -> list[
     components = []
     filter_set = set(component_filter) if component_filter else None
 
-    for app_name, app in apps_config.items():
+    for app in apps_config.values():
         for component in app.get("components", []):
             if filter_set and component["name"] not in filter_set:
                 continue
@@ -144,7 +145,7 @@ def _parse_template(component_name: str, content: bytes) -> dict:
     """Parse template YAML content."""
     try:
         return yaml.safe_load(content)
-    except Exception as err:
+    except yaml.YAMLError as err:
         raise FatalError(f"failed to parse template YAML for component '{component_name}': {err}")
 
 
@@ -184,7 +185,7 @@ def _apply_resources(
         try:
             result = client.apply_resource(resource, namespace=namespace)
             applied.append(result)
-        except Exception as err:
+        except (ApiException, OSError, ValueError) as err:
             raise FatalError(f"failed to apply {kind}/{name} to namespace '{namespace}': {err}")
     return applied
 
@@ -228,7 +229,7 @@ def wait_for_resources(
                 if not _is_capi_cluster_ready(cluster):
                     all_ready = False
                     break
-        except Exception as err:
+        except (ApiException, OSError) as err:
             log.debug("error listing CAPI Clusters: %s", err)
 
         # ClowdApps
@@ -243,7 +244,7 @@ def wait_for_resources(
                     if not _is_clowdapp_ready(app):
                         all_ready = False
                         break
-            except Exception as err:
+            except (ApiException, OSError) as err:
                 log.debug("error listing ClowdApps: %s", err)
 
         # Deployments
@@ -258,7 +259,7 @@ def wait_for_resources(
                     if not _is_deployment_ready(dep):
                         all_ready = False
                         break
-            except Exception as err:
+            except (ApiException, OSError) as err:
                 log.debug("error listing Deployments: %s", err)
 
         if all_ready and found_resources:
@@ -291,9 +292,11 @@ def _is_clowdapp_ready(app: dict) -> bool:
     conditions = status.get("conditions", [])
     for cond in conditions:
         cond_type = cond.get("type", "")
-        if cond_type in ("ReconciliationSuccessful", "DeploymentsReady", "Ready"):
-            if cond.get("status") == "True":
-                return True
+        if (
+            cond_type in ("ReconciliationSuccessful", "DeploymentsReady", "Ready")
+            and cond.get("status") == "True"
+        ):
+            return True
 
     deployments = status.get("deployments", {})
     if deployments:

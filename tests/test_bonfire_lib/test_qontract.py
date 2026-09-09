@@ -60,7 +60,7 @@ class TestQontractClient:
     @patch("bonfire_lib.qontract.RequestsHTTPTransport")
     @patch("bonfire_lib.qontract.GQLClient")
     def test_init_with_token(self, mock_gql, mock_transport):
-        client = QontractClient(
+        QontractClient(
             base_url="https://example.com/graphql",
             token="Bearer mytoken",
         )
@@ -71,7 +71,7 @@ class TestQontractClient:
     @patch("bonfire_lib.qontract.RequestsHTTPTransport")
     @patch("bonfire_lib.qontract.GQLClient")
     def test_init_with_basic_auth(self, mock_gql, mock_transport):
-        client = QontractClient(
+        QontractClient(
             base_url="https://example.com/graphql",
             username="user",
             password="pass",
@@ -86,7 +86,7 @@ class TestQontractClient:
             "os.environ",
             {"QONTRACT_BASE_URL": "https://env.example.com/graphql"},
         ):
-            client = QontractClient()
+            QontractClient()
         call_kwargs = mock_transport.call_args
         assert call_kwargs[1]["url"] == "https://env.example.com/graphql"
 

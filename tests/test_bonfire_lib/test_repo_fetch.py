@@ -105,7 +105,7 @@ class TestFetchGithub:
         mock_response.content = b"kind: Template"
         mock_get.return_value = mock_response
 
-        commit, content = rf._fetch_github()
+        commit, _content = rf._fetch_github()
         assert commit == sha
 
     @patch.object(RepoFile, "_get_gh_commit_hash", return_value="a" * 40)

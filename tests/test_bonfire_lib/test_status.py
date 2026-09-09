@@ -2,6 +2,7 @@ import base64
 from unittest.mock import patch
 
 import pytest
+from kubernetes.client import ApiException
 
 from bonfire_lib.status import (
     check_for_existing_reservation,
@@ -130,7 +131,7 @@ class TestGetConsoleUrl:
         assert result is None
 
     def test_exception_returns_none(self, mock_client):
-        mock_client.get_configmap.side_effect = Exception("connection error")
+        mock_client.get_configmap.side_effect = ApiException(status=500, reason="connection error")
         result = get_console_url(mock_client)
         assert result is None
 

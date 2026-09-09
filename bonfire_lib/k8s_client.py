@@ -71,9 +71,8 @@ class EphemeralK8sClient:
             if skip_tls:
                 configuration.verify_ssl = False
             elif ca_data:
-                ca_file = tempfile.NamedTemporaryFile(delete=False, suffix=".crt")
-                ca_file.write(base64.b64decode(ca_data))
-                ca_file.close()
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".crt") as ca_file:
+                    ca_file.write(base64.b64decode(ca_data))
                 configuration.ssl_ca_cert = ca_file.name
                 atexit.register(os.unlink, ca_file.name)
             self._api_client = client.ApiClient(configuration)
@@ -125,7 +124,7 @@ class EphemeralK8sClient:
         """Get a DynamicClient resource handle for a cloud.redhat.com/v1alpha1 CRD."""
         try:
             return self._dynamic.resources.get(api_version=CRD_API_VERSION, kind=kind)
-        except Exception as e:
+        except (ApiException, KeyError, TypeError, ValueError) as e:
             # Log available resources for debugging
             log.error(
                 f"Failed to get resource {kind} from {CRD_API_VERSION}. "
@@ -403,7 +402,7 @@ class EphemeralK8sClient:
             username = review.status.user.username
             if username:
                 return _sanitize_username(username)
-        except Exception:
-            pass
+        except (ApiException, ConfigException, KeyError, OSError, ValueError) as err:
+            log.debug("unable to determine Kubernetes username: %s", err)
 
         return "unknown"

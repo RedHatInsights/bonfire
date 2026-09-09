@@ -184,7 +184,7 @@ def _setup_monkeypatch(monkeypatch, source, local_cfg):
 @pytest.mark.parametrize("local_config_method", ("merge", "override"))
 @pytest.mark.parametrize("source", (APP_SRE_SRC, FILE_SRC))
 def test_local_no_remote_target_apps_found(monkeypatch, source, local_config_method):
-    local_cfg = {"apps": [val for _, val in _target_apps().items()]}
+    local_cfg = {"apps": list(_target_apps().values())}
     _setup_monkeypatch(monkeypatch, source, local_cfg)
     actual = _get_apps_config(
         source=source,
@@ -327,7 +327,7 @@ def test_master_branch_used_when_no_reference_app_found(monkeypatch, source, loc
     )
 
     expected = _target_apps_w_refs_subbed()
-    for _, app_config in expected.items():
+    for app_config in expected.values():
         for component in app_config["components"]:
             component["ref"] = "master"
 
@@ -391,7 +391,7 @@ def test_local_config_merge(monkeypatch, source):
     )
 
     expected = _target_apps_w_refs_subbed()
-    for _, app_config in expected.items():
+    for app_config in expected.values():
         for component in app_config["components"]:
             if component["name"] == "appBcomponent1":
                 component["ref"] = "a_new_ref"
@@ -475,7 +475,7 @@ def test_local_config_merge_update_param(monkeypatch, source):
 
     expected = _target_apps_w_refs_subbed()
     component1_found = False
-    for _, app_config in expected.items():
+    for app_config in expected.values():
         for component in app_config["components"]:
             if component["name"] == "appBcomponent1":
                 component1_found = True

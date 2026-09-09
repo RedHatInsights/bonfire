@@ -10,6 +10,7 @@ import logging
 import os
 
 from kubernetes.client import ApiException
+from kubernetes.config import ConfigException
 
 from bonfire_lib.k8s_client import EphemeralK8sClient
 
@@ -95,7 +96,7 @@ def _preflight_check(client: EphemeralK8sClient) -> None:
             raise RuntimeError(
                 f"Unexpected error accessing {crd_name} CRD (HTTP {e.status}): {e.reason}"
             ) from e
-        except Exception as e:
+        except (ConfigException, OSError, ValueError) as e:
             raise RuntimeError(
                 f"Failed to connect to the management cluster: {e}. "
                 "Check network connectivity, K8S_SERVER, or KUBECONFIG."

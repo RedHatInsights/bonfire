@@ -1,4 +1,5 @@
 import uuid
+from typing import ClassVar
 
 import click
 import pytest
@@ -17,7 +18,7 @@ class MockRepoFile:
     mock of utils.RepoFile so that we do not literally fetch templates from github/gitlab/etc.
     """
 
-    templates = {}
+    templates: ClassVar[dict] = {}
 
     def __init__(self, name):
         self.name = name

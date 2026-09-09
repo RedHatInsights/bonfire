@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 
 import click.exceptions
+import requests
 import yaml
 from cached_property import cached_property
 from ocviapy import process_template
@@ -90,11 +91,11 @@ def _remove_untrusted_configs(
         mem_request = _get_trusted_config(resources, "requests", "memory", path, params)
         mem_limit = _get_trusted_config(resources, "limits", "memory", path, params)
 
-        if any([cpu_request, cpu_limit]) and not all([cpu_request, cpu_limit]):
+        if any((cpu_request, cpu_limit)) and not all((cpu_request, cpu_limit)):
             log.debug("'%s' cpu config needs both request and limit, removing cpu config", path)
             cpu_request = None
             cpu_limit = None
-        if any([mem_request, mem_limit]) and not all([mem_request, mem_limit]):
+        if any((mem_request, mem_limit)) and not all((mem_request, mem_limit)):
             log.debug("'%s' mem config needs both request and limit, removing mem config", path)
             mem_request = None
             mem_limit = None
@@ -285,13 +286,12 @@ def _check_for_disabled(items):
     for item in items:
         kind = item.get("kind", "").lower()
         name = item.get("metadata", {}).get("name")
-        if kind in ["clowdapp", "clowdenvironment"]:
-            if item.get("spec", {}).get("disabled"):
-                log.warning(
-                    "%s/%s has 'disabled: true' configured, Clowder will ignore it",
-                    kind,
-                    name,
-                )
+        if kind in ["clowdapp", "clowdenvironment"] and item.get("spec", {}).get("disabled"):
+            log.warning(
+                "%s/%s has 'disabled: true' configured, Clowder will ignore it",
+                kind,
+                name,
+            )
 
 
 def process_clowd_env(target_ns, quay_user, env_name, template_path, local=True):
@@ -305,7 +305,7 @@ def process_clowd_env(target_ns, quay_user, env_name, template_path, local=True)
     with env_template_path.open() as fp:
         template_data = yaml.safe_load(fp)
 
-    params = dict()
+    params = {}
     params["ENV_NAME"] = env_name
     # TODO: revisit need for below param once FEO has a more developed config management system
     params["FRONTEND_CONTEXT_NAME"] = env_name
@@ -358,7 +358,7 @@ def process_iqe_cji(
     with template_path.open() as fp:
         template_data = yaml.safe_load(fp)
 
-    params = dict()
+    params = {}
     params["DEBUG"] = json.dumps(debug)
     params["MARKER"] = marker
     params["FILTER"] = filter
@@ -411,7 +411,7 @@ def process_reservation(
     with template_path.open() as fp:
         template_data = yaml.safe_load(fp)
 
-    params = dict()
+    params = {}
 
     params["NAME"] = name if name else f"bonfire-reservation-{str(uuid.uuid4()).split('-')[0]}"
     params["DURATION"] = duration
@@ -419,7 +419,7 @@ def process_reservation(
     if requester is None:
         try:
             requester = whoami()
-        except Exception:
+        except (ErrorReturnCode, OSError):
             log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
             requester = "bonfire"
 
@@ -488,23 +488,18 @@ def _should_alter(
     if remove_for_all_no_exceptions:
         return True
     if remove_option.select_all:
-        components = no_remove_option.components.keys()
-        if app_name in no_remove_option.apps or component_name in components:
-            return False
-        return True
+        components = no_remove_option.components
+        return not (app_name in no_remove_option.apps or component_name in components)
     if no_remove_option.select_all:
-        components = remove_option.components.keys()
-        if app_name in remove_option.apps or component_name in components:
-            return True
-        return False
+        components = remove_option.components
+        return app_name in remove_option.apps or component_name in components
     if not mutually_exclusive and (
-        component_name in no_remove_option.components.keys()
-        or component_name in remove_option.components.keys()
+        component_name in no_remove_option.components or component_name in remove_option.components
     ):
         return True
-    if mutually_exclusive and component_name in no_remove_option.components.keys():
+    if mutually_exclusive and component_name in no_remove_option.components:
         return False
-    if mutually_exclusive and component_name in remove_option.components.keys():
+    if mutually_exclusive and component_name in remove_option.components:
         return True
     if app_name in no_remove_option.apps:
         return False
@@ -675,7 +670,7 @@ class TemplateProcessor:
 
         # Check that CLI params requiring a component use a valid component name or app name
         all_components = []
-        for _, app_components in self._components_for_app.items():
+        for app_components in self._components_for_app.values():
             all_components.extend(app_components)
 
         all_apps = list(self._components_for_app.keys())
@@ -767,7 +762,7 @@ class TemplateProcessor:
         return self.apps_config[app_name]
 
     def _get_component_config(self, component_name):
-        for _, app_cfg in self.apps_config.items():
+        for app_cfg in self.apps_config.values():
             for component in app_cfg["components"]:
                 if component["name"] == component_name:
                     return component
@@ -891,14 +886,14 @@ class TemplateProcessor:
                 "component: '%s' fetching template using git ref '%s'", component_name, rf.ref
             )
             commit, template_content = rf.fetch()
-        except Exception as err:
+        except (FatalError, OSError, ValueError, requests.RequestException) as err:
             log.error("failed to fetch template file for %s", component_name)
             log.debug(traceback.format_exc())
             raise FatalError(err)
 
         try:
             template = yaml.safe_load(template_content)
-        except Exception as err:
+        except yaml.YAMLError as err:
             log.exception("failed to parse template content to yaml for %s", component_name)
             raise FatalError(err)
 
@@ -1029,7 +1024,7 @@ class TemplateProcessor:
         else:
             # check ClowdApp dependencies
             dependencies_for_app = get_clowdapp_dependencies(items)
-            for _, deps in dependencies_for_app.items():
+            for deps in dependencies_for_app.values():
                 all_dependencies = all_dependencies.union(deps)
             # check bonfire.dependencies annotations
             all_dependencies.update(utils_get_dependencies(items))
@@ -1040,7 +1035,7 @@ class TemplateProcessor:
         elif self._should_fetch_optional_deps(app_name, component_name, in_recursion):
             # check ClowdApp optionalDependencies
             dependencies_for_app = get_clowdapp_dependencies(items, optional=True)
-            for _, deps in dependencies_for_app.items():
+            for deps in dependencies_for_app.values():
                 all_dependencies = all_dependencies.union(deps)
             processed_component.optional_deps_handled = True
 
