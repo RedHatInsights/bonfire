@@ -126,10 +126,11 @@ class EphemeralK8sClient:
         """Get a DynamicClient resource handle for a cloud.redhat.com/v1alpha1 CRD."""
         try:
             return self._dynamic.resources.get(api_version=CRD_API_VERSION, kind=kind)
+        except ResourceNotFoundError:
+            raise
         except (
             ApiException,
             DynamicApiError,
-            ResourceNotFoundError,
             KeyError,
             TypeError,
             ValueError,

@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
 from kubernetes.client import ApiException
 from kubernetes.config import ConfigException
 
@@ -141,9 +142,8 @@ class TestK8sClientResourceErrors:
         mock_dynamic_cls.return_value = mock_dynamic
 
         k8s = EphemeralK8sClient(server="https://api.example.com", token="mytoken")
-        # Should catch ResourceNotFoundError without raising
-        res = k8s._get_resource("NamespaceReservation")
-        assert res is None
+        with pytest.raises(ResourceNotFoundError):
+            k8s._get_resource("NamespaceReservation")
 
     @patch("bonfire_lib.k8s_client.DynamicClient")
     @patch("bonfire_lib.k8s_client.client")

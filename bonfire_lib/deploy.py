@@ -11,6 +11,7 @@ import time
 import yaml
 from kubernetes.client import ApiException
 from kubernetes.dynamic.exceptions import DynamicApiError, ResourceNotFoundError
+from urllib3.exceptions import HTTPError
 
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.qontract import QontractClient, get_apps_for_env
@@ -186,7 +187,14 @@ def _apply_resources(
         try:
             result = client.apply_resource(resource, namespace=namespace)
             applied.append(result)
-        except (ApiException, DynamicApiError, ResourceNotFoundError, OSError, ValueError) as err:
+        except (
+            ApiException,
+            DynamicApiError,
+            ResourceNotFoundError,
+            HTTPError,
+            OSError,
+            ValueError,
+        ) as err:
             raise FatalError(f"failed to apply {kind}/{name} to namespace '{namespace}': {err}")
     return applied
 
@@ -230,7 +238,7 @@ def wait_for_resources(
                 if not _is_capi_cluster_ready(cluster):
                     all_ready = False
                     break
-        except (ApiException, DynamicApiError, ResourceNotFoundError, OSError) as err:
+        except (ApiException, DynamicApiError, ResourceNotFoundError, HTTPError, OSError) as err:
             log.debug("error listing CAPI Clusters: %s", err)
 
         # ClowdApps
@@ -245,7 +253,13 @@ def wait_for_resources(
                     if not _is_clowdapp_ready(app):
                         all_ready = False
                         break
-            except (ApiException, DynamicApiError, ResourceNotFoundError, OSError) as err:
+            except (
+                ApiException,
+                DynamicApiError,
+                ResourceNotFoundError,
+                HTTPError,
+                OSError,
+            ) as err:
                 log.debug("error listing ClowdApps: %s", err)
 
         # Deployments
@@ -260,7 +274,13 @@ def wait_for_resources(
                     if not _is_deployment_ready(dep):
                         all_ready = False
                         break
-            except (ApiException, DynamicApiError, ResourceNotFoundError, OSError) as err:
+            except (
+                ApiException,
+                DynamicApiError,
+                ResourceNotFoundError,
+                HTTPError,
+                OSError,
+            ) as err:
                 log.debug("error listing Deployments: %s", err)
 
         if all_ready and found_resources:

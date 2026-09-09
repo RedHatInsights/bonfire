@@ -330,3 +330,31 @@ class TestDeployResourceErrors:
 
         # Should log and continue, successfully detecting Deployments are ready
         wait_for_resources(client, "test-ns", timeout=30)
+
+    def test_apply_resources_http_error(self):
+        from urllib3.exceptions import HTTPError
+
+        from bonfire_lib.deploy import _apply_resources
+
+        client = MagicMock()
+        client.apply_resource.side_effect = HTTPError("Connection reset")
+
+        with pytest.raises(FatalError, match="failed to apply"):
+            _apply_resources(client, "test-ns", [{"kind": "Cluster", "metadata": {"name": "c1"}}])
+
+    @patch("time.sleep")
+    def test_wait_for_resources_handles_http_errors(self, mock_sleep):
+        from urllib3.exceptions import HTTPError
+
+        from bonfire_lib.deploy import wait_for_resources
+
+        client = MagicMock()
+        # Network errors listing CAPI Cluster and ClowdApp, but Deployments ready
+        client.list_dynamic_resources.side_effect = [
+            HTTPError("Connection reset"),
+            HTTPError("Connection reset"),
+            [{"status": {"replicas": 1, "readyReplicas": 1}}],
+        ]
+
+        # Should log and continue, successfully detecting Deployments are ready
+        wait_for_resources(client, "test-ns", timeout=30)

@@ -15,7 +15,6 @@ import os
 import time
 
 import pytest
-from kubernetes.client import ApiException
 
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.utils import FatalError
@@ -66,7 +65,7 @@ def reservation_cleanup(client):
             from bonfire_lib.reservations import release
 
             release(client, name=res_name)
-        except (ApiException, FatalError, OSError, RuntimeError, ValueError) as exc:
+        except Exception as exc:
             log.warning("cleanup: failed to release reservation '%s': %s", res_name, exc)
 
 
@@ -95,7 +94,7 @@ class TestEphemeralMCPFlow:
         assert "size" in cap
 
     def test_reserve_status_extend_release(self, client, reservation_cleanup):
-        from bonfire_lib.reservations import extend, release, reserve
+        from bonfire_lib.reservations import reserve, extend, release
         from bonfire_lib.status import get_reservation, list_reservations
 
         result = reserve(
@@ -127,7 +126,7 @@ class TestEphemeralMCPFlow:
         reservation_cleanup.remove(res_name)
 
     def test_describe_namespace(self, client, reservation_cleanup):
-        from bonfire_lib.reservations import release, reserve
+        from bonfire_lib.reservations import reserve, release
         from bonfire_lib.status import describe_namespace
 
         result = reserve(

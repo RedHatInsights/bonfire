@@ -1,11 +1,10 @@
 """Tests for bonfire_mcp.server module — tool definitions and dispatch."""
 
-from unittest.mock import MagicMock, patch
-
 import pytest
-from mcp.types import CallToolResult
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from bonfire_mcp.server import TOOLS, call_tool, list_tools
+from bonfire_mcp.server import call_tool, list_tools, TOOLS
+from mcp.types import CallToolResult
 
 
 class TestToolDefinitions:
@@ -375,7 +374,6 @@ class TestDeployRosa:
             mock_reservations.reserve.return_value = reservation_result
             with patch("bonfire_mcp.server.deploy") as mock_deploy:
                 from bonfire_lib.utils import FatalError as _FE
-
                 mock_deploy.deploy_rosa.side_effect = _FE("deploy failed")
                 result = await call_tool(
                     "ephemeral_deploy_rosa",
@@ -388,34 +386,6 @@ class TestDeployRosa:
         mock_reservations.release.assert_called_once_with(
             self.mock_client, namespace="ephemeral-rosa-abc"
         )
-
-    @pytest.mark.asyncio
-    async def test_deploy_rosa_cleanup_failure_preserves_error(self):
-        """Test that failure in cleanup does not mask the original deployment error."""
-        reservation_result = {
-            "name": "bonfire-reservation-abc",
-            "namespace": "ephemeral-rosa-abc",
-            "state": "active",
-            "expiration": "2026-06-18T14:00:00Z",
-            "requester": "test-user",
-            "pool": "rosa",
-        }
-
-        with patch("bonfire_mcp.server.reservations") as mock_reservations:
-            mock_reservations.reserve.return_value = reservation_result
-            mock_reservations.release.side_effect = RuntimeError("release failed")
-            with patch("bonfire_mcp.server.deploy") as mock_deploy:
-                from bonfire_lib.utils import FatalError as _FE
-
-                mock_deploy.deploy_rosa.side_effect = _FE("original deploy failure")
-                result = await call_tool(
-                    "ephemeral_deploy_rosa",
-                    {"duration": "2h"},
-                )
-
-        assert isinstance(result, CallToolResult)
-        assert result.isError is True
-        assert "original deploy failure" in result.content[0].text
 
     @pytest.mark.asyncio
     async def test_deploy_rosa_invalid_duration(self):

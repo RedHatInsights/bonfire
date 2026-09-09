@@ -21,7 +21,7 @@ requires the `oc` binary; the library and MCP server use the `kubernetes` Python
 `tabulate`, `python-dotenv`, `sh`, `setuptools_scm`, `truststore`, `app-common-python >= 0.1.6`.
 
 **Dev/test:** `pytest`, `pytest-asyncio`, `pytest-mock`, `requests-mock`, `mock`. Install with
-`pip install -e ".[test,mcp]"`.
+`pip install -e ".[test]"` (and `pip install -e ./bonfire_mcp` for MCP server development).
 
 ## Development Commands
 
@@ -29,19 +29,25 @@ See [Local Development](README.md#local-development) in the README for the full 
 Key commands for agent-driven workflows:
 
 ```bash
-# Install in editable mode with test and MCP extras
-pip install -e ".[test,mcp]"
+# Install in editable mode with test extras
+pip install -e ".[test]"
+pip install -e ./bonfire_mcp
 
-# Run all tests (integration tests excluded by default)
+# Run bonfire CLI and library tests (integration tests excluded by default)
 pytest -sv
 
+# Run MCP server test suite
+pytest bonfire_mcp/tests/ -sv
+
+# Run all test suites
+pytest tests/ bonfire_mcp/tests/ -sv
+
 # Run a specific test suite
-pytest tests/test_bonfire_mcp/ -sv
 pytest tests/test_bonfire_lib/ -sv
 pytest tests/test_bonfire.py -sv
 
 # Integration tests (require live K8s cluster — never run in CI)
-pytest -m integration -sv
+pytest -m integration bonfire_mcp/tests/test_integration.py -sv
 
 # Lint and format
 ruff check --fix .
@@ -54,14 +60,13 @@ python -m build -o dist/
 **CI runs:** `ruff check`, pre-commit hooks, `python -m build`, `twine check --strict`, and
 `pytest -sv` on Python 3.10/3.11/3.12 (Ubuntu + macOS) with `oc` 4.16 available.
 
-> **Note:** The `cli` extra referenced in some older docs is not defined in `pyproject.toml`.
-> Use the base install or `.[test,mcp]` instead.
+> **Note:** The root `pyproject.toml` defines the `test` extra. The MCP server is packaged
+> separately in `bonfire_mcp/` (`crc-bonfire-mcp`).
 
 ## Architecture
 
-Three sub-packages share one `pyproject.toml`: `bonfire/` (Click CLI, requires `oc` binary),
-`bonfire_lib/` (shared library using the `kubernetes` Python client, no `oc` needed), and
-`bonfire_mcp/` (MCP server, imports only from `bonfire_lib.*`). Entry points:
+The repository contains two distributions: `bonfire` + `bonfire_lib` in the root `pyproject.toml`
+(`crc-bonfire`), and `bonfire_mcp` in `bonfire_mcp/pyproject.toml` (`crc-bonfire-mcp`). Entry points:
 `bonfire` → `bonfire.bonfire:main_with_handler`; `bonfire-mcp` → `bonfire_mcp.server:main`.
 The CLI bridges reservation lifecycle into `bonfire_lib` via `bonfire/namespaces.py`.
 
@@ -111,9 +116,9 @@ Tests marked `@pytest.mark.integration` require a live cluster and are excluded 
 
 ## Common Mistakes
 
-1. **Using the `cli` extra that doesn't exist.** `pyproject.toml` defines `lib`, `mcp`, and
-   `test` extras. The `cli` extra does not exist — `pip install crc-bonfire[cli,test,mcp]` will
-   fail. Use `pip install -e ".[test,mcp]"` for development.
+1. **Using extras on the root package that don't exist.** Root `pyproject.toml` defines only the
+   `test` extra. The legacy `cli` and `mcp` extras do not exist on `crc-bonfire` — use
+   `pip install -e ".[test]"` for CLI/lib development and `pip install -e ./bonfire_mcp` for MCP.
 
 2. **Importing `bonfire.*` from `bonfire_mcp`.** The MCP server must only import from
    `bonfire_lib.*`. `bonfire.*` has an `oc` binary dependency that is absent in MCP environments.

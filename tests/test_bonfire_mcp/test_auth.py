@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from kubernetes.client import ApiException
 
-from bonfire_mcp.auth import _preflight_check, load_k8s_client
+from bonfire_mcp.auth import load_k8s_client, _preflight_check
 
 
 def _make_api_exception(status: int, reason: str = "") -> ApiException:
@@ -149,22 +149,4 @@ class TestPreflightCheck:
         client = MagicMock()
         client.list_pools.side_effect = _make_api_exception(500, "Internal Server Error")
         with pytest.raises(RuntimeError, match="Unexpected error.*500"):
-            _preflight_check(client)
-
-    def test_resource_not_found_error(self):
-        from kubernetes.dynamic.exceptions import ResourceNotFoundError
-
-        client = MagicMock()
-        client.list_pools.side_effect = ResourceNotFoundError("CRD not found")
-        with pytest.raises(RuntimeError, match="NamespacePool CRD not found on cluster"):
-            _preflight_check(client)
-
-    def test_urllib3_network_error(self):
-        from urllib3.exceptions import MaxRetryError
-
-        client = MagicMock()
-        client.list_pools.side_effect = MaxRetryError(
-            None, "https://k8s.example.com", "Connection failed"
-        )
-        with pytest.raises(RuntimeError, match="Failed to connect to the management cluster"):
             _preflight_check(client)
