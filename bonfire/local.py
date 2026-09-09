@@ -2,7 +2,7 @@ import logging
 
 import yaml
 
-from bonfire.utils import FatalError, RepoFile, get_dupes, SYNTAX_ERR
+from bonfire.utils import SYNTAX_ERR, FatalError, RepoFile, get_dupes
 
 log = logging.getLogger(__name__)
 

@@ -24,8 +24,8 @@ component relationships, data flows, and tradeoffs. For installation and usage, 
 
 ## Package Structure
 
-The distribution ships three top-level Python packages, all discovered by setuptools via
-`packages.find` with `include = ["bonfire*", "bonfire_lib*", "bonfire_mcp*"]`.
+The repository contains two distributions: `crc-bonfire` (`bonfire/` and `bonfire_lib/`)
+and `crc-bonfire-mcp` (`bonfire_mcp/` and `bonfire_lib/`).
 
 ### `bonfire/` — CLI sub-package
 
@@ -73,8 +73,9 @@ Jinja2 templates referenced by `core_resources.py` live in `bonfire_lib/template
 
 ### `bonfire_mcp/` — MCP server sub-package
 
-Entry point: `bonfire_mcp.server:main`. Requires the `mcp` optional dependency
-(`pip install crc-bonfire[mcp]`). Imports only from `bonfire_lib.*` — never from `bonfire.*`.
+Packaged as `crc-bonfire-mcp` via `bonfire_mcp/pyproject.toml`.
+Entry point: `bonfire_mcp.server:main`. Requires the `mcp` dependency
+(`pip install -e ./bonfire_mcp`). Imports only from `bonfire_lib.*` — never from `bonfire.*`.
 
 | File | Responsibility |
 |---|---|
@@ -791,4 +792,4 @@ identically to clusters with no cluster reservations.
 | **Module-level constants in `bonfire/config.py`** | Constants are evaluated at import time from env vars | Makes testing harder than `Settings.from_env()` style; a test that changes env vars must reload the module |
 | **`oc` binary version coupling** | `ocviapy>=1.7.0` is the only version constraint | Breaking changes in `oc` CLI output format would silently affect all JSON-parsed responses |
 | **GitLab CA cert fetched at runtime** | `RepoFile._fetch_gitlab()` downloads from `certs.corp.redhat.com` | Breaks in non-Red Hat network environments; cert is cached in a tempfile and cleaned up via `atexit` |
-| **`MCP` optional dependency** | `mcp>=1.0.0` is in `[project.optional-dependencies.mcp]` | Default install does not include MCP support; users must install `crc-bonfire[mcp]` explicitly |
+| **`MCP` packaging separation** | `bonfire_mcp` is packaged separately as `crc-bonfire-mcp` in `bonfire_mcp/pyproject.toml` | Enables lightweight container and MCP client installs without full CLI dependencies |

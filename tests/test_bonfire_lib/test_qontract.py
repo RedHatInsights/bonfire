@@ -1,14 +1,13 @@
 """Tests for bonfire_lib.qontract module."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from bonfire_lib.qontract import (
     QontractClient,
-    get_apps_for_env,
-    _to_dict,
-    _process_env_parameters,
     _check_replace_other,
+    _process_env_parameters,
+    _to_dict,
+    get_apps_for_env,
 )
 
 
@@ -61,7 +60,7 @@ class TestQontractClient:
     @patch("bonfire_lib.qontract.RequestsHTTPTransport")
     @patch("bonfire_lib.qontract.GQLClient")
     def test_init_with_token(self, mock_gql, mock_transport):
-        client = QontractClient(
+        QontractClient(
             base_url="https://example.com/graphql",
             token="Bearer mytoken",
         )
@@ -72,7 +71,7 @@ class TestQontractClient:
     @patch("bonfire_lib.qontract.RequestsHTTPTransport")
     @patch("bonfire_lib.qontract.GQLClient")
     def test_init_with_basic_auth(self, mock_gql, mock_transport):
-        client = QontractClient(
+        QontractClient(
             base_url="https://example.com/graphql",
             username="user",
             password="pass",
@@ -87,7 +86,7 @@ class TestQontractClient:
             "os.environ",
             {"QONTRACT_BASE_URL": "https://env.example.com/graphql"},
         ):
-            client = QontractClient()
+            QontractClient()
         call_kwargs = mock_transport.call_args
         assert call_kwargs[1]["url"] == "https://env.example.com/graphql"
 

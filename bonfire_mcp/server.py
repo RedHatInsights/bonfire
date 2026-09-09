@@ -12,14 +12,10 @@ import logging
 from mcp.server import Server
 from mcp.types import CallToolResult, TextContent, Tool
 
+from bonfire_lib import deploy, pools, reservations, status
 from bonfire_lib.config import Settings
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.utils import FatalError, validate_dns_name, validate_time_string
-import bonfire_lib.deploy as deploy
-import bonfire_lib.reservations as reservations
-import bonfire_lib.pools as pools
-import bonfire_lib.status as status
-
 from bonfire_mcp.auth import load_k8s_client
 from bonfire_mcp.formatters import (
     format_deploy_rosa,
@@ -332,7 +328,9 @@ async def _deploy_rosa(
         )
 
         describe_info = await asyncio.to_thread(
-            status.describe_namespace, client, namespace,
+            status.describe_namespace,
+            client,
+            namespace,
         )
 
         return {
@@ -343,11 +341,12 @@ async def _deploy_rosa(
                 f"({', '.join(deploy_result['components_deployed'])})"
             ),
         }
-    except Exception:
+    except Exception:  # noqa: BLE001, RUF100 - cleanup must preserve the original deployment failure
         try:
             reservations.release(client, namespace=namespace)
-        except Exception:
-            pass
+        except Exception as err:  # noqa: BLE001, RUF100 - cleanup failure must not mask deployment failure
+            log.warning("failed to release namespace '%s' during cleanup: %s", namespace, err)
+
         raise
 
 
@@ -475,7 +474,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent] | CallToolR
         return _error_result(f"Validation error: {e}")
     except RuntimeError as e:
         return _error_result(f"Connection error: {e}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001, RUF100 - MCP must convert unexpected failures to tool results
         log.exception("unexpected error in tool %s", name)
         return _error_result(f"Unexpected error: {e}")
 

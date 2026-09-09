@@ -2,6 +2,7 @@ import atexit
 import collections
 import copy
 import difflib
+import importlib.metadata as importlib_metadata
 import json
 import logging
 import os
@@ -9,33 +10,21 @@ import pprint
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
 import time
-from urllib.request import urlretrieve
-import sys
-
-if sys.version_info >= (3, 8):
-    import importlib.metadata as importlib_metadata
-else:
-    import importlib_metadata
-
-from packaging import version
 from pathlib import Path
 from urllib.parse import quote, urlparse
-
-from typing import List, Set
-
-import sys
+from urllib.request import urlretrieve
 
 import requests
 import yaml
 from cached_property import cached_property
+from packaging import version
 
 
 class FatalError(Exception):
     """An exception that will cause the CLI to exit"""
-
-    pass
 
 
 def get_config_path():
@@ -113,7 +102,7 @@ def _get_gl_ca_cert():
 
         log.debug("GitLab CA certificate downloaded to %s", _gl_ca_cert_path)
         return _gl_ca_cert_path
-    except Exception as err:
+    except (OSError, ValueError) as err:
         raise FatalError(f"Failed to download GitLab CA certificate from {GL_CA_CERT_URL}: {err}")
 
 
@@ -121,16 +110,16 @@ class AppOrComponentSelector:
     def __init__(
         self,
         select_all: bool = False,
-        apps: List[str] = None,
-        components: List[str] = None,
+        apps: list[str] | None = None,
+        components: list[str] | None = None,
     ):
         self.select_all = select_all
         self.apps = apps or []
         self.components = self._build_component_dict(components)
 
     @staticmethod
-    def _build_component_dict(components: List[str]):
-        component_dict: dict[str, Set] = collections.defaultdict(lambda: {None})
+    def _build_component_dict(components: list[str]):
+        component_dict: dict[str, set] = collections.defaultdict(lambda: {None})
 
         components = components or []
         for item in components:
@@ -249,7 +238,7 @@ class RepoFile:
     @classmethod
     def from_config(cls, d):
         required_keys = ["host", "repo", "path"]
-        missing_keys = [k for k in required_keys if k not in d.keys()]
+        missing_keys = [k for k in required_keys if k not in d]
         if missing_keys:
             raise FatalError(f"{SYNTAX_ERR}, repo config missing keys: {', '.join(missing_keys)}")
 
@@ -339,7 +328,7 @@ class RepoFile:
                     if self.ref in self._alternate_refs:
                         alts = ", ".join(self._alternate_refs[self.ref])
                         alts_txt = f" and its alternates: {alts}"
-                    raise Exception(
+                    raise FatalError(
                         f"git ref fetch failed for '{self.ref}'{alts_txt}, see logs for details"
                     )
 
@@ -410,7 +399,7 @@ class RepoFile:
 
         if status == 429 or (status == 403 and "api rate limit exceeded" in response.text.lower()):
             if attempt == 3:
-                raise Exception(f"GET {url} continues to hit rate limit after 3 attempts")
+                raise FatalError(f"GET {url} continues to hit rate limit after 3 attempts")
 
             if "retry-after" in response.headers:
                 sleep_seconds = int(response.headers["retry-after"])
@@ -482,7 +471,7 @@ def get_clowdapp_dependencies(items, optional=False):
     key = "optionalDependencies" if optional else "dependencies"
     clowdapp_items = [item for item in items if item.get("kind").lower() == "clowdapp"]
 
-    deps_for_app = dict()
+    deps_for_app = {}
 
     for clowdapp in clowdapp_items:
         name = clowdapp["metadata"]["name"]
@@ -528,10 +517,13 @@ def find_what_depends_on(apps_config, clowdapp_name):
             try:
                 rf = RepoFile.from_config(component)
                 _, template_content = rf.fetch()
-            except Exception as err:
+                template = yaml.safe_load(template_content)
+            except (FatalError, OSError, ValueError, yaml.YAMLError) as err:
                 log.error("failed to fetch template file for %s: %s", component_name, err)
+                continue
 
-            template = yaml.safe_load(template_content)
+            if not isinstance(template, dict):
+                continue
             items = template.get("objects", [])
 
             dependencies = get_clowdapp_dependencies(items)
@@ -563,7 +555,7 @@ def find_what_depends_on(apps_config, clowdapp_name):
 def load_file(path):
     """Load a .json/.yml/.yaml file."""
     if not os.path.isfile(path):
-        raise FatalError("Path '{}' is not a file or does not exist".format(path))
+        raise FatalError(f"Path '{path}' is not a file or does not exist")
 
     _, file_ext = os.path.splitext(path)
 
@@ -573,10 +565,10 @@ def load_file(path):
         elif file_ext == ".json":
             content = json.load(f)
         else:
-            raise FatalError("File '{}' must be a YAML or JSON file".format(path))
+            raise FatalError(f"File '{path}' must be a YAML or JSON file")
 
     if not content:
-        raise FatalError("File '{}' is empty!".format(path))
+        raise FatalError(f"File '{path}' is empty!")
 
     return content
 
@@ -834,8 +826,8 @@ def merge_app_configs(apps_config, new_apps, method="merge"):
         # 'components' key should be present but we'll initialize it as [] if it is absent
         apps_config[app_name]["components"] = apps_config[app_name].get("components") or []
         app_components = apps_config[app_name]["components"]
-        new_apps[app_name]["components"] = new_apps[app_name].get("components") or []
-        new_app_components = new_apps[app_name]["components"]
+        new_apps[app_name]["components"] = new_app_cfg.get("components") or []
+        new_app_components = new_app_cfg["components"]
 
         # if the newly defined app is present in existing apps, merge the components config
         app_components_orig = copy.deepcopy(app_components)

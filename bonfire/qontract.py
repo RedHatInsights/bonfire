@@ -192,10 +192,7 @@ def _check_replace_other(other_params, this_params, preferred_params):
 
     log.debug("    `-- final: 'this' weight: %d, 'other' weight: %d", this_weight, other_weight)
 
-    if this_weight > other_weight:
-        return True
-
-    return False
+    return this_weight > other_weight
 
 
 def _add_component_if_priority_higher(

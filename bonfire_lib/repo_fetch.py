@@ -12,7 +12,7 @@ import os
 import re
 import tempfile
 import time
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 from urllib.request import urlretrieve
 
 import requests
@@ -24,17 +24,11 @@ log = logging.getLogger(__name__)
 
 GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
-GH_BRANCH_URL = (
-    GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
-)
+GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
 
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
-GL_PROJECTS_URL = (
-    "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects?search={name}"
-)
-GL_BRANCH_URL = (
-    "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
-)
+GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects?search={name}"
+GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
 
 GL_CA_CERT_URL = "https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem"
 
@@ -54,10 +48,8 @@ def _get_gl_ca_cert():
             _gl_ca_cert_path = fp.name
         atexit.register(os.unlink, _gl_ca_cert_path)
         return _gl_ca_cert_path
-    except Exception as err:
-        raise FatalError(
-            f"Failed to download GitLab CA certificate from {GL_CA_CERT_URL}: {err}"
-        )
+    except (OSError, ValueError, requests.RequestException) as err:
+        raise FatalError(f"Failed to download GitLab CA certificate from {GL_CA_CERT_URL}: {err}")
 
 
 class RepoFile:
@@ -89,21 +81,17 @@ class RepoFile:
         required_keys = ["host", "repo", "path"]
         missing = [k for k in required_keys if k not in component]
         if missing:
-            raise FatalError(
-                f"component config missing keys: {', '.join(missing)}"
-            )
+            raise FatalError(f"component config missing keys: {', '.join(missing)}")
 
         repo_str = component["repo"]
         host = component["host"]
 
         if host in ("github", "gitlab"):
             if "/" not in repo_str:
-                raise FatalError(
-                    f"invalid repo '{repo_str}', expected format: <org>/<repo>"
-                )
+                raise FatalError(f"invalid repo '{repo_str}', expected format: <org>/<repo>")
             last_slash = repo_str.rindex("/")
             org = repo_str[:last_slash]
-            repo = repo_str[last_slash + 1:]
+            repo = repo_str[last_slash + 1 :]
         else:
             raise FatalError(f"unsupported host '{host}'")
 
@@ -150,7 +138,8 @@ class RepoFile:
             else:
                 log.info(
                     "failed to fetch ref '%s' (http %d)",
-                    ref, response.status_code,
+                    ref,
+                    response.status_code,
                 )
                 if idx + 1 < len(refs_to_try):
                     continue
@@ -158,9 +147,7 @@ class RepoFile:
                 if self.ref in self._alternate_refs:
                     alts = ", ".join(self._alternate_refs[self.ref])
                     alts_txt = f" and alternates: {alts}"
-                raise FatalError(
-                    f"git ref fetch failed for '{self.ref}'{alts_txt}"
-                )
+                raise FatalError(f"git ref fetch failed for '{self.ref}'{alts_txt}")
 
         return response
 
@@ -173,28 +160,20 @@ class RepoFile:
         url = response.request.url
 
         if status_code == 429 or (
-            status_code == 403
-            and "api rate limit exceeded" in response.text.lower()
+            status_code == 403 and "api rate limit exceeded" in response.text.lower()
         ):
             if attempt == 3:
-                raise FatalError(
-                    f"GET {url} continues to hit rate limit after 3 attempts"
-                )
+                raise FatalError(f"GET {url} continues to hit rate limit after 3 attempts")
 
             if "retry-after" in response.headers:
                 sleep_seconds = int(response.headers["retry-after"])
             elif response.headers.get("x-ratelimit-remaining") == "0":
-                reset_time = (
-                    int(response.headers["x-ratelimit-reset"])
-                    or time.time() + 60
-                )
+                reset_time = int(response.headers["x-ratelimit-reset"]) or time.time() + 60
                 sleep_seconds = reset_time - time.time()
             else:
                 sleep_seconds = 60
 
-            log.warning(
-                "GET %s rate limited, retrying after %ds", url, sleep_seconds
-            )
+            log.warning("GET %s rate limited, retrying after %ds", url, sleep_seconds)
             time.sleep(sleep_seconds)
             kwargs["_attempt"] = attempt + 1
             return self._get(*args, **kwargs)
@@ -203,9 +182,7 @@ class RepoFile:
 
     def _get_gh_commit_hash(self):
         def get_ref_func(ref):
-            url = GH_BRANCH_URL.format(
-                org=self.org, repo=self.repo, branch=ref
-            )
+            url = GH_BRANCH_URL.format(org=self.org, repo=self.repo, branch=ref)
             return self._get(url, headers=self._gh_auth_headers)
 
         response = self._get_ref(get_ref_func)
@@ -219,28 +196,20 @@ class RepoFile:
         if not GIT_SHA_RE.match(commit):
             commit = self._get_gh_commit_hash()
 
-        url = GH_RAW_URL.format(
-            org=self.org, repo=self.repo, ref=commit, path=self.path
-        )
+        url = GH_RAW_URL.format(org=self.org, repo=self.repo, ref=commit, path=self.path)
         response = self._get(url, headers=self._gh_auth_headers)
         if response.status_code == 404:
-            raise FatalError(
-                f"template not found at {url} (http 404)"
-            )
+            raise FatalError(f"template not found at {url} (http 404)")
         response.raise_for_status()
         return commit, response.content
 
     def _get_gl_commit_hash(self):
         group, project = quote(self.org, safe=""), self.repo
-        url = GL_PROJECTS_URL.format(
-            type="groups", group=group, name=project
-        )
+        url = GL_PROJECTS_URL.format(type="groups", group=group, name=project)
         response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
             response = self._get(
-                GL_PROJECTS_URL.format(
-                    type="users", group=group, name=project
-                ),
+                GL_PROJECTS_URL.format(type="users", group=group, name=project),
                 verify=self._gl_certfile,
             )
         response.raise_for_status()
@@ -252,9 +221,7 @@ class RepoFile:
                 project_id = p["id"]
 
         if not project_id:
-            raise FatalError(
-                f"gitlab project ID not found for {self.org}/{self.repo}"
-            )
+            raise FatalError(f"gitlab project ID not found for {self.org}/{self.repo}")
 
         def get_ref_func(ref):
             return self._get(
@@ -270,13 +237,9 @@ class RepoFile:
         if not GIT_SHA_RE.match(commit):
             commit = self._get_gl_commit_hash()
 
-        url = GL_RAW_URL.format(
-            group=self.org, project=self.repo, ref=commit, path=self.path
-        )
+        url = GL_RAW_URL.format(group=self.org, project=self.repo, ref=commit, path=self.path)
         response = self._get(url, verify=self._gl_certfile)
         if response.status_code == 404:
-            raise FatalError(
-                f"template not found at {url} (http 404)"
-            )
+            raise FatalError(f"template not found at {url} (http 404)")
         response.raise_for_status()
         return commit, response.content

@@ -9,6 +9,9 @@ import logging
 import time
 
 import yaml
+from kubernetes.client import ApiException
+from kubernetes.dynamic.exceptions import DynamicApiError, ResourceNotFoundError
+from urllib3.exceptions import HTTPError
 
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.qontract import QontractClient, get_apps_for_env
@@ -56,23 +59,23 @@ def deploy_rosa(
 
     log.info(
         "deploying to namespace '%s' (env=%s, components=%s)",
-        namespace, target_env, component_filter,
+        namespace,
+        target_env,
+        component_filter,
     )
 
     apps_config = get_apps_for_env(
-        target_env, client=qontract_client,
+        target_env,
+        client=qontract_client,
     )
 
     if not apps_config:
-        raise FatalError(
-            f"no app configs found for env '{target_env}' in app-interface"
-        )
+        raise FatalError(f"no app configs found for env '{target_env}' in app-interface")
 
     components = _collect_components(apps_config, component_filter)
     if not components:
         raise FatalError(
-            f"no components matching filter {component_filter} "
-            f"found in env '{target_env}'"
+            f"no components matching filter {component_filter} found in env '{target_env}'"
         )
 
     all_resources = []
@@ -88,7 +91,8 @@ def deploy_rosa(
         processed_items = client.process_template(template, params, namespace=namespace)
         log.info(
             "component '%s' produced %d resources",
-            component["name"], len(processed_items),
+            component["name"],
+            len(processed_items),
         )
 
         all_resources.extend(processed_items)
@@ -98,7 +102,9 @@ def deploy_rosa(
 
     log.info(
         "applied %d resources to namespace '%s', waiting for readiness (timeout=%ds)",
-        len(applied), namespace, timeout,
+        len(applied),
+        namespace,
+        timeout,
     )
     wait_for_resources(client, namespace, timeout)
 
@@ -109,14 +115,12 @@ def deploy_rosa(
     }
 
 
-def _collect_components(
-    apps_config: dict, component_filter: list[str]
-) -> list[dict]:
+def _collect_components(apps_config: dict, component_filter: list[str]) -> list[dict]:
     """Flatten apps_config and filter to requested components."""
     components = []
     filter_set = set(component_filter) if component_filter else None
 
-    for app_name, app in apps_config.items():
+    for app in apps_config.values():
         for component in app.get("components", []):
             if filter_set and component["name"] not in filter_set:
                 continue
@@ -130,7 +134,11 @@ def _fetch_template(component: dict) -> tuple[str, bytes]:
     rf = RepoFile.from_component(component)
     log.debug(
         "component '%s': fetching template from %s/%s ref=%s path=%s",
-        component["name"], rf.org, rf.repo, rf.ref, rf.path,
+        component["name"],
+        rf.org,
+        rf.repo,
+        rf.ref,
+        rf.path,
     )
     return rf.fetch()
 
@@ -139,10 +147,8 @@ def _parse_template(component_name: str, content: bytes) -> dict:
     """Parse template YAML content."""
     try:
         return yaml.safe_load(content)
-    except Exception as err:
-        raise FatalError(
-            f"failed to parse template YAML for component '{component_name}': {err}"
-        )
+    except yaml.YAMLError as err:
+        raise FatalError(f"failed to parse template YAML for component '{component_name}': {err}")
 
 
 def _build_parameters(
@@ -181,10 +187,15 @@ def _apply_resources(
         try:
             result = client.apply_resource(resource, namespace=namespace)
             applied.append(result)
-        except Exception as err:
-            raise FatalError(
-                f"failed to apply {kind}/{name} to namespace '{namespace}': {err}"
-            )
+        except (
+            ApiException,
+            DynamicApiError,
+            ResourceNotFoundError,
+            HTTPError,
+            OSError,
+            ValueError,
+        ) as err:
+            raise FatalError(f"failed to apply {kind}/{name} to namespace '{namespace}': {err}")
     return applied
 
 
@@ -211,8 +222,7 @@ def wait_for_resources(
         elapsed = time.time() - start
         if elapsed >= timeout:
             raise TimeoutError(
-                f"timed out after {timeout}s waiting for resources "
-                f"in namespace '{namespace}'"
+                f"timed out after {timeout}s waiting for resources in namespace '{namespace}'"
             )
 
         all_ready = True
@@ -228,7 +238,7 @@ def wait_for_resources(
                 if not _is_capi_cluster_ready(cluster):
                     all_ready = False
                     break
-        except Exception as err:
+        except (ApiException, DynamicApiError, ResourceNotFoundError, HTTPError, OSError) as err:
             log.debug("error listing CAPI Clusters: %s", err)
 
         # ClowdApps
@@ -243,7 +253,13 @@ def wait_for_resources(
                     if not _is_clowdapp_ready(app):
                         all_ready = False
                         break
-            except Exception as err:
+            except (
+                ApiException,
+                DynamicApiError,
+                ResourceNotFoundError,
+                HTTPError,
+                OSError,
+            ) as err:
                 log.debug("error listing ClowdApps: %s", err)
 
         # Deployments
@@ -258,7 +274,13 @@ def wait_for_resources(
                     if not _is_deployment_ready(dep):
                         all_ready = False
                         break
-            except Exception as err:
+            except (
+                ApiException,
+                DynamicApiError,
+                ResourceNotFoundError,
+                HTTPError,
+                OSError,
+            ) as err:
                 log.debug("error listing Deployments: %s", err)
 
         if all_ready and found_resources:
@@ -268,7 +290,8 @@ def wait_for_resources(
         if not found_resources:
             log.debug(
                 "no resources found yet in namespace '%s' (%.0fs elapsed)",
-                namespace, elapsed,
+                namespace,
+                elapsed,
             )
 
         time.sleep(poll_interval)
@@ -290,9 +313,11 @@ def _is_clowdapp_ready(app: dict) -> bool:
     conditions = status.get("conditions", [])
     for cond in conditions:
         cond_type = cond.get("type", "")
-        if cond_type in ("ReconciliationSuccessful", "DeploymentsReady", "Ready"):
-            if cond.get("status") == "True":
-                return True
+        if (
+            cond_type in ("ReconciliationSuccessful", "DeploymentsReady", "Ready")
+            and cond.get("status") == "True"
+        ):
+            return True
 
     deployments = status.get("deployments", {})
     if deployments:

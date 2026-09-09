@@ -1,16 +1,17 @@
 """Tests for bonfire_lib.deploy module."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, call
 
 from bonfire_lib.deploy import (
-    deploy_rosa,
-    wait_for_resources,
-    _collect_components,
     _build_parameters,
+    _collect_components,
     _is_capi_cluster_ready,
     _is_clowdapp_ready,
     _is_deployment_ready,
+    deploy_rosa,
+    wait_for_resources,
 )
 from bonfire_lib.utils import FatalError
 
@@ -51,9 +52,7 @@ class TestCollectComponents:
 class TestBuildParameters:
     def test_default_image_tag(self):
         component = {"parameters": {}, "hash_length": 7}
-        params = _build_parameters(
-            component, "abc1234567890", "my-ns", "env-my-ns"
-        )
+        params = _build_parameters(component, "abc1234567890", "my-ns", "env-my-ns")
         assert params["IMAGE_TAG"] == "abc1234"
         assert params["NAMESPACE"] == "my-ns"
         assert params["ENV_NAME"] == "env-my-ns"
@@ -70,41 +69,21 @@ class TestBuildParameters:
 
     def test_custom_hash_length(self):
         component = {"parameters": {}, "hash_length": 10}
-        params = _build_parameters(
-            component, "abc1234567890abcdef", "ns", "env-ns"
-        )
+        params = _build_parameters(component, "abc1234567890abcdef", "ns", "env-ns")
         assert params["IMAGE_TAG"] == "abc1234567"
 
 
 class TestIsCapiClusterReady:
     def test_ready_condition(self):
-        cluster = {
-            "status": {
-                "conditions": [
-                    {"type": "Ready", "status": "True"}
-                ]
-            }
-        }
+        cluster = {"status": {"conditions": [{"type": "Ready", "status": "True"}]}}
         assert _is_capi_cluster_ready(cluster) is True
 
     def test_available_condition(self):
-        cluster = {
-            "status": {
-                "conditions": [
-                    {"type": "Available", "status": "True"}
-                ]
-            }
-        }
+        cluster = {"status": {"conditions": [{"type": "Available", "status": "True"}]}}
         assert _is_capi_cluster_ready(cluster) is True
 
     def test_not_ready(self):
-        cluster = {
-            "status": {
-                "conditions": [
-                    {"type": "Ready", "status": "False"}
-                ]
-            }
-        }
+        cluster = {"status": {"conditions": [{"type": "Ready", "status": "False"}]}}
         assert _is_capi_cluster_ready(cluster) is False
 
     def test_no_conditions(self):
@@ -124,23 +103,11 @@ class TestIsCapiClusterReady:
 
 class TestIsClowdappReady:
     def test_ready_via_condition(self):
-        app = {
-            "status": {
-                "conditions": [
-                    {"type": "ReconciliationSuccessful", "status": "True"}
-                ]
-            }
-        }
+        app = {"status": {"conditions": [{"type": "ReconciliationSuccessful", "status": "True"}]}}
         assert _is_clowdapp_ready(app) is True
 
     def test_not_ready_via_condition(self):
-        app = {
-            "status": {
-                "conditions": [
-                    {"type": "ReconciliationSuccessful", "status": "False"}
-                ]
-            }
-        }
+        app = {"status": {"conditions": [{"type": "ReconciliationSuccessful", "status": "False"}]}}
         assert _is_clowdapp_ready(app) is False
 
     def test_ready_via_deployments(self):
@@ -333,3 +300,61 @@ objects:
 
         with pytest.raises(FatalError, match="no components matching"):
             deploy_rosa(mock_client, namespace="ns")
+
+
+class TestDeployResourceErrors:
+    def test_apply_resources_resource_not_found(self):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        from bonfire_lib.deploy import _apply_resources
+
+        client = MagicMock()
+        client.apply_resource.side_effect = ResourceNotFoundError("CRD not found")
+
+        with pytest.raises(FatalError, match="failed to apply"):
+            _apply_resources(client, "test-ns", [{"kind": "Cluster", "metadata": {"name": "c1"}}])
+
+    @patch("time.sleep")
+    def test_wait_for_resources_handles_missing_crds(self, mock_sleep):
+        from kubernetes.dynamic.exceptions import ResourceNotFoundError
+
+        from bonfire_lib.deploy import wait_for_resources
+
+        client = MagicMock()
+        # Missing CAPI Cluster CRD and missing ClowdApp CRD, but Deployments ready
+        client.list_dynamic_resources.side_effect = [
+            ResourceNotFoundError("No matches for Cluster"),
+            ResourceNotFoundError("No matches for ClowdApp"),
+            [{"status": {"replicas": 1, "readyReplicas": 1}}],
+        ]
+
+        # Should log and continue, successfully detecting Deployments are ready
+        wait_for_resources(client, "test-ns", timeout=30)
+
+    def test_apply_resources_http_error(self):
+        from urllib3.exceptions import HTTPError
+
+        from bonfire_lib.deploy import _apply_resources
+
+        client = MagicMock()
+        client.apply_resource.side_effect = HTTPError("Connection reset")
+
+        with pytest.raises(FatalError, match="failed to apply"):
+            _apply_resources(client, "test-ns", [{"kind": "Cluster", "metadata": {"name": "c1"}}])
+
+    @patch("time.sleep")
+    def test_wait_for_resources_handles_http_errors(self, mock_sleep):
+        from urllib3.exceptions import HTTPError
+
+        from bonfire_lib.deploy import wait_for_resources
+
+        client = MagicMock()
+        # Network errors listing CAPI Cluster and ClowdApp, but Deployments ready
+        client.list_dynamic_resources.side_effect = [
+            HTTPError("Connection reset"),
+            HTTPError("Connection reset"),
+            [{"status": {"replicas": 1, "readyReplicas": 1}}],
+        ]
+
+        # Should log and continue, successfully detecting Deployments are ready
+        wait_for_resources(client, "test-ns", timeout=30)
