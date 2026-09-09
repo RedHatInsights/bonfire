@@ -6,8 +6,6 @@ import re
 class FatalError(Exception):
     """An error that should cause the caller to stop."""
 
-    pass
-
 
 _DNS_LABEL_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?$")
 

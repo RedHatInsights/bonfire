@@ -1,14 +1,16 @@
 import pytest
 
 from bonfire.utils import (
+    PYPI_URL,
+    AppOrComponentSelector,
+    FatalError,
+    check_pypi,
+    check_url_connection,
     get_version,
     hms_to_seconds,
     split_equals,
     validate_time_string,
-    check_pypi,
-    PYPI_URL,
 )
-from bonfire.utils import check_url_connection, FatalError, AppOrComponentSelector
 
 
 @pytest.mark.parametrize(

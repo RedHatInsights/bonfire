@@ -94,7 +94,7 @@ class TestEphemeralMCPFlow:
         assert "size" in cap
 
     def test_reserve_status_extend_release(self, client, reservation_cleanup):
-        from bonfire_lib.reservations import reserve, extend, release
+        from bonfire_lib.reservations import extend, release, reserve
         from bonfire_lib.status import get_reservation, list_reservations
 
         result = reserve(
@@ -126,7 +126,7 @@ class TestEphemeralMCPFlow:
         reservation_cleanup.remove(res_name)
 
     def test_describe_namespace(self, client, reservation_cleanup):
-        from bonfire_lib.reservations import reserve, release
+        from bonfire_lib.reservations import release, reserve
         from bonfire_lib.status import describe_namespace
 
         result = reserve(

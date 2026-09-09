@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
 from bonfire.utils import FatalError, get_config_path, load_file
 
 if sys.version_info < (3, 9):
@@ -176,7 +177,7 @@ def load_config(config_path=None):
         log.debug("user provided explicit config path: %s", config_path)
         config_path = Path(config_path)
         if not config_path.exists():
-            raise FatalError(f"provided config file path '{str(config_path)}' does not exist")
+            raise FatalError(f"provided config file path '{config_path!s}' does not exist")
     else:
         log.debug("using default config path: %s", DEFAULT_CONFIG_PATH)
         config_path = DEFAULT_CONFIG_PATH

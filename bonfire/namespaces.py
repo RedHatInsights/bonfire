@@ -8,6 +8,8 @@ from ocviapy import get_all_namespaces, get_json, on_k8s, set_current_namespace
 from wait_for import TimedOutError
 
 import bonfire.config as conf
+import bonfire_lib.reservations as _lib_reservations
+import bonfire_lib.status as _lib_status
 from bonfire.openshift import (
     get_all_reservations,
     get_console_url,
@@ -15,9 +17,6 @@ from bonfire.openshift import (
     whoami,
 )
 from bonfire.utils import FatalError
-
-import bonfire_lib.reservations as _lib_reservations
-import bonfire_lib.status as _lib_status
 from bonfire_lib.k8s_client import EphemeralK8sClient
 
 log = logging.getLogger(__name__)
@@ -366,7 +365,7 @@ def extend_namespace(namespace, duration, local=True):
     except _lib_reservations.FatalError as exc:
         raise FatalError(str(exc))
     if result is None:
-        return None
+        return
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
 
 

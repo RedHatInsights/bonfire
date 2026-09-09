@@ -1,14 +1,13 @@
 """Tests for bonfire_lib.qontract module."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 from bonfire_lib.qontract import (
     QontractClient,
-    get_apps_for_env,
-    _to_dict,
-    _process_env_parameters,
     _check_replace_other,
+    _process_env_parameters,
+    _to_dict,
+    get_apps_for_env,
 )
 
 

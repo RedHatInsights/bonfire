@@ -100,13 +100,9 @@ class QontractClient:
         if token is None:
             token = os.getenv("QONTRACT_TOKEN")
         if username is None:
-            username = os.getenv(
-                "QONTRACT_USERNAME", os.getenv("APP_INTERFACE_USERNAME")
-            )
+            username = os.getenv("QONTRACT_USERNAME", os.getenv("APP_INTERFACE_USERNAME"))
         if password is None:
-            password = os.getenv(
-                "QONTRACT_PASSWORD", os.getenv("APP_INTERFACE_PASSWORD")
-            )
+            password = os.getenv("QONTRACT_PASSWORD", os.getenv("APP_INTERFACE_PASSWORD"))
 
         log.debug("qontract url: %s", base_url)
 
@@ -120,9 +116,7 @@ class QontractClient:
             transport_kwargs["auth"] = HTTPBasicAuth(username, password)
 
         transport = RequestsHTTPTransport(**transport_kwargs)
-        self._client = GQLClient(
-            transport=transport, fetch_schema_from_transport=False
-        )
+        self._client = GQLClient(transport=transport, fetch_schema_from_transport=False)
 
         logging.getLogger("gql").setLevel(logging.ERROR)
 
@@ -131,12 +125,9 @@ class QontractClient:
         for env_data in self._client.execute(ENVS_QUERY)["envs"]:
             if env_data["name"] == env_name:
                 raw_namespaces = env_data.get("namespaces") or []
-                env_data["namespaces"] = {
-                    ns["path"]: ns["name"] for ns in raw_namespaces
-                }
+                env_data["namespaces"] = {ns["path"]: ns["name"] for ns in raw_namespaces}
                 env_data["namespace_labels"] = {
-                    ns["path"]: _to_dict(ns.get("labels"))
-                    for ns in raw_namespaces
+                    ns["path"]: _to_dict(ns.get("labels")) for ns in raw_namespaces
                 }
                 return env_data
         raise ValueError(f"cannot find env '{env_name}'")
@@ -157,9 +148,7 @@ def _process_env_parameters(parameters):
             found = re.findall(r"\$\{([^$]+)\}", val)
             for var in found:
                 if var in parameters:
-                    parameters[key] = parameters[key].replace(
-                        "${" + var + "}", parameters[var]
-                    )
+                    parameters[key] = parameters[key].replace("${" + var + "}", parameters[var])
 
 
 def _check_replace_other(other_params, this_params, preferred_params):
@@ -167,9 +156,7 @@ def _check_replace_other(other_params, this_params, preferred_params):
     this_weight = 0
     other_weight = 0
 
-    preferred_params["CLOWDER_ENABLED"] = preferred_params.get(
-        "CLOWDER_ENABLED", "true"
-    )
+    preferred_params["CLOWDER_ENABLED"] = preferred_params.get("CLOWDER_ENABLED", "true")
 
     for param_name, param_value in preferred_params.items():
         if str(this_params.get(param_name)).lower() == str(param_value).lower():
@@ -202,16 +189,20 @@ def _add_component_if_priority_higher(
         apps[app_name]["components"].append(component)
     else:
         defined_multiple.add((app_name, component_name))
-        if _check_replace_other(
-            existing["parameters"], component["parameters"], preferred_params
-        ):
+        if _check_replace_other(existing["parameters"], component["parameters"], preferred_params):
             apps[app_name]["components"].remove(existing)
             apps[app_name]["components"].append(component)
 
 
 def _add_component(
-    apps, env, app_name, saas_file, resource_template, target,
-    defined_multiple, preferred_params,
+    apps,
+    env,
+    app_name,
+    saas_file,
+    resource_template,
+    target,
+    defined_multiple,
+    preferred_params,
 ):
     component_name = resource_template["name"]
 
@@ -230,7 +221,7 @@ def _add_component(
         repo_path = urlparse(url).path.strip("/")
         last_slash_pos = repo_path.rindex("/")
         org = repo_path[:last_slash_pos]
-        repo = repo_path[last_slash_pos + 1:]
+        repo = repo_path[last_slash_pos + 1 :]
     except (ValueError, IndexError) as err:
         raise ValueError(f"invalid repo url '{url}': {err}")
 
@@ -251,8 +242,12 @@ def _add_component(
     }
 
     _add_component_if_priority_higher(
-        apps, app_name, component_name, component,
-        defined_multiple, preferred_params,
+        apps,
+        app_name,
+        component_name,
+        component,
+        defined_multiple,
+        preferred_params,
     )
 
 
@@ -302,9 +297,14 @@ def get_apps_for_env(
                     if ns_path not in env.get("namespaces", {}):
                         continue
                     _add_component(
-                        apps, env, app["name"], saas_file,
-                        resource_template, target,
-                        defined_multiple, preferred_params,
+                        apps,
+                        env,
+                        app["name"],
+                        saas_file,
+                        resource_template,
+                        target,
+                        defined_multiple,
+                        preferred_params,
                     )
 
     if ignored_apps:

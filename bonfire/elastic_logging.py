@@ -1,13 +1,13 @@
-from datetime import datetime as dt
-import logging
 import json
-import requests
+import logging
 import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime as dt
+
+import requests
 
 import bonfire.config as conf
-
 
 log = logging.getLogger(__name__)
 

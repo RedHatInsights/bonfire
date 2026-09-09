@@ -2,8 +2,8 @@ import pytest
 
 from bonfire_lib.utils import (
     FatalError,
-    hms_to_seconds,
     duration_fmt,
+    hms_to_seconds,
     pretty_time_delta,
     validate_dns_name,
     validate_time_string,

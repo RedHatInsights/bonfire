@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from kubernetes.client import ApiException
 
-from bonfire_mcp.auth import load_k8s_client, _preflight_check
+from bonfire_mcp.auth import _preflight_check, load_k8s_client
 
 
 def _make_api_exception(status: int, reason: str = "") -> ApiException:

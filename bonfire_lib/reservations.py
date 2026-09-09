@@ -11,7 +11,7 @@ import uuid
 from bonfire_lib.core_resources import render_reservation
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.status import wait_on_reservation
-from bonfire_lib.utils import FatalError, hms_to_seconds, duration_fmt
+from bonfire_lib.utils import FatalError, duration_fmt, hms_to_seconds
 
 KUBECONFIG_SECRET_SUFFIX = "-kubeconfig"
 KUBECONFIG_SECRET_NAMESPACE = "ephemeral-cluster-operator"

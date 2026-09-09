@@ -3,7 +3,6 @@ import json
 import logging
 import re
 import traceback
-from typing import Optional, Set
 import uuid
 from pathlib import Path
 
@@ -15,8 +14,7 @@ from sh import ErrorReturnCode
 
 import bonfire.config as conf
 from bonfire.openshift import get_kube_api_server, whoami
-from bonfire.utils import AppOrComponentSelector, FatalError, RepoFile
-from bonfire.utils import get_clowdapp_dependencies
+from bonfire.utils import AppOrComponentSelector, FatalError, RepoFile, get_clowdapp_dependencies
 from bonfire.utils import get_dependencies as utils_get_dependencies
 
 log = logging.getLogger(__name__)
@@ -143,7 +141,7 @@ def _remove_untrusted_configs_for_template(template, params):
 
 
 def _resolve_dependency_overrides(
-    dependencies: Set[str], keep: Set[Optional[str]], remove: Set[Optional[str]]
+    dependencies: set[str], keep: set[str | None], remove: set[str | None]
 ):
     """
     Perform final resolution of the dependencies to include.  The keep and
@@ -773,8 +771,7 @@ class TemplateProcessor:
             for component in app_cfg["components"]:
                 if component["name"] == component_name:
                     return component
-        else:
-            raise FatalError(f"component with name '{component_name}' not found")
+        raise FatalError(f"component with name '{component_name}' not found")
 
     def _sub_image_tags(self, items, original_image_tag=None):
         content = json.dumps(items)
@@ -1128,7 +1125,7 @@ class TemplateProcessor:
                 # Append items; we will de-duplicate in a single pass later
                 self.k8s_list["items"].extend(x.items)
 
-    def _component_skip_check(self, component_name, dependency_chain) -> Optional[str]:
+    def _component_skip_check(self, component_name, dependency_chain) -> str | None:
         skip_reasons = [
             (
                 self.component_filter

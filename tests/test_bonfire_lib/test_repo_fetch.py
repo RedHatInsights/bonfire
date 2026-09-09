@@ -1,9 +1,10 @@
 """Tests for bonfire_lib.repo_fetch module."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from bonfire_lib.repo_fetch import RepoFile, GH_RAW_URL
+import pytest
+
+from bonfire_lib.repo_fetch import RepoFile
 from bonfire_lib.utils import FatalError
 
 
@@ -59,11 +60,13 @@ class TestFromComponent:
 
     def test_no_slash_in_repo_raises(self):
         with pytest.raises(FatalError, match="invalid repo"):
-            RepoFile.from_component({
-                "host": "github",
-                "repo": "noslash",
-                "path": "/t.yaml",
-            })
+            RepoFile.from_component(
+                {
+                    "host": "github",
+                    "repo": "noslash",
+                    "path": "/t.yaml",
+                }
+            )
 
     def test_default_ref(self):
         component = {
@@ -76,7 +79,9 @@ class TestFromComponent:
 
 
 class TestFetchGithub:
-    @patch.object(RepoFile, "_get_gh_commit_hash", return_value="abc1234567890abcdef1234567890abcdef123456")
+    @patch.object(
+        RepoFile, "_get_gh_commit_hash", return_value="abc1234567890abcdef1234567890abcdef123456"
+    )
     @patch.object(RepoFile, "_get")
     def test_branch_ref_resolves_commit(self, mock_get, mock_hash):
         rf = RepoFile("github", "org", "repo", "/template.yaml", "main")

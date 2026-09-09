@@ -7,13 +7,12 @@ Supports three auth modes: explicit server+token, in-cluster, kubeconfig.
 import atexit
 import base64
 import copy
-import json
 import logging
 import os
 import tempfile
 
 from kubernetes import client, config
-from kubernetes.client import ApisApi, ApiException
+from kubernetes.client import ApiException, ApisApi
 from kubernetes.config import ConfigException
 from kubernetes.dynamic import DynamicClient
 

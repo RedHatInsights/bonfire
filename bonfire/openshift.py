@@ -7,12 +7,12 @@ from ocviapy import (
     ResourceWaiter,
     ResourceWatcher,
     available_checkable_resources,
+    get_all_namespaces,
     get_api_resources,
     get_json,
     oc,
-    wait_for_ready_threaded,
     on_k8s,
-    get_all_namespaces,
+    wait_for_ready_threaded,
 )
 from sh import ErrorReturnCode
 from wait_for import TimedOutError, wait_for

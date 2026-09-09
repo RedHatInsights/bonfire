@@ -1,8 +1,9 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from kubernetes.config import ConfigException
 from kubernetes.client import ApiException
-from bonfire_lib.k8s_client import EphemeralK8sClient, _sanitize_username, _extract_username
+from kubernetes.config import ConfigException
+
+from bonfire_lib.k8s_client import EphemeralK8sClient, _extract_username, _sanitize_username
 
 
 class TestSanitizeUsername:

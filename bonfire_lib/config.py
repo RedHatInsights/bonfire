@@ -4,8 +4,8 @@ Can be constructed explicitly (for MCP server / testing) or
 loaded from environment variables via Settings.from_env().
 """
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 
 
 @dataclass

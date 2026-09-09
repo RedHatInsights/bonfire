@@ -4,12 +4,12 @@ from unittest.mock import patch
 import pytest
 
 from bonfire_lib.status import (
+    check_for_existing_reservation,
+    describe_namespace,
+    get_console_url,
     get_reservation,
     list_reservations,
     wait_on_reservation,
-    check_for_existing_reservation,
-    get_console_url,
-    describe_namespace,
 )
 from bonfire_lib.utils import FatalError
 

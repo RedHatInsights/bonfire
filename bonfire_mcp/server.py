@@ -12,14 +12,10 @@ import logging
 from mcp.server import Server
 from mcp.types import CallToolResult, TextContent, Tool
 
+from bonfire_lib import deploy, pools, reservations, status
 from bonfire_lib.config import Settings
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.utils import FatalError, validate_dns_name, validate_time_string
-import bonfire_lib.deploy as deploy
-import bonfire_lib.reservations as reservations
-import bonfire_lib.pools as pools
-import bonfire_lib.status as status
-
 from bonfire_mcp.auth import load_k8s_client
 from bonfire_mcp.formatters import (
     format_deploy_rosa,
@@ -332,7 +328,9 @@ async def _deploy_rosa(
         )
 
         describe_info = await asyncio.to_thread(
-            status.describe_namespace, client, namespace,
+            status.describe_namespace,
+            client,
+            namespace,
         )
 
         return {

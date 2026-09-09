@@ -5,11 +5,11 @@ import pytest
 
 from bonfire.processor import (
     TemplateProcessor,
-    _should_alter,
-    _resolve_dependency_overrides,
     _alter_dependency_config,
+    _resolve_dependency_overrides,
+    _should_alter,
 )
-from bonfire.utils import RepoFile, AppOrComponentSelector
+from bonfire.utils import AppOrComponentSelector, RepoFile
 
 
 class MockRepoFile:

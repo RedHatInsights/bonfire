@@ -5,12 +5,40 @@ import logging
 import sys
 import warnings
 from functools import wraps
-import truststore
 
 import click
-from ocviapy import apply_config, get_current_namespace, StatusError
+import truststore
+from ocviapy import StatusError, apply_config, get_current_namespace
 from wait_for import TimedOutError
 
+import bonfire.config as conf
+from bonfire.configmaps import import_configmaps_from_dir
+from bonfire.elastic_logging import ElasticLogger
+from bonfire.local import get_appsfile_apps, get_local_apps
+from bonfire.namespaces import (
+    Namespace,
+    describe_namespace,
+    extend_namespace,
+    get_namespaces,
+    release_reservation,
+    reserve_namespace,
+)
+from bonfire.openshift import (
+    check_for_existing_reservation,
+    find_clowd_env_for_ns,
+    get_namespace_pools,
+    get_pool_size_limit,
+    get_reservation,
+    get_reserved_namespace_quantity,
+    has_clowder,
+    has_ns_operator,
+    log_namespace_events,
+    wait_for_all_resources,
+    wait_for_clowd_env_target_ns,
+    wait_for_db_resources,
+    wait_on_cji,
+    whoami,
+)
 from bonfire.output import (
     configure_logging,
     echo_error,
@@ -23,49 +51,21 @@ from bonfire.output import (
     render_version,
     status_spinner,
 )
-
-import bonfire.config as conf
-from bonfire.elastic_logging import ElasticLogger
-from bonfire.local import get_local_apps, get_appsfile_apps
-from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
-from bonfire.namespaces import (
-    Namespace,
-    extend_namespace,
-    get_namespaces,
-    release_reservation,
-    reserve_namespace,
-    describe_namespace,
-)
-from bonfire.openshift import (
-    check_for_existing_reservation,
-    find_clowd_env_for_ns,
-    get_namespace_pools,
-    get_reservation,
-    has_clowder,
-    has_ns_operator,
-    wait_for_all_resources,
-    wait_for_clowd_env_target_ns,
-    wait_for_db_resources,
-    wait_on_cji,
-    whoami,
-    get_pool_size_limit,
-    get_reserved_namespace_quantity,
-    log_namespace_events,
-)
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.qontract import get_apps_for_env, get_base_namespace_for_env, sub_refs
 from bonfire.secrets import import_secrets_from_dir
-from bonfire.configmaps import import_configmaps_from_dir
 from bonfire.utils import (
+    SYNTAX_ERR,
+    AppOrComponentSelector,
     FatalError,
+    RepoFile,
     check_pypi,
     find_what_depends_on,
     get_version,
+    merge_app_configs,
     split_equals,
     validate_time_string,
-    merge_app_configs,
 )
-
 
 log = logging.getLogger(__name__)
 es_telemetry = ElasticLogger()
@@ -164,31 +164,26 @@ def test():
     """
     Used for unit testing
     """
-    pass
 
 
 @main.group()
 def namespace():
     """Perform operations related to namespace reservation"""
-    pass
 
 
 @main.group()
 def config():
     """Commands related to bonfire configuration"""
-    pass
 
 
 @main.group()
 def apps():
     """Show information about deployable apps"""
-    pass
 
 
 @main.group()
 def pool():
     """Perform operations related to pool types"""
-    pass
 
 
 def _confirm_or_abort(msg):
@@ -1046,7 +1041,7 @@ def _get_apps_config(
             try:
                 RepoFile.from_config(component)
             except FatalError as err:
-                raise FatalError(f"{str(err)}, hit on app {app_name}")
+                raise FatalError(f"{err!s}, hit on app {app_name}")
 
     return apps_config
 
@@ -1174,7 +1169,6 @@ def _cmd_pool_types():
 
 def _get_return_args(*args, **kwargs):
     """Dummy function used for unit testing process options"""
-    pass
 
 
 @test.command("process", hidden=True)
@@ -1409,7 +1403,7 @@ def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
         msg = "deploy failed"
 
     if str(err):
-        msg += f": {str(err)}"
+        msg += f": {err!s}"
 
     if isinstance(err, (KeyboardInterrupt, TimedOutError, FatalError, StatusError)):
         log.error(msg)

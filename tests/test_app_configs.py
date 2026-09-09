@@ -1,8 +1,7 @@
 import pytest
 
-from bonfire.bonfire import _get_apps_config, APP_SRE_SRC, FILE_SRC
-
 import bonfire
+from bonfire.bonfire import APP_SRE_SRC, FILE_SRC, _get_apps_config
 
 # Make sure to use functions for these test dictionaries instead of global vars.
 # Otherwise, data gets polluted between the tests due to re-using the same dict object in memory.
