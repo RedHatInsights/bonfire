@@ -1,4 +1,4 @@
-from bonfire_lib.core_resources import render_reservation, render_clowdenv, render_cji
+from bonfire_lib.core_resources import render_cji, render_clowdenv, render_reservation
 
 
 class TestRenderReservation:

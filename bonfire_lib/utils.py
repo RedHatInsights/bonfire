@@ -6,8 +6,6 @@ import re
 class FatalError(Exception):
     """An error that should cause the caller to stop."""
 
-    pass
-
 
 _DNS_LABEL_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?$")
 
@@ -57,11 +55,11 @@ def duration_fmt(seconds: int) -> str:
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
     if hours > 0:
-        return "%dh%dm%ds" % (hours, minutes, seconds)
+        return f"{hours}h{minutes}m{seconds}s"
     elif minutes > 0:
-        return "%dm%ds" % (minutes, seconds)
+        return f"{minutes}m{seconds}s"
     else:
-        return "%ds" % (seconds,)
+        return f"{seconds}s"
 
 
 def pretty_time_delta(seconds: int) -> str:
@@ -71,13 +69,13 @@ def pretty_time_delta(seconds: int) -> str:
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
     if days > 0:
-        return "%dd%dh%dm%ds" % (days, hours, minutes, seconds)
+        return f"{days}d{hours}h{minutes}m{seconds}s"
     elif hours > 0:
-        return "%dh%dm%ds" % (hours, minutes, seconds)
+        return f"{hours}h{minutes}m{seconds}s"
     elif minutes > 0:
-        return "%dm%ds" % (minutes, seconds)
+        return f"{minutes}m{seconds}s"
     else:
-        return "%ds" % (seconds,)
+        return f"{seconds}s"
 
 
 def validate_time_string(time_str: str) -> str:

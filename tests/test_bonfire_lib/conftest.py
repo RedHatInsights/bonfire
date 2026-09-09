@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import MagicMock
-from bonfire_lib.k8s_client import EphemeralK8sClient
+
+import pytest
+
 from bonfire_lib.config import Settings
+from bonfire_lib.k8s_client import EphemeralK8sClient
 
 
 @pytest.fixture

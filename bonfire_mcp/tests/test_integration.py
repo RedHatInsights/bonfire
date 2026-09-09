@@ -15,7 +15,6 @@ import os
 import time
 
 import pytest
-from kubernetes.client import ApiException
 
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.utils import FatalError
@@ -66,7 +65,7 @@ def reservation_cleanup(client):
             from bonfire_lib.reservations import release
 
             release(client, name=res_name)
-        except (ApiException, FatalError, OSError, RuntimeError, ValueError) as exc:
+        except Exception as exc:  # noqa: BLE001 - defensive cleanup, must not fail teardown
             log.warning("cleanup: failed to release reservation '%s': %s", res_name, exc)
 
 
