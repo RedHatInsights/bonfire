@@ -56,23 +56,23 @@ def deploy_rosa(
 
     log.info(
         "deploying to namespace '%s' (env=%s, components=%s)",
-        namespace, target_env, component_filter,
+        namespace,
+        target_env,
+        component_filter,
     )
 
     apps_config = get_apps_for_env(
-        target_env, client=qontract_client,
+        target_env,
+        client=qontract_client,
     )
 
     if not apps_config:
-        raise FatalError(
-            f"no app configs found for env '{target_env}' in app-interface"
-        )
+        raise FatalError(f"no app configs found for env '{target_env}' in app-interface")
 
     components = _collect_components(apps_config, component_filter)
     if not components:
         raise FatalError(
-            f"no components matching filter {component_filter} "
-            f"found in env '{target_env}'"
+            f"no components matching filter {component_filter} found in env '{target_env}'"
         )
 
     all_resources = []
@@ -88,7 +88,8 @@ def deploy_rosa(
         processed_items = client.process_template(template, params, namespace=namespace)
         log.info(
             "component '%s' produced %d resources",
-            component["name"], len(processed_items),
+            component["name"],
+            len(processed_items),
         )
 
         all_resources.extend(processed_items)
@@ -98,7 +99,9 @@ def deploy_rosa(
 
     log.info(
         "applied %d resources to namespace '%s', waiting for readiness (timeout=%ds)",
-        len(applied), namespace, timeout,
+        len(applied),
+        namespace,
+        timeout,
     )
     wait_for_resources(client, namespace, timeout)
 
@@ -109,9 +112,7 @@ def deploy_rosa(
     }
 
 
-def _collect_components(
-    apps_config: dict, component_filter: list[str]
-) -> list[dict]:
+def _collect_components(apps_config: dict, component_filter: list[str]) -> list[dict]:
     """Flatten apps_config and filter to requested components."""
     components = []
     filter_set = set(component_filter) if component_filter else None
@@ -130,7 +131,11 @@ def _fetch_template(component: dict) -> tuple[str, bytes]:
     rf = RepoFile.from_component(component)
     log.debug(
         "component '%s': fetching template from %s/%s ref=%s path=%s",
-        component["name"], rf.org, rf.repo, rf.ref, rf.path,
+        component["name"],
+        rf.org,
+        rf.repo,
+        rf.ref,
+        rf.path,
     )
     return rf.fetch()
 
@@ -140,9 +145,7 @@ def _parse_template(component_name: str, content: bytes) -> dict:
     try:
         return yaml.safe_load(content)
     except Exception as err:
-        raise FatalError(
-            f"failed to parse template YAML for component '{component_name}': {err}"
-        )
+        raise FatalError(f"failed to parse template YAML for component '{component_name}': {err}")
 
 
 def _build_parameters(
@@ -182,9 +185,7 @@ def _apply_resources(
             result = client.apply_resource(resource, namespace=namespace)
             applied.append(result)
         except Exception as err:
-            raise FatalError(
-                f"failed to apply {kind}/{name} to namespace '{namespace}': {err}"
-            )
+            raise FatalError(f"failed to apply {kind}/{name} to namespace '{namespace}': {err}")
     return applied
 
 
@@ -211,8 +212,7 @@ def wait_for_resources(
         elapsed = time.time() - start
         if elapsed >= timeout:
             raise TimeoutError(
-                f"timed out after {timeout}s waiting for resources "
-                f"in namespace '{namespace}'"
+                f"timed out after {timeout}s waiting for resources in namespace '{namespace}'"
             )
 
         all_ready = True
@@ -268,7 +268,8 @@ def wait_for_resources(
         if not found_resources:
             log.debug(
                 "no resources found yet in namespace '%s' (%.0fs elapsed)",
-                namespace, elapsed,
+                namespace,
+                elapsed,
             )
 
         time.sleep(poll_interval)

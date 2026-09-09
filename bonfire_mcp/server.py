@@ -332,7 +332,9 @@ async def _deploy_rosa(
         )
 
         describe_info = await asyncio.to_thread(
-            status.describe_namespace, client, namespace,
+            status.describe_namespace,
+            client,
+            namespace,
         )
 
         return {

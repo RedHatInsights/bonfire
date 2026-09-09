@@ -1,7 +1,7 @@
 """Tests for bonfire_lib.deploy module."""
 
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 from bonfire_lib.deploy import (
     deploy_rosa,
@@ -51,9 +51,7 @@ class TestCollectComponents:
 class TestBuildParameters:
     def test_default_image_tag(self):
         component = {"parameters": {}, "hash_length": 7}
-        params = _build_parameters(
-            component, "abc1234567890", "my-ns", "env-my-ns"
-        )
+        params = _build_parameters(component, "abc1234567890", "my-ns", "env-my-ns")
         assert params["IMAGE_TAG"] == "abc1234"
         assert params["NAMESPACE"] == "my-ns"
         assert params["ENV_NAME"] == "env-my-ns"
@@ -70,41 +68,21 @@ class TestBuildParameters:
 
     def test_custom_hash_length(self):
         component = {"parameters": {}, "hash_length": 10}
-        params = _build_parameters(
-            component, "abc1234567890abcdef", "ns", "env-ns"
-        )
+        params = _build_parameters(component, "abc1234567890abcdef", "ns", "env-ns")
         assert params["IMAGE_TAG"] == "abc1234567"
 
 
 class TestIsCapiClusterReady:
     def test_ready_condition(self):
-        cluster = {
-            "status": {
-                "conditions": [
-                    {"type": "Ready", "status": "True"}
-                ]
-            }
-        }
+        cluster = {"status": {"conditions": [{"type": "Ready", "status": "True"}]}}
         assert _is_capi_cluster_ready(cluster) is True
 
     def test_available_condition(self):
-        cluster = {
-            "status": {
-                "conditions": [
-                    {"type": "Available", "status": "True"}
-                ]
-            }
-        }
+        cluster = {"status": {"conditions": [{"type": "Available", "status": "True"}]}}
         assert _is_capi_cluster_ready(cluster) is True
 
     def test_not_ready(self):
-        cluster = {
-            "status": {
-                "conditions": [
-                    {"type": "Ready", "status": "False"}
-                ]
-            }
-        }
+        cluster = {"status": {"conditions": [{"type": "Ready", "status": "False"}]}}
         assert _is_capi_cluster_ready(cluster) is False
 
     def test_no_conditions(self):
@@ -124,23 +102,11 @@ class TestIsCapiClusterReady:
 
 class TestIsClowdappReady:
     def test_ready_via_condition(self):
-        app = {
-            "status": {
-                "conditions": [
-                    {"type": "ReconciliationSuccessful", "status": "True"}
-                ]
-            }
-        }
+        app = {"status": {"conditions": [{"type": "ReconciliationSuccessful", "status": "True"}]}}
         assert _is_clowdapp_ready(app) is True
 
     def test_not_ready_via_condition(self):
-        app = {
-            "status": {
-                "conditions": [
-                    {"type": "ReconciliationSuccessful", "status": "False"}
-                ]
-            }
-        }
+        app = {"status": {"conditions": [{"type": "ReconciliationSuccessful", "status": "False"}]}}
         assert _is_clowdapp_ready(app) is False
 
     def test_ready_via_deployments(self):
