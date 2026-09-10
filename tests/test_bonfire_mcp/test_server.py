@@ -1,7 +1,7 @@
 """Tests for bonfire_mcp.server module — tool definitions and dispatch."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from bonfire_mcp.server import call_tool, list_tools, TOOLS
 from mcp.types import CallToolResult
@@ -374,6 +374,7 @@ class TestDeployRosa:
             mock_reservations.reserve.return_value = reservation_result
             with patch("bonfire_mcp.server.deploy") as mock_deploy:
                 from bonfire_lib.utils import FatalError as _FE
+
                 mock_deploy.deploy_rosa.side_effect = _FE("deploy failed")
                 result = await call_tool(
                     "ephemeral_deploy_rosa",

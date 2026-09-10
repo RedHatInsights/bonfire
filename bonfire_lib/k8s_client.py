@@ -7,7 +7,6 @@ Supports three auth modes: explicit server+token, in-cluster, kubeconfig.
 import atexit
 import base64
 import copy
-import json
 import logging
 import os
 import tempfile
