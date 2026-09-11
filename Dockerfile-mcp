@@ -5,7 +5,7 @@ COPY --chown=default:0 . .
 RUN pip install setuptools "setuptools_scm>=8"
 RUN pip wheel --no-deps --no-build-isolation -w dist ./bonfire_mcp
 
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1788166357
+FROM registry.access.redhat.com/ubi9-minimal:9.8-1788939036
 
 ENV APP_ROOT=/opt/bonfire
 
