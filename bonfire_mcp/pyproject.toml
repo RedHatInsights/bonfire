@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "crc-bonfire-mcp"
 dynamic = ["version"]
 description = "MCP server for managing bonfire ephemeral environments"
+readme = "README.md"
 license = { text = "MIT License" }
 requires-python = ">=3.10"
 authors = [
