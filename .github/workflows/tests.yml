@@ -14,10 +14,10 @@ jobs:
     steps:
 
     - name: Checkout to master
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.14'
         architecture: 'x64'
@@ -30,7 +30,9 @@ jobs:
         pip install -U wheel setuptools build
 
     - name: Build
-      run: python -m build -o dist/
+      run: |
+        python -m build -o dist/
+        python -m build -o dist/ bonfire_mcp/
 
     - uses: actions/upload-artifact@v7
       with:
@@ -41,7 +43,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [build]
     steps:
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@v7
       with:
         python-version: '3.14'
         architecture: 'x64'
@@ -60,9 +62,9 @@ jobs:
         python-version: [ '3.10', '3.11', '3.12' ]
         os: [ubuntu-24.04, macos-latest]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
     - uses: actions/cache@v5
@@ -81,15 +83,20 @@ jobs:
       with:
         name: dist
         path: dist
-    - name: install wheel with test extras
+    - name: install packages with test extras
       run: |
-        WHEEL_FILE=$(ls dist/*.whl)
-        pip install "$WHEEL_FILE[cli,test,mcp]"
+        BONFIRE_WHEEL=$(ls dist/crc_bonfire-*.whl)
+        MCP_WHEEL=$(ls dist/crc_bonfire_mcp-*.whl)
+        pip install "$BONFIRE_WHEEL[test]"
+        pip install "$MCP_WHEEL"
     - name: test bonfire version and create default config file
       run: |
         pip list | grep crc-bonfire
         which bonfire
+        which bonfire-mcp
         bonfire --help
         bonfire config write-default
-    - name: pytest
+    - name: pytest bonfire
       run: pytest -sv
+    - name: pytest bonfire-mcp
+      run: pytest bonfire_mcp/tests/ -sv

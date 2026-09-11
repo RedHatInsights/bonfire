@@ -154,10 +154,9 @@ class TestIsDeploymentReady:
 
 
 class TestWaitForResources:
-    @patch("bonfire_lib.deploy.time.sleep")
-    @patch("bonfire_lib.deploy.time.time")
-    def test_capi_cluster_ready(self, mock_time, mock_sleep):
-        mock_time.side_effect = [0, 1]
+    @patch("bonfire_lib.deploy.time")
+    def test_capi_cluster_ready(self, mock_time):
+        mock_time.time.side_effect = [0, 1]
         mock_client = MagicMock()
         mock_client.list_dynamic_resources.side_effect = [
             # CAPI Clusters — one ready cluster
@@ -169,10 +168,9 @@ class TestWaitForResources:
         ]
         wait_for_resources(mock_client, "test-ns", timeout=60)
 
-    @patch("bonfire_lib.deploy.time.sleep")
-    @patch("bonfire_lib.deploy.time.time")
-    def test_clowdapp_and_deployment_ready(self, mock_time, mock_sleep):
-        mock_time.side_effect = [0, 1]
+    @patch("bonfire_lib.deploy.time")
+    def test_clowdapp_and_deployment_ready(self, mock_time):
+        mock_time.time.side_effect = [0, 1]
         mock_client = MagicMock()
         mock_client.list_dynamic_resources.side_effect = [
             # CAPI Clusters — none

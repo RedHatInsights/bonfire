@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "crc-bonfire-mcp"
 dynamic = ["version"]
 description = "MCP server for managing bonfire ephemeral environments"
+readme = "README.md"
 license = { text = "MIT License" }
 requires-python = ">=3.10"
 authors = [
@@ -32,6 +33,14 @@ dependencies = [
     "mcp>=1.0.0",
 ]
 
+[project.optional-dependencies]
+test = [
+    "mock",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-mock",
+]
+
 [project.scripts]
 bonfire-mcp = "bonfire_mcp.server:main"
 
@@ -44,10 +53,22 @@ include-package-data = false
 [tool.setuptools.packages.find]
 where = [".."]
 include = ["bonfire_lib*", "bonfire_mcp*"]
+exclude = ["bonfire_mcp.tests*", "tests*"]
 namespaces = false
 
 [tool.setuptools.package-data]
 bonfire_lib = ["templates/*.j2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", ".."]
+log_cli = true
+log_level = "DEBUG"
+asyncio_mode = "strict"
+markers = [
+    "integration: integration tests requiring a live K8s cluster (deselected by default)",
+]
+addopts = "-m 'not integration'"
 
 [project.urls]
 Homepage = "https://www.github.com/RedHatInsights/bonfire"
