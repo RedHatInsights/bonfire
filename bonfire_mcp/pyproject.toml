@@ -30,7 +30,7 @@ dependencies = [
     "gql[requests]>=3.5.0",
     "requests>=2.33.0",
     "cached_property",
-    "mcp>=1.0.0",
+    "mcp>=1.0.0,<2",
 ]
 
 [project.optional-dependencies]

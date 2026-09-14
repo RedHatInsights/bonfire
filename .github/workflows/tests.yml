@@ -88,7 +88,7 @@ jobs:
         BONFIRE_WHEEL=$(ls dist/crc_bonfire-*.whl)
         MCP_WHEEL=$(ls dist/crc_bonfire_mcp-*.whl)
         pip install "$BONFIRE_WHEEL[test]"
-        pip install "$MCP_WHEEL"
+        pip install "$MCP_WHEEL[test]"
     - name: test bonfire version and create default config file
       run: |
         pip list | grep crc-bonfire
