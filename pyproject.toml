@@ -77,6 +77,8 @@ line-length = 100
 indent-width = 4
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
 log_cli = true
 log_level = "DEBUG"
 asyncio_mode = "strict"
