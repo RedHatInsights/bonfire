@@ -112,6 +112,14 @@ class TestRenderCji:
         assert value_from_dict["IBUTSU_PROJECT"]["configMapKeyRef"]["name"] == "ibutsu-config"
         assert "IBUTSU_TOKEN" in value_from_dict
         assert value_from_dict["IBUTSU_TOKEN"]["secretKeyRef"]["name"] == "iqe-ibutsu-token"
+        assert value_from_dict["AWS_ACCESS_KEY_ID"]["secretKeyRef"] == {
+            "name": "ibutsu-aws-credentials",
+            "key": "aws_access_key_id",
+            "optional": True,
+        }
+        assert value_from_dict["AWS_SECRET_ACCESS_KEY"]["secretKeyRef"]["key"] == "aws_secret_access_key"
+        assert value_from_dict["AWS_REGION"]["secretKeyRef"]["key"] == "aws_region"
+        assert value_from_dict["AWS_BUCKET"]["secretKeyRef"]["key"] == "bucket"
 
     def test_custom_values(self):
         result = render_cji(
@@ -127,9 +135,12 @@ class TestRenderCji:
             parallel_worker_count="4",
             ibutsu_configmap="my-ibutsu-cm",
             ibutsu_secret="my-ibutsu-secret",
+            ibutsu_aws_secret="my-ibutsu-aws",
         )
         spec = result["spec"]
         iqe = spec["testing"]["iqe"]
+        value_from_dict = {e["name"]: e["valueFrom"] for e in iqe["env"] if "valueFrom" in e}
+        assert value_from_dict["AWS_ACCESS_KEY_ID"]["secretKeyRef"]["name"] == "my-ibutsu-aws"
         assert iqe["debug"] is True
         assert iqe["ui"]["selenium"]["deploy"] is True
 
