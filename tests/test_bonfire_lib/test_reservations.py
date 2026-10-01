@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from bonfire_lib.reservations import reserve, release, extend, _find_reservation
+from bonfire_lib.reservations import _find_reservation, extend, release, reserve
 from bonfire_lib.utils import FatalError
 
 

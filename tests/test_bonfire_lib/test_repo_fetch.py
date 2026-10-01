@@ -1,7 +1,8 @@
 """Tests for bonfire_lib.repo_fetch module."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from bonfire_lib.repo_fetch import RepoFile
 from bonfire_lib.utils import FatalError
@@ -104,7 +105,7 @@ class TestFetchGithub:
         mock_response.content = b"kind: Template"
         mock_get.return_value = mock_response
 
-        commit, content = rf._fetch_github()
+        commit, _content = rf._fetch_github()
         assert commit == sha
 
     @patch.object(RepoFile, "_get_gh_commit_hash", return_value="a" * 40)

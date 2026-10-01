@@ -1,15 +1,16 @@
 import uuid
+from typing import ClassVar
 
 import click
 import pytest
 
 from bonfire.processor import (
     TemplateProcessor,
-    _should_alter,
-    _resolve_dependency_overrides,
     _alter_dependency_config,
+    _resolve_dependency_overrides,
+    _should_alter,
 )
-from bonfire.utils import RepoFile, AppOrComponentSelector
+from bonfire.utils import AppOrComponentSelector, RepoFile
 
 
 class MockRepoFile:
@@ -17,7 +18,7 @@ class MockRepoFile:
     mock of utils.RepoFile so that we do not literally fetch templates from github/gitlab/etc.
     """
 
-    templates = {}
+    templates: ClassVar[dict] = {}
 
     def __init__(self, name):
         self.name = name
