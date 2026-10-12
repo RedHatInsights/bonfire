@@ -422,6 +422,10 @@ class RepoFile:
             else:
                 sleep_seconds = 60
 
+            # the reset timestamp may already be in the past (clock skew or delay between the
+            # response and this call), which would make time.sleep() raise ValueError
+            sleep_seconds = max(0, sleep_seconds)
+
             log.warning("GET %s exceeded rate limit, retrying after %d sec", url, sleep_seconds)
 
             time.sleep(sleep_seconds)
