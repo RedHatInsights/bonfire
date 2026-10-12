@@ -6,31 +6,34 @@ GitLab hosts with rate-limit retry, alternate ref fallback, and
 commit SHA resolution.
 """
 
-import atexit
 import logging
 import os
 import re
-import tempfile
 import time
+from pathlib import Path
 from urllib.parse import quote
-from urllib.request import urlretrieve
 
 import requests
 from cached_property import cached_property
 
+from bonfire_lib import config
 from bonfire_lib.utils import FatalError
 
 log = logging.getLogger(__name__)
 
 GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
-GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
-GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
+GH_BRANCH_URL = config.GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
 
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
 GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects?search={name}"
 GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
 
-GL_CA_CERT_URL = "https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem"
+# CA cert bundled with the package: the long-lived Red Hat IT Root CA (valid
+# until 2055) that gitlab.cee.redhat.com chains to. Bundling it avoids fetching a
+# cert from certs.corp.redhat.com at runtime, which is not reliably reachable
+# from CI/Tekton runtimes (DNS lookups for that host fail intermittently).
+# Override via $BONFIRE_GL_CA_CERT (parsed in bonfire_lib.config).
+_BUNDLED_GL_CA_CERT = Path(__file__).parent / "certs" / "2022-IT-Root-CA.pem"
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
 
@@ -38,18 +41,34 @@ _gl_ca_cert_path = None
 
 
 def _get_gl_ca_cert():
-    """Download and cache the GitLab CA certificate."""
+    """Resolve the GitLab CA certificate file path.
+
+    The bundled Red Hat IT Root CA is used by default; set ``$BONFIRE_GL_CA_CERT``
+    to override with a mounted / pre-installed CA bundle. Nothing is fetched at
+    runtime. The resolved path is cached for subsequent calls.
+    """
     global _gl_ca_cert_path
     if _gl_ca_cert_path is not None:
         return _gl_ca_cert_path
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as fp:
-            urlretrieve(GL_CA_CERT_URL, fp.name)
-            _gl_ca_cert_path = fp.name
-        atexit.register(os.unlink, _gl_ca_cert_path)
-        return _gl_ca_cert_path
-    except Exception as err:
-        raise FatalError(f"Failed to download GitLab CA certificate from {GL_CA_CERT_URL}: {err}")
+
+    override = config.GL_CA_CERT
+    if override:
+        if not os.path.isfile(override):
+            raise FatalError(
+                f"{config.GL_CA_CERT_ENV} is set to '{override}' but no file exists there"
+            )
+        log.debug("using GitLab CA certificate from %s=%s", config.GL_CA_CERT_ENV, override)
+        _gl_ca_cert_path = override
+    elif _BUNDLED_GL_CA_CERT.is_file():
+        log.debug("using bundled GitLab CA certificate at %s", _BUNDLED_GL_CA_CERT)
+        _gl_ca_cert_path = str(_BUNDLED_GL_CA_CERT)
+    else:
+        raise FatalError(
+            f"bundled GitLab CA certificate is missing at {_BUNDLED_GL_CA_CERT}; "
+            f"set {config.GL_CA_CERT_ENV} to a locally-available CA bundle path"
+        )
+
+    return _gl_ca_cert_path
 
 
 class RepoFile:
@@ -117,9 +136,8 @@ class RepoFile:
 
     @cached_property
     def _gh_auth_headers(self):
-        gh_token = os.getenv("GITHUB_TOKEN")
-        if gh_token:
-            return {"Authorization": f"token {gh_token}"}
+        if config.GH_TOKEN:
+            return {"Authorization": f"token {config.GH_TOKEN}"}
         return None
 
     def _get_ref(self, get_ref_func):

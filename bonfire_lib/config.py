@@ -7,6 +7,15 @@ loaded from environment variables via Settings.from_env().
 from dataclasses import dataclass
 import os
 
+# GitHub API config for fetching templates from GitHub repos.
+GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
+GH_TOKEN = os.getenv("GITHUB_TOKEN")
+
+# Override path for the GitLab CA bundle used to verify TLS to
+# gitlab.cee.redhat.com. When unset, the cert bundled with the package is used.
+GL_CA_CERT_ENV = "BONFIRE_GL_CA_CERT"
+GL_CA_CERT = os.getenv(GL_CA_CERT_ENV)
+
 
 @dataclass
 class Settings:
