@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from bonfire.utils import (
@@ -7,6 +9,7 @@ from bonfire.utils import (
     validate_time_string,
     check_pypi,
     PYPI_URL,
+    RepoFile,
 )
 from bonfire.utils import check_url_connection, FatalError, AppOrComponentSelector
 
@@ -170,3 +173,49 @@ def test_selector_defaults():
     selector = AppOrComponentSelector(False, None, ["hello/world"])
     assert selector.flattened_components == ["hello/world"]
     assert selector.components == {"hello": {"world"}}
+
+
+_RATE_LIMIT_URL = "https://api.github.com/repos/org/repo/git/refs/heads/master"
+
+
+@pytest.mark.parametrize(
+    "reset_offset",
+    [
+        -100,  # reset time already expired (would yield a negative sleep)
+        0,  # near-expiry: reset time is "now"
+    ],
+)
+def test_get_clamps_negative_sleep_on_rate_limit(requests_mock, mocker, reset_offset):
+    """An expired/near-expiry x-ratelimit-reset must not pass a negative delay to time.sleep."""
+    sleep_mock = mocker.patch("bonfire.utils.time.sleep")
+    reset = int(time.time()) + reset_offset
+    requests_mock.get(
+        _RATE_LIMIT_URL,
+        [
+            {
+                "status_code": 429,
+                "headers": {"x-ratelimit-remaining": "0", "x-ratelimit-reset": str(reset)},
+            },
+            {"status_code": 200, "json": {}},
+        ],
+    )
+
+    rf = RepoFile("github", "org", "repo", "/path")
+    response = rf._get(_RATE_LIMIT_URL)
+
+    assert response.status_code == 200
+    assert sleep_mock.call_args.args[0] >= 0
+
+
+def test_get_raises_after_retries_exhausted(requests_mock, mocker):
+    """Bounded retries: a persistent rate limit surfaces a clear terminal error."""
+    mocker.patch("bonfire.utils.time.sleep")
+    requests_mock.get(
+        _RATE_LIMIT_URL,
+        status_code=429,
+        headers={"x-ratelimit-remaining": "0", "x-ratelimit-reset": "0"},
+    )
+
+    rf = RepoFile("github", "org", "repo", "/path")
+    with pytest.raises(Exception, match="continues to hit rate limit after 3 attempts"):
+        rf._get(_RATE_LIMIT_URL)
