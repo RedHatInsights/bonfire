@@ -1,4 +1,3 @@
-import atexit
 import collections
 import copy
 import difflib
@@ -9,9 +8,7 @@ import pprint
 import re
 import shlex
 import subprocess
-import tempfile
 import time
-from urllib.request import urlretrieve
 import sys
 
 if sys.version_info >= (3, 8):
@@ -31,11 +28,27 @@ import requests
 import yaml
 from cached_property import cached_property
 
+from bonfire_lib import config
+from bonfire_lib.repo_fetch import _get_gl_ca_cert as _lib_get_gl_ca_cert
+from bonfire_lib.utils import FatalError as _LibFatalError
+
 
 class FatalError(Exception):
     """An exception that will cause the CLI to exit"""
 
     pass
+
+
+def _get_gl_ca_cert():
+    """Resolve the GitLab CA cert path (bundled cert / mount / download fallback).
+
+    Delegates to the canonical resolver in bonfire_lib, re-raising its FatalError
+    as the CLI's own so the CLI error handler reports it cleanly.
+    """
+    try:
+        return _lib_get_gl_ca_cert()
+    except _LibFatalError as err:
+        raise FatalError(str(err)) from err
 
 
 def get_config_path():
@@ -56,65 +69,16 @@ VER_CHECK_TIME = 3600  # check every 1hr
 
 GH_RAW_URL = "https://raw.githubusercontent.com/{org}/{repo}/{ref}{path}"
 GL_RAW_URL = "https://gitlab.cee.redhat.com/{group}/{project}/-/raw/{ref}{path}"
-GH_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com")
-GH_BRANCH_URL = GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
+GH_BRANCH_URL = config.GH_API_URL.rstrip("/") + "/repos/{org}/{repo}/git/refs/heads/{branch}"
 GL_PROJECTS_URL = "https://gitlab.cee.redhat.com/api/v4/{type}/{group}/projects?search={name}"
 GL_BRANCH_URL = "https://gitlab.cee.redhat.com/api/v4/projects/{id}/repository/branches/{branch}"
 SYNTAX_ERR = "configuration syntax error"
 
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
-GL_CA_CERT_URL = "https://certs.corp.redhat.com/certs/2022-IT-Root-CA.pem"
 _PARAM_REGEX = re.compile(r"\${(\S+)}")
 
 log = logging.getLogger(__name__)
-
-# Cache for CA certificate file path
-_gl_ca_cert_path = None
-
-
-def _get_gl_ca_cert():
-    """
-    Get the GitLab CA certificate file path.
-
-    Downloads the certificate on first call and caches the path for subsequent calls.
-    The certificate file is automatically cleaned up on exit.
-
-    Returns:
-        str: Path to the GitLab CA certificate file
-
-    Raises:
-        FatalError: If certificate download fails
-    """
-    global _gl_ca_cert_path
-
-    if _gl_ca_cert_path is not None:
-        log.debug("Using cached GitLab CA certificate at %s", _gl_ca_cert_path)
-        return _gl_ca_cert_path
-
-    # First verify we can reach the cert server
-    log.debug("Checking connectivity to CA cert server")
-    _check_connection(
-        hostname=urlparse(GL_CA_CERT_URL).hostname,
-        port=urlparse(GL_CA_CERT_URL).port or 443,
-        timeout=(2, 5),
-        fetch_cert=False,  # Avoid infinite recursion
-    )
-
-    # Download the certificate
-    try:
-        log.debug("Downloading GitLab CA certificate from %s", GL_CA_CERT_URL)
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pem") as fp:
-            urlretrieve(GL_CA_CERT_URL, fp.name)
-            _gl_ca_cert_path = fp.name
-
-        # Register cleanup on exit
-        atexit.register(os.unlink, _gl_ca_cert_path)
-
-        log.debug("GitLab CA certificate downloaded to %s", _gl_ca_cert_path)
-        return _gl_ca_cert_path
-    except Exception as err:
-        raise FatalError(f"Failed to download GitLab CA certificate from {GL_CA_CERT_URL}: {err}")
 
 
 class AppOrComponentSelector:
@@ -291,13 +255,12 @@ class RepoFile:
 
     @cached_property
     def _gh_auth_headers(self):
-        log_msg = f"using GITHUB_API_URL '{GH_API_URL}' with no authorization"
+        log_msg = f"using GITHUB_API_URL '{config.GH_API_URL}' with no authorization"
         headers = None
 
-        gh_token = os.getenv("GITHUB_TOKEN")
-        if gh_token:
-            log_msg = f"using GITHUB_API_URL '{GH_API_URL}' with GITHUB_TOKEN"
-            headers = {"Authorization": f"token {gh_token}"}
+        if config.GH_TOKEN:
+            log_msg = f"using GITHUB_API_URL '{config.GH_API_URL}' with GITHUB_TOKEN"
+            headers = {"Authorization": f"token {config.GH_TOKEN}"}
 
         log.debug(log_msg)
         return headers

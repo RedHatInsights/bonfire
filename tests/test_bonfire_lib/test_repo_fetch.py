@@ -1,10 +1,49 @@
 """Tests for bonfire_lib.repo_fetch module."""
 
+from pathlib import Path
+
 import pytest
 from unittest.mock import MagicMock, patch
 
-from bonfire_lib.repo_fetch import RepoFile
+import bonfire_lib.repo_fetch as repo_fetch
+from bonfire_lib import config
+from bonfire_lib.repo_fetch import RepoFile, _get_gl_ca_cert
 from bonfire_lib.utils import FatalError
+
+
+@pytest.fixture(autouse=True)
+def _reset_ca_cert_cache():
+    """The resolved CA cert path is cached in a module global; reset it per-test."""
+    repo_fetch._gl_ca_cert_path = None
+    yield
+    repo_fetch._gl_ca_cert_path = None
+
+
+class TestGetGlCaCert:
+    # config.GL_CA_CERT is read from the env at import time, so patch the
+    # constant directly rather than setting the env var (see AGENTS.md #6).
+    def test_defaults_to_bundled_cert(self, monkeypatch):
+        monkeypatch.setattr(config, "GL_CA_CERT", None)
+        path = _get_gl_ca_cert()
+        assert path == str(repo_fetch._BUNDLED_GL_CA_CERT)
+        assert repo_fetch._BUNDLED_GL_CA_CERT.is_file()
+
+    def test_env_override_existing_file(self, tmp_path, monkeypatch):
+        cert = tmp_path / "mounted.pem"
+        cert.write_text("x")
+        monkeypatch.setattr(config, "GL_CA_CERT", str(cert))
+        assert _get_gl_ca_cert() == str(cert)
+
+    def test_env_override_missing_file_raises_actionable(self, monkeypatch):
+        monkeypatch.setattr(config, "GL_CA_CERT", "/no/such/cert.pem")
+        with pytest.raises(FatalError, match=r"BONFIRE_GL_CA_CERT.*no file exists"):
+            _get_gl_ca_cert()
+
+    def test_missing_bundle_raises_actionable(self, monkeypatch):
+        monkeypatch.setattr(config, "GL_CA_CERT", None)
+        monkeypatch.setattr(repo_fetch, "_BUNDLED_GL_CA_CERT", Path("/no/such/bundle.pem"))
+        with pytest.raises(FatalError, match=r"bundled GitLab CA certificate is missing"):
+            _get_gl_ca_cert()
 
 
 class TestRepoFileInit:
