@@ -42,6 +42,7 @@ dependencies = [
     "rich>=13.0.0",
     "sh",
     "tabulate",
+    "textual>=1.0.0",
     "wait-for",
     "packaging",
     "truststore",
