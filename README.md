@@ -649,7 +649,7 @@ pip install -e .
 To install with MCP server support:
 
 ```bash
-pip install -e ".[mcp]"
+pip install -e ./bonfire_mcp
 ```
 
 To install with test dependencies:

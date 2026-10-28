@@ -26,7 +26,7 @@ def _error(msg):
     sys.exit(1)
 
 
-@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("search_regex", required=True, type=str)
 @click.argument("replace_regex", required=True, type=str)
 @click.argument("file_path", required=True, type=str)

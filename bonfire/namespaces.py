@@ -4,10 +4,13 @@ import datetime
 import json
 import logging
 
-from ocviapy import get_all_namespaces, get_json, on_k8s, set_current_namespace
+from ocviapy import StatusError, get_all_namespaces, get_json, on_k8s, set_current_namespace
+from sh import CommandNotFound, ErrorReturnCode
 from wait_for import TimedOutError
 
 import bonfire.config as conf
+import bonfire_lib.reservations as _lib_reservations
+import bonfire_lib.status as _lib_status
 from bonfire.openshift import (
     get_all_reservations,
     get_console_url,
@@ -15,9 +18,6 @@ from bonfire.openshift import (
     whoami,
 )
 from bonfire.utils import FatalError
-
-import bonfire_lib.reservations as _lib_reservations
-import bonfire_lib.status as _lib_status
 from bonfire_lib.k8s_client import EphemeralK8sClient
 
 log = logging.getLogger(__name__)
@@ -32,11 +32,17 @@ TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 def _utc_tz(dt):
-    return dt.replace(tzinfo=datetime.timezone.utc)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.astimezone(datetime.timezone.utc)
 
 
 def _parse_time(string):
-    return _utc_tz(datetime.datetime.strptime(string, TIME_FMT)) if string else None
+    return (
+        datetime.datetime.strptime(string, TIME_FMT).replace(tzinfo=datetime.timezone.utc)
+        if string
+        else None
+    )
 
 
 def _fmt_time(dt):
@@ -54,13 +60,13 @@ def _pretty_time_delta(seconds):
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
     if days > 0:
-        return "%dd%dh%dm%ds" % (days, hours, minutes, seconds)
+        return f"{days}d{hours}h{minutes}m{seconds}s"
     elif hours > 0:
-        return "%dh%dm%ds" % (hours, minutes, seconds)
+        return f"{hours}h{minutes}m{seconds}s"
     elif minutes > 0:
-        return "%dm%ds" % (minutes, seconds)
+        return f"{minutes}m{seconds}s"
     else:
-        return "%ds" % (seconds,)
+        return f"{seconds}s"
 
 
 def _duration_fmt(seconds):
@@ -69,11 +75,11 @@ def _duration_fmt(seconds):
     hours, seconds = divmod(seconds, 3600)
     minutes, seconds = divmod(seconds, 60)
     if hours > 0:
-        return "%dh%dm%ds" % (hours, minutes, seconds)
+        return f"{hours}h{minutes}m{seconds}s"
     elif minutes > 0:
-        return "%dm%ds" % (minutes, seconds)
+        return f"{minutes}m{seconds}s"
     else:
-        return "%ds" % (seconds,)
+        return f"{seconds}s"
 
 
 class Namespace:
@@ -212,7 +218,7 @@ class Namespace:
             log.debug("fetching clowdapps for ns %s", self.name)
             try:
                 self._clowdapps = get_json("clowdapp", namespace=self.name).get("items", [])
-            except ValueError:
+            except (CommandNotFound, ErrorReturnCode, StatusError, ValueError, OSError):
                 return "none"
 
         if not self._clowdapps:
@@ -236,7 +242,7 @@ class Namespace:
         try:
             cluster_data = get_json("cluster.cluster.x-k8s.io", namespace=self.name)
             items = cluster_data.get("items", [])
-        except Exception:
+        except (CommandNotFound, ErrorReturnCode, StatusError, ValueError, OSError):
             return "n/a"
 
         if not items:
@@ -366,7 +372,7 @@ def extend_namespace(namespace, duration, local=True):
     except _lib_reservations.FatalError as exc:
         raise FatalError(str(exc))
     if result is None:
-        return None
+        return
     log.info("reservation for ns '%s' extended by '%s'", namespace, duration)
 
 

@@ -5,12 +5,43 @@ import logging
 import sys
 import warnings
 from functools import wraps
-import truststore
 
 import click
-from ocviapy import apply_config, get_current_namespace, StatusError
+import requests
+import truststore
+from gql.transport.exceptions import TransportError
+from ocviapy import StatusError, apply_config, get_current_namespace
+from sh import CommandNotFound, ErrorReturnCode
 from wait_for import TimedOutError
 
+import bonfire.config as conf
+from bonfire.configmaps import import_configmaps_from_dir
+from bonfire.elastic_logging import ElasticLogger
+from bonfire.local import get_appsfile_apps, get_local_apps
+from bonfire.namespaces import (
+    Namespace,
+    describe_namespace,
+    extend_namespace,
+    get_namespaces,
+    release_reservation,
+    reserve_namespace,
+)
+from bonfire.openshift import (
+    check_for_existing_reservation,
+    find_clowd_env_for_ns,
+    get_namespace_pools,
+    get_pool_size_limit,
+    get_reservation,
+    get_reserved_namespace_quantity,
+    has_clowder,
+    has_ns_operator,
+    log_namespace_events,
+    wait_for_all_resources,
+    wait_for_clowd_env_target_ns,
+    wait_for_db_resources,
+    wait_on_cji,
+    whoami,
+)
 from bonfire.output import (
     configure_logging,
     echo_error,
@@ -23,49 +54,21 @@ from bonfire.output import (
     render_version,
     status_spinner,
 )
-
-import bonfire.config as conf
-from bonfire.elastic_logging import ElasticLogger
-from bonfire.local import get_local_apps, get_appsfile_apps
-from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
-from bonfire.namespaces import (
-    Namespace,
-    extend_namespace,
-    get_namespaces,
-    release_reservation,
-    reserve_namespace,
-    describe_namespace,
-)
-from bonfire.openshift import (
-    check_for_existing_reservation,
-    find_clowd_env_for_ns,
-    get_namespace_pools,
-    get_reservation,
-    has_clowder,
-    has_ns_operator,
-    wait_for_all_resources,
-    wait_for_clowd_env_target_ns,
-    wait_for_db_resources,
-    wait_on_cji,
-    whoami,
-    get_pool_size_limit,
-    get_reserved_namespace_quantity,
-    log_namespace_events,
-)
 from bonfire.processor import TemplateProcessor, process_clowd_env, process_iqe_cji
 from bonfire.qontract import get_apps_for_env, get_base_namespace_for_env, sub_refs
 from bonfire.secrets import import_secrets_from_dir
-from bonfire.configmaps import import_configmaps_from_dir
 from bonfire.utils import (
+    SYNTAX_ERR,
+    AppOrComponentSelector,
     FatalError,
+    RepoFile,
     check_pypi,
     find_what_depends_on,
     get_version,
+    merge_app_configs,
     split_equals,
     validate_time_string,
-    merge_app_configs,
 )
-
 
 log = logging.getLogger(__name__)
 es_telemetry = ElasticLogger()
@@ -135,7 +138,7 @@ _global_options = [
 ]
 
 
-@click.group(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @options(_global_options)
 @click.pass_context
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
@@ -164,31 +167,26 @@ def test():
     """
     Used for unit testing
     """
-    pass
 
 
 @main.group()
 def namespace():
     """Perform operations related to namespace reservation"""
-    pass
 
 
 @main.group()
 def config():
     """Commands related to bonfire configuration"""
-    pass
 
 
 @main.group()
 def apps():
     """Show information about deployable apps"""
-    pass
 
 
 @main.group()
 def pool():
     """Perform operations related to pool types"""
-    pass
 
 
 def _confirm_or_abort(msg):
@@ -233,7 +231,7 @@ def _get_requester():
     else:
         try:
             requester = whoami()
-        except Exception:
+        except (CommandNotFound, ErrorReturnCode, OSError):
             log.info("whoami returned an error - setting requester to 'bonfire'")  # minikube
             requester = "bonfire"
     return requester
@@ -351,7 +349,7 @@ def _validate_set_template_ref(ctx, param, value):
         split_value = split_equals(value)
         if split_value:
             # check that values unpack properly
-            for app_component, value in split_value.items():
+            for app_component in split_value:
                 # TODO: remove once app name syntax fully deprecated
                 split = app_component.split("/")
                 if len(split) == 2:
@@ -374,7 +372,7 @@ def _validate_set_parameter(ctx, param, value):
         split_value = split_equals(value)
         if split_value:
             # check that values unpack properly
-            for param_path, value in split_value.items():
+            for param_path in split_value:
                 # TODO: remove once app name syntax fully deprecated
                 split = param_path.split("/")
                 if len(split) == 3:
@@ -434,7 +432,7 @@ def _translate_to_obj(value_list, param_name):
 
 
 def _app_or_component_selector(ctx, param, this_value):
-    if any([val.startswith("-") for val in this_value]):
+    if any(val.startswith("-") for val in this_value):
         raise click.BadParameter("requires a component name or keyword 'all'")
 
     # check if 'app:' syntax or "/dependency" syntax has been used and
@@ -1024,7 +1022,7 @@ def _get_apps_config(
                 "target env is '%s' and no ref env given, using 'master' git ref for all apps",
                 conf.EPHEMERAL_ENV_NAME,
             )
-            for _, app_cfg in apps_config.items():
+            for app_cfg in apps_config.values():
                 for component in app_cfg.get("components", []):
                     component["ref"] = "master"
 
@@ -1046,7 +1044,7 @@ def _get_apps_config(
             try:
                 RepoFile.from_config(component)
             except FatalError as err:
-                raise FatalError(f"{str(err)}, hit on app {app_name}")
+                raise FatalError(f"{err!s}, hit on app {app_name}")
 
     return apps_config
 
@@ -1174,7 +1172,6 @@ def _cmd_pool_types():
 
 def _get_return_args(*args, **kwargs):
     """Dummy function used for unit testing process options"""
-    pass
 
 
 @test.command("process", hidden=True)
@@ -1409,7 +1406,7 @@ def _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns):
         msg = "deploy failed"
 
     if str(err):
-        msg += f": {str(err)}"
+        msg += f": {err!s}"
 
     if isinstance(err, (KeyboardInterrupt, TimedOutError, FatalError, StatusError)):
         log.error(msg)
@@ -1562,7 +1559,7 @@ def _cmd_config_deploy(
                     secrets_src_namespace,
                     target_env,
                 )
-        except Exception:
+        except (FatalError, ValueError, OSError, TransportError, requests.RequestException):
             log.info("could not resolve base namespace for env '%s'", target_env)
 
     # Get namespace from global context, can be None
@@ -1641,7 +1638,9 @@ def _cmd_config_deploy(
                 apply_config(ns, apps_config)
             with status_spinner("Waiting for resources to be ready...", timeout=timeout):
                 _wait_on_namespace_resources(ns, timeout, False, defer_status_errors)
-    except (KeyboardInterrupt, Exception) as err:
+    except KeyboardInterrupt as err:
+        _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns)
+    except Exception as err:  # noqa: BLE001, RUF100 - deployment must clean up all failures
         _deploy_err_handler(err, no_release_on_fail, reserved_new_ns, reserve, ns)
     else:
         echo_success(f"Successfully deployed to namespace '{ns}'")
@@ -1915,7 +1914,7 @@ def _cmd_deploy_iqe_cji(
     try:
         cji_name = cji_config["items"][0]["metadata"]["name"]
     except (KeyError, IndexError):
-        raise Exception("error parsing name of CJI from processed template, check CJI template")
+        raise FatalError("error parsing name of CJI from processed template, check CJI template")
 
     with status_spinner("Applying CJI config..."):
         apply_config(namespace, cji_config)

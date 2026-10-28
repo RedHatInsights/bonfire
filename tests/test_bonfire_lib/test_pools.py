@@ -1,4 +1,4 @@
-from bonfire_lib.pools import list_pools, get_pool_capacity
+from bonfire_lib.pools import get_pool_capacity, list_pools
 
 
 class TestListPools:
