@@ -485,7 +485,13 @@ def find_what_depends_on(apps_config, clowdapp_name):
                 rf = RepoFile.from_config(component)
                 _, template_content = rf.fetch()
                 template = yaml.safe_load(template_content)
-            except (FatalError, OSError, ValueError, yaml.YAMLError) as err:
+            except (
+                FatalError,
+                OSError,
+                ValueError,
+                yaml.YAMLError,
+                requests.exceptions.RequestException,
+            ) as err:
                 log.error("failed to fetch template file for %s: %s", component_name, err)
                 continue
 

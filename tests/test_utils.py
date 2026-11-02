@@ -1,6 +1,7 @@
 import time
 
 import pytest
+import requests
 
 from bonfire.utils import (
     PYPI_URL,
@@ -223,7 +224,8 @@ def test_get_raises_after_retries_exhausted(requests_mock, mocker):
         rf._get(_RATE_LIMIT_URL)
 
 
-def test_find_what_depends_on_fetch_failure(monkeypatch):
+@pytest.mark.parametrize("fetch_error", [FatalError, requests.exceptions.ConnectionError])
+def test_find_what_depends_on_fetch_failure(monkeypatch, fetch_error):
     from bonfire.utils import find_what_depends_on
 
     apps_config = {
@@ -237,7 +239,7 @@ def test_find_what_depends_on_fetch_failure(monkeypatch):
 
     def mock_fetch(self):
         if self.repo == "repo1":
-            raise FatalError("failed to fetch template")
+            raise fetch_error("failed to fetch template")
         template_yaml = """
 objects:
   - kind: ClowdApp
