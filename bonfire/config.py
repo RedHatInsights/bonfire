@@ -1,17 +1,14 @@
+import importlib.resources as importlib_resources
 import logging
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
+import yaml
 from dotenv import load_dotenv
-from bonfire.utils import FatalError, get_config_path, load_file
 
-if sys.version_info < (3, 9):
-    import importlib_resources
-else:
-    import importlib.resources as importlib_resources
+from bonfire.utils import FatalError, get_config_path, load_file
 
 log = logging.getLogger(__name__)
 
@@ -133,7 +130,7 @@ def _get_auto_added_frontend_dependencies():
 
     if env_var is None:
         return set(DEFAULT_FRONTEND_DEPENDENCIES)
-    return set([val.strip() for val in env_var.split(",") if val.strip()])
+    return {val.strip() for val in env_var.split(",") if val.strip()}
 
 
 AUTO_ADDED_FRONTEND_DEPENDENCIES = _get_auto_added_frontend_dependencies()
@@ -176,7 +173,7 @@ def load_config(config_path=None):
         log.debug("user provided explicit config path: %s", config_path)
         config_path = Path(config_path)
         if not config_path.exists():
-            raise FatalError(f"provided config file path '{str(config_path)}' does not exist")
+            raise FatalError(f"provided config file path '{config_path!s}' does not exist")
     else:
         log.debug("using default config path: %s", DEFAULT_CONFIG_PATH)
         config_path = DEFAULT_CONFIG_PATH
@@ -194,7 +191,7 @@ def load_aliases(config_path=None):
     """Load CLI aliases, merging user config with built-in defaults."""
     try:
         config = load_config(config_path)
-    except Exception:
+    except (FatalError, OSError, TypeError, ValueError, yaml.YAMLError):
         config = {}
 
     user_aliases = config.get("aliases", {}) if config else {}

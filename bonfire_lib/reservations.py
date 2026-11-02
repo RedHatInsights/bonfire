@@ -8,10 +8,13 @@ import base64
 import logging
 import uuid
 
+from kubernetes.client import ApiException
+from kubernetes.config import ConfigException
+
 from bonfire_lib.core_resources import render_reservation
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.status import wait_on_reservation
-from bonfire_lib.utils import FatalError, hms_to_seconds, duration_fmt
+from bonfire_lib.utils import FatalError, duration_fmt, hms_to_seconds
 
 KUBECONFIG_SECRET_SUFFIX = "-kubeconfig"
 KUBECONFIG_SECRET_NAMESPACE = "ephemeral-cluster-operator"
@@ -59,7 +62,7 @@ def reserve(
     if requester is None:
         try:
             requester = client.whoami()
-        except Exception:
+        except (ApiException, ConfigException, OSError):
             requester = "bonfire"
 
     existing = client.get_reservation(name)

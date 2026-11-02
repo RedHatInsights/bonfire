@@ -28,9 +28,10 @@ _console = None
 def _is_interactive():
     global _interactive
     if _interactive is None:
-        if os.environ.get("NO_COLOR"):
-            _interactive = False
-        elif os.environ.get("BONFIRE_PLAIN_OUTPUT", "").lower() in ("1", "true"):
+        if os.environ.get("NO_COLOR") or os.environ.get("BONFIRE_PLAIN_OUTPUT", "").lower() in (
+            "1",
+            "true",
+        ):
             _interactive = False
         else:
             _interactive = sys.stdout.isatty() and sys.stderr.isatty()
@@ -298,7 +299,6 @@ def _render_describe_rich(info, project_name):
             )
         )
     console.print()
-    return None
 
 
 def _get_cred_rows(info):

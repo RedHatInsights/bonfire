@@ -1,17 +1,20 @@
 import time
 
 import pytest
+import requests
 
 from bonfire.utils import (
+    PYPI_URL,
+    AppOrComponentSelector,
+    FatalError,
+    RepoFile,
+    check_pypi,
+    check_url_connection,
     get_version,
     hms_to_seconds,
     split_equals,
     validate_time_string,
-    check_pypi,
-    PYPI_URL,
-    RepoFile,
 )
-from bonfire.utils import check_url_connection, FatalError, AppOrComponentSelector
 
 
 @pytest.mark.parametrize(
@@ -219,3 +222,35 @@ def test_get_raises_after_retries_exhausted(requests_mock, mocker):
     rf = RepoFile("github", "org", "repo", "/path")
     with pytest.raises(Exception, match="continues to hit rate limit after 3 attempts"):
         rf._get(_RATE_LIMIT_URL)
+
+
+@pytest.mark.parametrize("fetch_error", [FatalError, requests.exceptions.ConnectionError])
+def test_find_what_depends_on_fetch_failure(monkeypatch, fetch_error):
+    from bonfire.utils import find_what_depends_on
+
+    apps_config = {
+        "app1": {
+            "components": [
+                {"name": "broken-comp", "host": "github", "repo": "org/repo1", "path": "/t.yaml"},
+                {"name": "good-comp", "host": "github", "repo": "org/repo2", "path": "/t.yaml"},
+            ]
+        }
+    }
+
+    def mock_fetch(self):
+        if self.repo == "repo1":
+            raise fetch_error("failed to fetch template")
+        template_yaml = """
+objects:
+  - kind: ClowdApp
+    metadata:
+      name: good-app
+    spec:
+      dependencies:
+        - target-service
+"""
+        return "sha123", template_yaml
+
+    monkeypatch.setattr("bonfire.utils.RepoFile.fetch", mock_fetch)
+    result = find_what_depends_on(apps_config, "target-service")
+    assert result == {"good-app"}

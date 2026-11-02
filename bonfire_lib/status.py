@@ -10,6 +10,10 @@ import base64
 import logging
 import time
 
+from kubernetes.client import ApiException
+from kubernetes.dynamic.exceptions import DynamicApiError, ResourceNotFoundError
+from urllib3.exceptions import HTTPError
+
 from bonfire_lib.k8s_client import EphemeralK8sClient
 from bonfire_lib.utils import FatalError
 
@@ -141,7 +145,7 @@ def get_console_url(client: EphemeralK8sClient) -> str | None:
         cm = client.get_configmap("console-public", "openshift-config-managed")
         if cm:
             return cm.get("data", {}).get("consoleURL")
-    except Exception as err:
+    except (ApiException, HTTPError, OSError, TypeError, ValueError) as err:
         log.debug("unable to obtain console url: %s: %s", err.__class__.__name__, err)
     return None
 
@@ -165,13 +169,13 @@ def describe_namespace(client: EphemeralK8sClient, namespace: str) -> dict:
 
     try:
         clowdapps = client.list_crds("ClowdApp", namespace=namespace)
-    except Exception as exc:
+    except (ApiException, DynamicApiError, ResourceNotFoundError, HTTPError, OSError) as exc:
         log.warning("failed to list ClowdApps in namespace '%s': %s", namespace, exc)
         clowdapps = []
 
     try:
         frontends = client.list_crds("Frontend", namespace=namespace)
-    except Exception as exc:
+    except (ApiException, DynamicApiError, ResourceNotFoundError, HTTPError, OSError) as exc:
         log.warning("failed to list Frontends in namespace '%s': %s", namespace, exc)
         frontends = []
 
@@ -182,7 +186,15 @@ def describe_namespace(client: EphemeralK8sClient, namespace: str) -> dict:
         if fe_env:
             fe_host = fe_env.get("spec", {}).get("hostname", "")
             keycloak_url = fe_env.get("spec", {}).get("sso", "")
-    except Exception as exc:
+    except (
+        ApiException,
+        DynamicApiError,
+        ResourceNotFoundError,
+        HTTPError,
+        OSError,
+        TypeError,
+        ValueError,
+    ) as exc:
         log.warning("failed to get FrontendEnvironment for namespace '%s': %s", namespace, exc)
 
     kc_creds = _get_keycloak_creds(client, namespace)
@@ -212,7 +224,7 @@ def _has_cluster_kubeconfig(client: EphemeralK8sClient, namespace: str) -> bool:
     try:
         secret = client.get_secret(f"{namespace}-cluster-kubeconfig", namespace)
         return secret is not None
-    except Exception:
+    except (ApiException, HTTPError, OSError):
         return False
 
 
