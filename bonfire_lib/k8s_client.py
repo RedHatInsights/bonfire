@@ -62,6 +62,7 @@ class EphemeralK8sClient:
         ca_data: str | None = None,
         skip_tls: bool = False,
     ):
+        """Initialize the client, failing closed when an explicit context is set."""
         self._auth_mode = "kubeconfig"
         if server and token:
             self._auth_mode = "token"
@@ -96,6 +97,8 @@ class EphemeralK8sClient:
                 self._auth_mode = "kubeconfig"
                 self._api_client = test_client
             except (ConfigException, ApiException) as e:
+                if context is not None:
+                    raise
                 # Kubeconfig doesn't exist, is invalid, or doesn't have working credentials
                 log.error(
                     "Kubeconfig auth failed (%s: %s), attempting in-cluster fallback",
