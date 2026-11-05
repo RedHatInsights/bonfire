@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 def _get_lib_client() -> EphemeralK8sClient:
     """Create an EphemeralK8sClient using the configured kubeconfig context."""
-    return EphemeralK8sClient(context=conf.K8S_CONTEXT)
+    return EphemeralK8sClient(context=conf.BONFIRE_K8S_CONTEXT)
 
 
 TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"

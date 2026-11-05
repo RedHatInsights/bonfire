@@ -136,7 +136,7 @@ _global_options = [
     click.option(
         "--context",
         "kube_context",
-        envvar=["BONFIRE_K8S_CONTEXT", "K8S_CONTEXT"],
+        envvar="BONFIRE_K8S_CONTEXT",
         help="Named kubeconfig context to use",
         default=None,
     ),
@@ -167,7 +167,7 @@ def main(ctx, debug, namespace, kube_context):
     ctx.obj["namespace"] = namespace
     ctx.obj["context"] = kube_context
 
-    conf.K8S_CONTEXT = kube_context
+    conf.BONFIRE_K8S_CONTEXT = kube_context
     if kube_context and ctx.invoked_subcommand in _KUBE_COMMANDS:
         ctx.with_resource(configure_kube_context(kube_context))
 

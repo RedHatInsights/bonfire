@@ -14,7 +14,7 @@ def test_main_context_option_configures_selected_context(mocker):
 
     assert result.exit_code == 0, result.output
     configure_context.assert_not_called()
-    assert conf.K8S_CONTEXT == "eph"
+    assert conf.BONFIRE_K8S_CONTEXT == "eph"
 
 
 def test_main_context_uses_bonfire_context_environment_variable(mocker):
@@ -29,7 +29,7 @@ def test_main_context_uses_bonfire_context_environment_variable(mocker):
 
     assert result.exit_code == 0, result.output
     configure_context.assert_not_called()
-    assert conf.K8S_CONTEXT == "eph"
+    assert conf.BONFIRE_K8S_CONTEXT == "eph"
 
 
 def test_main_context_configures_kubernetes_command(mocker):
