@@ -27,6 +27,7 @@ from bonfire.output import (
 import bonfire.config as conf
 from bonfire.elastic_logging import ElasticLogger
 from bonfire.local import get_local_apps, get_appsfile_apps
+from bonfire.kube_context import configure_kube_context
 from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
 from bonfire.namespaces import (
     Namespace,
@@ -132,6 +133,13 @@ def click_exception_wrapper(command):
 
 _global_options = [
     click.option("--namespace", "-n", help="Namespace to use", default=None),
+    click.option(
+        "--context",
+        "kube_context",
+        envvar="K8S_CONTEXT",
+        help="Named kubeconfig context to use",
+        default=None,
+    ),
 ]
 
 
@@ -139,10 +147,14 @@ _global_options = [
 @options(_global_options)
 @click.pass_context
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
-def main(ctx, debug, namespace):
+def main(ctx, debug, namespace, kube_context):
     # Store debug flag in context for subcommands to access
     ctx.ensure_object(dict)
     ctx.obj["namespace"] = namespace
+    ctx.obj["context"] = kube_context
+
+    conf.K8S_CONTEXT = kube_context
+    configure_kube_context(kube_context)
 
     configure_logging(debug)
 

@@ -357,6 +357,12 @@ The deploy command is an 'all-in-one' command that ties together 4 steps:
 
 As of v4.12.0, `bonfire` now analyzes the namespace set in your oc/kubectl context. This means you can run commands such as `namespace extend`, `namespace release`, or `deploy` after you have switched into a namespace using `oc project` and you no longer need to specify the namespace on the CLI. `bonfire` will attempt to use your current namespace (it will run checks to ensure that you own it first and warn if you do not). In addition, when a new namespace is reserved using `bonfire deploy` or `bonfire namespace reserve`, bonfire will also go ahead and run `oc project <NAMESPACE>` for you to switch your context into that new namespace.
 
+To target a named kubeconfig context without changing the kubeconfig's current context, use the global `--context` option:
+
+    `bonfire --context eph namespace list --mine`
+
+The same value can be provided with `K8S_CONTEXT`. The selected context is used for reservations and all `oc` operations; the user's current kubeconfig context is left unchanged.
+
 The `deploy` command can be run using the `--reserve` flag if you wish to ignore the current namespace and force a namespace reservation to occur.
 
 The automatic 'oc' context switching into a newly reserved namespace is disabled when bonfire is operating in "bot" mode (i.e. when the env var `BONFIRE_BOT` is set to `true`). When using bonfire in an automated CI/CD environment such as Jenkins, you should run in bot mode to disable automatic context switching.
