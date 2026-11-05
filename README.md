@@ -361,7 +361,7 @@ To target a named kubeconfig context without changing the kubeconfig's current c
 
     `bonfire --context eph namespace list --mine`
 
-The same value can be provided with `K8S_CONTEXT`. The selected context is used for reservations and all `oc` operations; the user's current kubeconfig context is left unchanged.
+The same value can be provided with `K8S_CONTEXT` (or the CLI-specific `BONFIRE_K8S_CONTEXT`). The selected context is used for reservations and all `oc` operations; the user's current kubeconfig context is left unchanged.
 
 The `deploy` command can be run using the `--reserve` flag if you wish to ignore the current namespace and force a namespace reservation to occur.
 

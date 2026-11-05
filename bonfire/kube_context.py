@@ -1,7 +1,9 @@
 """Helpers for selecting the kubeconfig context used by the CLI."""
 
-import atexit
+from collections.abc import Iterator
+from contextlib import contextmanager
 import os
+from pathlib import Path
 import subprocess
 import tempfile
 
@@ -10,33 +12,8 @@ import ocviapy
 from bonfire.utils import FatalError
 
 
-_TEMP_KUBECONFIG_PATH: str | None = None
-_ORIGINAL_KUBECONFIG: str | None = None
-_KUBECONFIG_CAPTURED = False
-
-
-def _cleanup_temp_kubeconfig() -> None:
-    global _KUBECONFIG_CAPTURED, _ORIGINAL_KUBECONFIG, _TEMP_KUBECONFIG_PATH
-
-    if _TEMP_KUBECONFIG_PATH is None:
-        return
-
-    try:
-        os.unlink(_TEMP_KUBECONFIG_PATH)
-    except FileNotFoundError:
-        pass
-    _TEMP_KUBECONFIG_PATH = None
-
-    if _KUBECONFIG_CAPTURED:
-        if _ORIGINAL_KUBECONFIG is None:
-            os.environ.pop("KUBECONFIG", None)
-        else:
-            os.environ["KUBECONFIG"] = _ORIGINAL_KUBECONFIG
-        _ORIGINAL_KUBECONFIG = None
-        _KUBECONFIG_CAPTURED = False
-
-
-def _minify_kubeconfig(context: str) -> str:
+def _get_minified_kubeconfig(context: str) -> str:
+    """Return the selected context as a minified kubeconfig document."""
     try:
         result = subprocess.run(
             ["oc", "config", "view", "--raw", "--minify", "--context", context],
@@ -52,40 +29,38 @@ def _minify_kubeconfig(context: str) -> str:
     if not result.stdout.strip():
         raise FatalError(f"unable to select kube context '{context}': empty kubeconfig")
 
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", prefix="bonfire-kubeconfig-", delete=False
-        ) as kubeconfig:
-            kubeconfig.write(result.stdout)
-            path = kubeconfig.name
-        os.chmod(path, 0o600)
-    except OSError as exc:
-        raise FatalError("unable to create a temporary kubeconfig") from exc
-
-    return path
+    return result.stdout
 
 
-def configure_kube_context(context: str | None) -> None:
-    """Configure all CLI Kubernetes access to use *context*.
-
-    Newer ocviapy versions may expose ``set_default_context``. Older versions
-    only use the kubeconfig's current context, so provide them with a
-    short-lived, context-minified kubeconfig instead.
-    """
-    global _KUBECONFIG_CAPTURED, _ORIGINAL_KUBECONFIG, _TEMP_KUBECONFIG_PATH
-
+@contextmanager
+def configure_kube_context(context: str | None) -> Iterator[None]:
+    """Scope CLI Kubernetes access to *context* for one command invocation."""
     if not context:
+        yield
         return
 
     set_default_context = getattr(ocviapy, "set_default_context", None)
     if set_default_context is not None:
-        _cleanup_temp_kubeconfig()
         set_default_context(context)
+        yield
         return
 
-    _cleanup_temp_kubeconfig()
-    _TEMP_KUBECONFIG_PATH = _minify_kubeconfig(context)
-    _ORIGINAL_KUBECONFIG = os.environ.get("KUBECONFIG")
-    _KUBECONFIG_CAPTURED = True
-    os.environ["KUBECONFIG"] = _TEMP_KUBECONFIG_PATH
-    atexit.register(_cleanup_temp_kubeconfig)
+    kubeconfig_data = _get_minified_kubeconfig(context)
+    original_kubeconfig = os.environ.get("KUBECONFIG")
+
+    with tempfile.TemporaryDirectory(prefix="bonfire-kubeconfig-") as temp_dir:
+        path = Path(temp_dir) / "config"
+        try:
+            path.write_text(kubeconfig_data)
+            path.chmod(0o600)
+        except OSError as exc:
+            raise FatalError("unable to create a temporary kubeconfig") from exc
+
+        os.environ["KUBECONFIG"] = str(path)
+        try:
+            yield
+        finally:
+            if original_kubeconfig is None:
+                os.environ.pop("KUBECONFIG", None)
+            else:
+                os.environ["KUBECONFIG"] = original_kubeconfig

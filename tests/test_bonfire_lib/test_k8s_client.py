@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 
+import pytest
 from kubernetes.config import ConfigException
 from kubernetes.client import ApiException
 from bonfire_lib.k8s_client import EphemeralK8sClient, _sanitize_username, _extract_username
@@ -114,6 +115,29 @@ class TestAuthModeSelection:
         from unittest.mock import ANY
 
         mock_config.load_incluster_config.assert_called_once_with(client_configuration=ANY)
+
+    @patch("bonfire_lib.k8s_client.DynamicClient")
+    @patch("bonfire_lib.k8s_client.ApisApi")
+    @patch("bonfire_lib.k8s_client.client")
+    @patch("bonfire_lib.k8s_client.config")
+    @patch.object(EphemeralK8sClient, "_is_in_cluster", return_value=True)
+    def test_explicit_context_does_not_fallback_to_incluster(
+        self, mock_in_cluster, mock_config, mock_client_module, mock_apis_api, mock_dynamic
+    ):
+        mock_api_client = MagicMock()
+        mock_client_module.ApiClient.return_value = mock_api_client
+        mock_client_module.CoreV1Api.return_value = MagicMock()
+        mock_config.load_kube_config.return_value = None
+        mock_apis_instance = MagicMock()
+        probe_error = ApiException(status=403, reason="Forbidden")
+        mock_apis_instance.get_api_versions.side_effect = probe_error
+        mock_apis_api.return_value = mock_apis_instance
+
+        with pytest.raises(ApiException) as raised:
+            EphemeralK8sClient(context="eph")
+
+        assert raised.value is probe_error
+        mock_config.load_incluster_config.assert_not_called()
 
     @patch("bonfire_lib.k8s_client.DynamicClient")
     @patch("bonfire_lib.k8s_client.client")
