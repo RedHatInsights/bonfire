@@ -4,6 +4,7 @@ import json
 import logging
 import sys
 import warnings
+from contextlib import ExitStack
 from functools import wraps
 import truststore
 
@@ -169,7 +170,9 @@ def main(ctx, debug, namespace, kube_context):
 
     conf.BONFIRE_K8S_CONTEXT = kube_context
     if kube_context and ctx.invoked_subcommand in _KUBE_COMMANDS:
-        ctx.with_resource(configure_kube_context(kube_context))
+        context_stack = ExitStack()
+        ctx.call_on_close(context_stack.close)
+        context_stack.enter_context(configure_kube_context(kube_context))
 
     configure_logging(debug)
 
