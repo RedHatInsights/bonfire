@@ -65,6 +65,9 @@ BASE_NAMESPACE_PATH = os.getenv(
 DEFAULT_BASE_NAMESPACE = os.getenv("DEFAULT_BASE_NAMESPACE", "ephemeral-base")
 EPHEMERAL_ENV_NAME = os.getenv("EPHEMERAL_ENV_NAME", "insights-ephemeral")
 
+# Optional named kubeconfig context used by the CLI and reservation client.
+BONFIRE_K8S_CONTEXT = os.getenv("BONFIRE_K8S_CONTEXT")
+
 # can be used to set name of 'requester' on namespace reservations
 BONFIRE_NS_REQUESTER = os.getenv("BONFIRE_NS_REQUESTER")
 # set to true when bonfire is running via automation using a bot acct (not an end user)

@@ -4,6 +4,7 @@ import json
 import logging
 import sys
 import warnings
+from contextlib import ExitStack
 from functools import wraps
 import truststore
 
@@ -27,6 +28,7 @@ from bonfire.output import (
 import bonfire.config as conf
 from bonfire.elastic_logging import ElasticLogger
 from bonfire.local import get_local_apps, get_appsfile_apps
+from bonfire.kube_context import configure_kube_context
 from bonfire.utils import AppOrComponentSelector, RepoFile, SYNTAX_ERR
 from bonfire.namespaces import (
     Namespace,
@@ -132,17 +134,45 @@ def click_exception_wrapper(command):
 
 _global_options = [
     click.option("--namespace", "-n", help="Namespace to use", default=None),
+    click.option(
+        "--context",
+        "kube_context",
+        envvar="BONFIRE_K8S_CONTEXT",
+        help="Named kubeconfig context to use",
+        default=None,
+    ),
 ]
+
+_KUBE_COMMANDS = frozenset(
+    {
+        "namespace",
+        "pool",
+        "process",
+        "deploy",
+        "process-env",
+        "deploy-env",
+        "process-iqe-cji",
+        "deploy-iqe-cji",
+    }
+)
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @options(_global_options)
 @click.pass_context
 @click.option("--debug", "-d", help="Enable debug logging", is_flag=True, default=False)
-def main(ctx, debug, namespace):
+def main(ctx, debug, namespace, kube_context):
+    """Initialize CLI state and configure logging for the selected command."""
     # Store debug flag in context for subcommands to access
     ctx.ensure_object(dict)
     ctx.obj["namespace"] = namespace
+    ctx.obj["context"] = kube_context
+
+    conf.BONFIRE_K8S_CONTEXT = kube_context
+    if kube_context and ctx.invoked_subcommand in _KUBE_COMMANDS:
+        context_stack = ExitStack()
+        ctx.call_on_close(context_stack.close)
+        context_stack.enter_context(configure_kube_context(kube_context))
 
     configure_logging(debug)
 
