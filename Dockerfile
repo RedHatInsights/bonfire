@@ -1,44 +1,42 @@
-FROM registry.access.redhat.com/ubi9/python-312:9.8-1793278874 as builder
+FROM registry.access.redhat.com/hi/python:3.12-builder@sha256:9e8f996764dd3231cd49b6bc6847d4b2b6bbd140880c213a5a72e8ebe639dffb AS builder
 
 ENV OC_CLI_VERSION=4.16
 
-COPY --chown=default:0 . .
+USER 0
+RUN dnf install -y git-core tar gzip && dnf clean all
+USER 65532
 
-RUN pip install build
-RUN python -m build -o dist
+WORKDIR /opt/app-root/src
+
+COPY --chown=65532:0 . .
+
+RUN git config --global --add safe.directory /opt/app-root/src && \
+    python3.12 -m venv .venv && \
+    .venv/bin/pip install -U pip build && \
+    .venv/bin/python3.12 -m build -o dist && \
+    WHEEL=$(ls dist/crc_bonfire-*.whl) && \
+    .venv/bin/pip install "$WHEEL"
 
 RUN curl -sSLO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest-$OC_CLI_VERSION/openshift-client-linux.tar.gz && \
-  tar -xzf openshift-client-linux.tar.gz oc kubectl && \
-  rm openshift-client-linux.tar.gz
+    tar -xzf openshift-client-linux.tar.gz oc kubectl && \
+    rm openshift-client-linux.tar.gz
 
-FROM registry.access.redhat.com/ubi9-minimal:9.8-1793578971
+RUN HOME=/opt/app-root/src .venv/bin/bonfire config write-default
 
-ENV APP_ROOT=/opt/bonfire
+FROM registry.access.redhat.com/hi/python:3.12@sha256:7f4cfba00a0d385d4616671845e9ecf3e5e8019b6610abcd52db5061a1b43aea
 
-ENV PYTHON_VERSION=3.12 \
-    PATH=$APP_ROOT/.local/bin/:$PATH \
+WORKDIR /opt/app-root/src
+
+ENV HOME=/opt/app-root/src \
+    PATH=/opt/app-root/src/.venv/bin:/opt/app-root/src/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=UTF-8 \
-    LANG=en_US.UTF-8 \
-    CNB_USER_ID=1000 \
-    CNB_GROUP_ID=0 \
-    PIP_NO_CACHE_DIR=off
+    LANG=en_US.UTF-8
 
-RUN microdnf install -y python3.12 python3.12-pip shadow-utils && \
-    microdnf clean all
+COPY --from=builder --chown=65532:0 /opt/app-root/src/.venv/ .venv/
+COPY --from=builder --chown=65532:0 /opt/app-root/src/oc .local/bin/oc
+COPY --from=builder --chown=65532:0 /opt/app-root/src/kubectl .local/bin/kubectl
+COPY --from=builder --chown=65532:0 /opt/app-root/src/.config/ .config/
+COPY --chown=65532:0 entrypoint.py .
 
-RUN useradd -r -u 1001 -g 0 -m -d $APP_ROOT -s /bin/bash bonfire
-
-USER 1001
-WORKDIR $APP_ROOT
-
-COPY --from=builder /opt/app-root/src/dist/crc_bonfire*.whl .
-
-RUN WHEEL=$(ls crc_bonfire*.whl) && pip3.12 install "${WHEEL}[cli]" && rm "$WHEEL"
-
-COPY --from=builder /opt/app-root/src/oc /opt/app-root/src/kubectl ${APP_ROOT}/.local/bin/
-COPY entrypoint.sh .
-
-RUN bonfire config write-default
-
-ENTRYPOINT [ "./entrypoint.sh" ]
+ENTRYPOINT ["python3", "entrypoint.py"]
