@@ -122,7 +122,7 @@ You can also make use of the kubeconfig file on your host by mounting it into th
 ```
 KUBECONFIG=${KUBECONFIG:="$HOME/.kube/config"}
 chmod g+rw $KUBECONFIG
-podman run -it --rm -v $KUBECONFIG:/opt/bonfire/.kube/config:rw,Z \
+podman run -it --rm -v $KUBECONFIG:/opt/app-root/src/.kube/config:rw,Z \
     quay.io/redhat-user-workloads/hcm-eng-prod-tenant/bonfire/bonfire namespace list
 ```
 
