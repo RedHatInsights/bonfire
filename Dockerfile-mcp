@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/hi/python:3.12-builder@sha256:9e8f996764dd3231cd49b6bc6847d4b2b6bbd140880c213a5a72e8ebe639dffb AS builder
+FROM registry.access.redhat.com/hi/python:3.12-builder@sha256:afb9e5506ae43c4812fd9f8d35897b08496e2fa617dd9cd9ba0b300a1f5e3355 AS builder
 
 USER 0
 RUN dnf install -y git-core && dnf clean all
@@ -15,7 +15,7 @@ RUN git config --global --add safe.directory /opt/app-root/src && \
     WHEEL=$(ls dist/crc_bonfire_mcp-*.whl) && \
     .venv/bin/pip install "$WHEEL"
 
-FROM registry.access.redhat.com/hi/python:3.12@sha256:7f4cfba00a0d385d4616671845e9ecf3e5e8019b6610abcd52db5061a1b43aea
+FROM registry.access.redhat.com/hi/python:3.12@sha256:6b1dfe7d49bd26204c8b965acc0e344b964d138c9679b0aff02875f2bd6aba63
 
 WORKDIR /opt/app-root/src
 
