@@ -76,7 +76,7 @@ SYNTAX_ERR = "configuration syntax error"
 
 
 GIT_SHA_RE = re.compile(r"[a-f0-9]{40}")
-_PARAM_REGEX = re.compile(r"\${(\S+)}")
+_PARAM_REGEX = re.compile(r"\$\{(\w+)\}")
 
 log = logging.getLogger(__name__)
 
