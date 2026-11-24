@@ -219,3 +219,12 @@ def test_get_raises_after_retries_exhausted(requests_mock, mocker):
     rf = RepoFile("github", "org", "repo", "/path")
     with pytest.raises(Exception, match="continues to hit rate limit after 3 attempts"):
         rf._get(_RATE_LIMIT_URL)
+
+
+def test_param_regex_extracts_name_and_is_linear():
+    from bonfire.utils import _PARAM_REGEX
+
+    assert _PARAM_REGEX.findall("${APP_NAME}-foo") == ["APP_NAME"]
+    start = time.time()
+    _PARAM_REGEX.findall("${" * 32768)
+    assert time.time() - start < 1
