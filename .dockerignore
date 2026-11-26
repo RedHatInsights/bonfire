@@ -6,3 +6,4 @@
 !utils
 !pyproject.toml
 !entrypoint.sh
+!entrypoint.py
