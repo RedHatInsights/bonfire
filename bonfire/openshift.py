@@ -187,19 +187,36 @@ def _all_resources_ready(namespace, timeout, watcher, defer_status_errors=False)
     )
 
 
-def wait_for_all_resources(namespace, timeout=600, defer_status_errors=False):
+def create_resource_watcher(namespace):
+    """Create a ResourceWatcher with initial resource snapshot.
+
+    Caller is responsible for calling watcher.start() and watcher.stop().
+    """
     watcher = ResourceWatcher(namespace)
     watcher.update_resources()
 
     if not watcher.resources:
         raise TimedOutError("no resources to wait for observed in namespace")
 
-    watcher.start()
+    return watcher
+
+
+def wait_for_all_resources(namespace, timeout=600, defer_status_errors=False, watcher=None):
+    external_watcher = watcher is not None
+    if not external_watcher:
+        watcher = ResourceWatcher(namespace)
+        watcher.update_resources()
+
+        if not watcher.resources:
+            raise TimedOutError("no resources to wait for observed in namespace")
+
+        watcher.start()
 
     try:
         _all_resources_ready(namespace, timeout, watcher, defer_status_errors)
     finally:
-        watcher.stop()
+        if not external_watcher:
+            watcher.stop()
 
 
 def wait_for_db_resources(namespace, timeout=600, defer_status_errors=False):
