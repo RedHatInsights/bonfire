@@ -62,6 +62,30 @@ objects:
                 name: ${IBUTSU_SECRET}
                 key: IBUTSU_TOKEN
                 optional: true
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${IBUTSU_AWS_SECRET}
+                key: AWS_ACCESS_KEY_ID
+                optional: true
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: ${IBUTSU_AWS_SECRET}
+                key: AWS_SECRET_ACCESS_KEY
+                optional: true
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: ${IBUTSU_AWS_SECRET}
+                key: AWS_REGION
+                optional: true
+          - name: AWS_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: ${IBUTSU_AWS_SECRET}
+                key: AWS_BUCKET
+                optional: true
 
 parameters:
 - name: NAME
@@ -103,4 +127,6 @@ parameters:
   value: "ibutsu-config"
 - name: IBUTSU_SECRET
   value: "iqe-ibutsu-token"
+- name: IBUTSU_AWS_SECRET
+  value: "ibutsu-aws-credentials"
 
